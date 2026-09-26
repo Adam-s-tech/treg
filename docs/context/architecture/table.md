@@ -97,7 +97,8 @@ contract_output=, list_field=, hub_fields=)` never raises: anything it cannot sh
   a required `list` field (`people`, `companies`, `results`...): shape `list`, one row per item.
   Items are the provider's own objects, so `LIST_MAPS` (data, keyed by the list field; `people` today)
   maps common names to fixed columns first: `first_name`, `last_name`, `title`, `company`,
-  `linkedin_url`, `location`, first matching path wins (`organization.name` is a path); every other
+  `linkedin_url`, `location`, first matching path that holds text wins (`organization.name` is a path; an object is never
+  taken, so an object `company` falls through to `company.name`); every other
   field follows under the provider's own name, minus the paths a mapped column used.
 - **hub**: an id not in the catalog that `hub.tool_for` resolves for this caller (one short read,
   after the answer is read: non-negotiable 3). Columns are the manifest's `output.fields`, or its

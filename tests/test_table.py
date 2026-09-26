@@ -257,3 +257,31 @@ async def test_the_preview_of_a_hub_tool_is_its_manifest_fields(clients: AsyncCl
     tool_id = await _publish_script_priced(clients, monkeypatch, 0.5, PER_ITEM, n=3)
     r = await clients.get(f"/table-columns/{tool_id}")
     assert r.json() == {"shape": "flat", "columns": ["rows", "count"], "column_source": "hub"}
+
+
+@pytest.mark.parametrize("provider, expect", [
+    # the provider's own field names, mapped to the fixed columns (decision F)
+    ("quickenrich.people.search.domain", {"linkedin_url": "employee_linkedin", "company": "company_name"}),
+    ("aiark.people.search", {"first_name": "profile.first_name", "title": "profile.title",
+                             "company": "company.name", "linkedin_url": "link.linkedin"}),
+    ("lusha.people.search", {"title": "jobTitle.title", "company": "company.name",
+                             "linkedin_url": "socialLinks.linkedin", "location": "location.city"}),
+    ("wiza.people.search", {"title": "job_title", "company": "job_company_name", "location": "location_name"}),
+    ("crustdata.people.search", {"title": "basic_profile.current_title",
+                                 "location": "basic_profile.location.full_location"}),
+    ("icypeas.people.search", {"title": "lastJobTitle", "company": "lastCompanyName"}),
+    ("dropleads.people.search", {"company": "organization_name", "location": "city"}),
+    ("aviato.people.search", {"linkedin_url": "URLs.linkedin"}),
+])
+def test_each_people_provider_fills_the_fixed_columns(provider, expect):
+    from treg.domain.catalog import store as catalog_store
+    from treg.domain.table import flatten, sample_items
+    items = sample_items(table_app._example_body(catalog_store.load().by_id[provider]))
+    t = to_table({"output": {"people": items}, "_treg": {}}, contract_output=["people"], list_field="people")
+    row = dict(zip(t["columns"], t["rows"][0]))
+    source = flatten(items[0])
+    for column, path in expect.items():
+        assert row[column] == source[path], (provider, column, path)
+        assert path not in t["columns"], (provider, path)              # used once, not twice
+    for column in ("first_name", "last_name", "title", "company", "linkedin_url", "location"):
+        assert not (isinstance(row[column], str) and row[column].startswith("{")), (provider, column)

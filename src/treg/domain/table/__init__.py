@@ -34,12 +34,17 @@ ENVELOPE_KEYS = frozenset({"summary", "tasks", "result", "results", "data", "res
 # Provider-native rows of a routed list job, mapped to fixed columns first. Each entry: the column,
 # then the item paths that may hold it, first match wins. Keyed by the contract's list field.
 _PEOPLE_MAP: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("first_name", ("first_name", "firstname", "firstName")),
-    ("last_name", ("last_name", "lastname", "lastName", "last_name_obfuscated")),
-    ("title", ("title", "job_title", "headline", "lastJobTitle")),
-    ("company", ("company", "company_name", "organization.name", "lastCompanyName")),
-    ("linkedin_url", ("linkedin_url", "linkedinUrl", "profileUrl", "linkedin")),
-    ("location", ("location", "city", "address")),
+    ("first_name", ("first_name", "firstname", "firstName", "profile.first_name")),
+    ("last_name", ("last_name", "lastname", "lastName", "last_name_obfuscated", "profile.last_name")),
+    # `headline` last: a profile tagline, used only when no job title field exists
+    ("title", ("title", "job_title", "jobTitle", "jobTitle.title", "position", "profile.title",
+               "basic_profile.current_title", "lastJobTitle", "headline")),
+    ("company", ("company", "company_name", "companyName", "organization_name", "organization.name",
+                 "company.name", "job_company_name", "lastCompanyName")),
+    ("linkedin_url", ("linkedin_url", "linkedinUrl", "profileUrl", "linkedin", "employee_linkedin",
+                      "URLs.linkedin", "socials.linkedin_url", "link.linkedin", "socialLinks.linkedin")),
+    ("location", ("location", "location_name", "basic_profile.location.full_location", "location.linkedinText",
+                  "location.address", "city", "location.city", "address")),
 )
 LIST_MAPS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {"people": _PEOPLE_MAP}
 
@@ -148,7 +153,10 @@ def _mapped(item: dict[str, Any], mapping) -> dict[str, Any]:
         rec[column] = None
         for path in paths:
             found, value = _get_path(item, path)
-            if found and value not in (None, ""):
+            # text only: a provider whose `location` or `company` is an object is read at its inner
+            # path (`company.name`, `location.city`), never shown as a JSON cell under a fixed name
+            if found and value not in (None, "") and not isinstance(value, dict) and not (
+                    isinstance(value, list) and any(isinstance(v, (dict, list)) for v in value)):
                 rec[column] = cell(value)
                 used.add(path)
                 break
