@@ -38,7 +38,7 @@ DEV_KEYS="$DEV_HOME/dev-keys.env"           # stable dev-only Fernet + session k
 # answers 404. These expand HERE, in this script's own process, so the value is baked into the
 # command string tmux runs. Add a flag to the list to pass it through.
 PASSTHROUGH=""
-for _v in TREG_HUB_ENABLED; do
+for _v in TREG_HUB_ENABLED TREG_TABLE_ENABLED TREG_TABLE_TEAMS TREG_TABLE_USERS; do
   [ -n "${!_v:-}" ] && PASSTHROUGH="$PASSTHROUGH $_v=${!_v}"
 done
 # This script's own three come LAST so they always win: the dev stack keeps its own sqlite database
