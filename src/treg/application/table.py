@@ -174,6 +174,16 @@ def _example_body(ep: dict) -> Any:
         return None
 
 
+def _coverage(tool_ref: str, fields: list[str]) -> dict[str, dict[str, int]]:
+    """How many of a routed job's providers fill each output field: `{field: {filled_by, providers}}`.
+    A provider fills a field when its adapter's `out` maps it. The cheapest provider answers first,
+    so a field only some providers give can come back empty (email verify: trykitt has no score)."""
+    cat = catalog_store.load()
+    kids = [k for k in cat.by_id[tool_ref].get("routed_children") or [] if k in cat.adapters]
+    return {f: {"filled_by": sum(1 for k in kids if f in cat.adapters[k].out_map), "providers": len(kids)}
+            for f in fields}
+
+
 async def preview(tool_ref: str, *, org_id: int, org_slug: str, email: str) -> dict[str, Any] | None:
     """The columns a `/table/` answer for this tool will have, with no provider call and no charge
     (`GET /table-columns/<tool id>`), so a client can show them before anyone pays. None when treg
@@ -199,7 +209,9 @@ async def preview(tool_ref: str, *, org_id: int, org_slug: str, email: str) -> d
                 if sample:
                     break
         body = {"output": {list_field: sample} if list_field else {}, "_treg": {}}
-        return table_domain.columns_only(table_domain.to_table(body, contract_output=fields, list_field=list_field))
+        view = table_domain.columns_only(table_domain.to_table(body, contract_output=fields, list_field=list_field))
+        view["coverage"] = _coverage(tool_ref, [list_field] if list_field else fields)
+        return view
     ep = cat.by_id.get(tool_ref)
     if ep is not None:
         example = _example_body(ep)

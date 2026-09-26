@@ -75,6 +75,11 @@ column_source, tables?}` with no rows (`domain.table.columns_only`):
 - a routed job: its contract. A list job converts a sample of items, taken from the first child in
   `routed_children` that has a saved example (`domain.table.sample_items`), so the preview shows the
   mapped columns first, then that provider's own fields. Other providers may add other fields;
+  A routed job also answers `coverage` (`_coverage`): for each output field (a list job: the list
+  field only), `{filled_by, providers}`, where `providers` counts the children with an adapter and
+  `filled_by` those whose adapter's `out` maps the field. The cheapest provider answers first, so a
+  field only some providers give can come back empty; the add-on ticks only fields every provider
+  fills;
 - a hub tool: its manifest's output fields;
 - any other catalog endpoint: its saved example answer (`_example_body`, the file name from the loaded
   catalog row, never from the request) through the same converter;

@@ -217,15 +217,25 @@ async def test_the_preview_shows_the_columns_for_free_and_leaves_no_trace(client
     monkeypatch.setattr(call_service, "relay", boom)
     before, _ = await _money(clients)
     flat = (await clients.get("/table-columns/treg.people.email.verify")).json()
+    coverage = flat.pop("coverage")
     assert flat == {"shape": "flat", "columns": ["valid", "status", "score", "served_by"], "column_source": "contract"}
+    from treg.domain.catalog import store as catalog_store
+    cat = catalog_store.load()
+    kids = [k for k in cat.by_id["treg.people.email.verify"]["routed_children"] if k in cat.adapters]
+    assert set(coverage) == {"valid", "status", "score"}
+    assert coverage["valid"] == {"filled_by": len(kids), "providers": len(kids)}       # every provider
+    assert coverage["score"]["filled_by"] == sum(1 for k in kids if "score" in cat.adapters[k].out_map)
+    assert 0 < coverage["score"]["filled_by"] < len(kids)                              # only some
     people = (await clients.get("/table-columns/treg.people.search")).json()
     assert people["shape"] == "list" and people["column_source"] == "contract"
     assert people["columns"][:6] == ["first_name", "last_name", "title", "company", "linkedin_url", "location"]
     assert len(people["columns"]) > 6                               # + a saved example's own fields
+    assert set(people["coverage"]) == {"people"}                   # a list job: the list field only
     nested = (await clients.get("/table-columns/seranking.web.backlinks.summary")).json()
     assert nested["shape"] == "nested" and nested["column_source"] == "generated"
     assert {"name": "top_tlds", "path": "summary[0].top_tlds", "row_count": 2, "columns": ["tld", "count"]} in nested["tables"]
     assert "rows" not in nested and all("rows" not in tb for tb in nested["tables"])
+    assert "coverage" not in nested                                # not a routed tool
     generated = (await clients.get("/table-columns/bounceban.people.email.verify")).json()
     assert generated["shape"] == "flat" and "email" in generated["columns"]
     missing = await clients.get("/table-columns/no-such.tool")
