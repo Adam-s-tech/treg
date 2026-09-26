@@ -725,6 +725,20 @@ async def register_oauth_client(
         }
 
 
+def _sheets_client() -> OAuthClient | None:
+    """"treg for Sheets", the first-party public client of the Google Sheets add-on. Not a table row:
+    its redirect URIs come from `sheets_redirect_uris`, so a new Apps Script id is a setting. It
+    exists only while `/table/` is on and at least one redirect URI is set."""
+    s = get_settings()
+    uris = [u.strip() for u in s.sheets_redirect_uris.split(",") if u.strip()]
+    uris = [u for u in uris if mcp_oauth.valid_redirect_uri(u)]
+    if not s.table_enabled or not uris:
+        return None
+    return OAuthClient(client_id=mcp_oauth.SHEETS_CLIENT_ID, kind="first_party",
+                       client_name="treg for Sheets", client_uri="", logo_uri="",
+                       redirect_uris=uris, scope=mcp_oauth.SHEETS_SCOPE)
+
+
 async def _resolve_oauth_client(client_id: str, db: AsyncSession) -> OAuthClient | None:
     """One client row, whichever door it came through.
 
@@ -732,6 +746,8 @@ async def _resolve_oauth_client(client_id: str, db: AsyncSession) -> OAuthClient
     on first sight, cached as a row, and refreshed when stale — documents change, and a cache that
     never expires would pin a client to redirect URIs it has since retired.
     """
+    if client_id == mcp_oauth.SHEETS_CLIENT_ID:
+        return _sheets_client()
     row = (await db.execute(select(OAuthClient).where(OAuthClient.client_id == client_id))
            ).scalar_one_or_none()
     fresh_enough = row is not None and (
@@ -793,6 +809,23 @@ def _effective_mcp_resource(resource: str, scope: str) -> str:
     return mcp_oauth.mcp_resource_url(version)
 
 
+def _client_resource(client: OAuthClient, resource: str, scope: str) -> str:
+    """The resource a grant is for, checked against the client: "treg for Sheets" gets the `/table`
+    resource and nothing else, and no other client may ask for it. A Sheets token names a person
+    with several teams, so it must never be minted for a client the owner has not reviewed."""
+    if client.client_id == mcp_oauth.SHEETS_CLIENT_ID:
+        if resource and not mcp_oauth.is_sheets_resource(resource):
+            raise _redirect_refusal("invalid_target",
+                                    f"treg for Sheets issues tokens for {mcp_oauth.sheets_resource_url()} only")
+        return mcp_oauth.sheets_resource_url()
+    if mcp_oauth.is_sheets_resource(resource):
+        raise _redirect_refusal("invalid_target", "this resource is only for treg for Sheets")
+    effective = _effective_mcp_resource(resource, scope)
+    if (bad_target := _wrong_resource(effective)) is not None:
+        raise _redirect_refusal("invalid_target", bad_target)
+    return effective
+
+
 def _same_mcp_resource(a: str, b: str) -> bool:
     """Whether two `resource` values name this same MCP server. Exact match, slash-variant match,
     or BOTH normalize into the canonical+legacy audience set — the domain move renamed the
@@ -850,9 +883,7 @@ async def prepare_oauth_authorization(
             raise _redirect_refusal(
                 "invalid_request", "PKCE with code_challenge_method=S256 is required",
             )
-        effective_resource = _effective_mcp_resource(resource, scope)
-        if (bad_target := _wrong_resource(effective_resource)) is not None:
-            raise _redirect_refusal("invalid_target", bad_target)
+        _client_resource(client, resource, scope)
 
         user = await _user_from_session(session_cookie, db)
         if user is None:
@@ -897,9 +928,7 @@ async def approve_oauth_authorization(
         if decision != "allow":
             # Cancel is a real answer and the client is entitled to hear it, rather than hang.
             raise _redirect_refusal("access_denied", "the user declined")
-        effective_resource = _effective_mcp_resource(resource, scope)
-        if (bad_target := _wrong_resource(effective_resource)) is not None:
-            raise _redirect_refusal("invalid_target", bad_target)
+        effective_resource = _client_resource(client, resource, scope)
         if not code_challenge or code_challenge_method != "S256":
             raise _redirect_refusal(
                 "invalid_request", "PKCE with code_challenge_method=S256 is required",
@@ -908,6 +937,12 @@ async def approve_oauth_authorization(
         user = await _user_from_session(session_cookie, db)
         if user is None:
             raise OAuthServerError("access_denied", "not signed in", status=401)
+        if client.client_id == mcp_oauth.SHEETS_CLIENT_ID and not org_id:
+            # A Sheets grant names no team at consent: each request picks one with X-Treg-Org. The
+            # token still carries a DEFAULT team, the person's first, for a request that names none.
+            first = (await db.execute(select(Membership).where(Membership.user_id == user.id)
+                                      .order_by(Membership.id).limit(1))).scalar_one_or_none()
+            org_id = first.org_id if first is not None else 0
         # The chosen team must be one this user actually belongs to — the field is client-supplied.
         membership = (await db.execute(select(Membership).where(
             Membership.user_id == user.id, Membership.org_id == org_id))).scalar_one_or_none()
@@ -986,6 +1021,14 @@ async def _refresh_grant(*, refresh_token: str, client_id: str, resource: str) -
         # the day the membership was restored.
         still_in = (await db.execute(select(Membership).where(
             Membership.user_id == row.user_id, Membership.org_id == live_org_id))).scalar_one_or_none()
+        if still_in is None and mcp_oauth.is_sheets_resource(row.resource):
+            # A Sheets grant is the person's, across their teams: losing the DEFAULT team moves the
+            # default to another team they are still in. Only losing every team ends the grant.
+            still_in = (await db.execute(select(Membership).where(Membership.user_id == row.user_id)
+                                         .order_by(Membership.id).limit(1))).scalar_one_or_none()
+            if still_in is not None:
+                live_org_id = still_in.org_id
+                org = await db.get(Org, live_org_id)
         if still_in is None:
             await _revoke_refresh_family(row.family_id, "membership ended", db)
             await db.commit()
@@ -1101,7 +1144,8 @@ async def list_oauth_grants(user_id: int) -> list[dict]:
                 OAuthClient.client_id == row.client_id))).scalar_one_or_none()
             out.append({
                 "grant": row.family_id,
-                "client": (client.client_name if client else "") or row.client_id,
+                "client": (client.client_name if client else "")
+                          or ("treg for Sheets" if row.client_id == mcp_oauth.SHEETS_CLIENT_ID else row.client_id),
                 "team": org.slug if org else None,
                 "team_name": org.name if org else None,
                 "granted": grant.granted_at.isoformat(timespec="seconds") if grant else None,

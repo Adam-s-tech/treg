@@ -285,3 +285,11 @@ def test_each_people_provider_fills_the_fixed_columns(provider, expect):
         assert path not in t["columns"], (provider, path)              # used once, not twice
     for column in ("first_name", "last_name", "title", "company", "linkedin_url", "location"):
         assert not (isinstance(row[column], str) and row[column].startswith("{")), (provider, column)
+
+
+def test_a_one_item_list_is_one_row_unless_it_wraps_tables():
+    t = to_table({"data": [{"name": "a", "email": "a@x.com"}], "total": 1})
+    assert t["shape"] == "list" and t["columns"] == ["name", "email"] and t["rows"] == [["a", "a@x.com"]]
+    wrapped = to_table({"tasks": [{"result": [{"k": 1}, {"k": 2}]}]})
+    assert wrapped["shape"] == "list" and wrapped["path"] == "tasks[0].result"
+

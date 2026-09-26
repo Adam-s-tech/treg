@@ -864,6 +864,36 @@ def _consent_page(*, client_name: str, client_uri: str, user_email: str, teams: 
         f"</div></div></body></html>")
 
 
+def _sheets_consent_page(*, user_email: str, teams: list, hidden: dict) -> HTMLResponse:
+    """The consent page of "treg for Sheets" (the owner's mockup, 2026-09-26). No team picker: the
+    grant is the person's, and the panel picks the team that pays on each request."""
+    import html as _h
+    fields = "".join(
+        f'<input type="hidden" name="{_h.escape(k)}" value="{_h.escape(str(v))}"/>'
+        for k, v in hidden.items())
+    names = ", ".join(_h.escape(t["slug"]) for t in teams)
+    return HTMLResponse(
+        f"{_AUTH_HEAD.replace('</style>', _CONSENT_CSS + '</style>')}"
+        f'<body><div class="wrap"><div class="card consent">'
+        f'<div class="logo">▚ tools-registry</div>'
+        f"<h1>treg for Sheets wants to use your treg account</h1>"
+        f'<p class="who">Signed in as {_h.escape(user_email)}</p>'
+        f'<ul class="grants">'
+        f"<li>Call treg tools for you (only when you click Run, or when you let formulas spend)</li>"
+        f"<li>Spend from your team's balance (each run shows its cost before it starts)</li>"
+        f"<li>See your teams and their balances (so you can pick the team that pays)</li>"
+        f"</ul>"
+        f'<p class="fine">Your teams: {names}</p>'
+        f'<form method="post" action="/oauth/authorize">{fields}'
+        f'<input type="hidden" name="org_id" value="0"/>'
+        f'<div class="row">'
+        f'<button type="submit" name="decision" value="deny">Cancel</button>'
+        f'<button type="submit" name="decision" value="allow" class="primary">Allow</button>'
+        f"</div></form>"
+        f'<p class="fine">You can revoke this at any time from your treg dashboard, or with Sign out in the add-on.</p>'
+        f"</div></div></body></html>")
+
+
 _wrong_resource = auth_use_cases._wrong_resource
 _effective_mcp_resource = auth_use_cases._effective_mcp_resource
 _same_mcp_resource = auth_use_cases._same_mcp_resource
@@ -950,6 +980,8 @@ async def oauth_authorize(
             "teams": view.teams,
             "approve_with": "POST /oauth/authorize with the same parameters plus org_id",
         }
+    if view.client_id == mcp_oauth.SHEETS_CLIENT_ID:
+        return _sheets_consent_page(user_email=view.user_email, teams=view.teams, hidden=hidden)
     return _consent_page(client_name=view.client_name, client_uri=view.client_uri,
                          user_email=view.user_email, teams=view.teams, hidden=hidden,
                          unverified=(view.client_kind == "dcr"))

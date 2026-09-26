@@ -8,7 +8,11 @@ sources:
   - src/treg/routers/call.py
   - src/treg/call_surface.py
   - src/treg/config.py
+  - src/treg/domain/identity/mcp_oauth.py
+  - src/treg/application/auth.py
+  - src/treg/routers/auth.py
   - tests/test_table.py
+  - tests/test_table_oauth.py
 related:
   - architecture/proxy-model.md
   - architecture/hub.md
@@ -63,6 +67,33 @@ body_excerpt}` (the first 2 KB). A treg refusal (`CallFailure`) is raised exactl
 outside answers a plain 404 **returned, not raised**: a raised 404 on a call surface is stamped and
 audited as a refusal, and with the flag off the route must leave no row. `llms.txt` and `skill.md`
 do not mention `/table/` while the flag is off.
+
+## "Sign in with treg" (the add-on's OAuth client)
+
+The add-on is a public client with PKCE: `client_id` `mcp_oauth.SHEETS_CLIENT_ID` (`treg-sheets`),
+scope `treg:table`, resource `mcp_oauth.sheets_resource_url()` (`<public_url>/table`). It is not a
+table row: `application.auth._sheets_client` builds it from `sheets_redirect_uris` (exact match, one
+per Apps Script project), and it exists only while `table_enabled` is on and a URI is set.
+`_client_resource` gives it that resource and nothing else, and refuses that resource to every other
+client, so an MCP token never works here and this token never works on MCP.
+
+Two owner decisions (2026-09-26) shape it:
+
+- **The token works only on the table routes.** `routers.table.table_caller` accepts `Authorization:
+  Bearer` on `/table/*`, `/table-columns/*` and `/table-account`, checks the audience, and presents
+  the person to `require_member` as a two-minute identity, the way MCP exchanges its own token
+  (`mcp._internal_auth`). Every other route ignores a Bearer header, so the token gets 401 there. The
+  catalog search and endpoint pages need no key. The `Authorization` header is removed before the
+  call (`plain_headers(drop_authorization=True)`): it is treg's token, not the provider's.
+- **The grant is the person's, not one team's.** The consent page (`routers.auth._sheets_consent_page`)
+  has no team picker; the token carries the person's first team as a default, and each request picks
+  a team with `X-Treg-Org`, checked by `require_member` (membership, role, suspension) every time. A
+  refresh whose default team the person left moves the default to another of their teams; only
+  leaving every team ends the grant. `GET /table-account` lists `{email, active_team, teams: [{org_id,
+  slug, name, role, balance_micro}]}`: every team with this token, the key's one team with a team key.
+
+Lifetimes are the MCP ones: access `ACCESS_TTL_SECONDS` (1 hour), refresh `REFRESH_TTL_S` (30 days,
+renewed at each refresh, rotated, replay revokes the family). Sign-out is `POST /oauth/revoke`.
 
 ## The free column preview (`GET /table-columns/<tool id>`)
 

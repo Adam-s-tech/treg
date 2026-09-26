@@ -197,7 +197,7 @@ Regenerate via `scripts/build-map.py`.
 | `src/treg/application/arena_insights.py` | interface/enrich-arena.md |
 | `src/treg/application/arena_verification_insights.py` | interface/enrich-arena.md |
 | `src/treg/application/asynctasks.py` | architecture/archive.md, architecture/money.md, architecture/multi-tenancy.md, architecture/proxy-model.md |
-| `src/treg/application/auth.py` | architecture/data-model.md, architecture/mcp-oauth.md, architecture/multi-tenancy.md, interface/api.md, interface/onboarding.md |
+| `src/treg/application/auth.py` | architecture/data-model.md, architecture/mcp-oauth.md, architecture/multi-tenancy.md, architecture/table.md, interface/api.md, interface/onboarding.md |
 | `src/treg/application/billing.py` | architecture/money.md |
 | `src/treg/application/call/__init__.py` | architecture/import-boundaries.md |
 | `src/treg/application/call/access.py` | architecture/import-boundaries.md, architecture/instagram-oauth.md, interface/api.md |
@@ -381,7 +381,7 @@ Regenerate via `scripts/build-map.py`.
 | `src/treg/domain/identity/access.py` | architecture/auth-secrets.md, architecture/mcp-oauth.md, architecture/multi-tenancy.md, architecture/super-admin.md, interface/api.md |
 | `src/treg/domain/identity/api_keys.py` | architecture/auth-secrets.md, architecture/mcp-oauth.md, architecture/multi-tenancy.md, interface/api.md |
 | `src/treg/domain/identity/health.py` | architecture/mcp-oauth.md |
-| `src/treg/domain/identity/mcp_oauth.py` | architecture/composition.md, architecture/mcp-oauth.md, interface/api.md |
+| `src/treg/domain/identity/mcp_oauth.py` | architecture/composition.md, architecture/mcp-oauth.md, architecture/table.md, interface/api.md |
 | `src/treg/domain/identity/promotions.py` | architecture/money.md, architecture/multi-tenancy.md |
 | `src/treg/domain/identity/session.py` | architecture/composition.md, architecture/mcp-oauth.md, architecture/multi-tenancy.md, interface/api.md, interface/dashboard.md |
 | `src/treg/domain/money/__init__.py` | architecture/hub.md, architecture/import-boundaries.md, architecture/money.md |
@@ -432,7 +432,7 @@ Regenerate via `scripts/build-map.py`.
 | `src/treg/routers/admin.py` | architecture/archive.md, architecture/composition.md, architecture/money.md, architecture/super-admin.md, interface/api.md |
 | `src/treg/routers/api_keys.py` | architecture/auth-secrets.md, architecture/mcp-oauth.md, interface/api.md, interface/cli.md, interface/dashboard.md |
 | `src/treg/routers/arena.py` | interface/enrich-arena.md |
-| `src/treg/routers/auth.py` | architecture/composition.md, architecture/mcp-oauth.md, architecture/multi-tenancy.md, interface/api.md, interface/enrich-arena.md, interface/onboarding.md |
+| `src/treg/routers/auth.py` | architecture/composition.md, architecture/mcp-oauth.md, architecture/multi-tenancy.md, architecture/table.md, interface/api.md, interface/enrich-arena.md, interface/onboarding.md |
 | `src/treg/routers/auth_helpers.py` | interface/api.md, interface/cli.md |
 | `src/treg/routers/billing.py` | architecture/composition.md, architecture/money.md, interface/api.md |
 | `src/treg/routers/call.py` | architecture/composition.md, architecture/feedback.md, architecture/instagram-oauth.md, architecture/money.md, architecture/proxy-model.md, architecture/table.md, interface/api.md |
@@ -590,6 +590,7 @@ Regenerate via `scripts/build-map.py`.
 | `tests/test_search_experiment.py` | architecture/search-experiment.md |
 | `tests/test_ssrf_public_addresses.py` | architecture/proxy-model.md |
 | `tests/test_table.py` | architecture/table.md |
+| `tests/test_table_oauth.py` | architecture/table.md |
 | `tests/test_tag_billing.py` | architecture/proxy-model.md |
 | `tests/test_tag_billing_adversarial.py` | architecture/proxy-model.md |
 | `tests/test_team_limit.py` | architecture/multi-tenancy.md |
@@ -620,7 +621,7 @@ Regenerate via `scripts/build-map.py`.
 | `architecture/proxy-model.md` | `relay.py`, `ssrf.py`, `api.py`, `authorize.py`, `idempotency.py`, `intake.py`, `resolve.py`, `reserve.py`, `settle.py`, `evidence.py`, `service.py`, `types.py`, `asynctasks.py`, `client_identity.py`, `call_surface.py`, `sandbox_identity.py`, `access.py`, `publicdemo.py`, `usage.py`, `call.py`, `limits.py`, `test_ssrf_public_addresses.py`, `test_call_application_contract.py`, `test_call_cancellation.py`, `test_call_response_limits.py`, `test_error_capture.py`, `test_marketplace_call.py`, `test_oauth_billed.py`, `test_passthrough.py`, `test_tag_billing.py`, `test_tag_billing_adversarial.py`, `test_call_architecture.py`, `test_asynctasks.py`, `test_relay_content_length.py` |
 | `architecture/search-experiment.md` | `search_experiment.py`, `interleave.py`, `judge.py`, `0041_searchlog.py`, `search_experiment_report.sql`, `test_search_experiment.py`, `catalog_find.py`, `test_catalog_find.py` |
 | `architecture/super-admin.md` | `api.py`, `admin.py`, `evidence_retention.py`, `access.py`, `config.py` |
-| `architecture/table.md` | `__init__.py`, `table.py`, `table.py`, `call.py`, `call_surface.py`, `config.py`, `test_table.py` |
+| `architecture/table.md` | `__init__.py`, `table.py`, `table.py`, `call.py`, `call_surface.py`, `config.py`, `mcp_oauth.py`, `auth.py`, `auth.py`, `test_table.py`, `test_table_oauth.py` |
 | `foundation/charter.md` | `2026-06-30-jason-tools-registry.md`, `README.md` |
 | `guides/expanding-a-category.md` | `oauth_providers.py`, `authorization.py`, `oauth_flow.py`, `oauth_exchange.py`, `connect.py`, `connections.py`, `config.py` |
 | `interface/api.md` | `media.py`, `sitetrack.js`, `api.py`, `bootstrap_handlers.py`, `bootstrap_http.py`, `call_surface.py`, `caller_metadata.py`, `client_identity.py`, `auth.py`, `provider_resources.py`, `access.py`, `authorize.py`, `idempotency.py`, `intake.py`, `resolve.py`, `reserve.py`, `settle.py`, `evidence.py`, `service.py`, `types.py`, `relay.py`, `connect.py`, `__init__.py`, `referrals.py`, `signup.py`, `__init__.py`, `admin.py`, `auth.py`, `auth_helpers.py`, `billing.py`, `call.py`, `catalog.py`, `connections.py`, `onboard.py`, `orgs.py`, `provider_resources.py`, `api_keys.py`, `resources.py`, `referrals.py`, `signup_cookies.py`, `web.py`, `access.py`, `api_keys.py`, `teams.py`, `access.py`, `budgets.py`, `publicdemo.py`, `usage.py`, `mcp_oauth.py`, `session.py`, `timeutil.py`, `store.py`, `email.py`, `runner.py`, `ratestore.py` |

@@ -36,10 +36,14 @@ def enabled_for(org_slug: str | None, email: str | None) -> bool:
             or (email or "").strip().lower() in s.table_user_set)
 
 
-def plain_headers(raw_headers: tuple[tuple[bytes, bytes], ...]) -> list[tuple[bytes, bytes]]:
+def plain_headers(raw_headers: tuple[tuple[bytes, bytes], ...], *,
+                  drop_authorization: bool = False) -> list[tuple[bytes, bytes]]:
     """The caller's headers for the upstream call, asking for uncompressed bytes (a table must parse
-    the body), the way the hub runner asks for its steps."""
-    kept = [(k, v) for k, v in raw_headers if k.lower() != b"accept-encoding"]
+    the body), the way the hub runner asks for its steps. With `drop_authorization` (the caller
+    signed in with a "treg for Sheets" OAuth token) the `Authorization` header is removed: it is
+    treg's own token, and the relay would otherwise pass it to the provider."""
+    drop = {b"accept-encoding"} | ({b"authorization"} if drop_authorization else set())
+    kept = [(k, v) for k, v in raw_headers if k.lower() not in drop]
     return kept + [(b"accept-encoding", b"identity")]
 
 
@@ -226,4 +230,17 @@ async def preview(tool_ref: str, *, org_id: int, org_slug: str, email: str) -> d
     fields = ([str(f) for f in output["fields"]] if isinstance(output, dict) and isinstance(output.get("fields"), list)
               else [str(k) for k in output] if isinstance(output, dict) else [])
     return {"shape": "flat", "columns": fields, "column_source": "hub"}
+
+
+async def account_teams(db, *, user_id: int, only_org_id: int | None) -> list[dict[str, Any]]:
+    """A person's teams with their role and balance (micro-USD), oldest membership first."""
+    from sqlmodel import select
+    from ..models import Membership, Org
+    q = select(Membership, Org).join(Org, Org.id == Membership.org_id).where(Membership.user_id == user_id)
+    if only_org_id is not None:
+        q = q.where(Membership.org_id == only_org_id)
+    rows = (await db.execute(q.order_by(Membership.id))).all()
+    return [{"org_id": org.id, "slug": org.slug, "name": org.name, "role": m.role,
+             "balance_micro": int(org.balance_micro or 0)}
+            for m, org in rows if not org.suspended]
 

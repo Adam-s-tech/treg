@@ -51,6 +51,22 @@ DIRECTORY_SCOPE = "treg:directory"
 BASE_SCOPES = ["treg:catalog", "treg:call", "treg:read"]
 
 
+# "treg for Sheets" (the Google Sheets add-on, docs/context/architecture/table.md): a first-party
+# public client with its own resource and scope, so its token works only on the `/table` routes and
+# an MCP token does not work there. Its token names a DEFAULT team; a request picks one of the
+# person's teams with `X-Treg-Org`, checked against membership on every request (owner, 2026-09-26).
+SHEETS_CLIENT_ID = "treg-sheets"
+SHEETS_SCOPE = "treg:table"
+
+
+def sheets_resource_url() -> str:
+    return get_settings().public_url.rstrip("/") + "/table"
+
+
+def is_sheets_resource(resource: str) -> bool:
+    return bool(resource) and resource.rstrip("/") == sheets_resource_url()
+
+
 def scopes_for_resource(version: str = "v1") -> list[str]:
     if version == "v1":
         return [*BASE_SCOPES]

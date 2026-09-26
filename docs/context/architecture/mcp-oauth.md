@@ -25,6 +25,10 @@ related:
   - interface/api.md
 ---
 
+The same authorization server also serves one non-MCP client, "treg for Sheets" (`treg-sheets`):
+its own resource (`<public_url>/table`) and scope, a grant that belongs to the person rather than one
+team, and a token accepted only on the table routes. See [table](table.md).
+
 # MCP
 
 ## Feedback

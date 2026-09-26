@@ -217,8 +217,11 @@ def _find_tables(obj: Any, path: str, depth: int) -> list[tuple[str, str, list[d
         here = f"{path}.{key}" if path else str(key)
         if _is_record_list(value):
             items = _items(value)
-            if len(items) == 1 and key in ENVELOPE_KEYS:
-                found += _find_tables(items[0], f"{here}[0]", depth + 1)
+            # a one-item wrapper is opened only when it holds tables; otherwise its one item is a
+            # one-row table (a search that found one person), not a JSON cell
+            inner = _find_tables(items[0], f"{here}[0]", depth + 1) if len(items) == 1 and key in ENVELOPE_KEYS else []
+            if inner:
+                found += inner
             else:
                 found.append((str(key), here, items))
         elif isinstance(value, dict):

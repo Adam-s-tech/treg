@@ -2459,6 +2459,15 @@
       "GET",
       "HEAD"
     ],
+    "name": "table_account",
+    "path": "/table-account"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
     "name": "enrich_arena_page",
     "path": "/enrich-arena"
   },
