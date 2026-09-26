@@ -2450,6 +2450,15 @@
       "GET",
       "HEAD"
     ],
+    "name": "table_columns",
+    "path": "/table-columns/{tool_id:path}"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
     "name": "enrich_arena_page",
     "path": "/enrich-arena"
   },

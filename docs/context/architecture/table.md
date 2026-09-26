@@ -64,6 +64,22 @@ outside answers a plain 404 **returned, not raised**: a raised 404 on a call sur
 audited as a refusal, and with the flag off the route must leave no row. `llms.txt` and `skill.md`
 do not mention `/table/` while the flag is off.
 
+## The free column preview (`GET /table-columns/<tool id>`)
+
+A client shows a tool's columns before anyone pays (the add-on's tool card and fill mode). The same
+key, the same flag and team lists as `/table/`, but no provider call, no money and no audit row, so
+it is **not** a call surface. A separate path, not `/table/...?preview=1`: `/table/` passes every
+query parameter to the provider. `application.table.preview` answers `{shape, columns,
+column_source, tables?}` with no rows (`domain.table.columns_only`):
+
+- a routed job: its contract. A list job converts a sample of items, taken from the first child in
+  `routed_children` that has a saved example (`domain.table.sample_items`), so the preview shows the
+  mapped columns first, then that provider's own fields. Other providers may add other fields;
+- a hub tool: its manifest's output fields;
+- any other catalog endpoint: its saved example answer (`_example_body`, the file name from the loaded
+  catalog row, never from the request) through the same converter;
+- none of these: 404 `{error: "no_preview"}`.
+
 ## The converter (`domain.table`)
 
 Pure and stdlib-only (import-linter contract "Table domain is a pure stdlib leaf"). `to_table(body,

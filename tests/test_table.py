@@ -206,3 +206,44 @@ async def test_a_hub_tool_is_its_manifest_fields(clients: AsyncClient, platform_
     t = r.json()
     assert t["column_source"] == "hub" and t["columns"] == ["rows", "count"]
     assert t["rows"] == [["1, 1, 1", 3]]
+
+
+# ------------------------------------------------------------------------------------------------
+# The free column preview: GET /table-columns/<tool id>
+
+async def test_the_preview_shows_the_columns_for_free_and_leaves_no_trace(clients: AsyncClient, platform_on, table_on, monkeypatch):
+    def boom(*a, **kw):
+        raise AssertionError("a preview must never call a provider")
+    monkeypatch.setattr(call_service, "relay", boom)
+    before, _ = await _money(clients)
+    flat = (await clients.get("/table-columns/treg.people.email.verify")).json()
+    assert flat == {"shape": "flat", "columns": ["valid", "status", "score", "served_by"], "column_source": "contract"}
+    people = (await clients.get("/table-columns/treg.people.search")).json()
+    assert people["shape"] == "list" and people["column_source"] == "contract"
+    assert people["columns"][:6] == ["first_name", "last_name", "title", "company", "linkedin_url", "location"]
+    assert len(people["columns"]) > 6                               # + a saved example's own fields
+    nested = (await clients.get("/table-columns/seranking.web.backlinks.summary")).json()
+    assert nested["shape"] == "nested" and nested["column_source"] == "generated"
+    assert {"name": "top_tlds", "path": "summary[0].top_tlds", "row_count": 2, "columns": ["tld", "count"]} in nested["tables"]
+    assert "rows" not in nested and all("rows" not in tb for tb in nested["tables"])
+    generated = (await clients.get("/table-columns/bounceban.people.email.verify")).json()
+    assert generated["shape"] == "flat" and "email" in generated["columns"]
+    missing = await clients.get("/table-columns/no-such.tool")
+    assert missing.status_code == 404 and missing.json()["error"] == "no_preview"
+    after, _ = await _money(clients)
+    assert after == before
+    calls = (await clients.get("/calls", params={"limit": 20})).json()
+    assert not [c for c in calls if (c.get("path") or "").startswith("/table")]
+
+
+async def test_the_preview_follows_the_flag(clients: AsyncClient):
+    assert (await clients.get("/table-columns/treg.people.email.verify")).status_code == 404
+
+
+async def test_the_preview_of_a_hub_tool_is_its_manifest_fields(clients: AsyncClient, platform_on, table_on, monkeypatch):
+    from tests.test_hub import PER_ITEM, _publish_script_priced
+    monkeypatch.setenv("TREG_HUB_ENABLED", "1")
+    get_settings.cache_clear()
+    tool_id = await _publish_script_priced(clients, monkeypatch, 0.5, PER_ITEM, n=3)
+    r = await clients.get(f"/table-columns/{tool_id}")
+    assert r.json() == {"shape": "flat", "columns": ["rows", "count"], "column_source": "hub"}

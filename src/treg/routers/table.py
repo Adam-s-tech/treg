@@ -43,3 +43,19 @@ async def table_tool(
         return JSONResponse({"detail": "Not Found"}, status_code=404)
     return await run_call_surface(rest, request, caller, prefix="/table/", finish=_table_answer,
                                   headers=table_app.plain_headers(tuple(request.headers.raw)))
+
+
+@app.get("/table-columns/{tool_id:path}", include_in_schema=False)
+async def table_columns(tool_id: str, caller: Caller = Depends(require_member)):
+    """The columns `/table/<tool id>` will answer with, free: no provider call, no charge, no audit
+    row. A separate path, not `/table/...?preview=1`: `/table/` passes every query parameter to the
+    provider, as `/call/` does."""
+    if not table_app.enabled_for(caller.org.slug, caller.email):
+        return JSONResponse({"detail": "Not Found"}, status_code=404)
+    view = await table_app.preview(tool_id, org_id=caller.org_id, org_slug=caller.org.slug, email=caller.email)
+    if view is None:
+        return JSONResponse({"error": "no_preview", "tool_id": tool_id,
+                             "detail": "treg has no contract, manifest or saved example for this tool"},
+                            status_code=404)
+    return view
+

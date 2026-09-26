@@ -253,6 +253,24 @@ def _summary(obj: Any) -> dict[str, Any]:
     return {"columns": ["field", "value"], "rows": rows}
 
 
+def sample_items(body: Any) -> list[dict]:
+    """The items of the first list of objects in an answer ([] when none): what a routed list job's
+    provider returns, read from its saved example to preview the job's columns."""
+    tables = _find_tables(body, "", 0)
+    return list(tables[0][2]) if tables else []
+
+
+def columns_only(table: dict[str, Any]) -> dict[str, Any]:
+    """A table with its rows removed: the free preview `GET /table-columns/<tool id>` answers, so a
+    client can show the columns before anyone pays."""
+    out = {"shape": table.get("shape"), "columns": list(table.get("columns") or []),
+           "column_source": table.get("column_source")}
+    if table.get("tables"):
+        out["tables"] = [{"name": tb["name"], "path": tb["path"], "row_count": tb["row_count"],
+                          "columns": tb["columns"]} for tb in table["tables"]]
+    return out
+
+
 def raw(text: str, *, truncated: bool = False) -> dict[str, Any]:
     """An answer that is not JSON, or too big to read: its text, cut to RAW_TEXT_BYTES."""
     data = text.encode("utf-8", "replace")

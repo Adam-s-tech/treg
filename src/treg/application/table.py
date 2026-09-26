@@ -160,3 +160,58 @@ async def table_answer(context: CallContext, upstream: UpstreamResponse, rest: s
                 table = table_domain.to_table(body)
     table["_treg"] = {**(table.get("_treg") or {}), **meta}
     return status, table, headers
+
+
+def _example_body(ep: dict) -> Any:
+    """The saved example answer of one catalog endpoint, or None. The file name comes from the
+    loaded catalog row, never from the request."""
+    name = ep.get("terminal_example_file") if ep.get("async") else ep.get("example_file")
+    if not name:
+        return None
+    try:
+        return json.loads((catalog_store.CATALOG_DIR / catalog_store.EXAMPLES_DIRNAME / name).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+async def preview(tool_ref: str, *, org_id: int, org_slug: str, email: str) -> dict[str, Any] | None:
+    """The columns a `/table/` answer for this tool will have, with no provider call and no charge
+    (`GET /table-columns/<tool id>`), so a client can show them before anyone pays. None when treg
+    knows nothing about the tool's answer: no contract, no manifest, no saved example.
+
+    - a routed job: its contract. A list job adds the columns of its first child's saved example
+      items, after the mapped columns;
+    - a hub tool: its manifest's output fields;
+    - any other catalog endpoint: its saved example answer through the same converter, rows removed.
+    """
+    from . import hub as hub_app
+    from ..infra.db import session_maker
+    tool_ref = tool_ref.split("?", 1)[0]
+    cat = catalog_store.load()
+    contract = _contract(tool_ref)
+    if contract is not None:
+        fields, list_field = contract
+        sample: list = []
+        if list_field:
+            for child in cat.by_id[tool_ref].get("routed_children") or []:
+                child_ep = cat.by_id.get(child)
+                sample = table_domain.sample_items(_example_body(child_ep)) if child_ep else []
+                if sample:
+                    break
+        body = {"output": {list_field: sample} if list_field else {}, "_treg": {}}
+        return table_domain.columns_only(table_domain.to_table(body, contract_output=fields, list_field=list_field))
+    ep = cat.by_id.get(tool_ref)
+    if ep is not None:
+        example = _example_body(ep)
+        return table_domain.columns_only(table_domain.to_table(example)) if example is not None else None
+    if not hub_app.is_hub_id_shape(tool_ref):
+        return None
+    async with session_maker() as db:
+        row = await hub_app.tool_for(db, tool_ref, caller_org_id=org_id, caller_slug=org_slug, caller_email=email)
+    if row is None:
+        return None
+    output = (row.manifest or {}).get("output") or {}
+    fields = ([str(f) for f in output["fields"]] if isinstance(output, dict) and isinstance(output.get("fields"), list)
+              else [str(k) for k in output] if isinstance(output, dict) else [])
+    return {"shape": "flat", "columns": fields, "column_source": "hub"}
+
