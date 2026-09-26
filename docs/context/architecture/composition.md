@@ -73,8 +73,9 @@ carrying the `build` and `archive_config` fingerprints every server event has (s
 
 `bootstrap_handlers.py` owns the app-wide pool-saturation and HTTP-exception adapters.
 `call_surface.split_call_path`
-classifies both `/call/` and `/catalog/call/` so those adapters share the same call-id, audit and
-idempotency-release contract while retaining `call` versus `catalog_call` ingress attribution. The
+classifies `/call/`, `/catalog/call/` and `/table/` so those adapters share the same call-id, audit
+and idempotency-release contract while retaining `call`, `catalog_call` and `table` ingress
+attribution. The
 composition root supplies the call-specific `_stamp_call_exit` callback from `routers/call.py` before registration;
 the callback owns call ids, refusal classification, audit fallback, exceptional call telemetry, and
 idempotency-label release. After caller identity exists, the pool adapter reports
@@ -111,7 +112,7 @@ architecture test separately pins the dataplane/control startup split and backgr
 | Role | HTTP routes and mounts | Background tasks | Startup checks |
 |---|---|---|---|
 | `all` | The complete surface, including `/run`, static files, `/mcp`, and the flagged `/mcp/v2` | Ads conversion worker when enabled | Read-only DB verify, HTTP client, enabled MCP lifespans |
-| `dataplane` | `/call/{rest:path}`, `/catalog/call/{rest:path}`, MCP mounts, and their resource metadata; no `/run`, static files, docs, or OpenAPI | None | Read-only DB verify, HTTP client, enabled MCP lifespans |
+| `dataplane` | `/call/{rest:path}`, `/catalog/call/{rest:path}`, `/table/{rest:path}` (see [table](table.md)), MCP mounts, and their resource metadata; no `/run`, static files, docs, or OpenAPI | None | Read-only DB verify, HTTP client, enabled MCP lifespans |
 | `control` | Everything except the calling surfaces; includes OAuth issuance, `/run`, and static files | Ads conversion worker when enabled | Read-only DB verify, HTTP client |
 
 No role lifespan writes schema, performs a data backfill, or provisions the local single user. The explicit

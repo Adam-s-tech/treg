@@ -194,7 +194,7 @@ same platform key, `retry=1` when a burst-429 with a short `retry-after` was re-
 
 ## `X-Treg-Error` - whose refusal is this?
 `bootstrap_handlers._mark_treg_own_errors` tags treg's **own**
-refusals on `/call/` and `/catalog/call/` paths with `X-Treg-Error: 1`, then answers exactly as
+refusals on `/call/`, `/catalog/call/` and `/table/` paths with `X-Treg-Error: 1`, then answers exactly as
 before - the status and body
 are untouched, and a client that ignores the header sees what it always saw. Without it a caller cannot
 tell treg's 404 ("no tool registered for that host") from the vendor's own 404: both are a status and

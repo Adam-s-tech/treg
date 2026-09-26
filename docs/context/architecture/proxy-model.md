@@ -184,7 +184,9 @@ pool occupancy at the network boundary and covers concurrent calls. Pool sizing,
 the separate API/admin/background pools are specified in [deploy](../ops/deploy.md).
 
 ## Tool resolution (`application.call.resolve`)
-`* /call/{rest:path}` → `routers.call.call_tool()` → `application.call.service.execute_call()`
+`* /call/{rest:path}` → `routers.call.call_tool()` → `routers.call.run_call_surface()` (shared with
+`/catalog/call/` and `/table/`, which differ only in the `finish` that turns the answer into the
+response: see [table](table.md)) → `application.call.service.execute_call()`
 → `resolve_call_target(...)` returns a framework-neutral
 `ResolvedTarget(tool, upstream)`. Each resolution use case owns and closes its read session.
 

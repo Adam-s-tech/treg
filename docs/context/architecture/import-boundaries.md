@@ -139,6 +139,10 @@ awaiter and the settlement worker can never disagree about what "done" means. Tw
 light: the module is on `test_import_lightness`'s list, and an import-linter contract forbids it
 every server root (`treg.models`, `treg.infra`, `treg.config`, SQLModel, pydantic, yaml, httpx).
 
+The table domain (`treg.domain.table`, [table](table.md)) is the same kind of leaf: a parsed answer
+in, rows and columns out. Its contract forbids every outer layer, every sibling domain, and the web,
+database and settings libraries, so the converter stays testable on saved answers alone.
+
 The capacity domain (`treg.domain.capacity`, plan step B) is a leaf like identity: it cannot import
 `treg.api`, `treg.routers`, `treg.application`, `treg.bootstrap`, `treg.audit`, FastAPI or Starlette.
 It reads config and writes only its own tables and ratestore keys, from worker-profile commands

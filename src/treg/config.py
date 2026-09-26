@@ -465,6 +465,12 @@ class Settings(BaseSettings):
     # beside `hub_teams` (owner, 2026-09-26): colleagues try it from their own accounts, with no
     # shared team. Either list lets a reader in; both empty means every team.
     hub_users: str = ""
+    # `/table/<tool id>`: the same call as `/call/`, answered as rows and columns (for the Google
+    # Sheets add-on). Off by default; with it on, `table_teams` / `table_users` limit it the same
+    # way `hub_teams` / `hub_users` limit the hub, and both empty means every team.
+    table_enabled: bool = False
+    table_teams: str = ""
+    table_users: str = ""
 
     # Additive Claude directory MCP. Default OFF so deploying code cannot publish a new connector
     # surface before its production Inspector and custom-connector gates have passed.
@@ -655,6 +661,14 @@ class Settings(BaseSettings):
     def platform_provider_set(self) -> frozenset[str]:
         """The allow-listed tier-4 providers (comma-separated `TREG_PLATFORM_PROVIDERS`)."""
         return frozenset(p.strip().lower() for p in self.platform_providers.split(",") if p.strip())
+
+    @property
+    def table_team_set(self) -> frozenset[str]:
+        return frozenset(p.strip().lower() for p in self.table_teams.split(",") if p.strip())
+
+    @property
+    def table_user_set(self) -> frozenset[str]:
+        return frozenset(p.strip().lower() for p in self.table_users.split(",") if p.strip())
 
     @property
     def hub_user_set(self) -> frozenset[str]:

@@ -65,6 +65,7 @@ from .routers import orgs as org_routes
 from .routers import provider_resources as provider_resource_routes
 from .routers import referrals as referral_routes
 from .routers import resources as resources_routes
+from .routers import table as table_routes
 from .routers import web as web_routes
 from .routers.auth import _client_ip
 from .routers.auth_helpers import _same_origin
@@ -923,6 +924,7 @@ router.routes.extend(admin_routes.reports_router.routes)
 
 # ---- the proxy: call a tool without holding its credential; tier-4 metering ----------------
 router.routes.extend(call_routes.router.routes)
+router.routes.extend(table_routes.router.routes)
 router.routes.extend(arena_routes.router.routes)
 
 

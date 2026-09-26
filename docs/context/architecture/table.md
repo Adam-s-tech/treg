@@ -1,0 +1,99 @@
+---
+title: The table layer — one call, answered as rows and columns (`/table/`)
+status: built, behind `table_enabled` (TREG_TABLE_ENABLED), off by default
+sources:
+  - src/treg/domain/table/__init__.py
+  - src/treg/application/table.py
+  - src/treg/routers/table.py
+  - src/treg/routers/call.py
+  - src/treg/call_surface.py
+  - src/treg/config.py
+  - tests/test_table.py
+related:
+  - architecture/proxy-model.md
+  - architecture/hub.md
+  - architecture/catalog.md
+  - interface/api.md
+---
+
+# The table layer
+
+`* /table/{rest:path}` takes exactly the request `/call/<tool id>` takes (method, query, body, key,
+`Idempotency-Key`) and answers the same call as `{shape, columns, rows, ...}`, for clients that want
+a grid: the Google Sheets add-on first. It is a **sibling** of `/call/`, not an option on it:
+`/call/` passes every query parameter through to the provider (a `?format=` would reach it), and it
+must return the provider's answer unchanged (AGENTS.md, non-negotiable 4).
+
+## One call road, two endings
+
+`routers.call.run_call_surface(rest, request, caller, prefix=, finish=, headers=)` is the whole call
+road for every call surface: the caller's identity stashed for the refusal fallback, the raw path
+rebuilt from `raw_path` after `prefix`, the `CallInput`, `create_call_context`, `execute_call`, and
+the same bookkeeping on every exit (audit row, idempotency-claim release, `X-Treg-Call-Id`).
+`call_tool` passes `_relay_answer` (stream the answer unchanged, attach the async descriptor and the
+review invitation); `table_tool` passes `_table_answer`. `finish` runs inside the same `try`, so a
+fault while converting is audited and released like any other.
+
+`table_tool` passes `headers=application.table.plain_headers(...)`: the caller's headers with
+`Accept-Encoding: identity`, because the table must parse the body (the hub runner asks its steps the
+same way). A provider that answers gzip or deflate anyway is decoded (`_decoded`); any other encoding
+reads as a `raw` table.
+
+`/table/` is in `call_surface._CALL_SURFACES` (surface label `table`), so its refusals get
+`X-Treg-Error: 1` and the audit fallback, and in `bootstrap._DATAPLANE_ROUTE_KEYS`. The demo lockdown
+(`domain.identity.access`) allows only `/call/` for non-read methods, so `/table/` stays out of demo
+orgs.
+
+## Money
+
+Nothing here holds, charges or refunds. `execute_call` returns with the call already settled (its
+cost is on the answer as `X-Treg-Cost-Micro`), so a conversion that fails can only make the view
+`raw`: it can never charge twice or leave a hold open. The table answer carries the call's own
+`X-Treg-*` headers (call id, cost, served-by, `X-Treg-Idempotent-Replay`), and the same
+`Idempotency-Key` returns the same table for nothing. `application.table.read_answer` reads at most
+`MAX_TABLE_BYTES` (8 MiB); a bigger answer is `raw`, `truncated: true`, cut to 64 KB.
+
+An upstream non-2xx keeps its status and answers `{error: "upstream_error", upstream_status,
+body_excerpt}` (the first 2 KB). A treg refusal (`CallFailure`) is raised exactly as on `/call/`.
+
+## The flag
+
+`application.table.enabled_for(slug, email)`: `table_enabled`, then `table_teams` / `table_users`
+(either list lets a caller in; both empty means every team), the same pattern as the hub. A caller
+outside answers a plain 404 **returned, not raised**: a raised 404 on a call surface is stamped and
+audited as a refusal, and with the flag off the route must leave no row. `llms.txt` and `skill.md`
+do not mention `/table/` while the flag is off.
+
+## The converter (`domain.table`)
+
+Pure and stdlib-only (import-linter contract "Table domain is a pure stdlib leaf"). `to_table(body,
+contract_output=, list_field=, hub_fields=)` never raises: anything it cannot shape is `raw`.
+`application.table.table_answer` chooses the source of columns (`column_source`):
+
+- **contract**: a routed job (`catalog.by_id[id].kind == "routed"`, contract from
+  `catalog.contracts[capability]`). A flat contract: its `output` fields in contract order, then
+  `served_by` (from `_treg.served_by`); one row, none when `_treg.outcome == "miss"`. A contract with
+  a required `list` field (`people`, `companies`, `results`...): shape `list`, one row per item.
+  Items are the provider's own objects, so `LIST_MAPS` (data, keyed by the list field; `people` today)
+  maps common names to fixed columns first: `first_name`, `last_name`, `title`, `company`,
+  `linkedin_url`, `location`, first matching path wins (`organization.name` is a path); every other
+  field follows under the provider's own name, minus the paths a mapped column used.
+- **hub**: an id not in the catalog that `hub.tool_for` resolves for this caller (one short read,
+  after the answer is read: non-negotiable 3). Columns are the manifest's `output.fields`, or its
+  `output` keys, in manifest order; one row.
+- **generated**: anything else. `_find_tables` collects every list of objects, searching inside a
+  one-object list whose key is in `ENVELOPE_KEYS` (`summary[0]`, `tasks[0].result[0]`) and never
+  inside a table's own items. None: shape `flat`, one row of `flatten` (dotted keys, `MAX_DEPTH` 3).
+  One: shape `list` (with its `path`). Two or more: shape `nested`, with `tables` (name, path,
+  row_count, columns, rows) and `summary` (`field`, `value` rows of the tables' common parent; a
+  list of objects is one cell of each item's first value). `columns`/`rows` are the summary, so a
+  client that reads only those still gets a grid.
+
+Cells (`cell`): a scalar as it is; a list of scalars joined with `", "`; an object or a list holding
+objects as compact JSON. A field whose name starts with `_` (`_treg`, a provider's `_note`) is never
+a column; a routed answer's `_treg` goes into the reply's `_treg` with `call_id` and `cost_micro`.
+
+**Trap:** the saved example answers (`src/treg/catalog/examples/`) end every long list with the
+string `"… N more item(s) truncated"` (written by `scripts/catalog_verify.py`). A list with that
+marker is not "all objects", so the converter skips it (`_TRUNCATION_MARK`); real answers never
+carry it.
