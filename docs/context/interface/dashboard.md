@@ -23,6 +23,7 @@ sources:
   - frontend/src/dialogs/ConnectTokenDialog.vue
   - frontend/src/dialogs/ConnectionMethodDialog.vue
   - frontend/src/dialogs/CopyToolDialog.vue
+  - frontend/src/dialogs/dialog.ts
   - frontend/src/dialogs/EditToolDialog.vue
   - frontend/src/dialogs/ExtraCredentialDialog.vue
   - frontend/src/dialogs/ImportSkillDialog.vue
@@ -301,7 +302,13 @@ Copy failures, including unavailable clipboard APIs, surface a dismissible messa
 or outside interaction. The search entry on Getting started navigates to Catalog and focuses the
 existing search field. Team settings and switching retain the existing `orgSettings` / `switchTo`
 behavior, including fixed-position dropdown placement via `placeOrgMenu`. The team picker supports
-Enter and Space; Escape restores focus to its trigger. Direct `go` navigation returns to the top of
+Enter and Space; Escape restores focus to its trigger. Every modal and drawer carries `v-dialog`
+(`dialogs/dialog.ts`, registered in `main.ts`) on its `role="dialog"` element, one keyboard contract
+instead of per-dialog code: focus moves to its first field (else the dialog itself), Tab and
+Shift+Tab stay inside, Escape closes the topmost open dialog through the close function it was
+given, and focus returns to the control that opened it. A required decision (the first-run welcome,
+the first-run invite choice) passes no close function and survives Escape. `closeOverlays` only
+closes the page's menus. Direct `go` navigation returns to the top of
 the destination; Back/Forward leaves scroll restoration to the browser. Category/team tabs and wide
 tables scroll locally on small screens, and the onboarding OAuth divider wraps instead of widening
 the page. At phone width inline `code` (a hub tool's `uses`) breaks anywhere, the top-up amounts

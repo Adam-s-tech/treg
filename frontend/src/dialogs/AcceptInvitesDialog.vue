@@ -5,7 +5,7 @@ export default { components: { BrandMark }, setup: useDashboard }
 </script>
 
 <template>
-<div class="scrim" role="dialog" aria-modal="true" >
+<div class="scrim" role="dialog" aria-modal="true" v-dialog="inviteFirstRun ? null : declineInvite">
       <div class="modal" style="width:min(470px,94vw)">
         <div style="padding:26px 26px 22px">
           <div class="brand" style="color:var(--accent);font-size:15px;letter-spacing:.5px;margin-bottom:12px"><BrandMark/>treg</div>

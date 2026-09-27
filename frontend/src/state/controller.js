@@ -43,10 +43,7 @@ export default {
  computed: {...resourcesComputed, ...billingComputed, ...catalogComputed, ...sessionComputed, ...agentsComputed, ...onboardingComputed, ...detailsComputed, ...findComputed},
  methods: {...resources, setElement(name, element) { this.elements[name] = element }, ...session, ...team, ...keys, ...agents, ...projects, ...governance, ...activity, ...billing, ...referrals, ...secrets, ...tools, ...skills, ...format, ...onboarding, ...analytics, ...help, ...connections, ...sharing, ...navigation, ...catalog, ...details, ...admin, ...snippets, ...tryTool, ...find, ...lifecycle, ...hub},
  watch:{
-    // a11y (WCAG 2.4.3): when a dialog/drawer opens, move focus INTO it (was left on the trigger)
-    newTool(v){ this.focusOverlay(v); }, newSkill(v){ this.focusOverlay(v); }, newOrg(v){ this.focusOverlay(v); },
-    showJoin(v){ this.focusOverlay(v); }, addOrg(v){ this.focusOverlay(v); }, copyTool(v){ this.focusOverlay(v); },
-    tryTool(v){ this.focusOverlay(v); }, 'welcome.on'(v){ this.focusOverlay(v); }, reqAsk(v){ this.focusOverlay(v); },
+    // Dialog focus (in on open, trapped, back to the trigger on close) and Escape: v-dialog (dialogs/dialog.ts)
     'welcome.agent'(v){ storageSet('treg-agent', v); },  // see _restoreAgent
     activeOrgId(){ this.resetRenameForm(); },  // team switch or first load: prefill the rename form
     // Editing the box after a find starts a new question: the answer to the old one goes away

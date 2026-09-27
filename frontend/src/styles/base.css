@@ -359,6 +359,8 @@
   .method-copy{min-width:0;flex:1}.method-title{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
   .method-copy .sub{display:block;margin:4px 0 0;line-height:1.5}
   .scrim{position:fixed;inset:0;background:rgba(20,16,10,.55);display:grid;place-items:center;z-index:50}
+  /* v-dialog focuses the dialog itself when it has no field to start in; that is not a control. */
+  [role="dialog"][tabindex="-1"]:focus{outline:none}
   /* Inline spinner for waits on a live upstream (resource discovery), so a slow round-trip reads
      as "working" rather than "broken". */
   .spin{display:inline-block;width:11px;height:11px;margin-right:7px;vertical-align:-1px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:treg-spin .7s linear infinite}

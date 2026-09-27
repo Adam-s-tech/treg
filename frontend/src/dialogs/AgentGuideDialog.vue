@@ -4,7 +4,7 @@ export default { setup: useDashboard }
 </script>
 
 <template>
-<div  class="scrim" role="dialog" aria-modal="true" @click.self="capAsk=null">
+<div  class="scrim" role="dialog" aria-modal="true" v-dialog="() => { capAsk=null }" @click.self="capAsk=null">
       <div class="modal" style="padding:16px">
         <h3 style="margin:0 0 6px">Connect {{capAsk.provider.display_name}}</h3>
         <p class="sub" style="margin:0 0 14px">What should your agent be allowed to do with this account?

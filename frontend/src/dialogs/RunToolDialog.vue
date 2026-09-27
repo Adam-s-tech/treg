@@ -4,7 +4,7 @@ export default { setup: useDashboard }
 </script>
 
 <template>
-<div class="scrim" role="dialog" aria-modal="true"  @click.self="tryTool=null" style="place-items:stretch;justify-items:end">
+<div class="scrim" role="dialog" aria-modal="true" v-dialog="() => { tryTool=null }" @click.self="tryTool=null" style="place-items:stretch;justify-items:end">
       <div class="drawer"><div class="hd" style="padding:15px 18px;border-bottom:1px solid var(--line)"><b>Use “{{tryTool.name}}”</b><button class="btn sm" @click="tryTool=null" aria-label="Close">✕</button></div>
         <div style="padding:16px 18px;overflow:auto">
           <div v-if="canCall(tryTool) && canRun(tryTool)" class="exrow" style="margin-bottom:12px">

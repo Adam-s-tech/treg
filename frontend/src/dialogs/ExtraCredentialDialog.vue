@@ -4,7 +4,7 @@ export default { setup: useDashboard }
 </script>
 
 <template>
-<div class="scrim" role="dialog" aria-modal="true"  @click.self="newSkill=false">
+<div class="scrim" role="dialog" aria-modal="true" v-dialog="() => { newSkill=false }" @click.self="newSkill=false">
       <div class="modal" style="width:min(680px,95vw)"><div class="hd"><b>Add a skill</b><button class="btn sm ico" @click="newSkill=false" aria-label="Close">✕</button></div>
         <div style="padding:16px 18px">
           <template v-if="skillMode==='folder'">

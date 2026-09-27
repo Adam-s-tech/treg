@@ -4,7 +4,7 @@ export default { setup: useDashboard }
 </script>
 
 <template>
-<div  class="scrim" role="dialog" aria-modal="true" @click.self="topupOpen=false">
+<div  class="scrim" role="dialog" aria-modal="true" v-dialog="() => { topupOpen=false }" @click.self="topupOpen=false">
       <div class="modal" style="padding:18px 20px;width:min(620px,94vw)">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <h3 style="margin:0">Top up credits</h3>

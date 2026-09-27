@@ -4,7 +4,7 @@ export default { setup: useDashboard }
 </script>
 
 <template>
-<div class="scrim" role="dialog" aria-modal="true"  @click.self="callView=null" style="place-items:stretch;justify-items:end">
+<div class="scrim" role="dialog" aria-modal="true" v-dialog="() => { callView=null }" @click.self="callView=null" style="place-items:stretch;justify-items:end">
       <div class="drawer" style="width:min(680px,96vw)"><div class="hd" style="padding:15px 18px;border-bottom:1px solid var(--line)"><b>{{callView.endpoint_id||callView.tool||'Call'}}</b><button class="btn sm" @click="callView=null" aria-label="Close">✕</button></div>
         <div class="bd" style="padding:16px 18px;overflow:auto">
           <div class="kv">

@@ -3,7 +3,6 @@ import { requestJson } from '../api'
 import { LS } from './constants.js'
 
 export default {
-focusOverlay(open){ if(!open) return; this.$nextTick(()=>{ const el=document.querySelector('.scrim input,.scrim textarea,.scrim button,.drawer input,.drawer button'); el&&el.focus(); }); },
 servedOn(tier){ return ({anonymous:'public provider route (no key)',platform:'treg key',credential:'your key',tool:'your registered tool','platform-overflow':'treg overflow'})[tier]||tier; },
 headers(tok){
       const h={'ngrok-skip-browser-warning':'1'};

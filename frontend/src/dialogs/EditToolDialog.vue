@@ -4,7 +4,7 @@ export default { setup: useDashboard }
 </script>
 
 <template>
-<div class="scrim" role="dialog" aria-modal="true"  @click.self="newTool=false;toolErr=''">
+<div class="scrim" role="dialog" aria-modal="true" v-dialog="() => { newTool=false;toolErr='' }" @click.self="newTool=false;toolErr=''">
       <div class="modal" style="width:min(620px,95vw)"><div class="hd"><b>{{(tForm.id?'Edit ':'Add ')+(tForm.mode==='cli'?'CLI':'endpoint')}}</b><button class="btn sm" @click="newTool=false;toolErr=''" aria-label="Close">✕</button></div>
         <div style="padding:16px 18px">
           <template v-if="tForm.mode!=='cli'">

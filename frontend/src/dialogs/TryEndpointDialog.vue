@@ -4,7 +4,7 @@ export default { setup: useDashboard }
 </script>
 
 <template>
-<div class="scrim" role="dialog" aria-modal="true"  @click.self="closeEpTry" style="place-items:stretch;justify-items:end">
+<div class="scrim" role="dialog" aria-modal="true" v-dialog="closeEpTry" @click.self="closeEpTry" style="place-items:stretch;justify-items:end">
       <div class="drawer"><div class="hd" style="padding:15px 18px;border-bottom:1px solid var(--line)"><b>Try “{{epTry.id}}”</b><button class="btn sm" @click="closeEpTry" aria-label="Close">✕</button></div>
         <div class="bd" style="padding:16px 18px;overflow:auto">
           <p class="explain"><span class="mono">{{epTry.method||'GET'}} {{epTryDisplayPath}}</span><br>{{epTry.summary}}</p>

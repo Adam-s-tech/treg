@@ -4,7 +4,7 @@ export default { setup: useDashboard }
 </script>
 
 <template>
-<div class="scrim" role="dialog" aria-modal="true"  @click.self="viewRecipe=null">
+<div class="scrim" role="dialog" aria-modal="true" v-dialog="() => { viewRecipe=null }" @click.self="viewRecipe=null">
       <div class="modal" style="width:min(760px,95vw)"><div class="hd"><b>{{viewRecipe.name}} <span class="sub" style="font-weight:400">· SKILL.md</span></b><button class="btn sm ico" @click="viewRecipe=null" aria-label="Close">✕</button></div>
         <div style="padding:16px 18px">
           <textarea v-if="canRegister" v-model="viewRecipe.recipe" spellcheck="false" style="width:100%;height:52vh;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:12px;font-family:var(--mono);font-size:12.5px;line-height:1.5;resize:vertical"></textarea>

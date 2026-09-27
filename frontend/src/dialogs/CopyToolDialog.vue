@@ -4,7 +4,7 @@ export default { setup: useDashboard }
 </script>
 
 <template>
-<div class="scrim" role="dialog" aria-modal="true"  @click.self="copyTool=null">
+<div class="scrim" role="dialog" aria-modal="true" v-dialog="() => { copyTool=null }" @click.self="copyTool=null">
       <div class="modal"><div class="hd"><b>Use “{{copyTool.name}}”</b><button class="btn sm ico" @click="copyTool=null" aria-label="Close">✕</button></div>
         <div style="padding:16px 18px">
           <div class="tabs"><button v-for="t in snippetTabs" :key="t" :class="{active:snippetTab===t}" @click="snippetTab=t">{{t}}</button></div>
