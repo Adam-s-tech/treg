@@ -1,6 +1,6 @@
 ---
 name: treg-integration
-description: Integrate treg into your own product — give your users ~2,600 external API tools without owning the keys, and bill each of your customers for what they used. Covers MCP, CLI and HTTP, per-customer attribution, spend limits, and invoicing.
+description: Integrate treg into your own product — give your users {ENDPOINTS} external API tools without owning the keys, and bill each of your customers for what they used. Covers MCP, CLI and HTTP, per-customer attribution, spend limits, and invoicing.
 ---
 
 # Integrating treg into your product
@@ -9,8 +9,8 @@ You are a coding agent. A human has pointed you at this file because they want *
 product. Read this whole file before writing code — the billing section changes how you write the
 plumbing, so writing the plumbing first means rewriting it.
 
-**What treg is:** one base URL and one token that reach ~2,600 external API endpoints (SEO, SERP,
-backlinks, social, enrichment, ads, scraping) across ~40 providers, plus whatever the team registered
+**What treg is:** one base URL and one token that reach {ENDPOINTS} external API endpoints (SEO, SERP,
+backlinks, social, enrichment, ads, scraping) across {PROVIDERS} providers, plus whatever the team registered
 themselves. treg holds the provider credentials and injects them server-side; your caller makes the
 real upstream request and gets the provider's real response back. Calls served on treg's own key are
 metered per call from a prepaid balance at cost — **0% markup**.

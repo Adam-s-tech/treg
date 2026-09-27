@@ -8,6 +8,7 @@ import time
 from collections.abc import Sequence
 from contextlib import asynccontextmanager, nullcontext
 from copy import copy
+from pathlib import Path
 from typing import Literal
 
 import httpx
@@ -398,6 +399,22 @@ class _DayStatic(StaticFiles):
         return response
 
 
+class _MediaStatic(StaticFiles):
+    """Page media under stable, unversioned names (`/media/<page>/...`). With no Cache-Control a
+    browser applies a heuristic lifetime and never revalidates, so a page's edited script or
+    stylesheet would keep running old code against new HTML. Code and text therefore revalidate
+    on every use (`no-cache`; the ETag makes that a 304), and images, video and fonts, which a page
+    only ever swaps by renaming, keep a day's cache like the logos."""
+
+    _REVALIDATE = frozenset({".js", ".mjs", ".css", ".html", ".json", ".md", ".txt"})
+
+    def file_response(self, full_path, *args, **kwargs):
+        response = super().file_response(full_path, *args, **kwargs)
+        revalidate = Path(full_path).suffix.lower() in self._REVALIDATE
+        response.headers["Cache-Control"] = "no-cache" if revalidate else "public, max-age=86400"
+        return response
+
+
 def _route_key(route: APIRoute) -> RouteKey:
     return route.path, tuple(sorted(route.methods)), route.name
 
@@ -440,7 +457,7 @@ def _mount_static(app: FastAPI, api_module) -> None:
     if api_module._LOGO_DIR.exists():
         app.mount("/logos", _DayStatic(directory=str(api_module._LOGO_DIR)), name="logos")
     if api_module._MEDIA_DIR.exists():
-        app.mount("/media", StaticFiles(directory=str(api_module._MEDIA_DIR)), name="media")
+        app.mount("/media", _MediaStatic(directory=str(api_module._MEDIA_DIR)), name="media")
     if api_module._TOUR_DIR.exists():
         app.mount(
             "/dashboard-tour",

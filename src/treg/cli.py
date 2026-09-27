@@ -1334,7 +1334,7 @@ def _onboard_test_call(cfg: dict, tools: list) -> None:
 def _demo_catalog_peek(cfg: dict) -> None:
     """Read-only: what the catalog can already do for this team, with nothing registered and no key.
     Costs nothing — a search is free; only a call spends the balance."""
-    print("  ~2,600 endpoints across ~40 providers. Ask for the JOB, not the vendor:")
+    print("  The whole catalog, priced per call. Ask for the JOB, not the vendor:")
     _cmd('treg catalog search "backlinks for a domain"')
     try:
         with _client(cfg) as c:
@@ -6085,7 +6085,7 @@ HELP_GROUPS: list[tuple[str, list[tuple[str, str]]]] = [
     # Ordered as the job is done: find a tool → call it → see what it cost. The catalog leads
     # because it is the half a newcomer can use with no setup at all.
     ("THE CATALOG — tools you don't have a key for", [
-        ("catalog", "Find a tool by what you want to DO. ~2,600 endpoints, each with its price."),
+        ("catalog", "Find a tool by what you want to DO. Every endpoint shows its price."),
         ("call", "Call a tool: a catalog endpoint by id, or one of your own by URL."),
         ("host", "Host a reference image / audio / video at a public URL for a vendor to fetch."),
         ("balance", "Prepaid balance: credit left, calls in flight, recent spend."),
@@ -6189,7 +6189,7 @@ def build_parser() -> argparse.ArgumentParser:
         # Hard-wrapped: _RAWFMT is RawDescriptionHelpFormatter, so argparse will NOT wrap this for
         # us and an unwrapped paragraph runs off the edge of a narrow terminal.
         description=("treg — the tool catalog for your agent.\n"
-                     "Call the tool a job needs without owning its API key: ~2,600 catalogued\n"
+                     "Call the tool a job needs without owning its API key: catalogued\n"
                      "endpoints priced per call, plus your team's own keys, skills and CLIs.\n"
                      "Credentials are injected server-side, never on your machine."),
         epilog=_ex(
