@@ -34,7 +34,7 @@ The standalone [Enrich Arena](../interface/enrich-arena.md) pages (`/enrich-aren
 `/enrich-arena/leaderboard`) and `/arena/*` routes are control-role
 surfaces. Paid interactive runs use the ordinary call application internally. Shutdown drains their
 in-process owners before closing the shared upstream client.
-The shared `/agent-setup.js` browser asset and the compiled Dashboard assets at
+The `/agent-setup.js` browser asset (compiled from the Dashboard source for Arena) and the compiled Dashboard assets at
 `/app/ui/assets/{name}` also belong to the control role.
 
 `bootstrap.create_app(role)` is the FastAPI composition root. `api.py` hosts the ordered route table,
@@ -44,7 +44,7 @@ EOF so the deployed `treg.api:app` import path remains the default `all` role.
 The factory owns concrete assembly: the three core pure-ASGI middleware registrations, the optional
 V2 path normalizer, five exception handlers, static mounts, optional MCP mounts and lifespans,
 GET-to-HEAD widening, the OpenAPI wrapper that hides
-implied HEAD operations, shared HTTP client creation, startup work, shutdown drains, and the Ads
+implied HEAD operations and gives each method of a multi-method route its own operation id, shared HTTP client creation, startup work, shutdown drains, and the Ads
 conversion worker. Registration order is compatibility behavior. The four stage-0 snapshots stay
 byte-identical for `role="all"` unless that composition intentionally changes.
 

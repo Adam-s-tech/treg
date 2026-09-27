@@ -1,3 +1,5 @@
+import * as TregAgentSetup from '../agent-setup/data'
+
 
 export default {
 copyMd(url){ fetch(url).then(r=>r.text()).then(t=>navigator.clipboard.writeText(t)).catch(()=>{}); },

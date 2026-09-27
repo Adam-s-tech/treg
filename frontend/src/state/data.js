@@ -1,8 +1,9 @@
+import { storageGet } from './storage.js'
 import { createElements } from './context'
 import { LS } from './constants.js'
 import { FIND_EMPTY } from './find.js'
 export default function data(){
-    let cfg={active:null,orgs:{}}; try{ cfg=JSON.parse(localStorage.getItem(LS))||cfg; }catch(e){}
+    let cfg={active:null,orgs:{}}; try{ cfg=JSON.parse(storageGet(LS))||cfg; }catch(e){}
     return {
       // the tool hub: hub.tools is every version of the team's tools (newest first); hub.tool the
       // opened one; hub.tab overview|versions|price|listing|earnings|runs|health; run the opened run
@@ -12,7 +13,7 @@ export default function data(){
       bootReady: false, bootFailed: false,
       bootStartedAt: performance.now(),  // ms since navigation: where the loader's animations already are (App.vue)
       sessionChecked: false,  // /auth/me has answered (a page drawn before boot finishes waits on this for sign-in state)
-      theme: localStorage.getItem('treg-theme')||'light',
+      theme: storageGet('treg-theme')||'light',
       mobileNav: false,  // mobile sidebar toggle
       // True when this load is a PUBLIC catalog URL (/catalog, /catalog/<slug>). The catalog API is
       // unauthenticated, so the same marketplace views render for a signed-out visitor — that is
@@ -103,7 +104,7 @@ export default function data(){
       catalogClis:null,  // bin → catalog default deny patterns (lazy, from /providers.json)
       newSkill:false, skillJson:'', skillBusy:false, skillErr:'', skillMode:'folder',
       skillFiles:[], detected:null, skillSel:{}, skillVals:{}, skillResults:null,
-      sessionMode:false, activeSlug: localStorage.getItem('treg-active')||null, meta:{github:false, public_url:location.origin},
+      sessionMode:false, activeSlug: storageGet('treg-active')||null, meta:{github:false, public_url:location.origin},
       view:'tools', q:'', err:'', loading:false, toolTab:'all', bundles:[], confirmDelBundle:null, installCopied:null,
       copyRecipe:null, recipeTab:'cURL', viewRecipe:null, recipeSaved:false,
       // detail pages (shareable /app/skills/<name> + /app/tools/<name> deep links)

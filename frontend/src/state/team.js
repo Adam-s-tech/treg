@@ -1,3 +1,4 @@
+import { storageSet, storageRemove } from './storage.js'
 
 export default {
 // ---- Phase 2a: org lifecycle (writes; all endpoints already exist) ----
@@ -16,23 +17,32 @@ async createOrg(){ const name=(this.newOrgName||'').trim(); if(!name){ this.orgE
 async loadOrgAdmin(){ this.orgMembers=[]; this.orgMembersLoaded=false; this.orgInvites=[]; this.lastInvite=null;
       if(!this.canAdmin && !['keys','danger'].includes(this.orgTab)) this.orgTab='keys';
       this.orgErr=''; this.confirmDel=''; this.confirmLeave=false; this.confirmRemove=null;
-      if(!this.activeOrgId) return; const id=this.activeOrgId;
-      await this.loadApiKeys();
-      if(!this.canAdmin) return;
+      if(!this.activeOrgId) return; const id=this.activeOrgId, live=this.ticket('orgAdmin');
+      const keys=this.loadApiKeys();
+      if(!this.canAdmin){ await keys; return; }
       this.agentErr=''; this.confirmAgent=null;
-      try{ this.orgMembers=await this.api('/orgs/'+id+'/members'); this.orgMembersLoaded=true; this.orgInvites=await this.api('/orgs/'+id+'/invites');
-           this.projects=await this.api('/orgs/'+id+'/projects'); this.denyRules=await this.api('/orgs/'+id+'/deny');
-           this.cliDeny=await this.api('/orgs/'+id+'/policy/cli-deny').catch(()=>[]);
-           // agents live in the same roster now (an agent IS a membership)
-           this.agents=await this.api('/orgs/'+id+'/agents').catch(()=>[]);
+      const get=path=>this.api('/orgs/'+id+path);
+      // The roster's requests do not depend on each other, so they run together; agents live in
+      // the same roster (an agent IS a membership). The optional ones fall back to empty.
+      try{ const [members, invites, projects, deny, cliDeny, agents, observed]=await Promise.all([
+             get('/members'), get('/invites'), get('/projects'), get('/deny'),
+             get('/policy/cli-deny').catch(()=>[]), get('/agents').catch(()=>[]), get('/agents/observed').catch(()=>[]), keys]);
+           if(!live()) return;
+           this.orgMembers=members; this.orgMembersLoaded=true; this.orgInvites=invites;
+           this.projects=projects; this.denyRules=deny; this.cliDeny=cliDeny; this.agents=agents;
            const sel={}; this.projects.forEach(p=>{ sel[p.id]=true; }); this.agentProjSel=sel;
-           this.observedAgents=await this.api('/orgs/'+id+'/agents/observed').catch(()=>[]); }
-      catch(e){ this.orgMembersLoaded=true; this.orgErr='Load team failed: '+(e.detail||e.status); } },
+           this.observedAgents=observed; }
+      catch(e){ if(!live()) return; this.orgMembersLoaded=true; this.orgErr='Load team failed: '+(e.detail||e.status); } },
 async loadMyUsage(){ if(!this.activeOrgId){ this.myUsage=null; return; }
-      this.myUsage=await this.api('/usage/me').catch(()=>null); },
+      const live=this.ticket('myUsage');
+      const usage=await this.api('/usage/me').catch(()=>null);
+      if(live()) this.myUsage=usage; },
 // the caller's own used/cap (any member)
-    async setCap(m, val){ const cap=parseInt(val,10);
-      if(isNaN(cap)||cap<-1){ this.orgErr='Daily cap must be -1 (unlimited) or 0 and above.'; await this.loadOrgAdmin(); return; }
+// A daily cap is -1 for no limit on the wire; the field shows that as empty ("No limit").
+    capField(cap){ return cap==null || cap<0 ? '' : cap; },
+capValue(text){ const t=String(text??'').trim(); if(!t) return -1; const n=Number(t); return Number.isInteger(n) && n>=0 ? n : NaN; },
+async setCap(m, val){ const cap=this.capValue(val);
+      if(isNaN(cap)){ this.orgErr='Daily cap must be a whole number of calls, or empty for no limit.'; await this.loadOrgAdmin(); return; }
       if(cap===m.daily_call_cap) return;
       try{ await this.api('/orgs/'+this.activeOrgId+'/members/'+m.user_id+'/cap',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({daily_call_cap:cap})}); }
       catch(e){ this.orgErr='Set cap failed: '+(e.detail||e.status); }
@@ -80,7 +90,7 @@ async revokeInvite(inv){ try{ await this.api('/orgs/'+this.activeOrgId+'/invites
         this.orgInvites=this.orgInvites.filter(i=>i.id!==inv.id); }
       catch(e){ this.orgErr='Revoke failed: '+(e.detail||e.status); } },
 forgetActiveOrg(){  // drop the now-dead active org in whichever mode we're in, then fall back to another
-      if(this.sessionMode){ this.activeSlug=null; localStorage.removeItem('treg-active'); }
+      if(this.sessionMode){ this.activeSlug=null; storageRemove('treg-active'); }
       else { const s=this.cfg.active; if(s) delete this.cfg.orgs[s]; this.cfg.active=Object.keys(this.cfg.orgs)[0]||null; this.save(); } },
 async leaveOrg(){ if(!this.confirmLeave){ this.confirmLeave=true; return; } this.confirmLeave=false;
       try{ await this.api('/orgs/'+this.activeOrgId+'/leave',{method:'POST'});
@@ -92,7 +102,7 @@ async renameOrg(){ this.renameBusy=true; this.renameErr='';
       if(n && n!==a.name) body.name=n; if(sl && sl!==a.slug) body.slug=sl;
       try{ const r=await this.api('/orgs/'+this.activeOrgId,{method:'PATCH', headers:{'content-type':'application/json'}, body:JSON.stringify(body)});
         const old=this.activeSlugNow;
-        if(this.sessionMode){ this.activeSlug=r.org; localStorage.setItem('treg-active',r.org); }
+        if(this.sessionMode){ this.activeSlug=r.org; storageSet('treg-active',r.org); }
         else if(r.org!==old){ this.cfg.orgs[r.org]=Object.assign({},this.cfg.orgs[old],{name:r.name}); delete this.cfg.orgs[old]; this.cfg.active=r.org; this.save(); }
         else { this.cfg.orgs[old].name=r.name; this.save(); }
         await this.loadAll(); this.resetRenameForm(); }

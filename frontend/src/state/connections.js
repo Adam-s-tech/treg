@@ -2,15 +2,16 @@
 export default {
 // ---- connections (registry OAuth) ----
     async loadConnections(){
-      this.connErr='';
+      this.connErr=''; const live=this.ticket('connections');
       this.loadPlatforms();  // fire-and-forget, and first: the catalog must neither hold up nor wait for the connect UI
       try{
         const [ps, cs]=await Promise.all([
           fetch('/oauth/providers').then(r=>r.json()).catch(()=>[]),
           this.api('/connections').catch(()=>[]),
         ]);
+        if(!live()) return;
         this.providers=ps||[]; this.connections=cs||[];
-      }catch(e){ this.connErr=String(e.message||e); }
+      }catch(e){ if(live()) this.connErr=String(e.message||e); }
     },
 authorizationMethodSpec(providerName, methodName){
       const provider=(this.providers||[]).find(item=>item.service===providerName);

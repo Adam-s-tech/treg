@@ -1,16 +1,17 @@
 
 export default {
-async loadUsage(){ if(!this.canAdmin || !this.activeOrgId) return; this.usage=null;
-      try{ this.usage=await this.api('/orgs/'+this.activeOrgId+'/usage?days='+this.usageDays); }
-      catch(e){ this.err='Failed to load usage: '+(e.detail||e.status); }
+async loadUsage(){ if(!this.canAdmin || !this.activeOrgId) return; this.usage=null; const live=this.ticket('usage');
+      try{ const usage=await this.api('/orgs/'+this.activeOrgId+'/usage?days='+this.usageDays); if(live()) this.usage=usage; }
+      catch(e){ if(live()) this.err='Failed to load usage: '+(e.detail||e.status); }
       await this.loadTagUsage(); },
 async loadTagUsage(){ if(!this.canAdmin || !this.activeOrgId) return;
-      this.tagUsage={};
+      this.tagUsage={}; const live=this.ticket('tagUsage'), org=this.activeOrgId;
       try{
         // What the team has actually SENT. Reporting works on any key, unlike enforcement, which
         // needs a declared one — so this is deliberately NOT the budgetable list, which hid
         // `feature=` and friends from the dashboard even though the API served them fine.
-        const k=await this.api('/orgs/'+this.activeOrgId+'/tag-keys');
+        const k=await this.api('/orgs/'+org+'/tag-keys');
+        if(!live()) return;
         const primary=k.primary;
         const keys=[...new Set([...(k.seen||[]), ...(k.budgetable||[])].filter(Boolean))];
         // Primary first — it is the one a reselling team bills on; the rest alphabetically.
@@ -18,12 +19,13 @@ async loadTagUsage(){ if(!this.canAdmin || !this.activeOrgId) return;
         this.tagKeys=keys;
         // One request per key. Bounded by the 5-key cap on the header, and they run together.
         const got=await Promise.all(keys.map(key=>
-          this.api('/orgs/'+this.activeOrgId+'/usage/by-tag?key='+encodeURIComponent(key)+
+          this.api('/orgs/'+org+'/usage/by-tag?key='+encodeURIComponent(key)+
                    '&days='+this.usageDays).catch(()=>null)));
+        if(!live()) return;
         const out={};
         keys.forEach((key,i)=>{ if(got[i]) out[key]=got[i]; });
         this.tagUsage=out;
-      }catch(e){ this.tagUsage={}; this.tagKeys=[]; } },
+      }catch(e){ if(live()){ this.tagUsage={}; this.tagKeys=[]; } } },
 // micro-USD -> a money string, EXACT. Cents round a $0.0006 charge to $0.00 and a $9.999 balance
     // to "$10.00"; a fixed 4 decimals rounds $0.00015 to $0.0001 (float: 0.00015 is stored just
     // under). So: whole-cent amounts render as normal cents, everything else renders all 6 micro
@@ -50,6 +52,7 @@ pretty(text){ try{ return JSON.stringify(JSON.parse(text), null, 2); }catch(e){ 
 isVideoUrl(u){ try{ return /\.(mp4|webm|mov|m4v)$/i.test(new URL(u).pathname); }catch(e){ return /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u||''); } },
 fmtBytes(n){ if(n==null) return '—'; if(n<1024) return n+' B'; if(n<1048576) return (n/1024).toFixed(1)+' KB'; return (n/1048576).toFixed(2)+' MB'; },
 async copyCallBody(){ const t=this.callView&&this.callView.response&&this.callView.response.body_text; if(!t) return; if(await this.toClipboard(t)){ this.callCopied='Copied'; setTimeout(()=>{ this.callCopied=''; },1400); } },
-async loadCalls(){ try{ if(!this.apiKeys.length)await this.loadApiKeys(); const q='?limit=100'+(this.activityKey?'&api_key_id='+encodeURIComponent(this.activityKey):''); const [calls,runs]=await Promise.all([this.api('/calls'+q), this.api('/runs'+q).catch(()=>[])]); this.calls=calls; this.runs=runs; }catch(e){ this.err='Failed to load activity.'; }
-      finally{ this.callsLoaded=true; } }  // the empty-state line waits for this, not for the page's global `loading`
+async loadCalls(){ const live=this.ticket('calls');
+      try{ if(!this.apiKeys.length)await this.loadApiKeys(); const q='?limit=100'+(this.activityKey?'&api_key_id='+encodeURIComponent(this.activityKey):''); const [calls,runs]=await Promise.all([this.api('/calls'+q), this.api('/runs'+q).catch(()=>[])]); if(!live()) return; this.calls=calls; this.runs=runs; }catch(e){ if(live()) this.err='Failed to load activity.'; }
+      finally{ if(live()) this.callsLoaded=true; } }  // the empty-state line waits for this, not for the page's global `loading`
 }

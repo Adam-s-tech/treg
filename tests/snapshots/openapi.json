@@ -5085,7 +5085,7 @@
         "summary": "Call Tool"
       },
       "get": {
-        "operationId": "call_tool_call__rest__delete",
+        "operationId": "call_tool_call__rest__get",
         "parameters": [
           {
             "in": "path",
@@ -5150,7 +5150,7 @@
         "summary": "Call Tool"
       },
       "head": {
-        "operationId": "call_tool_call__rest__delete",
+        "operationId": "call_tool_call__rest__head",
         "parameters": [
           {
             "in": "path",
@@ -5215,7 +5215,7 @@
         "summary": "Call Tool"
       },
       "options": {
-        "operationId": "call_tool_call__rest__delete",
+        "operationId": "call_tool_call__rest__options",
         "parameters": [
           {
             "in": "path",
@@ -5280,7 +5280,7 @@
         "summary": "Call Tool"
       },
       "patch": {
-        "operationId": "call_tool_call__rest__delete",
+        "operationId": "call_tool_call__rest__patch",
         "parameters": [
           {
             "in": "path",
@@ -5345,7 +5345,7 @@
         "summary": "Call Tool"
       },
       "post": {
-        "operationId": "call_tool_call__rest__delete",
+        "operationId": "call_tool_call__rest__post",
         "parameters": [
           {
             "in": "path",
@@ -5410,7 +5410,7 @@
         "summary": "Call Tool"
       },
       "put": {
-        "operationId": "call_tool_call__rest__delete",
+        "operationId": "call_tool_call__rest__put",
         "parameters": [
           {
             "in": "path",

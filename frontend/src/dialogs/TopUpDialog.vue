@@ -4,14 +4,14 @@ export default { setup: useDashboard }
 </script>
 
 <template>
-<div  class="scrim" role="dialog" aria-modal="true" @click.self="topupOpen=false">
+<div  class="scrim" role="dialog" aria-labelledby="top-up-dialog-title" aria-modal="true" v-dialog="() => { topupOpen=false }" @click.self="topupOpen=false">
       <div class="modal" style="padding:18px 20px;width:min(620px,94vw)">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <h3 style="margin:0">Top up credits</h3>
+          <h3 id="top-up-dialog-title" style="margin:0">Top up credits</h3>
           <button class="btn sm" @click="topupOpen=false" aria-label="Close">✕</button>
         </div>
         <p class="sub" style="margin:6px 0 14px">Choose an amount. Bigger top-ups earn bonus credit; you can always add more later.</p>
-        <div class="fundgrid" style="max-width:none;grid-template-columns:repeat(5,minmax(80px,1fr))">
+        <div class="fundgrid fundgrid-5">
           <button v-for="p in billing.topup.presets" :key="p" class="fundcard" :class="{sel:topupPick===p}" :disabled="billingBusy" @click="topupPick=p">
             <b>${{p}}</b>
             <!-- The bonus is named ON the qualifying buttons: the amount is chosen here, and a

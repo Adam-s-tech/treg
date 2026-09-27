@@ -717,8 +717,9 @@ async def test_capture_script_runs_in_head_before_spa_can_redirect(clients):
 
     An ad click arriving at /?gclid=... falls through to index.html (the SPA) because of the query
     string. The SPA's boot then redirects logged-out visitors via `location.replace('/')`, dropping
-    the query string. The capture script must run during HTML parsing — before the Vue app mounts
-    and calls that redirect — or the click ID is lost. Placing it in <head> guarantees this.
+    the query string. The capture script must run before the Vue app mounts and calls that
+    redirect, or the click ID is lost. It is `defer`, so it must come before the module entry:
+    deferred and module scripts run in document order once parsing ends.
 
     This test pins the ORDERING guarantee. The presence test above catches a missing tag; this one
     catches a tag that would lose the race against the redirect.
@@ -738,4 +739,8 @@ async def test_capture_script_runs_in_head_before_spa_can_redirect(clients):
     )
     assert script_pos < body_start, (
         "adtrack.js must load before <body> to guarantee it runs before Vue mounts"
+    )
+    entry_pos = html.find('<script type="module"')
+    assert entry_pos != -1 and script_pos < entry_pos, (
+        "adtrack.js must precede the app's module entry to run before Vue mounts"
     )

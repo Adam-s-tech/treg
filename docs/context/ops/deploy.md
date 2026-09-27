@@ -252,6 +252,9 @@ editable installs remain Python-only. Node and npm are build tools, not runtime 
 accepted only with SQLite and a loopback public URL. `scripts/dev-local.sh up` manages both processes.
 For browser previews from another device, build the dashboard and start or restart the local stack
 with `TREG_FRONTEND_DEV=false`; compiled assets then use the same origin on port 18790.
+The browser tests' server (`scripts/frontend-e2e-server.sh`) runs on `TREG_E2E_PORT`, which
+`frontend/playwright.config.ts` sets to a port the OS reports free at the start of each run, so runs
+in parallel worktrees or beside a `treg serve` proxy (default 18791) never share a port.
 
 A feature flag set in the calling shell (`TREG_HUB_ENABLED=1 scripts/dev-local.sh up`) does not
 reach the server on its own: the script starts the server inside a tmux session, and a tmux session

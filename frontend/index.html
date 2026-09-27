@@ -21,12 +21,11 @@
   try{ document.documentElement.dataset.theme=localStorage.getItem('treg-theme')||'light'; }catch(e){}
 })();
 </script>
-
-
-
-<script src="/tutorial.js"></script>
-<script src="/dashboard-tour/tour.js"></script>
-<script src="/adtrack.js"></script>
+<!-- Deferred, so neither holds up the first paint, and still run in document order before the app
+     entry Vite adds below: ad-click capture before boot can redirect a signed-out visit, and
+     analytics before the app looks for it. Help loads its tutorial scripts itself (views.ts). -->
+<script src="/adtrack.js" defer></script>
+<script src="/sitetrack.js" defer></script>
 </head>
 <body>
 <!-- The same markup App.vue shows while it boots, so mounting swaps it for itself. Nothing is
@@ -34,8 +33,6 @@
      (base.css, .boot-status). The status line hides itself inline: in development the stylesheet
      arrives with the script, after this markup has painted. -->
 <div id="app"><main class="boot-status" aria-busy="true"><span class="boot-bar" aria-hidden="true"></span><p role="status" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap">Loading treg…</p></main></div>
-<script src="/sitetrack.js"></script>
-<script src="/agent-setup.js"></script>
 <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
