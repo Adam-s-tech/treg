@@ -341,7 +341,9 @@
   .fundcard.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
   .fundcard b{display:block;font-size:17px;letter-spacing:-.3px}
   .fundcard span{display:block;font-size:10.5px;color:var(--muted);margin-top:3px}
-  @media(max-width:520px){.fundgrid{grid-template-columns:repeat(2,1fr)}}
+  /* The top-up dialog's four presets plus Other: one row on a desktop, 3 + 2 on a phone. */
+  .fundgrid-5{grid-template-columns:repeat(5,minmax(0,1fr));max-width:none}
+  @media(max-width:520px){.fundgrid{grid-template-columns:repeat(2,1fr)} .fundgrid-5{grid-template-columns:repeat(3,minmax(0,1fr))}}
   /* a switch-option card: knob + [title / caption], vertically centered on the title line */
   .cliopt{display:flex;align-items:flex-start;gap:10px;margin:12px 0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);cursor:pointer}
   .cliopt .tswitch{margin-top:1px} .cliopt b{font-size:12.5px;line-height:1.4} .cliopt .sub{font-size:11px;line-height:1.5;margin:0}
@@ -482,6 +484,9 @@
     main{min-width:0}
     .side-acct{margin-top:auto}
     h1,.tut-head,.brand{overflow-wrap:anywhere}
+    /* An inline identifier (a hub tool's `uses`, a tool id) is one unbreakable word; let it break
+       rather than push the page sideways. Tables and pre blocks keep their own scrollers. */
+    main code{overflow-wrap:anywhere}
     .tut-head{flex-wrap:wrap} .tut-head>div:first-child{flex:1 1 100%} .tut-actions{flex:1 1 auto;justify-content:flex-start;margin-left:0}
     table{display:block;overflow-x:auto;white-space:nowrap}td,th{word-break:break-word}
     /* header wraps instead of forcing horizontal page scroll: the search drops to its own full-width
@@ -939,6 +944,9 @@ a:hover{text-decoration-color:var(--muted)}
   .ledger tr:last-child{border-bottom:0}
   .ledger td,.ledger tr:last-child td{border-bottom:0;border-radius:0}
   .ledger tr.lrow td:first-child,.lsec td,.cat-d td{grid-column:1/-1}
+  /* A merged row's provider chips take their own line, and its price the next: side by side, the
+     price column took its full nowrap width and the chips spilled over it. */
+  .ledger tr.lrow.merged td:nth-child(2){grid-column:1/-1}
   .ledger tr.lrow td:not(:first-child){padding-top:0}
   .lsec td{position:static}
   .lsum-i{max-width:none}

@@ -304,7 +304,9 @@ behavior, including fixed-position dropdown placement via `placeOrgMenu`. The te
 Enter and Space; Escape restores focus to its trigger. Direct `go` navigation returns to the top of
 the destination; Back/Forward leaves scroll restoration to the browser. Category/team tabs and wide
 tables scroll locally on small screens, and the onboarding OAuth divider wraps instead of widening
-the page.
+the page. At phone width inline `code` (a hub tool's `uses`) breaks anywhere, the top-up amounts
+wrap to three columns, and a merged ledger row puts its provider chips on their own line above the
+price: the page body never scrolls sideways (`e2e/mobile.spec.ts`).
 
 ## Standalone Enrich Arena
 

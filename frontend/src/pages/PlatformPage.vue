@@ -103,7 +103,7 @@ export default {
                   <!-- EVERY row expands, merged or not: the row says what it does, the expansion
                        says how to call it, and which of the two a visitor needs is not something
                        the row shape can decide for them. -->
-                  <tr class="lrow" :class="{open:platOpen[r.key], go:r.ready}" @click="toggleRow(r)"
+                  <tr class="lrow" :class="{open:platOpen[r.key], go:r.ready, merged:r.kind==='merged'}" @click="toggleRow(r)"
                       :aria-expanded="!!platOpen[r.key]">
                     <!-- The flex lives on a wrapper INSIDE the cell, never on the <td>. A td with
                          `display:flex` stops being a table-cell: the browser wraps it in an
