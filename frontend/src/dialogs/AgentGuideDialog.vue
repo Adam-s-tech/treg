@@ -4,9 +4,9 @@ export default { setup: useDashboard }
 </script>
 
 <template>
-<div  class="scrim" role="dialog" aria-modal="true" v-dialog="() => { capAsk=null }" @click.self="capAsk=null">
+<div  class="scrim" role="dialog" aria-labelledby="agent-guide-dialog-title" aria-modal="true" v-dialog="() => { capAsk=null }" @click.self="capAsk=null">
       <div class="modal" style="padding:16px">
-        <h3 style="margin:0 0 6px">Connect {{capAsk.provider.display_name}}</h3>
+        <h3 id="agent-guide-dialog-title" style="margin:0 0 6px">Connect {{capAsk.provider.display_name}}</h3>
         <p class="sub" style="margin:0 0 14px">What should your agent be allowed to do with this account?
           Widening it later means going through the provider's consent screen again.</p>
         <p v-if="capAsk.provider.consent_notice" class="mk-notice" style="margin:0 0 14px">{{capAsk.provider.consent_notice}}</p>

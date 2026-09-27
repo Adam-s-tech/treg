@@ -4,8 +4,8 @@ export default { setup: useDashboard }
 </script>
 
 <template>
-<div class="scrim" role="dialog" aria-modal="true" v-dialog="() => { copyTool=null }" @click.self="copyTool=null">
-      <div class="modal"><div class="hd"><b>Use “{{copyTool.name}}”</b><button class="btn sm ico" @click="copyTool=null" aria-label="Close">✕</button></div>
+<div class="scrim" role="dialog" aria-labelledby="copy-tool-dialog-title" aria-modal="true" v-dialog="() => { copyTool=null }" @click.self="copyTool=null">
+      <div class="modal"><div class="hd"><b id="copy-tool-dialog-title">Use “{{copyTool.name}}”</b><button class="btn sm ico" @click="copyTool=null" aria-label="Close">✕</button></div>
         <div style="padding:16px 18px">
           <div class="tabs"><button v-for="t in snippetTabs" :key="t" :class="{active:snippetTab===t}" @click="snippetTab=t">{{t}}</button></div>
           <p class="explain">One call to the proxy - your key is injected server-side. <b>PATH</b> is the <span class="mono">{{copyTool.host}}</span> path you'd normally call.</p>

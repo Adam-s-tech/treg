@@ -315,7 +315,8 @@ Enter and Space; Escape restores focus to its trigger. Every modal and drawer ca
 instead of per-dialog code: focus moves to its first field (else the dialog itself), Tab and
 Shift+Tab stay inside, Escape closes the topmost open dialog through the close function it was
 given, and focus returns to the control that opened it. A required decision (the first-run welcome,
-the first-run invite choice) passes no close function and survives Escape. `closeOverlays` only
+the first-run invite choice) passes no close function and survives Escape. Every `role="dialog"` element is
+named by its title (`aria-labelledby`) or an `aria-label`. `closeOverlays` only
 closes the page's menus. Direct `go` navigation returns to the top of
 the destination; Back/Forward leaves scroll restoration to the browser. Category/team tabs and wide
 tables scroll locally on small screens, and the onboarding OAuth divider wraps instead of widening

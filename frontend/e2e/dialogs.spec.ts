@@ -1,13 +1,16 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { billingOn, openTopUp, signIn } from './helpers'
 
-// Every dialog: focus moves in when it opens, Tab and Shift+Tab stay inside, Escape closes it,
+// Every dialog: it has an accessible name, focus moves in when it opens, Tab and Shift+Tab stay inside, Escape closes it,
 // and focus returns to the control that opened it.
 
 const focusInside = (dialog: Locator) => dialog.evaluate(el => el.contains(document.activeElement))
 
 async function expectTrapped(page: Page, dialog: Locator) {
+  await expect(dialog).toHaveAccessibleName(/\S/)
   expect(await focusInside(dialog)).toBe(true)
+  // Focus starts on a field or the dialog itself, never on its close button.
+  await expect(dialog.getByRole('button', { name: 'Close' })).not.toBeFocused()
   for (const key of ['Tab', 'Shift+Tab']) {
     for (let i = 0; i < 20; i++) {
       await page.keyboard.press(key)

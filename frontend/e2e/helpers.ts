@@ -15,7 +15,7 @@ export async function signIn(page: Page, who = 'browser', team = 'Browser test t
   await page.getByRole('dialog', { name: 'Sign in' }).getByRole('button', { name: 'Sign in', exact: true }).click()
   await page.getByPlaceholder('Team name, e.g. Superdesign').fill(team)
   await page.getByRole('button', { name: 'Create team →', exact: true }).click()
-  await expect(page.getByText('Which agent are you using?', { exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Set up your team' }).getByText('Which agent are you using?', { exact: true })).toBeVisible()
   await page.getByRole('link', { name: 'Skip', exact: true }).click()
   await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible()
 }
@@ -40,7 +40,7 @@ export async function openTopUp(page: Page) {
   await page.goto('/app#orgs')
   await page.getByRole('button', { name: 'Billing', exact: true }).click()
   await page.getByRole('button', { name: 'Top up', exact: true }).click()
-  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Top up credits' })).toBeVisible()
 }
 
 export const hubTool = tool
