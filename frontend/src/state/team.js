@@ -38,8 +38,11 @@ async loadMyUsage(){ if(!this.activeOrgId){ this.myUsage=null; return; }
       const usage=await this.api('/usage/me').catch(()=>null);
       if(live()) this.myUsage=usage; },
 // the caller's own used/cap (any member)
-    async setCap(m, val){ const cap=parseInt(val,10);
-      if(isNaN(cap)||cap<-1){ this.orgErr='Daily cap must be -1 (unlimited) or 0 and above.'; await this.loadOrgAdmin(); return; }
+// A daily cap is -1 for no limit on the wire; the field shows that as empty ("No limit").
+    capField(cap){ return cap==null || cap<0 ? '' : cap; },
+capValue(text){ const t=String(text??'').trim(); if(!t) return -1; const n=Number(t); return Number.isInteger(n) && n>=0 ? n : NaN; },
+async setCap(m, val){ const cap=this.capValue(val);
+      if(isNaN(cap)){ this.orgErr='Daily cap must be a whole number of calls, or empty for no limit.'; await this.loadOrgAdmin(); return; }
       if(cap===m.daily_call_cap) return;
       try{ await this.api('/orgs/'+this.activeOrgId+'/members/'+m.user_id+'/cap',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({daily_call_cap:cap})}); }
       catch(e){ this.orgErr='Set cap failed: '+(e.detail||e.status); }

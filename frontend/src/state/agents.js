@@ -27,6 +27,7 @@ promoteObserved(o){
 openAddAgent(){ this.showAddAgent=!this.showAddAgent; if(this.showAddAgent){ this.showInvite=false; this.agentAccessMode=null; this.agentToolSel={}; } },
 async createAgent(){ const name=(this.agentName||'').trim();
       if(!name){ this.agentErr='Give the agent a name, e.g. ci-bot.'; return; }
+      if(isNaN(this.agentCap)){ this.agentErr='Daily cap must be a whole number of calls, or empty for no limit.'; return; }
       if(!this.agentAccessMode){ this.agentErr='Choose All tools or Choose tools before creating the agent.'; return; }
       // An admin agent can manage this team's tools, secrets and members. That is a real step up from
       // 'can call things', so make it a deliberate choice rather than a dropdown you skimmed past.

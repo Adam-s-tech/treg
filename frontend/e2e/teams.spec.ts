@@ -37,3 +37,20 @@ test('a slow answer for the team you left never replaces the team you switched t
   await expect(page.getByRole('button', { name: 'Teams' })).toContainText('Second team')
   await expect(page.getByText('first-team-only')).toHaveCount(0)
 })
+
+test('a member with no daily cap reads as no limit, and a cap can be set and cleared', async ({ page }) => {
+  await signIn(page, 'team-cap')
+  await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Team', exact: true }).click()
+  const cap = page.getByRole('spinbutton', { name: /^Daily cap for / })
+  await expect(cap).toHaveValue('')
+  await expect(cap).toHaveAttribute('placeholder', 'No limit')
+  await page.getByRole('button', { name: '＋ Add agent' }).click()
+  await expect(page.getByRole('spinbutton', { name: 'Daily call cap' })).toHaveValue('')
+  for (const value of ['25', '']) {
+    await cap.fill(value)
+    await cap.press('Tab')
+    await page.waitForLoadState('networkidle')
+    await page.reload()
+    await expect(cap).toHaveValue(value)
+  }
+})

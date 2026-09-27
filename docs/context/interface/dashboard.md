@@ -1183,7 +1183,7 @@ only owners invite admins), `setRole` (owner-only dropdown), `removeMember`, `re
 (`leaveOrg`, `deleteOrg` — confirm-by-name). Destructive actions use **inline** two-step confirms
 (`confirmRemove`/`confirmLeave`/`confirmDel`), never native `confirm()`. `loadOrgAdmin` refreshes on
 `go('orgs')` + after each switch. The members table also shows each member's **`used_today`** + an inline
-**Daily cap** editor (`setCap` → `PATCH …/members/{id}/cap`; `-1` = unlimited), and every member (not just
+**Daily cap** editor (`setCap` → `PATCH …/members/{id}/cap`; `-1` = unlimited on the wire, shown as an empty "No limit" field, and clearing the field sends `-1`; the agent form's cap works the same), and every member (not just
 admins) sees a **"Your usage today: N / cap"** line from `loadMyUsage` (`GET /usage/me`) when a cap is set.
 The members table also carries the **per-member tool access control**: a **Tools** cell (`All` chip, or
 `N tools ▾` opening an inline checklist of every org tool — `openAccess`/`saveAccess` → `PATCH …/members/
