@@ -4,7 +4,7 @@ export default { setup: useDashboard }
 </script>
 
 <template>
-<div  class="scrim" role="dialog" aria-modal="true" aria-labelledby="fish-voice-dialog-title" @click.self="closeFishVoiceDialog">
+<div  class="scrim" role="dialog" aria-modal="true" aria-labelledby="fish-voice-dialog-title" v-dialog="closeFishVoiceDialog" @click.self="closeFishVoiceDialog">
       <div class="modal" style="width:min(470px,94vw);padding:18px 20px">
         <div class="hd"><b id="fish-voice-dialog-title">{{fishVoiceDialog.action==='rename'?'Rename voice':'Delete voice'}}</b><button class="btn sm ico" @click="closeFishVoiceDialog" aria-label="Close">✕</button></div>
         <template v-if="fishVoiceDialog.action!=='delete'">

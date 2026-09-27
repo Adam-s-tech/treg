@@ -1,6 +1,11 @@
 <script>
 import { useDashboard } from '../state/context'
-export default { setup: useDashboard }
+// The new agent's check-in poll lives as long as this page (state/agents.js).
+export default {
+  setup: useDashboard,
+  mounted() { this.resumeAgentPoll() },
+  beforeUnmount() { this.stopAgentPoll() },
+}
 </script>
 
 <template>
@@ -60,7 +65,7 @@ export default { setup: useDashboard }
 
 
               <div class="lbl" style="margin-top:14px">Members</div>
-              <p class="sub" style="margin:-2px 0 8px;font-size:12px">Daily cap = how many calls + runs a member may make per day. <b>-1</b> = unlimited.</p>
+              <p class="sub" style="margin:-2px 0 8px;font-size:12px">Daily cap = how many calls + runs a member may make per day. Leave it empty for no limit.</p>
               <p class="sub" style="margin:-2px 0 8px;font-size:12px"><b>Tools</b> = which endpoints/CLIs a member may call or run. <b>Local run</b> = may run CLIs on their own machine (off = server only). The owner always has full access.</p>
               <table>
                 <tr><th>Email</th><th>Role</th><th style="text-align:right">Today</th><th>Daily cap</th><th>Tools</th><th>Local run</th><th></th></tr>
@@ -90,7 +95,7 @@ export default { setup: useDashboard }
                     <span v-else class="role" :class="m.role">{{m.role}}</span>
                   </td>
                   <td style="text-align:right" class="muted">{{m.used_today}}</td>
-                  <td><input class="msel" type="number" min="-1" step="1" style="width:78px" :value="m.daily_call_cap" @change="setCap(m,$event.target.value)" title="-1 = unlimited"/></td>
+                  <td><input class="msel" type="number" min="0" step="1" style="width:78px" :value="capField(m.daily_call_cap)" placeholder="No limit" @change="setCap(m,$event.target.value)" :aria-label="'Daily cap for '+(m.email||m.name)" title="Empty = no limit"/></td>
                   <td>
                     <span v-if="m.role==='owner'" class="chip">All</span>
                     <button v-else class="btn sm" :class="{active:editAccess===m.user_id}" @click="openAccess(m)" :title="m.tool_access===null?'Access to every tool':'Access to '+m.tool_access.length+' tool(s)'">{{m.tool_access===null?'All':m.tool_access.length+' tools'}} ▾</button>
@@ -151,7 +156,7 @@ export default { setup: useDashboard }
           <div class="field" style="max-width:620px">
             <input v-model="agentName" placeholder="ci-bot" @keyup.enter="createAgent"/>
             <select v-model="agentRole" class="msel"><option>viewer</option><option>member</option><option v-if="isOwner">admin</option></select>
-            <input v-model.number="agentCap" type="number" min="-1" step="1" class="msel" style="width:96px" title="daily call cap (-1 = unlimited)"/>
+            <input :value="capField(agentCap)" @input="agentCap=capValue($event.target.value)" type="number" min="0" step="1" class="msel" style="width:96px" placeholder="No limit" aria-label="Daily call cap" title="Daily call cap; empty = no limit"/>
             <button class="btn primary" @click="createAgent" :disabled="agentBusy||!agentAccessMode">{{agentBusy?'…':'Create'}}</button>
           </div>
           <div style="max-width:620px;margin:4px 0 8px">
@@ -170,7 +175,7 @@ export default { setup: useDashboard }
             <span class="sub" style="font-size:12px">Projects (all checked = every project):</span>
             <label v-for="p in projects" :key="p.id" class="tgl"><input type="checkbox" v-model="agentProjSel[p.id]"/><span>{{p.name}}</span></label>
           </div>
-          <p class="sub" style="margin:-2px 0 0;font-size:12px">Cap <b>-1</b> = unlimited. An agent can never be an owner, and can never sign in — its token is the only way to act as it.</p>
+          <p class="sub" style="margin:-2px 0 0;font-size:12px">An empty cap means no daily limit. An agent can never be an owner, and can never sign in; its token is the only way to act as it.</p>
 
               </div>
               <template v-if="!isPersonal(activeOrg)">

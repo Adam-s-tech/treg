@@ -1,7 +1,7 @@
 
 export default {
 // ---- Phase 2b: resource registration (secrets + tools) ----
-    async loadSecrets(){ try{ this.secrets=await this.api('/secrets'); }catch(e){ this.secrets=[]; } },
+    async loadSecrets(){ const live=this.ticket('secrets'); const secrets=await this.api('/secrets').catch(()=>[]); if(live()) this.secrets=secrets; },
 // Paste a whole .env into the name/value field (Render/Vercel-style): it splits into rows
     // client-side — comments/blank lines skipped, `export ` stripped, one balanced quote pair removed.
     parseEnvText(t){ const out=[];

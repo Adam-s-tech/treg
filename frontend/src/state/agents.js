@@ -6,8 +6,12 @@ export default {
       if(this._agentPoll) clearInterval(this._agentPoll);
       let tries=0;
       this._agentPoll=setInterval(async()=>{
-        if(!this.newAgent || this.agentConnected || ++tries>40){ clearInterval(this._agentPoll); this._agentPoll=null; return; }
+        if(!this.newAgent || this.agentConnected || ++tries>40){ this.stopAgentPoll(); return; }
         await this.loadOrgAdmin(); }, 3000); },
+// The poll belongs to the Team page, which shows the card: it stops when the page unmounts and
+// starts again when the page comes back while the new agent has not checked in yet.
+stopAgentPoll(){ clearInterval(this._agentPoll); this._agentPoll=null; },
+resumeAgentPoll(){ if(this.newAgent && !this.agentConnected && !this._agentPoll) this.pollAgentConnected(); },
 promoteObserved(o){
       // Promotion = mint a real identity for a runtime we've only SEEN so far. Prefill the form;
       // the admin still picks role/cap/projects and presses Create, then swaps the env key.
@@ -23,6 +27,7 @@ promoteObserved(o){
 openAddAgent(){ this.showAddAgent=!this.showAddAgent; if(this.showAddAgent){ this.showInvite=false; this.agentAccessMode=null; this.agentToolSel={}; } },
 async createAgent(){ const name=(this.agentName||'').trim();
       if(!name){ this.agentErr='Give the agent a name, e.g. ci-bot.'; return; }
+      if(isNaN(this.agentCap)){ this.agentErr='Daily cap must be a whole number of calls, or empty for no limit.'; return; }
       if(!this.agentAccessMode){ this.agentErr='Choose All tools or Choose tools before creating the agent.'; return; }
       // An admin agent can manage this team's tools, secrets and members. That is a real step up from
       // 'can call things', so make it a deliberate choice rather than a dropdown you skimmed past.

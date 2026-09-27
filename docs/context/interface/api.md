@@ -389,8 +389,9 @@ validated before resolving the shared HTTP client. `/auth/logout` remains an HTT
     virtual-memory cap crashes Go CLIs (gh/stripe/doctl) and `RLIMIT_NPROC` is per-uid, shared with the
     server. Full **filesystem/network** isolation needs a container deploy and is a planned follow-up.
 - **Meta:** `meta` (`GET /meta`, open) → `{public_url, github, google, app_version, treg_version,
-  posthog_key/posthog_host, intercom_app_id, referral}` for the dashboard. `referral` carries the
-  two configured reward amounts so the top-bar entry can name them without `GET /referrals`. The last three are the opt-in
+  posthog_key/posthog_host, intercom_app_id, hub, referral}` for the dashboard. `referral` carries the
+  two configured reward amounts so the top-bar entry can name them without `GET /referrals`. `hub`
+  is `TREG_HUB_ENABLED`, so the dashboard asks no hub route that could only answer 404. The last three are the opt-in
   third-party keys (analytics, support chat): empty on a deployment that didn't set them, so
   self-hosted pages load neither PostHog nor the Intercom Messenger. `intercom_app_id` is paired
   server-side with `intercom_secret`, which never leaves the server: `_intercom_user_hash` (HMAC-SHA256
@@ -519,7 +520,7 @@ validated before resolving the shared HTTP client. `/auth/logout` remains an HTT
   `/skill.md`, so `{BASE}` templates to the **serving** host and a self-hosted registry advertises
   itself. See [skill.md](skill.md) for the other three distribution doors.
   `terms_page` (`GET /terms`) + `privacy_page` (`GET /privacy`) serve the hosted registry's legal pages
-  (`_legal_page`, no-cache) with `legal_css` (`GET /legal.css`) as the shared skin - `/privacy` is also
+  (`_static_page`: `{BASE}` and the catalog counts filled, no-cache with an ETag) with `legal_css` (`GET /legal.css`) as the shared skin - `/privacy` is also
   the URL given to OAuth providers at app-verification time, so don't rename it.
   `resources_page` (`GET /resources`) is the hub for the outcome pages and the **only** thing linking to
   them: the landing footer and each page's own footer carry one `resources` link rather than five that grow
@@ -536,6 +537,9 @@ validated before resolving the shared HTTP client. `/auth/logout` remains an HTT
   the generator refuses to emit anything past the ad-kit heading so bid and negative keywords cannot
   reach a public page. Provider brand marks are
   mounted at `/logos` (`StaticFiles` over `web/logos/`, resolved by convention `logos/<service>.svg`).
+  Page media is mounted at `/media` (`_MediaStatic` over `web/media/`): the names are unversioned, so
+  scripts, stylesheets and text answer `no-cache` (revalidated through the ETag, never a heuristic
+  lifetime that would pair old code with new HTML) and images, video and fonts `public, max-age=86400`.
   `dashboard_marketplace` (`GET /app/marketplace/{service}`) serves the plain SPA (a connect page is only
   meaningful to a signed-in member, so no OG meta).
   `_serve_md` backs `quickstart_md` (`GET /quickstart.md`) + `tutorial_md` (`GET /tutorial.md`) -
