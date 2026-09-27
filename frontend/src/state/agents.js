@@ -6,9 +6,12 @@ export default {
       if(this._agentPoll) clearInterval(this._agentPoll);
       let tries=0;
       this._agentPoll=setInterval(async()=>{
-        // Stops once the page that shows the card is gone: the Team view reloads the roster on return.
-        if(!this.newAgent || this.agentConnected || this.view!=='orgs' || ++tries>40){ clearInterval(this._agentPoll); this._agentPoll=null; return; }
+        if(!this.newAgent || this.agentConnected || ++tries>40){ this.stopAgentPoll(); return; }
         await this.loadOrgAdmin(); }, 3000); },
+// The poll belongs to the Team page, which shows the card: it stops when the page unmounts and
+// starts again when the page comes back while the new agent has not checked in yet.
+stopAgentPoll(){ clearInterval(this._agentPoll); this._agentPoll=null; },
+resumeAgentPoll(){ if(this.newAgent && !this.agentConnected && !this._agentPoll) this.pollAgentConnected(); },
 promoteObserved(o){
       // Promotion = mint a real identity for a runtime we've only SEEN so far. Prefill the form;
       // the admin still picks role/cap/projects and presses Create, then swaps the env key.

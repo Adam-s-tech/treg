@@ -57,5 +57,5 @@ export default {
    catch (error) { this.bootFailed = true; console.error('Dashboard initialization failed', error) }
    finally { this.bootReady = true }
  },
- beforeUnmount() { this.stopLifecycle?.(); clearInterval(this._agentPoll); this._agentPoll=null },
+ beforeUnmount() { this.stopLifecycle?.(); this.stopAgentPoll() },
 }

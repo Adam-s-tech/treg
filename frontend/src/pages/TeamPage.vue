@@ -1,6 +1,11 @@
 <script>
 import { useDashboard } from '../state/context'
-export default { setup: useDashboard }
+// The new agent's check-in poll lives as long as this page (state/agents.js).
+export default {
+  setup: useDashboard,
+  mounted() { this.resumeAgentPoll() },
+  beforeUnmount() { this.stopAgentPoll() },
+}
 </script>
 
 <template>
