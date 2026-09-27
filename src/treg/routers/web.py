@@ -3033,7 +3033,7 @@ async def docs_page():
         if path.startswith("/admin"):
             continue
         for method, op in sorted(schema["paths"][path].items()):
-            if method.lower() == "head":     # implied by GET; see `_openapi_without_head`
+            if method.lower() == "head":     # implied by GET; see `_install_head_and_openapi`
                 continue
             params = ", ".join(p["name"] for p in op.get("parameters", []) or []
                                if p["name"].lower() not in _PLUMBING)

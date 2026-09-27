@@ -300,8 +300,10 @@ none leaks a hardcoded host when `public_url` is overridden.
 **HEAD is widened after registration, and must not leak into the schema.** FastAPI's `APIRoute` pins
 `methods` to `{"GET"}` and never adds HEAD (unlike Starlette's plain `Route`), so every page 405'd on
 the probe crawlers send first. The composition root widens GET-only routes, while its OpenAPI wrapper
-temporarily hides those implied HEAD operations; only `/call/{rest}`, which declares HEAD itself, is
-documented with one. See [application composition](../architecture/composition.md).
+builds the schema from a per-operation view of the routes that hides those implied HEAD operations;
+only `/call/{rest}`, which declares HEAD itself, is documented with one. The same view splits that
+multi-method route per method, because FastAPI otherwise gives all seven one operation id taken from
+whichever method its set yields first. See [application composition](../architecture/composition.md).
 
 **`/catalog/<slug>` sits in front of the JSON routes.** `/catalog/platforms`, `/catalog/search`,
 `/catalog/endpoints/…` and `/catalog/examples/…` keep matching only because they are registered

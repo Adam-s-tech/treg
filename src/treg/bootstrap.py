@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 from collections.abc import Sequence
 from contextlib import asynccontextmanager, nullcontext
@@ -466,29 +467,55 @@ def _include_role_routes(app: FastAPI, api_module, role: AppRole) -> None:
     _include_routes(app, pending)
 
 
+def _openapi_operation_routes(routes: Sequence[BaseRoute], widened: set[int]) -> list[BaseRoute]:
+    """One schema view per documented operation, leaving the live routes untouched.
+
+    A widened GET route answers HEAD, but advertising it would duplicate every operation. A route
+    declaring several methods (the /call relay) is one FastAPI operation id for all of them, taken
+    from whichever method the set yields first; split it into per-method copies with their own ids.
+    """
+    result: list[BaseRoute] = []
+    for route in routes:
+        if not isinstance(route, APIRoute):
+            result.append(route)
+            continue
+        methods = {"GET"} if id(route) in widened else route.methods
+        if methods == route.methods and len(methods) == 1:
+            result.append(route)
+            continue
+        base_id = re.sub(r"\W", "_", f"{route.name}{route.path_format}")
+        for method in sorted(methods):
+            view = copy(route)
+            view.methods = {method}
+            if len(methods) > 1 and route.operation_id is None:
+                view.unique_id = f"{base_id}_{method.lower()}"
+            result.append(view)
+    return result
+
+
 def _install_head_and_openapi(app: FastAPI) -> None:
     """Answer HEAD wherever GET works without advertising duplicate OpenAPI operations."""
-    widened: list[APIRoute] = []
+    widened: set[int] = set()
     for route in app.routes:
         if isinstance(route, APIRoute) and route.methods == {"GET"}:
             route.methods = {"GET", "HEAD"}
-            widened.append(route)
+            widened.add(id(route))
 
     fastapi_openapi = app.openapi
 
-    def openapi_without_head():
+    def openapi_by_operation():
         if app.openapi_schema:
             return app.openapi_schema
-        for route in widened:
-            route.methods = {"GET"}
+        live = app.router.routes
+        # Synchronous and awaited nowhere, so no request is routed against the schema view.
+        app.router.routes = _openapi_operation_routes(live, widened)
         try:
             app.openapi_schema = fastapi_openapi()
         finally:
-            for route in widened:
-                route.methods = {"GET", "HEAD"}
+            app.router.routes = live
         return app.openapi_schema
 
-    app.openapi = openapi_without_head
+    app.openapi = openapi_by_operation
 
 
 def _route_manifest(routes: Sequence[BaseRoute]) -> list[str]:

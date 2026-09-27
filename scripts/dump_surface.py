@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -52,7 +51,6 @@ def _configure_test_environment() -> None:
 
 _configure_test_environment()
 
-from fastapi.routing import APIRoute  # noqa: E402
 from treg.api import app  # noqa: E402
 
 
@@ -160,13 +158,7 @@ def _lifespan() -> dict[str, Any]:
 
 
 def _openapi() -> dict[str, Any]:
-    """Generate OpenAPI with FastAPI's default operation IDs made deterministic."""
-    for route in app.routes:
-        if not isinstance(route, APIRoute) or route.operation_id is not None:
-            continue
-        operation_id = re.sub(r"\W", "_", f"{route.name}{route.path_format}")
-        route.unique_id = f"{operation_id}_{sorted(route.methods)[0].lower()}"
-
+    """Generate OpenAPI; bootstrap gives every operation its own deterministic id."""
     # Another test may have populated the cache before this snapshot is collected.
     app.openapi_schema = None
     return app.openapi()
