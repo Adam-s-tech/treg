@@ -70,7 +70,6 @@ platforms:
   xigua: {label: "Xigua Video", category: "Social", summary: "Video and creator data from Xigua Video."}
   pipixia: {label: "Pipixia", category: "Social", summary: "Posts, hashtags and feeds from Pipixia."}
   youku: {label: "Youku", category: "Social", summary: "Videos, users and search from Youku."}
-  netease-music: {label: "NetEase Cloud Music", category: "Social", summary: "Songs, artists, playlists and comments from NetEase Cloud Music."}
   wechat-channels: {label: "WeChat Channels (视频号 video)", category: "Social", summary: "视频号 videos, comments, metrics and account search from WeChat Channels."}
   wechat-search: {label: "WeChat Search (搜一搜)", category: "Social", summary: "WeChat 搜一搜 results and indexes."}
 
@@ -539,9 +538,6 @@ capabilities:
   lemon8.user.profile: "Get a user's public profile"
 
   linkedin.ad.detail: "Get an ad's creative & targeting"
-  linkedin.company.affiliated_pages: "List a company's affiliated pages"
-  linkedin.company.employee_insights: "Break down a company's workforce"
-  linkedin.company.jobs: "List a company's open jobs"
   linkedin.company.people: "List a company's employees"
   linkedin.company.posts: "List a company's recent posts"
   linkedin.company.profile: "Get a company's public profile"
@@ -554,23 +550,9 @@ capabilities:
   linkedin.search.jobs: "Search job postings by keyword"
   linkedin.search.people: "Search people by name or keyword"
   linkedin.search.posts: "Search posts by keyword"
-  linkedin.search.schools: "Search schools by keyword"
-  linkedin.user.certifications: "List a member's certifications"
   linkedin.user.comments: "List comments a member has made"
-  linkedin.user.contact: "Get a member's contact details"
-  linkedin.user.education: "List a member's education history"
-  linkedin.user.experience: "List a member's work experience"
-  linkedin.user.followers: "Get follower & connection counts"
-  linkedin.user.honors: "List a member's honors & awards"
-  linkedin.user.images: "List a member's image posts"
-  linkedin.user.interests: "List companies & groups a member follows"
   linkedin.user.posts: "List a member's recent posts"
-  linkedin.user.publications: "List a member's publications"
   linkedin.user.reactions: "List posts a member reacted to"
-  linkedin.user.recommendations: "List a member's recommendations"
-  linkedin.user.skills: "List a member's skills"
-  linkedin.user.videos: "List a member's video posts"
-  linkedin.user.volunteering: "List a member's volunteer work"
 
   pipixia.feed.home: "Browse the recommended home feed"
   pipixia.feed.short_drama: "Browse the short-drama feed"
@@ -639,7 +621,6 @@ capabilities:
   tiktok-shop.product.detail: "Get a product's full detail"
   tiktok-shop.product.reviews: "List a product's reviews"
   tiktok-shop.search.products: "Search products by keyword"
-  tiktok-shop.shop.detail: "Get a shop's homepage data"
   tiktok-shop.shop.products: "List a shop's products"
 
   tiktok.comment.replies: "List replies to a comment"

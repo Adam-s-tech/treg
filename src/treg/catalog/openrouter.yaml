@@ -165,7 +165,7 @@ endpoints:
       confidence: documented
       note: "Table rows quote the live rate card; the upstream applies a minimum charge the rate card does not publish (live 2026-09-02: 480p x 2 s priced $0.10 by the table, billed $0.2125 as usage.cost). What settles is the terminal usage.cost, never the table row. Indistinguishable mode-specific SKUs collapse to the highest rate. The matched row is reserved; the fallback is the matrix ceiling for unmatched requests."
     verified: 2026-09-02
-    example_response: examples/openrouter.x.alibaba-wan-3-0.json
+    example_response: examples/openrouter.video-gen.wan-3-0.from_text.json
     docs_url: https://openrouter.ai/alibaba/wan-3.0
 
   - id: openrouter.video-gen.wan-3-0.from_image

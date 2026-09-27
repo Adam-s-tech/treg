@@ -14,12 +14,9 @@ proposed_capabilities:
   companies.businesses.search: Search physical business locations.
   companies.businesses.search.ids: Search and return only provider business IDs.
   companies.lookup: Retrieve company records by provider identifier.
-  companies.technologies: Detect technologies used by a company.
-  companies.email.find: Find company-level email addresses.
   companies.deny-rules.create: Add private company-account deny rules.
   companies.deny-rules.check: Check private company-account deny rules.
   companies.deny-rules.delete: Delete private company-account deny rules.
-  people.find: Find people associated with a company.
 
 endpoints:
 - id: openmart.businesses.search
