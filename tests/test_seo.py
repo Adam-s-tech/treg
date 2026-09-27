@@ -138,6 +138,16 @@ async def test_widening_head_did_not_leak_into_the_public_schema(clients: AsyncC
     assert with_head == ["/call/{rest}"], with_head
 
 
+async def test_every_openapi_operation_has_its_own_id(clients: AsyncClient):
+    """FastAPI gives a multi-method route one operation id for every method it declares, taken from
+    whichever method the set yields first, so the /call relay published seven operations under one
+    id. Code generators key on it; each operation must be distinct."""
+    paths = (await clients.get("/openapi.json")).json()["paths"]
+    ids = [op["operationId"] for ops in paths.values() for op in ops.values()]
+    assert len(ids) == len(set(ids)), sorted({i for i in ids if ids.count(i) > 1})
+    assert paths["/call/{rest}"]["post"]["operationId"] == "call_tool_call__rest__post"
+
+
 def test_no_shelf_is_published_that_the_app_grid_hides():
     """Adding a platform is a data-only change — drop the YAML in and it appears on both sides. The
     one way that breaks: `catalog_store` auto-registers a platform with no `platforms:` entry in
