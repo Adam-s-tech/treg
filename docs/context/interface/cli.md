@@ -74,7 +74,7 @@ Every command/subcommand carries a `description` + `help` on each argument + a c
 epilog (a `mk()` helper + `_ex()` + `RawDescriptionHelpFormatter`), so `treg <cmd> -h` is self-teaching.
 `treg --version` / `treg version` print `cli_version()` (package metadata); `treg update` (`cmd_update`)
 re-runs the server's `install.sh` to upgrade the CLI in place. A global **`--json`** flag (stripped in
-`main` like `--org`) makes the human-table commands (`org ls`, `agents ls`, `catalog` in all its forms)
+`main` like `--org`; both last one `main()` call, reset on entry and exit) makes the human-table commands (`org ls`, `agents ls`, `catalog` in all its forms)
 emit raw JSON instead — one stable contract for agents. On `call` (not `--await`) it prints one
 compact envelope, `{"result": <body>, "_treg": {http_status, call_id, charged_micro | reserved_micro,
 replay?, async?, hint?}}` (`_call_envelope`; text as a string, binary as base64), and suppresses the
