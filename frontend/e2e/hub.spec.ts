@@ -2,13 +2,24 @@ import { expect, test } from '@playwright/test'
 import { hubOn, hubRun as run, hubTool as tool, signIn } from './helpers'
 
 // The hub is behind TREG_HUB_ENABLED (and TREG_HUB_TEAMS) on the server; the browser-test server
-// runs with it off. So the first test proves the entry stays hidden when /hub/tools/mine answers
-// 404, and the second answers the hub routes here, with real shapes captured from a live run.
+// runs with it off. So the first test proves the entry stays hidden there, and the second answers
+// /meta and the hub routes here, with real shapes captured from a live run.
 
-test('the Hub entry stays hidden when the hub does not answer for this team', async ({ page }) => {
+test('the Hub entry stays hidden when the hub is off, or not open to this team', async ({ page }) => {
+  const hubRequests: string[] = []
+  page.on('request', request => { if (new URL(request.url()).pathname.startsWith('/hub/')) hubRequests.push(request.url()) })
   await signIn(page, 'browser-hub', 'Hub test team')
   const navigation = page.getByRole('navigation', { name: 'Primary navigation' })
   await expect(navigation.getByRole('button', { name: 'Activity', exact: true })).toBeVisible()
+  await expect(navigation.getByRole('button', { name: 'Hub', exact: true })).toHaveCount(0)
+  // Off on this server (/meta.hub false): nothing is asked of routes that could only answer 404.
+  expect(hubRequests).toEqual([])
+  // On, but not for this team: the probe answers 404 and the entry stays hidden.
+  await page.route('**/meta', async route => route.fulfill({ json: { ...(await (await route.fetch()).json()), hub: true } }))
+  await page.route('**/hub/tools/mine', route => route.fulfill({ status: 404, json: { detail: 'Not Found' } }))
+  await page.reload()
+  await expect(navigation.getByRole('button', { name: 'Activity', exact: true })).toBeVisible()
+  await expect.poll(() => hubRequests.length).toBeGreaterThan(0)
   await expect(navigation.getByRole('button', { name: 'Hub', exact: true })).toHaveCount(0)
 })
 

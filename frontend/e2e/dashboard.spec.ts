@@ -43,3 +43,18 @@ test('public catalog and shared deep links remain available without a session', 
   await expect(page.getByRole('dialog', { name: 'Sign in' })).toBeVisible()
   expect(errors).toEqual([])
 })
+
+test('the dashboard and catalog ask for nothing that is not there', async ({ page }) => {
+  const missing: string[] = []
+  page.on('response', response => { if (response.status() === 404) missing.push(new URL(response.url()).pathname) })
+  await signIn(page, 'no-404')
+  const navigation = page.getByRole('navigation', { name: 'Primary navigation' })
+  for (const name of ['Catalog', 'Your own tools', 'Activity', 'Team', 'Getting started']) {
+    await navigation.getByRole('button', { name, exact: true }).click()
+    await expect(navigation.getByRole('button', { name, exact: true })).toHaveAttribute('aria-current', 'page')
+  }
+  // Every platform tile on the catalog asks for its logo.
+  await page.goto('/catalog')
+  await page.waitForLoadState('networkidle')
+  expect(missing).toEqual([])
+})
