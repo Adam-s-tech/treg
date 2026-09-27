@@ -2,6 +2,7 @@
 import asyncio
 from collections import Counter
 import hashlib
+from pathlib import Path
 
 import pytest
 from sqlalchemy import event, select
@@ -668,7 +669,7 @@ async def test_dev_smoke_refuses_production_bucket(monkeypatch):
                         'BUCKET': 'treg-archive', 'ACCESS_KEY_ID': 'fake',
                         'SECRET_ACCESS_KEY': 'fake'}.items():
         monkeypatch.setenv('TREG_ARCHIVE_OBJECT_STORE_' + name, value)
-    smoke = runpy.run_path('scripts/smoke_archive_r2.py')
+    smoke = runpy.run_path(str(Path(__file__).parents[1] / 'scripts' / 'smoke_archive_r2.py'))
     with pytest.raises(SystemExit, match='Refusing'):
         await smoke['run']()
 

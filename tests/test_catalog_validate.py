@@ -688,9 +688,8 @@ def test_tavily_rates_require_complete_positive_finite_endpoint_tables():
 
 
 def test_contactout_person_routes_cannot_recapture_pii():
-    from pathlib import Path
     import yaml
-    path = Path("src/treg/catalog/contactout.yaml")
+    path = Path(__file__).parents[1] / "src" / "treg" / "catalog" / "contactout.yaml"
     endpoints = yaml.safe_load(path.read_text())["endpoints"]
     safe = {"contactout.people.count", "contactout.people.email.verify",
             "contactout.companies.search", "contactout.companies.enrich"}
