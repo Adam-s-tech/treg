@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 from urllib.parse import urlsplit
 
+import pytest
 from httpx import AsyncClient
 
 from treg.domain.catalog import store as catalog_store
@@ -48,6 +49,23 @@ async def test_static_page_revalidates_to_a_304(clients: AsyncClient):
         assert again.status_code == 304, sent
         assert again.content == b""
     assert (await clients.get("/grokbot", headers={"If-None-Match": '"other"'})).status_code == 200
+
+
+@pytest.mark.parametrize(("path", "policy"), [
+    ("/media/landing/gateway.js", "no-cache"),
+    ("/media/landing/gateway.css", "no-cache"),
+    ("/media/grokbot/grokbot.png", "public, max-age=86400"),
+    ("/media/og.png", "public, max-age=86400"),
+])
+async def test_media_cache_policy(clients: AsyncClient, path: str, policy: str):
+    """Unversioned page media: code revalidates (a heuristic lifetime would pair stale scripts
+    with new HTML), images keep a day like /logos."""
+    r = await clients.get(path)
+    assert r.status_code == 200, path
+    assert r.headers["cache-control"] == policy
+    if policy == "no-cache":
+        again = await clients.get(path, headers={"If-None-Match": r.headers["etag"]})
+        assert again.status_code == 304
 
 
 # A typed catalog size: "2,896 tools", "2,600+ data endpoints", "+ 2,867 more</b> tools", and any

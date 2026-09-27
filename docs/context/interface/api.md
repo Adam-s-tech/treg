@@ -536,6 +536,9 @@ validated before resolving the shared HTTP client. `/auth/logout` remains an HTT
   the generator refuses to emit anything past the ad-kit heading so bid and negative keywords cannot
   reach a public page. Provider brand marks are
   mounted at `/logos` (`StaticFiles` over `web/logos/`, resolved by convention `logos/<service>.svg`).
+  Page media is mounted at `/media` (`_MediaStatic` over `web/media/`): the names are unversioned, so
+  scripts, stylesheets and text answer `no-cache` (revalidated through the ETag, never a heuristic
+  lifetime that would pair old code with new HTML) and images, video and fonts `public, max-age=86400`.
   `dashboard_marketplace` (`GET /app/marketplace/{service}`) serves the plain SPA (a connect page is only
   meaningful to a signed-in member, so no OG meta).
   `_serve_md` backs `quickstart_md` (`GET /quickstart.md`) + `tutorial_md` (`GET /tutorial.md`) -
