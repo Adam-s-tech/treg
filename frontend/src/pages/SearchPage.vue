@@ -84,7 +84,7 @@ export default {
     },
     cards(){ this.$nextTick(this.land); },
   },
-  created(){ this.els={}; this.slotAt={}; },
+  created(){ this.els={}; this.slotAt={}; this.dropTimers=[]; },
   mounted(){
     this.reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
     document.documentElement.classList.add('sp-lock');
@@ -116,6 +116,7 @@ export default {
     this.ro?.disconnect();
     cancelAnimationFrame(this.fieldRaf); this.field?.dispose();
     clearInterval(this.pokeTimer); clearInterval(this.scanTimer); clearTimeout(this.resizeTimer); clearTimeout(this.flungTimer);
+    this.dropTimers.forEach(clearTimeout);
     cancelAnimationFrame(this.scrollRaf);
     this.pile?.destroy();
   },
@@ -208,12 +209,13 @@ export default {
       this.floor=Math.round(this.tiles.length*size*size/((W<640 ? 1.1 : 0.62)*W) + size*0.8);
       this.pile.bounds(W, H);
       if(rebuild){
+        this.dropTimers.forEach(clearTimeout); this.dropTimers=[];
         this.pile.clear();
         const inPile=this.tiles.map(t=>t.key).filter(k=>!this.landed.includes(k));
         if(this.reduced || this.built){ inPile.forEach(k=>this.pile.add(k)); this.pile.settle(); }
         // An answer can land before the last tile has dropped (a shared ?q= link, a cached judge):
         // a tile already on its card is not dropped into the pile behind it.
-        else inPile.forEach((k,i)=>setTimeout(()=>{ if(!this.landed.includes(k)) this.pile.add(k); }, i*10));
+        else this.dropTimers=inPile.map((k,i)=>setTimeout(()=>{ if(!this.landed.includes(k)) this.pile.add(k); }, i*10));
         this.built=true;
       }
       this.$nextTick(()=>this.place(false));

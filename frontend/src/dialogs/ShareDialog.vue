@@ -4,8 +4,8 @@ export default { setup: useDashboard }
 </script>
 
 <template>
-<div class="scrim" role="dialog" aria-modal="true"  @click.self="share.on=false">
-      <div class="modal" style="width:min(560px,95vw)"><div class="hd"><b>Share “{{detail.name}}”</b><button class="btn sm ico" @click="share.on=false" aria-label="Close">✕</button></div>
+<div class="scrim" role="dialog" aria-labelledby="share-dialog-title" aria-modal="true" v-dialog="() => { share.on=false }" @click.self="share.on=false">
+      <div class="modal" style="width:min(560px,95vw)"><div class="hd"><b id="share-dialog-title">Share “{{detail.name}}”</b><button class="btn sm ico" @click="share.on=false" aria-label="Close">✕</button></div>
         <div style="padding:16px 18px">
           <template v-if="share.sent">
             <p class="explain">✓ Invite sent to <b>{{share.sent.email}}</b> — the email's button signs them in and lands them right on this page.</p>

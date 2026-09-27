@@ -5,8 +5,10 @@ async loadAdmin(){ this.confirmAdmUser=null; this.confirmAdmOrg=null;
       catch(e){ this.err='Admin: '+(e.detail||e.status); }
       this.loadAdminHub(); },
 // Hub listing review: a maker's `treg hub list` is a request; approve puts the tool in search,
-// reject takes it out with a reason the maker reads. 404 = the hub is off here: no section.
+// reject takes it out with a reason the maker reads. A server without the hub (/meta.hub false)
+// has no queue to read, so the section stays hidden without asking.
 async loadAdminHub(state){ if(state) this.admHub={...this.admHub, state};
+      if(!this.meta.hub){ this.admHub={...this.admHub, on:false, rows:[]}; return; }
       try{ const rows=await this.api('/admin/hub/listings?state='+this.admHub.state);
            const updates=await this.api('/admin/hub/updates').catch(()=>[]);
            this.admHub={...this.admHub, on:true, rows, updates}; }

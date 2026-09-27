@@ -1,9 +1,12 @@
 // The tool hub (docs/context/architecture/hub.md): the maker's view of the team's hub tools and the
 // run page. Moved from the legacy dashboard with its behavior unchanged. `hubOn` comes from the
-// server: /hub/tools/mine answers 404 when the hub is off, or on but not for this team
-// (TREG_HUB_TEAMS), so the Hub entry follows the ACTIVE team and is probed again on a team switch.
+// server: /meta.hub is false when the hub is off here, so nothing is asked; otherwise /hub/tools/mine
+// answers 404 when the hub is on but not for this team (TREG_HUB_TEAMS), so the Hub entry follows
+// the ACTIVE team and is probed again on a team switch.
 export default {
-async probeHub(){ try{ const r=await fetch('/hub/tools/mine',{credentials:'include', headers:this.headers()}); this.hubOn=r.status!==404; }catch(e){ this.hubOn=false; }
+async probeHub(){ const live=this.ticket('hubProbe'); let on=false;
+      if(this.meta.hub){ try{ const r=await fetch('/hub/tools/mine',{credentials:'include', headers:this.headers()}); on=r.status!==404; }catch(e){} }
+      if(!live()) return; this.hubOn=on;
       if(!this.hubOn && (this.view==='hub' || this.view==='run')) this.go('start'); },
 runFromPath(path){ const m=/^\/app\/runs\/([A-Za-z0-9_:-]+)$/.exec(path||''); return m ? m[1] : null; },
 async loadHub(){ if(!this.authed) return; this.hub={...this.hub, loading:true, err:''};

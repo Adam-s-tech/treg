@@ -4,8 +4,8 @@ export default { setup: useDashboard }
 </script>
 
 <template>
-<div class="scrim" role="dialog" aria-modal="true"  @click.self="reqAsk=false;reqErr=''">
-      <div class="modal" style="width:min(520px,95vw)"><div class="hd"><b>Request a tool</b><button class="btn sm ico" @click="reqAsk=false;reqErr=''" aria-label="Close">✕</button></div>
+<div class="scrim" role="dialog" aria-labelledby="request-tool-dialog-title" aria-modal="true" v-dialog="() => { reqAsk=false;reqErr='' }" @click.self="reqAsk=false;reqErr=''">
+      <div class="modal" style="width:min(520px,95vw)"><div class="hd"><b id="request-tool-dialog-title">Request a tool</b><button class="btn sm ico" @click="reqAsk=false;reqErr=''" aria-label="Close">✕</button></div>
         <div style="padding:16px 18px">
           <template v-if="!reqDone">
             <p class="explain" style="margin-top:0">Missing a provider or capability? Requests go straight to the catalog team — the most-asked-for tools get added first.</p>

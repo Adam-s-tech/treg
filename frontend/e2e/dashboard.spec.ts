@@ -1,18 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
-
-async function signIn(page: Page) {
-  await page.goto('/app?ref=frontend-test')
-  await page.getByPlaceholder('you@work.com').fill(`browser-${Date.now()}@example.com`)
-  await page.getByRole('button', { name: 'Email me a sign-in code' }).click()
-  const code = await page.getByText(/dev code \d{6}/).innerText()
-  await page.getByPlaceholder('6-digit code').fill(code.match(/\d{6}/)![0])
-  await page.getByRole('dialog', { name: 'Sign in' }).getByRole('button', { name: 'Sign in', exact: true }).click()
-  await page.getByPlaceholder('Team name, e.g. Superdesign').fill('Browser test team')
-  await page.getByRole('button', { name: 'Create team →', exact: true }).click()
-  await expect(page.getByText('Which agent are you using?', { exact: true })).toBeVisible()
-  await page.getByRole('link', { name: 'Skip', exact: true }).click()
-  await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible()
-}
+import { expect, test } from '@playwright/test'
+import { signIn } from './helpers'
 
 test('sign in, create team, switch pages, refresh and navigate back', async ({ page }) => {
   const errors: string[] = []
@@ -55,4 +42,50 @@ test('public catalog and shared deep links remain available without a session', 
   await expect(page.getByRole('heading', { name: /shared-example/ })).toBeVisible()
   await expect(page.getByRole('dialog', { name: 'Sign in' })).toBeVisible()
   expect(errors).toEqual([])
+})
+
+test('the dashboard and catalog ask for nothing that is not there', async ({ page }) => {
+  const missing: string[] = []
+  page.on('response', response => { if (response.status() === 404) missing.push(new URL(response.url()).pathname) })
+  await signIn(page, 'no-404')
+  const navigation = page.getByRole('navigation', { name: 'Primary navigation' })
+  for (const name of ['Catalog', 'Your own tools', 'Activity', 'Team', 'Getting started']) {
+    await navigation.getByRole('button', { name, exact: true }).click()
+    await expect(navigation.getByRole('button', { name, exact: true })).toHaveAttribute('aria-current', 'page')
+  }
+  // Every platform tile on the catalog asks for its logo.
+  await page.goto('/catalog')
+  await page.waitForLoadState('networkidle')
+  expect(missing).toEqual([])
+})
+
+test('Help renders the shared tutorials, which no other view downloads', async ({ page }) => {
+  const scripts: string[] = []
+  page.on('request', request => { if (request.resourceType() === 'script') scripts.push(new URL(request.url()).pathname) })
+  await signIn(page, 'help')
+  await page.waitForLoadState('networkidle')
+  expect(scripts).not.toContain('/tutorial.js')
+  await page.goto('/app#help')
+  await expect(page.getByText(/The whole registry from your terminal.* [1-9]\d* steps\./)).toBeVisible()
+  await page.getByRole('heading', { name: '▤ CLI tutorial' }).click()
+  await expect(page.locator('.explain').first()).not.toBeEmpty()
+})
+
+test('a dialog takes its first field and hands focus back, even when its code arrives late', async ({ page }) => {
+  await signIn(page, 'late-dialog')
+  // Hold the dialog's code so it mounts well after the click that opened it.
+  await page.route(/RequestToolDialog-[^/]*\.js$/, async route => {
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    await route.continue()
+  })
+  await page.goto('about:blank')
+  await page.goto('/app#connections')
+  const opener = page.getByRole('button', { name: 'Request a tool', exact: true })
+  await opener.click()
+  const dialog = page.getByRole('dialog', { name: 'Request a tool' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByPlaceholder('e.g. Ahrefs backlinks, flight prices, HN comments')).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await expect(opener).toBeFocused()
 })

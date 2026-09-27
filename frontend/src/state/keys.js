@@ -1,10 +1,11 @@
 
 export default {
-async loadApiKeys(){ if(!this.activeOrgId) return; this.keyErr='';
-      try{ this.apiKeys=await this.api('/orgs/'+this.activeOrgId+'/api-keys'); }
-      catch(e){ this.keyErr='Could not load keys: '+(e.detail||e.status); } },
-async loadDefaultToken(){
+async loadApiKeys(){ if(!this.activeOrgId) return; this.keyErr=''; const live=this.ticket('apiKeys');
+      try{ const keys=await this.api('/orgs/'+this.activeOrgId+'/api-keys'); if(live()) this.apiKeys=keys; }
+      catch(e){ if(live()) this.keyErr='Could not load keys: '+(e.detail||e.status); } },
+async loadDefaultToken(){ const live=this.ticket('defaultToken');
       const issued=await this.api('/auth/cli-token').catch(()=>null);
+      if(!live()) return;
       this._myTokenOrg=this.activeSlugNow;
       this.defaultKeyId=issued&&issued.default_key_id;
       this.defaultKeyState=issued&&issued.default_key_state;
