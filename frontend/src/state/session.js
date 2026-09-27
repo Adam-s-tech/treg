@@ -75,7 +75,7 @@ async loadAll(){ const live=this.ticket('all', false); this.err=''; this.loading
         // (so it works as a bare MCP Authorization bearer), and a stale one would name the old team.
         // Signed derivation — cheap; the selected Default row contributes its team-local generation.
         const token=(this.myToken===null || this._myTokenOrg!==this.activeSlugNow) ? this.loadDefaultToken() : null;
-        if(invites){ const pending=await invites; if(!live()) return; this.pendingInvites=pending; }  // BEFORE the no-orgs early return: an invited user has 0 orgs but DOES have a pending invite — maybeOnboard needs it to offer joining instead of forcing create-team
+        if(invites){ const pending=await invites; if(!live()) return; this.pendingInvites=pending; }  // BEFORE the no-orgs early return: an invited user has 0 orgs but DOES have a pending invite - maybeOnboard needs it to offer joining instead of forcing create-team
         if(!this.myOrgs.length){ await token; if(!live()) return; this.tools=[]; this.bundles=[]; this.health={}; return; }  // brand-new user: no team yet → the mandatory welcome (maybeOnboard) creates the first one; skip org-scoped fetches (they'd 400). finally{} clears loading.
         this.loadConnections();  // fire-and-forget: connections must never block the tools view
         const [tools, health, bundles]=await Promise.all([this.api('/tools'), this.api('/health').catch(()=>[]), this.api('/bundles').catch(()=>[]), token]);
