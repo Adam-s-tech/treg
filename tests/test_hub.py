@@ -1637,6 +1637,8 @@ async def test_a_maker_cannot_review_its_own_hub_tool(clients: AsyncClient, hub_
     pub = await _live_tool_with_readme(clients, monkeypatch, price=0.01)
     run = await clients.post(f"/call/{pub['tool_id']}", json={"domain": "x"})
     assert run.status_code == 200
+    from treg import audit
+    await audit.drain()  # the run's call record is a fire-and-forget write, and a review reads it
     r = await clients.post("/reviews", json={"call_id": run.json()["run_id"], "usefulness": "useful"})
     assert r.status_code == 400 and "own hub tool" in r.text, r.text
 
