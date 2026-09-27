@@ -32,6 +32,7 @@ import find from './find.js'
 import findComputed from './findComputed.js'
 import lifecycle from './lifecycle.js'
 import hub from './hub.js'
+import tickets from './tickets.js'
 import billingComputed from './billingComputed.js'
 import catalogComputed from './catalogComputed.js'
 import sessionComputed from './sessionComputed.js'
@@ -41,7 +42,7 @@ import detailsComputed from './detailsComputed.js'
 export default {
  data,
  computed: {...resourcesComputed, ...billingComputed, ...catalogComputed, ...sessionComputed, ...agentsComputed, ...onboardingComputed, ...detailsComputed, ...findComputed},
- methods: {...resources, setElement(name, element) { this.elements[name] = element }, ...session, ...team, ...keys, ...agents, ...projects, ...governance, ...activity, ...billing, ...referrals, ...secrets, ...tools, ...skills, ...format, ...onboarding, ...analytics, ...help, ...connections, ...sharing, ...navigation, ...catalog, ...details, ...admin, ...snippets, ...tryTool, ...find, ...lifecycle, ...hub},
+ methods: {...resources, setElement(name, element) { this.elements[name] = element }, ...session, ...team, ...keys, ...agents, ...projects, ...governance, ...activity, ...billing, ...referrals, ...secrets, ...tools, ...skills, ...format, ...onboarding, ...analytics, ...help, ...connections, ...sharing, ...navigation, ...catalog, ...details, ...admin, ...snippets, ...tryTool, ...find, ...lifecycle, ...hub, ...tickets},
  watch:{
     // Dialog focus (in on open, trapped, back to the trigger on close) and Escape: v-dialog (dialogs/dialog.ts)
     'welcome.agent'(v){ storageSet('treg-agent', v); },  // see _restoreAgent

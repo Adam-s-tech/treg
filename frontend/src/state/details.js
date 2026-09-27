@@ -6,13 +6,16 @@ openDetail(kind, name, fromPop){ this.resetConfirms();
       if(!fromPop) history.pushState({detail:{kind,name}}, '', '/app/'+(kind==='skill'?'skills':'tools')+'/'+encodeURIComponent(name));
       this.loadDetail(); },
 async loadDetail(){ if(!this.detail) return; this.detailErr=''; this.detailLoading=true; this.detailData=null;
-      try{ this.detailData=await this.api((this.detail.kind==='skill'?'/bundles/by-name/':'/tools/by-name/')+encodeURIComponent(this.detail.name)); }
+      const live=this.ticket('detail', false);  // the newest opened page wins; findDetailOrg may switch team on purpose
+      try{ const data=await this.api((this.detail.kind==='skill'?'/bundles/by-name/':'/tools/by-name/')+encodeURIComponent(this.detail.name));
+        if(live()) this.detailData=data; }
       catch(e){
+        if(!live()) return;
         if(e.status===404 && await this.findDetailOrg()) return void (this.detailLoading=false);  // it lives in another of my teams — switched
         this.detailErr = e.status===404
           ? 'Not found in your teams. This link needs an invite — ask the person who shared it to invite you (Share… on their side), then click the link again.'
           : 'Could not load: '+(e.detail||e.status); }
-      finally{ this.detailLoading=false; } },
+      finally{ if(live()) this.detailLoading=false; } },
 async fullTool(t){  // skill pages carry tool SUMMARIES — resolve the full record (bindings + cli) before acting on it
       let full=(this.tools||[]).find(x=>x.id===t.id);
       if(!full && !(t.bindings||t.cli)){ try{ full=(await this.api('/tools')).find(x=>x.id===t.id); }catch(e){} }

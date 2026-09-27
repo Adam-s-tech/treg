@@ -1,11 +1,13 @@
 export default {
 async loadTeamResources(){
       if(!this.activeOrgId) return;
-      this.teamResourceBusy=true; this.teamResourceErr='';
-      try{ this.teamResources=await this.api('/orgs/'+this.activeOrgId+'/provider-resources?source=platform');
+      this.teamResourceBusy=true; this.teamResourceErr=''; const live=this.ticket('teamResources');
+      try{ const rows=await this.api('/orgs/'+this.activeOrgId+'/provider-resources?source=platform');
+        if(!live()) return;
+        this.teamResources=rows;
         this.teamResourcePage=Math.min(this.teamResourcePage,Math.max(1,Math.ceil(this.teamResources.length/this.teamResourcePageSize))); }
-      catch(e){ this.teamResources=[]; this.teamResourceErr='Could not load team resources: '+(e.detail||e.status||e); }
-      finally{ this.teamResourceBusy=false; }
+      catch(e){ if(live()){ this.teamResources=[]; this.teamResourceErr='Could not load team resources: '+(e.detail||e.status||e); } }
+      finally{ if(live()) this.teamResourceBusy=false; }
     },
 async copyTeamResourceId(resource){
       if(!(await this.toClipboard(resource.upstream_id||''))) return;

@@ -17,20 +17,26 @@ async createOrg(){ const name=(this.newOrgName||'').trim(); if(!name){ this.orgE
 async loadOrgAdmin(){ this.orgMembers=[]; this.orgMembersLoaded=false; this.orgInvites=[]; this.lastInvite=null;
       if(!this.canAdmin && !['keys','danger'].includes(this.orgTab)) this.orgTab='keys';
       this.orgErr=''; this.confirmDel=''; this.confirmLeave=false; this.confirmRemove=null;
-      if(!this.activeOrgId) return; const id=this.activeOrgId;
-      await this.loadApiKeys();
-      if(!this.canAdmin) return;
+      if(!this.activeOrgId) return; const id=this.activeOrgId, live=this.ticket('orgAdmin');
+      const keys=this.loadApiKeys();
+      if(!this.canAdmin){ await keys; return; }
       this.agentErr=''; this.confirmAgent=null;
-      try{ this.orgMembers=await this.api('/orgs/'+id+'/members'); this.orgMembersLoaded=true; this.orgInvites=await this.api('/orgs/'+id+'/invites');
-           this.projects=await this.api('/orgs/'+id+'/projects'); this.denyRules=await this.api('/orgs/'+id+'/deny');
-           this.cliDeny=await this.api('/orgs/'+id+'/policy/cli-deny').catch(()=>[]);
-           // agents live in the same roster now (an agent IS a membership)
-           this.agents=await this.api('/orgs/'+id+'/agents').catch(()=>[]);
+      const get=path=>this.api('/orgs/'+id+path);
+      // The roster's requests do not depend on each other, so they run together; agents live in
+      // the same roster (an agent IS a membership). The optional ones fall back to empty.
+      try{ const [members, invites, projects, deny, cliDeny, agents, observed]=await Promise.all([
+             get('/members'), get('/invites'), get('/projects'), get('/deny'),
+             get('/policy/cli-deny').catch(()=>[]), get('/agents').catch(()=>[]), get('/agents/observed').catch(()=>[]), keys]);
+           if(!live()) return;
+           this.orgMembers=members; this.orgMembersLoaded=true; this.orgInvites=invites;
+           this.projects=projects; this.denyRules=deny; this.cliDeny=cliDeny; this.agents=agents;
            const sel={}; this.projects.forEach(p=>{ sel[p.id]=true; }); this.agentProjSel=sel;
-           this.observedAgents=await this.api('/orgs/'+id+'/agents/observed').catch(()=>[]); }
-      catch(e){ this.orgMembersLoaded=true; this.orgErr='Load team failed: '+(e.detail||e.status); } },
+           this.observedAgents=observed; }
+      catch(e){ if(!live()) return; this.orgMembersLoaded=true; this.orgErr='Load team failed: '+(e.detail||e.status); } },
 async loadMyUsage(){ if(!this.activeOrgId){ this.myUsage=null; return; }
-      this.myUsage=await this.api('/usage/me').catch(()=>null); },
+      const live=this.ticket('myUsage');
+      const usage=await this.api('/usage/me').catch(()=>null);
+      if(live()) this.myUsage=usage; },
 // the caller's own used/cap (any member)
     async setCap(m, val){ const cap=parseInt(val,10);
       if(isNaN(cap)||cap<-1){ this.orgErr='Daily cap must be -1 (unlimited) or 0 and above.'; await this.loadOrgAdmin(); return; }

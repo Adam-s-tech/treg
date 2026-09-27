@@ -89,6 +89,7 @@ sources:
   - frontend/src/state/snippets.js
   - frontend/src/state/storage.js
   - frontend/src/state/team.js
+  - frontend/src/state/tickets.js
   - frontend/src/state/tools.js
   - frontend/src/state/tryTool.js
   - frontend/src/styles/base.css
@@ -213,6 +214,13 @@ convenience (theme, active team, token-mode config, a deep link parked across si
 written only through `state/storage.js`, which never throws: with site data blocked (Safari throws on
 the first touch of `localStorage`) a read is empty and a write is dropped. `loadAll` waits on one round trip per dependency step:
 `/orgs` with `/invites/mine`, then the bearer with the team's tools, health and skills.
+**A late answer never overwrites a newer one.** Each loader a team switch or a newer call can
+overtake (`loadAll`, the Team roster, billing, keys, Activity, secrets, team resources, connections,
+the hub probe, a catalog platform, a detail page) takes a ticket from `state/tickets.js` and checks it
+after every await; a newer call of the same loader, or for team-scoped data a switch to another
+team, drops the late answer. The Team roster's requests run in parallel. A switch also clears the
+previous team's billing and closes the top-up dialog, and `payTopup` refuses billing that belongs
+to another team and stops before Checkout if the team changes mid-way.
 Catalog data does not wait for the session: boot starts the shelves (and a shelf's endpoints,
 through `prefetchPlatform`, which `loadPlatform` takes over) alongside `/meta` and `/auth/me`.
 **A view renders nothing it cannot yet know.** Empty states, zero figures and fallback views wait

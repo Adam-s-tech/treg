@@ -3,7 +3,9 @@
 // server: /hub/tools/mine answers 404 when the hub is off, or on but not for this team
 // (TREG_HUB_TEAMS), so the Hub entry follows the ACTIVE team and is probed again on a team switch.
 export default {
-async probeHub(){ try{ const r=await fetch('/hub/tools/mine',{credentials:'include', headers:this.headers()}); this.hubOn=r.status!==404; }catch(e){ this.hubOn=false; }
+async probeHub(){ const live=this.ticket('hubProbe'); let on=false;
+      try{ const r=await fetch('/hub/tools/mine',{credentials:'include', headers:this.headers()}); on=r.status!==404; }catch(e){}
+      if(!live()) return; this.hubOn=on;
       if(!this.hubOn && (this.view==='hub' || this.view==='run')) this.go('start'); },
 runFromPath(path){ const m=/^\/app\/runs\/([A-Za-z0-9_:-]+)$/.exec(path||''); return m ? m[1] : null; },
 async loadHub(){ if(!this.authed) return; this.hub={...this.hub, loading:true, err:''};
