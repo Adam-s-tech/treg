@@ -175,7 +175,7 @@ export default {
             <span class="sub" style="font-size:12px">Projects (all checked = every project):</span>
             <label v-for="p in projects" :key="p.id" class="tgl"><input type="checkbox" v-model="agentProjSel[p.id]"/><span>{{p.name}}</span></label>
           </div>
-          <p class="sub" style="margin:-2px 0 0;font-size:12px">An empty cap means no daily limit. An agent can never be an owner, and can never sign in — its token is the only way to act as it.</p>
+          <p class="sub" style="margin:-2px 0 0;font-size:12px">An empty cap means no daily limit. An agent can never be an owner, and can never sign in; its token is the only way to act as it.</p>
 
               </div>
               <template v-if="!isPersonal(activeOrg)">
