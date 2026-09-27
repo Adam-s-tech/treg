@@ -2,7 +2,7 @@
 export default {
 // Product analytics — only when this deployment opted in (meta.posthog_key present); self-hosters send nothing.
     initAnalytics(){
-      // /sitetrack.js (loaded at the bottom of this page, before Vue mounts) normally initialises
+      // /sitetrack.js (deferred in index.html, it runs before the app entry) normally initialises
       // PostHog already — with pageviews on, so first-touch source survives into the person. Then
       // this only has to identify. The inline path below is the fallback for a stale bundle.
       if(window.__phInit){ this.analyticsIdentify(); return; }

@@ -33,6 +33,25 @@ function lazy(load: () => Promise<Module>): Lazy {
   }) as Lazy
 }
 
+// Classic scripts that only the Help view reads (`window.TREG_TUTORIAL`, `tregHL`, `TREG_TOUR`).
+// They are served no-cache and shared with the standalone /tutorial and /dashboard-tour pages.
+const scripts = new Map<string, Promise<void>>()
+export function loadScript(src: string): Promise<void> {
+  let loading = scripts.get(src)
+  if (!loading) {
+    loading = new Promise(resolve => {
+      const script = document.createElement('script')
+      script.src = src
+      script.onload = () => resolve()
+      // The Help view has empty fallbacks for missing data, as it did when the tag failed.
+      script.onerror = () => { scripts.delete(src); console.error('Failed to load', src); resolve() }
+      document.head.appendChild(script)
+    })
+    scripts.set(src, loading)
+  }
+  return loading
+}
+
 export const pages = {
   connections: lazy(() => import('./pages/CatalogPage.vue')),
   find: lazy(() => import('./pages/SearchPage.vue')),
@@ -49,7 +68,9 @@ export const pages = {
   referrals: lazy(() => import('./pages/ReferralsPage.vue')),
   hub: lazy(() => import('./pages/HubPage.vue')),
   run: lazy(() => import('./pages/HubRunPage.vue')),
-  help: lazy(() => import('./pages/HelpPage.vue')),
+  help: lazy(() => Promise.all([
+    import('./pages/HelpPage.vue'), loadScript('/tutorial.js'), loadScript('/dashboard-tour/tour.js'),
+  ]).then(([page]) => page)),
 }
 type View = keyof typeof pages
 
@@ -102,7 +123,8 @@ const idle = () => new Promise<void>(resolve => {
 })
 
 // After boot, fetch what this visitor can reach next, one chunk per idle period. A member gets
-// every screen and dialog; a public catalog or /search visitor only the catalog pages.
+// every screen and dialog except Help, which is rarely opened and would pull the tutorial scripts
+// in too; a public catalog or /search visitor gets only the catalog pages.
 export function prefetchAfterBoot(vm: Dashboard) {
   root = vm
   const start = async () => {
@@ -110,7 +132,7 @@ export function prefetchAfterBoot(vm: Dashboard) {
     const member = vm.authed && !vm.publicCatalog
     const views: View[] = member
       ? ['start', 'connections', 'tools', 'activity', 'orgs', 'platform', 'provider', 'detail', 'secrets',
-         'resources', 'referrals', 'hub', 'run', 'help', ...(vm.isAdmin ? ['admin' as const] : [])]
+         'resources', 'referrals', 'hub', 'run', ...(vm.isAdmin ? ['admin' as const] : [])]
       : ['connections', 'platform']
     const queue: Lazy[] = [...views.map(v => pages[v]), ...(member ? Object.values(dialogs) : [])]
     for (const component of queue) { await idle(); await prefetch(component) }

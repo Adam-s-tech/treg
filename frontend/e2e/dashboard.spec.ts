@@ -59,6 +59,18 @@ test('the dashboard and catalog ask for nothing that is not there', async ({ pag
   expect(missing).toEqual([])
 })
 
+test('Help renders the shared tutorials, which no other view downloads', async ({ page }) => {
+  const scripts: string[] = []
+  page.on('request', request => { if (request.resourceType() === 'script') scripts.push(new URL(request.url()).pathname) })
+  await signIn(page, 'help')
+  await page.waitForLoadState('networkidle')
+  expect(scripts).not.toContain('/tutorial.js')
+  await page.goto('/app#help')
+  await expect(page.getByText(/The whole registry from your terminal.* [1-9]\d* steps\./)).toBeVisible()
+  await page.getByRole('heading', { name: '▤ CLI tutorial' }).click()
+  await expect(page.locator('.explain').first()).not.toBeEmpty()
+})
+
 test('a dialog takes its first field and hands focus back, even when its code arrives late', async ({ page }) => {
   await signIn(page, 'late-dialog')
   // Hold the dialog's code so it mounts well after the click that opened it.
