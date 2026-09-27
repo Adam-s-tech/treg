@@ -108,6 +108,7 @@ from treg.api import app  # noqa: E402
 from treg import archive  # noqa: E402
 from treg.config import get_settings  # noqa: E402
 from treg.infra.db import reset_db  # noqa: E402
+from treg.domain.identity import api_keys as managed_keys  # noqa: E402
 
 
 # The OTP-start + sandbox throttles (and the OTP codes) now live in the DB's `ephemeral` table, not in
@@ -424,6 +425,10 @@ async def drain_background_writes():
     # forgives it) — the serial CI job hung exactly here, 5-minute faulthandler timeouts on
     # whichever archive test ran next (2026-08-28, twice).
     await archive.drain()
+    # And the managed-key last-used writer: ids restart with every reset_db(), so a write or a
+    # throttle claim left over from one test would land on, or suppress, the next test's key.
+    await managed_keys.drain_last_used()
+    managed_keys._last_used_claims.clear()
 
 
 @pytest.fixture
@@ -541,3 +546,21 @@ def contactout_platform(monkeypatch):
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
+
+
+_SESSION_CWD = os.getcwd()
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_teardown(item, nextitem):
+    """Every test ends in the directory the run started in. A test that changes it (a bare
+    `os.chdir`, or product code that chdirs while a stub stands in for `exec`) makes later tests
+    fail on relative paths, far from the cause and only in some orders. Runs after every fixture
+    has torn down, so `monkeypatch.chdir` restores first; the leaking test errors here instead."""
+    result = yield
+    if os.getcwd() != _SESSION_CWD:
+        leaked = os.getcwd()
+        os.chdir(_SESSION_CWD)
+        raise AssertionError(f"{item.nodeid} left the working directory at {leaked}; "
+                             "use monkeypatch.chdir so it is restored")
+    return result

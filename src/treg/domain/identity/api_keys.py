@@ -386,4 +386,9 @@ def touch(key: ApiKey | None, now: datetime | None = None) -> None:
 async def drain_last_used() -> None:
     """Wait for scheduled writes. Tests and graceful shutdown paths may use this boundary."""
     while _last_used_tasks:
-        await asyncio.gather(*tuple(_last_used_tasks), return_exceptions=True)
+        tasks = tuple(_last_used_tasks)
+        await asyncio.gather(*tasks, return_exceptions=True)
+        # Remove what was just gathered here: a gather of already-finished tasks returns without
+        # yielding, so their queued `discard` callbacks may not have run yet, and a loop keyed on
+        # them busy-spins forever with the event loop starved. Same discipline as audit.drain().
+        _last_used_tasks.difference_update(tasks)

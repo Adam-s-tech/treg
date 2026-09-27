@@ -12,6 +12,7 @@ import dataclasses
 import json
 import re
 import shlex
+from pathlib import Path
 
 import pytest
 from httpx import AsyncClient
@@ -842,7 +843,6 @@ def _load_validator():
     """The actual validator module, so these tests exercise the real check rather than a copy that
     can drift from it."""
     import importlib.util
-    from pathlib import Path
 
     spec = importlib.util.spec_from_file_location(
         "catalog_validate", Path(__file__).parent.parent / "scripts" / "catalog_validate.py")
@@ -956,7 +956,7 @@ async def test_an_id_that_resembles_nothing_is_sent_to_search(clients: AsyncClie
     assert "catalog search" in detail["hint"]
 
 
-def test_the_ingester_puts_a_POST_routes_arguments_in_the_BODY():
+def test_the_ingester_puts_a_POST_routes_arguments_in_the_BODY(monkeypatch):
     """The checked-in YAML is machine-generated, so a fix that lives only in the file is undone by
     the next `catalog_ingest.py` run. These assert the GENERATOR: the tests above inspect the
     corrected YAML and would pass with the ingester reverted.
@@ -965,8 +965,7 @@ def test_the_ingester_puts_a_POST_routes_arguments_in_the_BODY():
     parameter under `parameters.query` while its OpenAPI declares the same route POST-with-a-JSON
     body, so taking the verb from one and the position from the other produced a POST carrying its
     arguments in the query string — uncallable, just differently."""
-    import sys
-    sys.path.insert(0, "scripts")
+    monkeypatch.syspath_prepend(str(Path(__file__).parents[1] / "scripts"))
     from catalog_ingest import tikhub_input_and_test
 
     doc_op = {"parameters": {"query": [
@@ -992,10 +991,9 @@ def test_the_ingester_puts_a_POST_routes_arguments_in_the_BODY():
     assert "queryParams" in no_body and "body" not in no_body
 
 
-def test_gtm_ingestion_expands_semantic_resource_names_into_atomic_path_ids():
+def test_gtm_ingestion_expands_semantic_resource_names_into_atomic_path_ids(monkeypatch):
     """The checked-in extended YAML must stay fixed after the next Discovery re-ingest."""
-    import sys
-    sys.path.insert(0, "scripts")
+    monkeypatch.syspath_prepend(str(Path(__file__).parents[1] / "scripts"))
     from catalog_ingest import google_flat_path_params
 
     entry = {
@@ -1014,12 +1012,11 @@ def test_gtm_ingestion_expands_semantic_resource_names_into_atomic_path_ids():
     assert "pageToken" in entry["input"]["queryParams"]
 
 
-def test_a_published_spec_outranks_the_OPTIONS_probe():
+def test_a_published_spec_outranks_the_OPTIONS_probe(monkeypatch):
     """The probe infers a verb from a preflight; the spec is the provider's own contract. When the
     spec names exactly one method the spec wins, so a re-ingest inherits an upstream verb change
     instead of re-deriving a stale guess."""
-    import sys
-    sys.path.insert(0, "scripts")
+    monkeypatch.syspath_prepend(str(Path(__file__).parents[1] / "scripts"))
     from catalog_ingest import resolve_method
 
     # the case that matters: spec says POST, the probe came back GET

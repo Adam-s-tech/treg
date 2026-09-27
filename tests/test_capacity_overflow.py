@@ -5,6 +5,7 @@ Off by default; shadow mode never changes the caller's answer."""
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import httpx
 import pytest
@@ -756,7 +757,7 @@ async def test_contactout_renewal_budget_includes_direct_cost_and_uses_ephemeral
     import runpy
     from types import SimpleNamespace
     from treg.domain.capacity import verify as V
-    namespace=runpy.run_path('scripts/contactout_overflow_verify.py')
+    namespace=runpy.run_path(str(Path(__file__).parents[1] / 'scripts' / 'contactout_overflow_verify.py'))
     main=namespace['main']
     globals_=main.__globals__
     candidate=next(dict(r) for r in R.load_seed() if r['endpoint_id']==CONTACTOUT_EP and r['aggregator']=='orthogonal')

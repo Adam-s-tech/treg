@@ -7005,8 +7005,18 @@ def _subcommands(parser) -> set[str]:
 
 
 def main(argv: list[str] | None = None) -> None:
+    """One CLI invocation. `--org` and `--json` live in module globals for the length of this call
+    only, so a second `main()` in the same process (tests, embedders) starts from the defaults."""
     global _ORG_OVERRIDE, _JSON_OVERRIDE
-    argv = list(sys.argv[1:] if argv is None else argv)
+    _ORG_OVERRIDE, _JSON_OVERRIDE = None, False
+    try:
+        _main(list(sys.argv[1:] if argv is None else argv))
+    finally:
+        _ORG_OVERRIDE, _JSON_OVERRIDE = None, False
+
+
+def _main(argv: list[str]) -> None:
+    global _ORG_OVERRIDE, _JSON_OVERRIDE
     override = _pop_org_flag(argv)
     _JSON_OVERRIDE = _pop_json_flag(argv)
     # Preserve the original submission shorthand; help teaches the explicit subcommands.

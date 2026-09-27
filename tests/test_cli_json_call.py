@@ -70,3 +70,16 @@ def test_default_call_output_is_unchanged(monkeypatch, capsys):
     out, err = capsys.readouterr()
     assert json.loads(out) == {"items": []}
     assert "treg: charged $0.098" in err and "abc123" in err
+
+
+def test_json_and_org_flags_last_one_invocation(monkeypatch, capsys):
+    """`--json` and `--org` are per-invocation: a later `main()` in the same process, or a command
+    called directly, starts from plain output and the saved team, even after an error exit."""
+    _serve(monkeypatch, _charged(402, json={"detail": {"error": "insufficient_balance"}}))
+    with pytest.raises(SystemExit):
+        cli.main(["--json", "--org", "acme", "call", "treg.people.search"])
+    assert cli._JSON_OVERRIDE is False and cli._ORG_OVERRIDE is None
+    capsys.readouterr()
+    _serve(monkeypatch, _charged(json={"items": []}))
+    cli.main(["call", "treg.people.search"])
+    assert json.loads(capsys.readouterr().out) == {"items": []}
