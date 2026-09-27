@@ -86,6 +86,7 @@ sources:
   - frontend/src/state/sharing.js
   - frontend/src/state/skills.js
   - frontend/src/state/snippets.js
+  - frontend/src/state/storage.js
   - frontend/src/state/team.js
   - frontend/src/state/tools.js
   - frontend/src/state/tryTool.js
@@ -206,7 +207,10 @@ runs, so mounting swaps the screen for itself. A fast boot shows only the page g
 indicator fades in after a delay, on the page's own clock (`bootStartedAt`), so the node Vue swaps
 in does not restart it. `index.html` also starts
 `/meta` and `/auth/me` alongside the bundle download (`window.__tregBoot`, taken over by boot) and
-applies the saved theme before first paint. `loadAll` waits on one round trip per dependency step:
+applies the saved theme before first paint. Everything the app keeps in `localStorage` is a
+convenience (theme, active team, token-mode config, a deep link parked across sign-in), read and
+written only through `state/storage.js`, which never throws: with site data blocked (Safari throws on
+the first touch of `localStorage`) a read is empty and a write is dropped. `loadAll` waits on one round trip per dependency step:
 `/orgs` with `/invites/mine`, then the bearer with the team's tools, health and skills.
 Catalog data does not wait for the session: boot starts the shelves (and a shelf's endpoints,
 through `prefetchPlatform`, which `loadPlatform` takes over) alongside `/meta` and `/auth/me`.

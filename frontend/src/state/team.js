@@ -1,3 +1,4 @@
+import { storageSet, storageRemove } from './storage.js'
 
 export default {
 // ---- Phase 2a: org lifecycle (writes; all endpoints already exist) ----
@@ -80,7 +81,7 @@ async revokeInvite(inv){ try{ await this.api('/orgs/'+this.activeOrgId+'/invites
         this.orgInvites=this.orgInvites.filter(i=>i.id!==inv.id); }
       catch(e){ this.orgErr='Revoke failed: '+(e.detail||e.status); } },
 forgetActiveOrg(){  // drop the now-dead active org in whichever mode we're in, then fall back to another
-      if(this.sessionMode){ this.activeSlug=null; localStorage.removeItem('treg-active'); }
+      if(this.sessionMode){ this.activeSlug=null; storageRemove('treg-active'); }
       else { const s=this.cfg.active; if(s) delete this.cfg.orgs[s]; this.cfg.active=Object.keys(this.cfg.orgs)[0]||null; this.save(); } },
 async leaveOrg(){ if(!this.confirmLeave){ this.confirmLeave=true; return; } this.confirmLeave=false;
       try{ await this.api('/orgs/'+this.activeOrgId+'/leave',{method:'POST'});
@@ -92,7 +93,7 @@ async renameOrg(){ this.renameBusy=true; this.renameErr='';
       if(n && n!==a.name) body.name=n; if(sl && sl!==a.slug) body.slug=sl;
       try{ const r=await this.api('/orgs/'+this.activeOrgId,{method:'PATCH', headers:{'content-type':'application/json'}, body:JSON.stringify(body)});
         const old=this.activeSlugNow;
-        if(this.sessionMode){ this.activeSlug=r.org; localStorage.setItem('treg-active',r.org); }
+        if(this.sessionMode){ this.activeSlug=r.org; storageSet('treg-active',r.org); }
         else if(r.org!==old){ this.cfg.orgs[r.org]=Object.assign({},this.cfg.orgs[old],{name:r.name}); delete this.cfg.orgs[old]; this.cfg.active=r.org; this.save(); }
         else { this.cfg.orgs[old].name=r.name; this.save(); }
         await this.loadAll(); this.resetRenameForm(); }

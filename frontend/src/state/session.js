@@ -1,3 +1,4 @@
+import { storageSet, storageRemove } from './storage.js'
 import { requestJson } from '../api'
 import { LS } from './constants.js'
 
@@ -15,12 +16,12 @@ async api(path, opts={}){
         this.sessionMode=false; location.reload();
       }, () => this.sessionMode);
     },
-save(){ localStorage.setItem(LS, JSON.stringify(this.cfg)); },
+save(){ storageSet(LS, JSON.stringify(this.cfg)); },
 connected(slug){ return this.sessionMode || !!this.cfg.orgs[slug]; },
-toggleTheme(){ this.theme=this.theme==='dark'?'light':'dark'; document.documentElement.dataset.theme=this.theme; localStorage.setItem('treg-theme',this.theme); },
+toggleTheme(){ this.theme=this.theme==='dark'?'light':'dark'; document.documentElement.dataset.theme=this.theme; storageSet('treg-theme',this.theme); },
 _stashNext(){  // OAuth callbacks land on /app, losing a /app/skills/<x> deep link — stash it to restore after boot
       const d=this.routeFromPath(location.pathname)||this.mkFromPath(location.pathname);
-      if(d) localStorage.setItem('treg-next', location.pathname); },
+      if(d) storageSet('treg-next', location.pathname); },
 githubLogin(){ this._stashNext(); location.href='/auth/github'; },
 googleLogin(){ this._stashNext(); location.href='/auth/google'; },
 openSignin(){ this.demo.signin=true; },
@@ -36,7 +37,7 @@ async acceptInvite(inv){ try{ await this.api('/invites/'+inv.id+'/accept',{metho
         this.pendingInvites=this.pendingInvites.filter(i=>i.id!==inv.id); await this.loadAll(); }
       catch(e){ this.err='Accept failed: '+(e.detail||e.status); } },
 logout(){ window.TregTracking?.identify('',''); try{ if(window.Intercom) window.Intercom('shutdown'); }catch(e){}  // drop the Intercom cookie so the next user on this machine can't read these conversations
-      if(this.sessionMode){ fetch('/auth/logout',{method:'POST',credentials:'include'}).finally(()=>{localStorage.removeItem('treg-active');location.reload();}); } else { this.cfg={active:null,orgs:{}}; this.save(); location.reload(); } },
+      if(this.sessionMode){ fetch('/auth/logout',{method:'POST',credentials:'include'}).finally(()=>{storageRemove('treg-active');location.reload();}); } else { this.cfg={active:null,orgs:{}}; this.save(); location.reload(); } },
 async addToken(tok, isAdd){ tok=(tok||'').trim(); if(!tok) return; this.busy=true; this.loginErr='';
       try{ const orgs=await this.api('/orgs',{headers:this.headers(tok)}); const active=orgs.find(o=>o.active)||orgs[0];
         if(!active){ this.loginErr='Token has no org.'; return; }
@@ -45,7 +46,7 @@ async addToken(tok, isAdd){ tok=(tok||'').trim(); if(!tok) return; this.busy=tru
       }catch(e){ this.loginErr = e.status===401?'Invalid token.':('Error: '+(e.detail||e.status)); }
       finally{ this.busy=false; } },
 switchOrg(o){ this.orgMenu=false; this.newAgent=null; this.snipAgent=null; this.newApiKey=null; this.keyMsg=null;
-      if(this.sessionMode){ this.activeSlug=o.slug; localStorage.setItem('treg-active',o.slug); this.loadAll(); this.intercomUpdate(); return; }
+      if(this.sessionMode){ this.activeSlug=o.slug; storageSet('treg-active',o.slug); this.loadAll(); this.intercomUpdate(); return; }
       if(!this.connected(o.slug)){ this.addOrg=true; return; }
       this.cfg.active=o.slug; this.save(); this.loadAll(); this.intercomUpdate(); },
 async loadAll(){ this.err=''; this.loading=true;
@@ -62,7 +63,7 @@ async loadAll(){ this.err=''; this.loading=true;
           // while the default opened an empty team.
           const byTools=[...this.myOrgs].sort((a,b)=> (b.tool_count||0)-(a.tool_count||0)
             || ((this.isPersonal(a)?1:0)-(this.isPersonal(b)?1:0)) );
-          this.activeSlug=byTools[0].slug; localStorage.setItem('treg-active',this.activeSlug);
+          this.activeSlug=byTools[0].slug; storageSet('treg-active',this.activeSlug);
         }
         // Re-mint the bearer whenever the ACTIVE org changes: the token now bakes the org slug in
         // (so it works as a bare MCP Authorization bearer), and a stale one would name the old team.

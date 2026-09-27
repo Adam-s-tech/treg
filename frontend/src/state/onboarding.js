@@ -1,3 +1,4 @@
+import { storageGet, storageRemove } from './storage.js'
 
 export default {
 maybeOnboard(){  // first-run: a brand-new user with no team yet is asked to NAME THEIR TEAM upfront
@@ -13,10 +14,10 @@ maybeOnboard(){  // first-run: a brand-new user with no team yet is asked to NAM
       if(this.pendingInvites.length){ this.openInviteChoice(); return; }
       this.welcome.name=this._suggestTeamName(); this._welcomeAgentFromRef(); this.welcome.on=true; },
 _welcomeAgentFromRef(){  // /grokbot's "Setup treg" CTA → the welcome already has Grok Bot picked; any other ref is ignored
-      let r=null; try{ r=localStorage.getItem('treg-ref'); localStorage.removeItem('treg-ref'); }catch(e){}
+      const r=storageGet('treg-ref'); storageRemove('treg-ref');
       if(r && this.welcomeAgents.concat(this.welcomeMoreAgents).some(a=>a.id===r)) this.welcome.agent=r; },
 _restoreAgent(){  // the picked agent survives a reload, so Getting started keeps showing the right setup steps
-      let r=null; try{ r=localStorage.getItem('treg-agent'); }catch(e){}
+      const r=storageGet('treg-agent');
       if(r && this.welcomeAgents.concat(this.welcomeMoreAgents).some(a=>a.id===r)) this.welcome.agent=r; },
 openInviteChoice(){  // seed the multi-select: ALL pending invites checked by default
       this.inviteErr=''; this.inviteSel={}; this.pendingInvites.forEach(i=>{ this.inviteSel[i.id]=true; });

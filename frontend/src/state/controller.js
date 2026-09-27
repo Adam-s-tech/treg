@@ -1,3 +1,4 @@
+import { storageSet } from './storage.js'
 import { provideDashboard } from './context'
 import resources from './resources.js'
 import resourcesComputed from './resourcesComputed.js'
@@ -46,7 +47,7 @@ export default {
     newTool(v){ this.focusOverlay(v); }, newSkill(v){ this.focusOverlay(v); }, newOrg(v){ this.focusOverlay(v); },
     showJoin(v){ this.focusOverlay(v); }, addOrg(v){ this.focusOverlay(v); }, copyTool(v){ this.focusOverlay(v); },
     tryTool(v){ this.focusOverlay(v); }, 'welcome.on'(v){ this.focusOverlay(v); }, reqAsk(v){ this.focusOverlay(v); },
-    'welcome.agent'(v){ try{ localStorage.setItem('treg-agent', v); }catch(e){} },  // see _restoreAgent
+    'welcome.agent'(v){ storageSet('treg-agent', v); },  // see _restoreAgent
     activeOrgId(){ this.resetRenameForm(); },  // team switch or first load: prefill the rename form
     // Editing the box after a find starts a new question: the answer to the old one goes away
     // and the shelves go back to filtering by name.

@@ -1,3 +1,4 @@
+import { storageGet, storageSet, storageRemove } from './storage.js'
 // "Find tools for a job" (GET /catalog/find): the Catalog page's search box answers a described job,
 // and /search is the same answer on a public page. The route streams two NDJSON events -
 // `candidates` (the lexical recall, at once) and `judged` (the relevance judge's kept rows) - and
@@ -177,7 +178,7 @@ export default {
   // out, sign-in comes first; the destination waits in localStorage and boot (`findResume`)
   // continues there whichever way sign-in returns (email reloads in place, OAuth lands on /app).
   findGoDashboard(slug){
-    try{ localStorage.setItem(FIND_OPEN, JSON.stringify({slug, t:Date.now()})); }catch(e){}
+    storageSet(FIND_OPEN, JSON.stringify({slug, t:Date.now()}));
     if(this.authed) location.href='/app#platform/'+encodeURIComponent(slug);
     else this.openSignin();
   },
@@ -185,10 +186,10 @@ export default {
   // Called by boot once a session exists. Returns true when it navigated away.
   findResume(){
     let open=null;
-    try{ open=JSON.parse(localStorage.getItem(FIND_OPEN)||'null'); }catch(e){}
-    if(!open || Date.now()-open.t>10*60*1000){ try{ localStorage.removeItem(FIND_OPEN); }catch(e){} return false; }
+    try{ open=JSON.parse(storageGet(FIND_OPEN)||'null'); }catch(e){}
+    if(!open || Date.now()-open.t>10*60*1000){ storageRemove(FIND_OPEN); return false; }
     if(this.platformFromHash()!==open.slug){ location.replace('/app#platform/'+encodeURIComponent(open.slug)); return true; }
-    try{ localStorage.removeItem(FIND_OPEN); }catch(e){}
+    storageRemove(FIND_OPEN);
     this.openPlatform(open.slug, true);
     return true;
   },
