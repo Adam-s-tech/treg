@@ -324,5 +324,4 @@ proposed_capabilities:
   companies.brand.fonts: "Detect the fonts a company's website uses"
   companies.website.screenshot: "Capture a screenshot of a company's website"
   companies.website.extract: "Extract named, caller-defined datapoints from a company's website"
-  companies.products: "Extract a company's products, plans and prices"
   companies.transaction.identify: "Identify the company behind a card or bank transaction descriptor"

@@ -503,6 +503,5 @@ proposed_capabilities:
   creators.profile: "Get a creator's profile, contacts and stats"
   creators.analytics: "Get a creator's performance analytics and audience"
   creators.enrich.by_email: "Find the creator behind an email address"
-  creators.socials.connected: "List a creator's accounts on other platforms"
   creators.posts: "List a creator's recent posts with engagement"
   creators.post.details: "Get one post's data, comments or transcript"

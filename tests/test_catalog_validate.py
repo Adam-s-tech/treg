@@ -817,3 +817,65 @@ def test_missing_platform_auth_normalizes_as_absent():
         'path': '/values',
     }, 'example', Path('.'))
     assert normalized['platform_auth'] is None
+
+
+def _proposal_findings(taxonomy, docs):
+    errors: list[str] = []
+    warnings: list[str] = []
+    validator.check_proposed_capabilities(taxonomy, docs, errors, warnings)
+    return errors, warnings
+
+
+def _provider(name, proposed=None, used=()):
+    return (f"{name}.yaml", {"provider": name, "proposed_capabilities": proposed or {},
+                             "endpoints": [{"id": f"{name}.{cap}", "capability": cap} for cap in used]})
+
+
+def test_proposed_capability_already_in_the_taxonomy_is_an_error():
+    errors, _ = _proposal_findings(
+        {"web.search": "Search the open web"},
+        [_provider("exa", {"web.search": "Search the web by meaning"}, used=["web.search"])],
+    )
+    assert errors == ["proposed_capabilities web.search: already in capabilities.yaml; "
+                      "delete the proposal from ['exa.yaml']"]
+
+
+def test_one_proposed_id_with_two_descriptions_is_an_error_but_punctuation_is_not():
+    errors, _ = _proposal_findings({}, [
+        _provider("tomba", {"people.phone.verify": "Validate & format a phone number"}),
+        _provider("trestleiq", {"people.phone.verify": "Validate and format a phone number"}),
+    ])
+    assert len(errors) == 1 and "different descriptions" in errors[0]
+
+    errors, _ = _proposal_findings({}, [
+        _provider("a", {"web.crawl.results": "List the pages produced by a website crawl"}),
+        _provider("b", {"web.crawl.results": "List the pages produced by a website crawl."}),
+    ])
+    assert errors == []
+
+
+def test_a_proposal_two_providers_use_warns_to_promote_it():
+    _, warnings = _proposal_findings({}, [
+        _provider("exa", {"web.answer": "Answer a question from the web"}, used=["web.answer"]),
+        _provider("olostep", used=["web.answer"]),
+    ])
+    assert warnings == ["proposed_capabilities web.answer: used by ['exa', 'olostep']; "
+                        "promote it to capabilities.yaml"]
+
+    # one provider using it from both tiers is still one provider
+    _, warnings = _proposal_findings({}, [
+        _provider("exa", {"web.answer": "Answer a question from the web"}, used=["web.answer"]),
+        ("exa.extended.yaml", {"provider": "exa", "endpoints": [{"id": "exa.x", "capability": "web.answer"}]}),
+    ])
+    assert warnings == []
+
+
+def test_two_ids_of_one_platform_with_one_description_warn_across_taxonomy_and_proposals():
+    _, warnings = _proposal_findings(
+        {"companies.similar": "Find companies similar to a seed company",
+         "people.lookalike": "Find companies similar to a seed company"},
+        [_provider("findymail", {"companies.lookalike": "Find companies similar to a seed company!"})],
+    )
+    assert warnings == ["capabilities ['companies.lookalike', 'companies.similar'] share the description "
+                        "'find companies similar to a seed company'; unify them on one id or tell the jobs apart"]
+

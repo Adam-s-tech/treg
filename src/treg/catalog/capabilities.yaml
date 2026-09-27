@@ -129,7 +129,7 @@ platforms:
 
 capabilities:
   # --- AI generation ---------------------------------------------------------------------------
-  # The four generation capabilities are DELIBERATELY memberless: generation models are not
+  # The job-level generation capabilities are DELIBERATELY memberless: generation models are not
   # interchangeable, so a merged row comparing different models would be a false comparison.
   # They are reserved for hand-picked models (cheapest / best value / best quality) - mapping a
   # row here is an editorial act, not a modality tag. Rows carry per-model capabilities instead
@@ -141,6 +141,14 @@ capabilities:
   image-gen.edit: "Edit or restyle an image with a prompt"
   voice-gen.from_text: "Generate speech from text"
   voice-gen.voices.list: "List available voices"
+  video-gen.result.retrieve: "Download the finished output of a video generation task"
+  # Per-model keys served by several routes. A merged row is titled by its description, so these
+  # carry the plain model name rather than an action phrase.
+  video-gen.seedance-2-5.generate: "Seedance 2.5"
+  video-gen.seedance-2-5-unrestricted.generate: "Seedance 2.5 (Less Restriction)"
+  image-gen.gemini-3-pro-image.generate: "Gemini 3 Pro Image"
+  image-gen.gpt-image-2.generate: "GPT Image 2"
+  image-gen.gpt-image-2-5.generate: "GPT Image 2.5"
 
   creators.search: "Find influencers & creators by niche, country, followers & engagement on Instagram, TikTok, YouTube"
   # --- SEO / search -----------------------------------------------------------------------------
@@ -170,6 +178,11 @@ capabilities:
   web.extract: "Extract clean content from web pages"
   web.map: "Discover the URLs on a website"
   web.crawl: "Crawl a website and extract its pages"
+  web.crawl.status: "Check a website crawl's progress and final state"
+  web.crawl.results: "List the pages produced by a website crawl"
+  web.search.news: "Search recent news articles by topic"
+  web.search.publications: "Search research papers and publications"
+  web.answer: "Answer a question from live web research, with cited sources"
 
   # --- Social -----------------------------------------------------------------------------------
   tiktok.user.profile: "Get a user's public profile"
@@ -239,6 +252,17 @@ capabilities:
   people.search: "Find people by role, company or location — lead lists and prospects (sales leads)"
   people.email.find: "Get, find or look up a person's work email address from their name, company domain or LinkedIn profile"
   people.email.verify: "Check an email address you ALREADY have is real and deliverable — not for finding one"
+  companies.similar: "Find companies similar to a seed company or domain"
+  companies.search.count: "Count the companies a search would return, before paying for rows"
+  companies.tech_stack: "Get the technologies a company uses"
+  companies.products: "List the products and services a company sells"
+  companies.funding.feed: "Browse the latest funding rounds across all companies"
+  people.search.count: "Count the people a search would return, before paying for rows"
+  people.search.filters: "List the accepted values for a people-search filter"
+  people.email.find.personal: "Find a person's personal email address"
+  people.phone.verify: "Validate and format a phone number"
+  linkedin.profile.from_email: "Find a person's LinkedIn profile from their email address"
+  creators.socials.connected: "List a creator's accounts on other platforms"
 
   # --- Ad platforms & libraries -----------------------------------------------------------------
   meta-ads.library.search: "Search publicly running ads"

@@ -5,13 +5,10 @@ source:
 pricing_url: https://openrouter.ai/api/v1/videos/models
 proposed_capabilities:
   video-gen.models.list: "List available video generation models"
-  video-gen.result.retrieve: "Retrieve completed video generation content"
   # Per-model capabilities (see minimax.yaml): single-provider join keys that keep curated rows
   # standalone in the model wall; job-level comparisons stay empty until models are hand-picked.
   video-gen.wan-3-0.from_text: "Generate a Wan 3.0 video from a text prompt"
   video-gen.wan-3-0.from_image: "Animate an image into a Wan 3.0 video"
-  # Shared with reapi.yaml / piapi.yaml: the same model over three routes merges onto one row.
-  video-gen.seedance-2-5.generate: "Seedance 2.5"
 async:
   id_from: id
   poll:

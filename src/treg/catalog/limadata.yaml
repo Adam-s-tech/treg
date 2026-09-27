@@ -10,15 +10,11 @@ pricing_url: https://limadata.com/
 limits: 'The default account limit is 1 request/second. The docs explicitly exempt several lookup, enrichment, research and search operations but publish no higher numeric ceiling.'
 proposed_capabilities:
   people.database.autocomplete: List accepted values for a LimaData database filter
-  companies.count: Count companies that match database filters
-  people.count: Count people that match database filters
   people.employees.search: Search employees at named companies
   people.audience.resolve: Resolve a person to advertising audience identifiers
   people.audience.email_hash: Resolve a person to hashed email identifiers
-  people.email.find.personal: Find a person's personal email address
   linkedin.company.from_domain: Find a company's LinkedIn page from its domain
   people.identity.from_email: Resolve an email address to social profiles
-  web.extract: Extract clean page content from URLs
   web.research: Search and synthesize web research for a question
 endpoints:
   - id: limadata.people.enrich
@@ -114,7 +110,7 @@ endpoints:
     example_response: examples/limadata.database.autocomplete.json
 
   - id: limadata.companies.count
-    capability: companies.count
+    capability: companies.search.count
     platform: companies
     scope: any_account
     domain: companies
@@ -145,7 +141,7 @@ endpoints:
     example_response: examples/limadata.companies.count.json
 
   - id: limadata.people.count
-    capability: people.count
+    capability: people.search.count
     platform: people
     scope: any_account
     domain: contacts

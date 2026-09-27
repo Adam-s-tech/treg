@@ -8,6 +8,9 @@ Checks (the success criteria from docs/context/architecture/catalog.md):
   - provider file's `provider` matches its filename and exists in treg.oauth_providers.REGISTRY
   - endpoint ids unique across the WHOLE catalog; id convention `<provider>.<capability>`
   - `capability` exists in capabilities.yaml OR the file's own proposed_capabilities
+  - a proposed capability is not already in capabilities.yaml and carries one description across
+    files; WARN once endpoints of two providers use it (promote it), and WARN when two
+    capabilities of one platform share a description (one job under two ids splits the comparison)
   - `platform` equals the capability's first segment and exists in capabilities.yaml platforms
   - required fields present; enums valid (scope, method, cost.type/currency/unit/source/confidence)
   - a `cost` block is BILLABLE, not decorative: a null `value` and `confidence: unknown` appear
@@ -977,6 +980,52 @@ def check_aliases(errors: list[str], warnings: list[str]) -> None:
                 warnings.append(f"{where}: alias {v!r} occurs nowhere in the catalog — dead weight")
 
 
+def _description_key(description: object) -> str:
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", str(description or "").lower()).split())
+
+
+def check_proposed_capabilities(taxonomy: dict[str, str], docs: list[tuple[str, dict]],
+                                errors: list[str], warnings: list[str]) -> None:
+    """Keep `proposed_capabilities` a staging area, not a second taxonomy.
+
+    The loader merges every proposal into the live taxonomy (first file wins the description), so
+    an unmerged proposal is fully live: a duplicate of a taxonomy id is dead text, two descriptions
+    for one id means the page title depends on filename order, and a proposal two providers already
+    use is a shared join key that belongs in capabilities.yaml. Two ids of one platform with the
+    same description are one job under two names, which splits its comparison row in two."""
+    proposals: dict[str, dict[str, str]] = {}
+    users: dict[str, set[str]] = {}
+    for name, data in docs:
+        provider = str(data.get("provider") or "")
+        for cap, desc in (data.get("proposed_capabilities") or {}).items():
+            proposals.setdefault(cap, {})[name] = desc
+        for ep in data.get("endpoints") or []:
+            if isinstance(ep, dict) and ep.get("capability"):
+                users.setdefault(ep["capability"], set()).add(provider)
+    for cap, by_file in sorted(proposals.items()):
+        where = f"proposed_capabilities {cap}"
+        if cap in taxonomy:
+            fail(errors, where, f"already in capabilities.yaml; delete the proposal from {sorted(by_file)}")
+            continue
+        if len({_description_key(d) for d in by_file.values()}) > 1:
+            fail(errors, where, f"proposed with different descriptions in {sorted(by_file)}; "
+                                "agree on one (or promote it to capabilities.yaml)")
+        if len(users.get(cap, ())) >= 2:
+            warnings.append(f"{where}: used by {sorted(users[cap])}; promote it to capabilities.yaml")
+    same: dict[tuple[str, str], set[str]] = {}
+    described = [(cap, desc) for cap, desc in taxonomy.items()]
+    described += [(cap, desc) for cap, by_file in proposals.items() if cap not in taxonomy
+                  for desc in by_file.values()]
+    for cap, desc in described:
+        key = _description_key(desc)
+        if key:
+            same.setdefault((cap.split(".")[0], key), set()).add(cap)
+    for (_, desc), caps in sorted(same.items()):
+        if len(caps) > 1:
+            warnings.append(f"capabilities {sorted(caps)} share the description {desc!r}; "
+                            "unify them on one id or tell the jobs apart")
+
+
 def main(argv: list[str]) -> int:
     errors: list[str] = []
     warnings: list[str] = []
@@ -984,7 +1033,8 @@ def main(argv: list[str]) -> int:
     check_aliases(errors, warnings)
     tax = yaml.safe_load((CATALOG / "capabilities.yaml").read_text())
     platforms = set(tax.get("platforms") or {})
-    capabilities = set(tax.get("capabilities") or {})
+    taxonomy = tax.get("capabilities") or {}
+    capabilities = set(taxonomy)
 
     from treg.oauth_providers import REGISTRY  # noqa: E402
 
@@ -995,16 +1045,19 @@ def main(argv: list[str]) -> int:
     # before validating any row; a one-pass lookup would make validity depend on filename order.
     endpoint_status: dict[str, str] = {}
     endpoint_index: dict[str, dict] = {}
+    docs: list[tuple[str, dict]] = []
     for path in all_files:
         data = yaml.safe_load(path.read_text()) or {}
         if not isinstance(data, dict):
             continue
+        docs.append((path.name, data))
         provider = str(data.get("provider") or path.stem.removesuffix(".extended"))
         for ep in data.get("endpoints") or []:
             if isinstance(ep, dict) and ep.get("id"):
                 endpoint_id = str(ep["id"])
                 endpoint_status[endpoint_id] = str(ep.get("status") or "").strip()
                 endpoint_index[endpoint_id] = {**ep, "provider": provider}
+    check_proposed_capabilities(taxonomy, docs, errors, warnings)
     files = list(all_files)
     # "tikhub" selects tikhub.yaml AND tikhub.extended.yaml — a service is both its tiers
     service_of = {p: p.stem.removesuffix(".extended") for p in files}

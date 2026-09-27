@@ -353,6 +353,3 @@ endpoints:
     verified: '2026-08-27'
     example_response: examples/scrapecreators.creators.socials.connected.json
     docs_url: https://docs.scrapecreators.com/v1/find-social-profiles
-
-proposed_capabilities:
-  creators.socials.connected: "List a creator's accounts on other platforms"
