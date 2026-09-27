@@ -74,3 +74,29 @@ async def test_dashboard_dev_entry_refuses_a_public_hostname(new_dashboard, monk
     monkeypatch.setattr(get_settings(), 'public_url', 'https://registry.example.com')
     with pytest.raises(RuntimeError, match='loopback'):
         await clients.get('/app')
+
+
+async def test_arena_onboarding_widgets_are_compiled_from_the_dashboard_source(clients):
+    """Enrich Arena's `/agent-setup.js` is built from `frontend/src/agent-setup/`, the source the
+    Dashboard imports. It is the one compiled classic script: the Dashboard itself never loads it."""
+    script = await clients.get('/agent-setup.js')
+    assert script.status_code == 200
+    assert script.headers['content-type'].startswith('application/javascript')
+    assert script.headers['cache-control'] == 'no-cache'
+    assert 'TregAgentSetup' in script.text
+    assert 'template:' not in script.text   # compiled render functions, no runtime compiler needed
+    assert '/agent-setup.js' in (await clients.get('/enrich-arena')).text
+    assert '/agent-setup.js' not in (await clients.get('/app')).text
+
+
+async def test_dashboard_head_scripts_do_not_block_the_first_paint(clients):
+    """The tracking scripts are deferred ahead of the app entry, so they still run before the app;
+    the tutorial scripts are loaded by the Help view itself, not by every Dashboard entry."""
+    html = (await clients.get('/app')).text
+    entry = html.find('<script type="module"')
+    for name in ('/adtrack.js', '/sitetrack.js'):
+        tag = f'<script src="{name}" defer></script>'
+        assert tag in html, name
+        assert html.find(tag) < entry, name
+    assert '/tutorial.js' not in html
+    assert '/dashboard-tour/tour.js' not in html

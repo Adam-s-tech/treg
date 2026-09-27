@@ -1,7 +1,8 @@
 <script>
 import { useDashboard } from '../state/context'
 import BrandMark from '../components/BrandMark.vue'
-export default { components: { BrandMark }, setup: useDashboard }
+import { AgentPicker as TregAgentPicker, SetupInstructions as TregSetupInstructions, TryItOut as TregTryItOut } from '../agent-setup'
+export default { components: { BrandMark, TregAgentPicker, TregSetupInstructions, TregTryItOut }, setup: useDashboard }
 </script>
 
 <template>

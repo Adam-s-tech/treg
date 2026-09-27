@@ -1,46 +1,19 @@
 <script>
 import controller from './state/controller.js'
-import TeamResourcesPage from './pages/TeamResourcesPage.vue'
-import FishVoiceDialog from './dialogs/FishVoiceDialog.vue'
-import CatalogPage from './pages/CatalogPage.vue'
-import ProviderPage from './pages/ProviderPage.vue'
-import PlatformPage from './pages/PlatformPage.vue'
-import ToolsPage from './pages/ToolsPage.vue'
-import DetailPage from './pages/DetailPage.vue'
-import SecretsPage from './pages/SecretsPage.vue'
-import TeamPage from './pages/TeamPage.vue'
-import ActivityPage from './pages/ActivityPage.vue'
-import AdminPage from './pages/AdminPage.vue'
-import GettingStartedPage from './pages/GettingStartedPage.vue'
-import ReferralsPage from './pages/ReferralsPage.vue'
-import HelpPage from './pages/HelpPage.vue'
-import HubPage from './pages/HubPage.vue'
-import HubRunPage from './pages/HubRunPage.vue'
-import SearchPage from './pages/SearchPage.vue'
+import { pages, dialogs } from './views'
 import SignedOutPage from './components/SignedOutPage.vue'
 import BrandMark from './components/BrandMark.vue'
 import PublicNavigation from './components/PublicNavigation.vue'
 import LandingNavigation from './components/LandingNavigation.vue'
 import DashboardNavigation from './components/DashboardNavigation.vue'
-import ConnectTokenDialog from './dialogs/ConnectTokenDialog.vue'
-import TopUpDialog from './dialogs/TopUpDialog.vue'
-import AgentGuideDialog from './dialogs/AgentGuideDialog.vue'
-import ConnectionMethodDialog from './dialogs/ConnectionMethodDialog.vue'
-import ResourcePickerDialog from './dialogs/ResourcePickerDialog.vue'
-import ExtraCredentialDialog from './dialogs/ExtraCredentialDialog.vue'
-import EditToolDialog from './dialogs/EditToolDialog.vue'
-import AcceptInvitesDialog from './dialogs/AcceptInvitesDialog.vue'
-import WelcomeDialog from './dialogs/WelcomeDialog.vue'
-import CopyToolDialog from './dialogs/CopyToolDialog.vue'
-import ImportSkillDialog from './dialogs/ImportSkillDialog.vue'
-import RequestToolDialog from './dialogs/RequestToolDialog.vue'
-import ShareDialog from './dialogs/ShareDialog.vue'
-import RecipeDialog from './dialogs/RecipeDialog.vue'
-import RunToolDialog from './dialogs/RunToolDialog.vue'
-import CallDetailsDialog from './dialogs/CallDetailsDialog.vue'
-import TryEndpointDialog from './dialogs/TryEndpointDialog.vue'
 import SignInDialog from './components/SignInDialog.vue'
-export default { ...controller, components: { ...controller.components, TeamResourcesPage, FishVoiceDialog, CatalogPage, ProviderPage, PlatformPage, ToolsPage, DetailPage, SecretsPage, TeamPage, ActivityPage, AdminPage, GettingStartedPage, ReferralsPage, HelpPage, SearchPage, HubPage, HubRunPage, SignedOutPage, BrandMark, PublicNavigation, LandingNavigation, DashboardNavigation, ConnectTokenDialog, TopUpDialog, AgentGuideDialog, ConnectionMethodDialog, ResourcePickerDialog, ExtraCredentialDialog, EditToolDialog, AcceptInvitesDialog, WelcomeDialog, CopyToolDialog, ImportSkillDialog, RequestToolDialog, ShareDialog, RecipeDialog, RunToolDialog, CallDetailsDialog, TryEndpointDialog, SignInDialog } }
+// The shell (navigation, sign-in) is bundled with the entry; pages and dialogs load on demand (views.ts).
+const {
+  connections: CatalogPage, find: SearchPage, provider: ProviderPage, platform: PlatformPage, tools: ToolsPage,
+  detail: DetailPage, secrets: SecretsPage, resources: TeamResourcesPage, orgs: TeamPage, activity: ActivityPage,
+  admin: AdminPage, start: GettingStartedPage, referrals: ReferralsPage, hub: HubPage, run: HubRunPage, help: HelpPage,
+} = pages
+export default { ...controller, components: { ...controller.components, ...dialogs, TeamResourcesPage, CatalogPage, ProviderPage, PlatformPage, ToolsPage, DetailPage, SecretsPage, TeamPage, ActivityPage, AdminPage, GettingStartedPage, ReferralsPage, HelpPage, SearchPage, HubPage, HubRunPage, SignedOutPage, BrandMark, PublicNavigation, LandingNavigation, DashboardNavigation, SignInDialog } }
 </script>
 
 <template>

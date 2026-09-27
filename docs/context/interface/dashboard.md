@@ -12,6 +12,7 @@ sources:
   - frontend/src/state/resources.js
   - frontend/src/state/resourcesComputed.js
   - frontend/src/App.vue
+  - frontend/src/views.ts
   - frontend/src/api.ts
   - frontend/src/components/DashboardNavigation.vue
   - frontend/src/components/PublicNavigation.vue
@@ -93,7 +94,12 @@ sources:
   - frontend/src/state/tools.js
   - frontend/src/state/tryTool.js
   - frontend/src/styles/base.css
-  - src/treg/web/agent-setup.js
+  - frontend/src/agent-setup/index.ts
+  - frontend/src/agent-setup/data.ts
+  - frontend/src/agent-setup/AgentPicker.vue
+  - frontend/src/agent-setup/SetupInstructions.vue
+  - frontend/src/agent-setup/TryItOut.vue
+  - frontend/vite.agent-setup.config.ts
   - src/treg/web/media/redesign/dashboard.css
   - src/treg/web/media/redesign/SOURCES.md
   - src/treg/web/vendor/README.md
@@ -244,6 +250,18 @@ metadata as before. `_app_version()` hashes the built entry, whose asset filenam
 bundle content. HTML is not cached; `/app/ui/assets/{name}` serves immutable hashed assets and
 returns 404 for missing files. Assets remain a control-role surface.
 
+The entry chunk carries Vue, the shell (navigation, sign-in, the signed-out page) and the state
+modules; every page and dialog is its own chunk, registered in `frontend/src/views.ts` and mounted
+by `App.vue` behind the same `v-if`s as before. `preloadInitialView` starts the chunk for the URL
+being opened (read with boot's own route parsers) before mount, alongside `/meta` and `/auth/me`.
+After boot, `prefetchAfterBoot` loads one chunk per idle period: every screen and dialog for a
+member except Help (it would pull in the tutorial scripts), only the catalog pages for a public
+visitor. It resolves the async wrapper itself, so a prefetched screen renders synchronously and
+navigation shows no blank frame. A dialog whose chunk arrives late still gets `v-dialog`'s focus,
+trap and focus return, since the directive acts when the dialog mounts. Matter.js ships only in
+the `/search` chunk. A chunk that fails to load after
+retries asks `checkVersion`, which offers the refresh toast when a deploy replaced the build.
+
 `bash scripts/build-dashboard.sh` installs the npm lockfile and builds into the gitignored
 `src/treg/web/dashboard/` directory. Hatch includes it in distributions and rejects missing builds;
 Node is not needed when installing a published wheel. `scripts/dev-local.sh up` starts both Python
@@ -252,8 +270,12 @@ and Vite, using a local-only development entry for hot updates. See `CONTRIBUTIN
 ### Browser dependencies
 
 Vue is pinned in the npm lockfile and bundled from the same origin, so a blocked CDN cannot
-prevent startup. The shared onboarding widgets in `/agent-setup.js` still serve both Dashboard and
-Arena; their templates use Vue's bundled compiler. The global Vue runtime for the standalone Arena page is
+prevent startup. The Dashboard bundles Vue's runtime only, never the template compiler: every
+component is a compiled SFC. The onboarding widgets shared with Arena live in
+`frontend/src/agent-setup/`, their one source. The Dashboard imports them directly, and
+`vite.agent-setup.config.ts` compiles the same modules into the classic `/agent-setup.js` script
+(generated into `src/treg/web/dashboard/`, served no-cache), which exposes `window.TregAgentSetup`
+on Arena's global Vue build. The global Vue runtime for the standalone Arena page is
 copied from the npm package at build time, with its license; generated copies are not committed. Agent icons and Google Fonts remain optional external presentation assets.
 The unmounted entry displays a loading message and a reload link rather than hiding a raw template.
 The authenticated redesign follows the root `design.md`.
@@ -263,11 +285,13 @@ The authenticated redesign follows the root `design.md`.
 pageviews on; `initAnalytics()` in the SPA defers to it (`window.__phInit`) and only identifies, keeping
 its inline init as the fallback for a stale bundle. Landing-page visitors used to be invisible to
 analytics — PostHog first met them on `/app` after OAuth, as `$direct` — so this ordering is the whole
-point. `<script src="/adtrack.js">` — the first-party ad-click capture — loads **in `<head>`** on every
-page, guaranteed to run during HTML parsing before any app code can navigate away. An ad click landing
+point. `<script src="/adtrack.js">` - the first-party ad-click capture - loads **in `<head>`** on every
+page, guaranteed to run before any app code can navigate away. An ad click landing
 on `/?gclid=…` falls through to the SPA (because of the query string), whose boot redirects logged-out
-visitors via `location.replace('/')`. Placing capture in `<head>` ensures the click id is stored before
-that redirect can drop the query string. No Google tag, first-party cookie only; see
+visitors via `location.replace('/')`. Capture must store the click id before that redirect can drop the
+query string. In the Dashboard both scripts are `defer` in `<head>`, ahead of the module entry: deferred
+and module scripts run in document order once parsing ends, so neither blocks the first paint and both
+still run before the app (`tests/test_adsconv.py` pins the order). No Google tag, first-party cookie only; see
 [ads-conversions](../architecture/ads-conversions.md).
 
 ## Shell & design system (2026 rework)
@@ -579,7 +603,7 @@ Server side (`domain.identity.access`): `require_identity` (who, from token OR s
   shows a **mandatory "name your team" welcome** (`welcome.*`; team name pre-suggested from the email
   domain via `_suggestTeamName`). Step 0 is NOT dismissable — no skip, survives Escape/backdrop — the only
   action is `welcomeCreate` (`POST /orgs`, marks onboarded). The agent picker and setup instruction
-  components and the final Try it out step are shared with Enrich Arena through `/agent-setup.js`, including client definitions,
+  components and the final Try it out step are shared with Enrich Arena through `frontend/src/agent-setup/`, including client definitions,
   logo URLs, the optional plugin step and masked/copyable credentials. Three more steps follow **inside the same
   modal**: an **agent picker** (`welcome.step===1` — OpenClaw / Grok Bot / Hermes Agent / Claude.ai /
   Claude Code / Codex, plus a "More" expander with opencode / pi / Cursor / Gemini CLI / Other; LobeHub icons via
@@ -1148,7 +1172,8 @@ hashes `index.html` and would not move when only the tutorial changed. Both are 
 includes the file by a bare path, so a browser that cached it before the header existed applies a
 heuristic lifetime and never revalidates, and an edited tutorial silently keeps serving the old
 steps. Consumed by **both** the dashboard Help view (native Vue
-render) and the **standalone** `src/treg/web/tutorial.html` (vanilla render, served at `/tutorial`;
+render; the Help chunk injects `/tutorial.js` and `/dashboard-tour/tour.js` before it renders, so no
+other Dashboard entry downloads them) and the **standalone** `src/treg/web/tutorial.html` (vanilla render, served at `/tutorial`;
 renders `steps` only) — so they can never drift. `docs/tutorial.html` is now a redirect to `/tutorial`;
 the prose walkthrough is `docs/TUTORIAL.md`. Editing steps means editing `tutorial.js` only.
 

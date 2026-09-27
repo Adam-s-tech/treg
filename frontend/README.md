@@ -4,16 +4,20 @@ This app lives in the public treg repository and is served by the existing Pytho
 There is no separate production frontend server.
 
 - `src/App.vue`: application shell and conditional page/dialog mounts.
+- `src/views.ts`: pages and dialogs as on-demand chunks, with route preload and idle prefetch.
 - `src/pages/`: catalog, getting started, activity, tools, team, referrals and help.
 - `src/components/` and `src/dialogs/`: shared navigation and overlays.
+- `src/agent-setup/`: onboarding widgets shared with the standalone Enrich Arena page.
 - `src/state/`: existing Options API use cases, grouped by feature, plus initial state and boot.
 - `src/api.ts`: same-origin JSON transport, session expiry and edge-encoding behavior.
 - `src/styles/`: base styling. Redesign styles and artwork are shared from `src/treg/web/media/redesign/`.
 
 This is an incremental extraction. The old use cases still share per-application state through
-`state/context.ts`; their JavaScript and the shared onboarding widgets are not fully typed.
-New isolated components should use typed props and events. Existing hash navigation and deep links
-remain in the navigation/catalog/details modules; this change does not replace their URL contract.
+`state/context.ts`; their JavaScript is not fully typed.
+New isolated components should use typed props and events. Register a new page or dialog in
+`src/views.ts`: a static import from `App.vue` puts it back into the entry chunk every visitor
+downloads. Existing hash navigation and deep links remain in the navigation/catalog/details
+modules; this change does not replace their URL contract.
 `frontend/` is the only Dashboard source: every entry, signed in or not, serves this compiled app.
 
 ## Develop
@@ -49,7 +53,10 @@ They use full Chromium in headless mode so back/forward cache restoration is exe
 `PLAYWRIGHT_CHANNEL=chrome` can use an installed Chrome for local checks.
 
 Builds also copy the npm-installed Vue global runtime and license for the standalone Arena page;
-these generated files are packaged but never committed. Page runtime versions
+these generated files are packaged but never committed. The onboarding widgets Arena shares with the
+Dashboard live in `src/agent-setup/`: the Dashboard imports them, and `vite.agent-setup.config.ts`
+compiles the same source into the generated `/agent-setup.js` classic script for Arena. The Dashboard
+bundles Vue's runtime only; do not add runtime `template:` strings or alias `vue` to its compiler build. Page runtime versions
 must match the npm lockfile. Three.js and Lenis on the landing page use pinned CDN URLs.
 
 Builds generate `src/treg/web/dashboard/`, which is ignored by Git and included in wheels/sdists.
