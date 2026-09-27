@@ -34,7 +34,7 @@ The standalone [Enrich Arena](../interface/enrich-arena.md) pages (`/enrich-aren
 `/enrich-arena/leaderboard`) and `/arena/*` routes are control-role
 surfaces. Paid interactive runs use the ordinary call application internally. Shutdown drains their
 in-process owners before closing the shared upstream client.
-The shared `/agent-setup.js` browser asset and the compiled Dashboard assets at
+The `/agent-setup.js` browser asset (compiled from the Dashboard source for Arena) and the compiled Dashboard assets at
 `/app/ui/assets/{name}` also belong to the control role.
 
 `bootstrap.create_app(role)` is the FastAPI composition root. `api.py` hosts the ordered route table,

@@ -14,7 +14,7 @@ sources:
   - src/treg/web/enrich-arena/arena.js
   - src/treg/web/enrich-arena/bench.js
   - src/treg/web/enrich-arena/arena.css
-  - src/treg/web/agent-setup.js
+  - frontend/src/agent-setup/index.ts
   - src/treg/application/arena_verification_insights.py
   - src/treg/alembic/versions/0029_arena_verification_snapshot.py
   - scripts/import_arena_verification.py
@@ -304,7 +304,9 @@ prevent controlled rankings, and returned fields are not independently verified.
 
 The heading's “Setup treg in” button shows Claude Code, Codex, OpenClaw and Hermes logos plus
 the count of other choices. It opens a native dialog using the same `AgentPicker` and
-`SetupInstructions` components as the dashboard welcome modal (`agent-setup.js`). The instruction
+`SetupInstructions` components as the dashboard welcome modal: their source is
+`frontend/src/agent-setup/`, compiled for this page into `/agent-setup.js` (`window.TregAgentSetup`).
+The instruction
 heading sits above the prompt card; the card is a flat panel with Copy floating in a right gutter
 on desktop and above the command on phones. Both stylesheets style that one shape, and the
 component carries no layout of its own, so a change to its markup is checked on both surfaces

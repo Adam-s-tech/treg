@@ -93,7 +93,12 @@ sources:
   - frontend/src/state/tools.js
   - frontend/src/state/tryTool.js
   - frontend/src/styles/base.css
-  - src/treg/web/agent-setup.js
+  - frontend/src/agent-setup/index.ts
+  - frontend/src/agent-setup/data.ts
+  - frontend/src/agent-setup/AgentPicker.vue
+  - frontend/src/agent-setup/SetupInstructions.vue
+  - frontend/src/agent-setup/TryItOut.vue
+  - frontend/vite.agent-setup.config.ts
   - src/treg/web/media/redesign/dashboard.css
   - src/treg/web/media/redesign/SOURCES.md
   - src/treg/web/vendor/README.md
@@ -252,8 +257,12 @@ and Vite, using a local-only development entry for hot updates. See `CONTRIBUTIN
 ### Browser dependencies
 
 Vue is pinned in the npm lockfile and bundled from the same origin, so a blocked CDN cannot
-prevent startup. The shared onboarding widgets in `/agent-setup.js` still serve both Dashboard and
-Arena; their templates use Vue's bundled compiler. The global Vue runtime for the standalone Arena page is
+prevent startup. The Dashboard bundles Vue's runtime only, never the template compiler: every
+component is a compiled SFC. The onboarding widgets shared with Arena live in
+`frontend/src/agent-setup/`, their one source. The Dashboard imports them directly, and
+`vite.agent-setup.config.ts` compiles the same modules into the classic `/agent-setup.js` script
+(generated into `src/treg/web/dashboard/`, served no-cache), which exposes `window.TregAgentSetup`
+on Arena's global Vue build. The global Vue runtime for the standalone Arena page is
 copied from the npm package at build time, with its license; generated copies are not committed. Agent icons and Google Fonts remain optional external presentation assets.
 The unmounted entry displays a loading message and a reload link rather than hiding a raw template.
 The authenticated redesign follows the root `design.md`.
@@ -579,7 +588,7 @@ Server side (`domain.identity.access`): `require_identity` (who, from token OR s
   shows a **mandatory "name your team" welcome** (`welcome.*`; team name pre-suggested from the email
   domain via `_suggestTeamName`). Step 0 is NOT dismissable — no skip, survives Escape/backdrop — the only
   action is `welcomeCreate` (`POST /orgs`, marks onboarded). The agent picker and setup instruction
-  components and the final Try it out step are shared with Enrich Arena through `/agent-setup.js`, including client definitions,
+  components and the final Try it out step are shared with Enrich Arena through `frontend/src/agent-setup/`, including client definitions,
   logo URLs, the optional plugin step and masked/copyable credentials. Three more steps follow **inside the same
   modal**: an **agent picker** (`welcome.step===1` — OpenClaw / Grok Bot / Hermes Agent / Claude.ai /
   Claude Code / Codex, plus a "More" expander with opencode / pi / Cursor / Gemini CLI / Other; LobeHub icons via

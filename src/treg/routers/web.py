@@ -3620,8 +3620,13 @@ async def claude_connector_page():
 
 @app.get("/agent-setup.js", include_in_schema=False)
 async def agent_setup_js():
-    return FileResponse(_WEB_DIR / "agent-setup.js", media_type="application/javascript",
-                        headers={"Cache-Control": "no-cache"})
+    """The onboarding widgets for the standalone Enrich Arena page. The Dashboard imports their
+    source (`frontend/src/agent-setup/`) directly; the frontend build compiles the same source into
+    this classic script, which exposes `window.TregAgentSetup` on the page's global Vue build."""
+    f = _WEB_DIR / "dashboard" / "agent-setup.js"
+    if not f.exists():
+        raise HTTPException(status_code=404, detail="agent-setup.js not built")
+    return FileResponse(f, media_type="application/javascript", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/adtrack.js", include_in_schema=False)

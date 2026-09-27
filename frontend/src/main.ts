@@ -10,10 +10,4 @@ import '@fontsource/dm-mono/latin-400-italic.css'
 import './styles/base.css'
 import '../../src/treg/web/media/redesign/dashboard.css'
 
-const app = createApp(App)
-app.directive('dialog', vDialog)
-const setup = (window as unknown as { TregAgentSetup: Record<string, object> }).TregAgentSetup
-app.component('TregTryItOut', setup.TryItOut!)
-app.component('TregAgentPicker', setup.AgentPicker!)
-app.component('TregSetupInstructions', setup.SetupInstructions!)
-app.mount('#app')
+createApp(App).directive('dialog', vDialog).mount('#app')

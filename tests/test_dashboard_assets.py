@@ -74,3 +74,16 @@ async def test_dashboard_dev_entry_refuses_a_public_hostname(new_dashboard, monk
     monkeypatch.setattr(get_settings(), 'public_url', 'https://registry.example.com')
     with pytest.raises(RuntimeError, match='loopback'):
         await clients.get('/app')
+
+
+async def test_arena_onboarding_widgets_are_compiled_from_the_dashboard_source(clients):
+    """Enrich Arena's `/agent-setup.js` is built from `frontend/src/agent-setup/`, the source the
+    Dashboard imports. It is the one compiled classic script: the Dashboard itself never loads it."""
+    script = await clients.get('/agent-setup.js')
+    assert script.status_code == 200
+    assert script.headers['content-type'].startswith('application/javascript')
+    assert script.headers['cache-control'] == 'no-cache'
+    assert 'TregAgentSetup' in script.text
+    assert 'template:' not in script.text   # compiled render functions, no runtime compiler needed
+    assert '/agent-setup.js' in (await clients.get('/enrich-arena')).text
+    assert '/agent-setup.js' not in (await clients.get('/app')).text
