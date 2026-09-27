@@ -1,18 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
-
-async function signIn(page: Page) {
-  await page.goto('/app?ref=frontend-test')
-  await page.getByPlaceholder('you@work.com').fill(`browser-${Date.now()}@example.com`)
-  await page.getByRole('button', { name: 'Email me a sign-in code' }).click()
-  const code = await page.getByText(/dev code \d{6}/).innerText()
-  await page.getByPlaceholder('6-digit code').fill(code.match(/\d{6}/)![0])
-  await page.getByRole('dialog', { name: 'Sign in' }).getByRole('button', { name: 'Sign in', exact: true }).click()
-  await page.getByPlaceholder('Team name, e.g. Superdesign').fill('Browser test team')
-  await page.getByRole('button', { name: 'Create team →', exact: true }).click()
-  await expect(page.getByText('Which agent are you using?', { exact: true })).toBeVisible()
-  await page.getByRole('link', { name: 'Skip', exact: true }).click()
-  await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible()
-}
+import { expect, test } from '@playwright/test'
+import { signIn } from './helpers'
 
 test('sign in, create team, switch pages, refresh and navigate back', async ({ page }) => {
   const errors: string[] = []
