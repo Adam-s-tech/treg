@@ -6,7 +6,8 @@ export default {
       if(this._agentPoll) clearInterval(this._agentPoll);
       let tries=0;
       this._agentPoll=setInterval(async()=>{
-        if(!this.newAgent || this.agentConnected || ++tries>40){ clearInterval(this._agentPoll); this._agentPoll=null; return; }
+        // Stops once the page that shows the card is gone: the Team view reloads the roster on return.
+        if(!this.newAgent || this.agentConnected || this.view!=='orgs' || ++tries>40){ clearInterval(this._agentPoll); this._agentPoll=null; return; }
         await this.loadOrgAdmin(); }, 3000); },
 promoteObserved(o){
       // Promotion = mint a real identity for a runtime we've only SEEN so far. Prefill the form;
