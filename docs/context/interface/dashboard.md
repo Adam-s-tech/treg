@@ -23,6 +23,7 @@ sources:
   - frontend/src/dialogs/ConnectTokenDialog.vue
   - frontend/src/dialogs/ConnectionMethodDialog.vue
   - frontend/src/dialogs/CopyToolDialog.vue
+  - frontend/src/dialogs/dialog.ts
   - frontend/src/dialogs/EditToolDialog.vue
   - frontend/src/dialogs/ExtraCredentialDialog.vue
   - frontend/src/dialogs/ImportSkillDialog.vue
@@ -86,7 +87,9 @@ sources:
   - frontend/src/state/sharing.js
   - frontend/src/state/skills.js
   - frontend/src/state/snippets.js
+  - frontend/src/state/storage.js
   - frontend/src/state/team.js
+  - frontend/src/state/tickets.js
   - frontend/src/state/tools.js
   - frontend/src/state/tryTool.js
   - frontend/src/styles/base.css
@@ -206,8 +209,18 @@ runs, so mounting swaps the screen for itself. A fast boot shows only the page g
 indicator fades in after a delay, on the page's own clock (`bootStartedAt`), so the node Vue swaps
 in does not restart it. `index.html` also starts
 `/meta` and `/auth/me` alongside the bundle download (`window.__tregBoot`, taken over by boot) and
-applies the saved theme before first paint. `loadAll` waits on one round trip per dependency step:
+applies the saved theme before first paint. Everything the app keeps in `localStorage` is a
+convenience (theme, active team, token-mode config, a deep link parked across sign-in), read and
+written only through `state/storage.js`, which never throws: with site data blocked (Safari throws on
+the first touch of `localStorage`) a read is empty and a write is dropped. `loadAll` waits on one round trip per dependency step:
 `/orgs` with `/invites/mine`, then the bearer with the team's tools, health and skills.
+**A late answer never overwrites a newer one.** Each loader a team switch or a newer call can
+overtake (`loadAll`, the Team roster, billing, keys, Activity, secrets, team resources, connections,
+the hub probe, a catalog platform, a detail page) takes a ticket from `state/tickets.js` and checks it
+after every await; a newer call of the same loader, or for team-scoped data a switch to another
+team, drops the late answer. The Team roster's requests run in parallel. A switch also clears the
+previous team's billing and closes the top-up dialog, and `payTopup` refuses billing that belongs
+to another team and stops before Checkout if the team changes mid-way.
 Catalog data does not wait for the session: boot starts the shelves (and a shelf's endpoints,
 through `prefetchPlatform`, which `loadPlatform` takes over) alongside `/meta` and `/auth/me`.
 **A view renders nothing it cannot yet know.** Empty states, zero figures and fallback views wait
@@ -297,10 +310,19 @@ Copy failures, including unavailable clipboard APIs, surface a dismissible messa
 or outside interaction. The search entry on Getting started navigates to Catalog and focuses the
 existing search field. Team settings and switching retain the existing `orgSettings` / `switchTo`
 behavior, including fixed-position dropdown placement via `placeOrgMenu`. The team picker supports
-Enter and Space; Escape restores focus to its trigger. Direct `go` navigation returns to the top of
+Enter and Space; Escape restores focus to its trigger. Every modal and drawer carries `v-dialog`
+(`dialogs/dialog.ts`, registered in `main.ts`) on its `role="dialog"` element, one keyboard contract
+instead of per-dialog code: focus moves to its first field (else the dialog itself), Tab and
+Shift+Tab stay inside, Escape closes the topmost open dialog through the close function it was
+given, and focus returns to the control that opened it. A required decision (the first-run welcome,
+the first-run invite choice) passes no close function and survives Escape. Every `role="dialog"` element is
+named by its title (`aria-labelledby`) or an `aria-label`. `closeOverlays` only
+closes the page's menus. Direct `go` navigation returns to the top of
 the destination; Back/Forward leaves scroll restoration to the browser. Category/team tabs and wide
 tables scroll locally on small screens, and the onboarding OAuth divider wraps instead of widening
-the page.
+the page. At phone width inline `code` (a hub tool's `uses`) breaks anywhere, the top-up amounts
+wrap to three columns, and a merged ledger row puts its provider chips on their own line above the
+price: the page body never scrolls sideways (`e2e/mobile.spec.ts`).
 
 ## Standalone Enrich Arena
 
@@ -1162,7 +1184,7 @@ only owners invite admins), `setRole` (owner-only dropdown), `removeMember`, `re
 (`leaveOrg`, `deleteOrg` — confirm-by-name). Destructive actions use **inline** two-step confirms
 (`confirmRemove`/`confirmLeave`/`confirmDel`), never native `confirm()`. `loadOrgAdmin` refreshes on
 `go('orgs')` + after each switch. The members table also shows each member's **`used_today`** + an inline
-**Daily cap** editor (`setCap` → `PATCH …/members/{id}/cap`; `-1` = unlimited), and every member (not just
+**Daily cap** editor (`setCap` → `PATCH …/members/{id}/cap`; `-1` = unlimited on the wire, shown as an empty "No limit" field, and clearing the field sends `-1`; the agent form's cap works the same), and every member (not just
 admins) sees a **"Your usage today: N / cap"** line from `loadMyUsage` (`GET /usage/me`) when a cap is set.
 The members table also carries the **per-member tool access control**: a **Tools** cell (`All` chip, or
 `N tools ▾` opening an inline checklist of every org tool — `openAccess`/`saveAccess` → `PATCH …/members/

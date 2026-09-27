@@ -42,7 +42,9 @@ uv build
 Test behavior, not template source strings, CSS class names or component arrangement. Keep transport
 unit tests and HTTP rollout/packaging checks; use browser tests for user interactions.
 
-Browser tests start their own server on :18791 with a disposable database and no dotenv file.
+Browser tests start their own server with a disposable database and no dotenv file, on a port
+the OS reports free when the run starts, so parallel runs in other worktrees never collide
+(`TREG_E2E_PORT` pins one).
 They use full Chromium in headless mode so back/forward cache restoration is exercised.
 `PLAYWRIGHT_CHANNEL=chrome` can use an installed Chrome for local checks.
 

@@ -59,17 +59,18 @@ openPlatform(slug, fromPop){ this.resetConfirms();
       request.catch(()=>{});   // loadPlatform reports the failure; an unclaimed prefetch just drops it
       this.platPrefetch=markRaw({slug, request}); },
 async loadPlatform(){ if(!this.platSlug) return;
-      this.platErr=''; this.platLoading=true; this.platData=null;
+      this.platErr=''; this.platLoading=true; this.platData=null; const live=this.ticket('platform', false);
       const pre=this.platPrefetch; this.platPrefetch=null;
       // include_hidden=1: pull the account/utility endpoints too. They render behind a per-section
       // "N management endpoints" expander rather than in the main ledger — the page decides that,
       // client-side, off each endpoint's `kind` (see platRowsAll / platLedger).
-      try{ this.platData=await (pre && pre.slug===this.platSlug ? pre.request
-        : this.api('/catalog/platforms/'+encodeURIComponent(this.platSlug)+'?include_hidden=1')); }
-      catch(e){ this.platErr = e.status===404
+      try{ const data=await (pre && pre.slug===this.platSlug ? pre.request
+        : this.api('/catalog/platforms/'+encodeURIComponent(this.platSlug)+'?include_hidden=1'));
+        if(live()) this.platData=data; }
+      catch(e){ if(live()) this.platErr = e.status===404
         ? 'No catalog for this platform on this server yet.'
         : 'Could not load the endpoint catalog'+(e.detail?': '+e.detail:'.'); }
-      finally{ this.platLoading=false; } },
+      finally{ if(live()) this.platLoading=false; } },
 // Tile furniture. Catalog labels carry a parenthetical or an em-dash gloss ("Google Search
     // (SERPs, keyword data)") that reads as noise under a logo — the tile shows the name, the
     // title attribute keeps the whole thing.

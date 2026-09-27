@@ -5,7 +5,7 @@ export default { components: { BrandMark }, setup: useDashboard }
 </script>
 
 <template>
-<div class="scrim" role="dialog" aria-modal="true" >
+<div class="scrim" role="dialog" aria-label="Set up your team" aria-modal="true" v-dialog>
       <div class="modal" :style="{width: welcome.step===0?'min(470px,94vw)':(welcome.step===3?'min(680px,94vw)':'min(560px,94vw)')}">
         <div style="padding:26px 26px 22px">
           <template v-if="welcome.step===0">

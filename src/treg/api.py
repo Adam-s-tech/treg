@@ -210,6 +210,9 @@ async def meta() -> dict:
             "posthog_key": s.posthog_key, "posthog_host": s.posthog_host.rstrip("/") if s.posthog_key else "",
             # public workspace id — only present when this deployment opts in (self-hosters load no widget)
             "intercom_app_id": s.intercom_app_id,
+            # Whether the hub routes exist here at all (TREG_HUB_ENABLED), so the dashboard asks
+            # them nothing when they would only answer 404. Per-team access is still probed.
+            "hub": bool(s.hub_enabled),
             # Config only, no database: lets the top-bar referral entry name the reward on every page
             # without calling GET /referrals, which mints a code and runs the payout sweep.
             "referral": {"referrer_micro": int(s.referral_referrer_micro),
