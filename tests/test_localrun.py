@@ -633,6 +633,9 @@ def test_cmd_run_linux_hands_off_to_treg_run_user(monkeypatch):
     # On Linux with local-run set up, the member never fetches the credential: it execs
     # `sudo -u treg-run <runner>` and passes its own token through the environment.
     from treg import cli as cli_mod
+    # From a cwd treg-run can't traverse, the hand-off chdirs to /tmp before exec; recording the
+    # cwd here makes monkeypatch restore it, since the stubbed exec returns into this process.
+    monkeypatch.chdir(os.getcwd())
     monkeypatch.setattr(cli_mod.sys, "platform", "linux")
     monkeypatch.setattr(cli_mod.os.path, "exists", lambda p: p == cli_mod._RUNNER_PATH)
     seen = {}

@@ -125,7 +125,10 @@ async def wire(clients, monkeypatch):
     sock.bind(('127.0.0.1', 0))
     sock.listen()
     port = sock.getsockname()[1]
-    server = uvicorn.Server(uvicorn.Config(app, lifespan='off', log_level='critical', ws='none'))
+    # log_config=None: uvicorn's default dictConfig and log_level would reconfigure the process's
+    # `uvicorn` loggers for every later test (uvicorn.error left at CRITICAL hides server faults).
+    server = uvicorn.Server(uvicorn.Config(app, lifespan='off', log_config=None, access_log=False,
+                                           ws='none'))
     task = asyncio.create_task(server.serve(sockets=[sock]))
     try:
         async with asyncio.timeout(10):

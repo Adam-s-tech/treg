@@ -6,13 +6,19 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
 
 
 def _configure_test_environment() -> None:
-    """Match tests/conftest.py before importing treg, whose settings load at import time."""
+    """Match tests/conftest.py before importing treg, whose settings load at import time.
+
+    Imported by the test suite, treg is already loaded with conftest's environment; rewriting it
+    here would only leave the process's variables disagreeing with the engine it already built."""
+    if "treg" in sys.modules:
+        return
     worker = os.environ.get("PYTEST_XDIST_WORKER", "")
     db_dir = os.path.join(tempfile.gettempdir(), "treg-tests")
     os.makedirs(db_dir, exist_ok=True)

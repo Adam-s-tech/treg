@@ -541,3 +541,21 @@ def contactout_platform(monkeypatch):
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
+
+
+_SESSION_CWD = os.getcwd()
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_teardown(item, nextitem):
+    """Every test ends in the directory the run started in. A test that changes it (a bare
+    `os.chdir`, or product code that chdirs while a stub stands in for `exec`) makes later tests
+    fail on relative paths, far from the cause and only in some orders. Runs after every fixture
+    has torn down, so `monkeypatch.chdir` restores first; the leaking test errors here instead."""
+    result = yield
+    if os.getcwd() != _SESSION_CWD:
+        leaked = os.getcwd()
+        os.chdir(_SESSION_CWD)
+        raise AssertionError(f"{item.nodeid} left the working directory at {leaked}; "
+                             "use monkeypatch.chdir so it is restored")
+    return result

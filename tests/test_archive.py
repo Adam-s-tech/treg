@@ -408,7 +408,7 @@ async def test_each_team_pays_full_price_once_per_question(clients: AsyncClient,
     """"Second call per TEAM": another team's first call on a question already in the archive is
     a hit at FULL price (the archive saved treg a vendor call, not the team its first price);
     only that team's own second call is a repeat."""
-    from tests.conftest import verified_signup
+    from conftest import verified_signup
     r1 = await clients.get(f"/call/{EP}?aweme_id=7&count=5")
     await archive.drain()
     live = int(r1.headers["X-Treg-Cost-Micro"])
@@ -508,7 +508,7 @@ async def test_an_own_key_answer_is_recorded_and_served_back_free(
 
 async def test_an_own_key_answer_is_the_orgs_question_and_never_another_teams(
         clients: AsyncClient, own_key_serve, monkeypatch):
-    from tests.conftest import verified_signup
+    from conftest import verified_signup
     _vendor_says(monkeypatch, OWN)
     await _own_key(clients)
     await clients.get(f"/call/{EP}?aweme_id=7&count=5")
@@ -547,7 +547,7 @@ async def test_an_own_key_answer_is_the_orgs_question_and_never_another_teams(
 
 async def test_a_judged_licence_does_not_share_an_own_key_answer_but_an_endpoint_declaration_does(
         clients: AsyncClient, own_key_serve, monkeypatch):
-    from tests.conftest import verified_signup
+    from conftest import verified_signup
     entry = catalog_store.load().by_id[EP]
     monkeypatch.setitem(entry, "cache", {"mode": "transient", "license_quote": "q",
                                          "source_url": "u", "checked": "2026-09-14"})
@@ -579,7 +579,7 @@ async def test_an_own_account_answer_is_the_connections_and_a_reconnect_starts_o
     """`scope: own_account`: the answer is about the credential's account. It is keyed to the
     connection (org + bound secrets); a public answer for the same URL is never consulted, and a
     new connection (a new secret) never sees the old one's history."""
-    from tests.conftest import verified_signup
+    from conftest import verified_signup
     entry = catalog_store.load().by_id[EP]
     # A legacy/public answer for the same URL, recorded before the scope flips.
     other = await verified_signup(clients, json={"email": "stranger@example.com"})
@@ -629,7 +629,7 @@ async def test_the_refresh_worker_never_re_asks_a_private_question(
 
 async def test_a_platform_answer_serves_an_own_key_caller_free(
         clients: AsyncClient, own_key_serve, monkeypatch):
-    from tests.conftest import verified_signup
+    from conftest import verified_signup
     other = await verified_signup(clients, json={"email": "stranger@example.com"})
     headers = {"X-Treg-Token": other.json()["token"]}
     _vendor_says(monkeypatch, PLAT)
