@@ -1526,13 +1526,6 @@ adapters:
     out: {video_id: data.video_id, title: data.title, channel: data.author, channel_id: data.channel_id, description: data.description,
           views: data.view_count, duration_seconds: data.length_seconds, published: data.publish_date}
     miss: "data.video_id == null"
-  tikhub.youtube.video.detail:
-    accepts: [[video_id]]
-    in:  {video_id: queryParams.video_id}
-    out: {video_id: data.videoDetails.videoId, title: data.videoDetails.title, channel: data.videoDetails.author,
-          channel_id: data.videoDetails.channelId, description: data.videoDetails.shortDescription,
-          views: data.videoDetails.viewCount, duration_seconds: data.videoDetails.lengthSeconds}
-    miss: "data.videoDetails == null"
   justoneapi.youtube.video.detail:
     accepts: [[video_id]]
     in:  {video_id: queryParams.videoId}
@@ -1951,11 +1944,6 @@ adapters:
     in:  {post_id: queryParams.id}
     out: {post: data}
     miss: "data == null"
-  tikhub.x.weibo-web-fetch-post-detail:
-    accepts: [[post_id]]
-    in:  {post_id: queryParams.post_id}
-    out: {post: data.data}
-    miss: "data.data == null"
   tikhub.x.weibo-app-fetch-status-detail:
     accepts: [[post_id]]
     in:  {post_id: queryParams.status_id}

@@ -1431,6 +1431,8 @@ endpoints:
           required: true
   untestable: needs the caller's own cookie
 - id: tikhub.x.douyin-app-v3-add-video-play-count
+  status: retired
+  status_note: "TikHub removed this route; no equivalent route remains (OpenAPI snapshot fetched 2026-09-27)."
   kind: action
   tier: extended
   platform: douyin
@@ -7880,6 +7882,8 @@ endpoints:
           note: Search ID for pagination
   untestable: no documented value for required <request body>
 - id: tikhub.x.douyin-search-fetch-live-search-v1
+  status: retired
+  status_note: "TikHub removed this route; its fetch_live_search_v2 replacement is not catalogued yet (OpenAPI snapshot fetched 2026-09-27)."
   tier: extended
   platform: douyin
   method: POST
@@ -8363,6 +8367,8 @@ endpoints:
           note: Original video ID, only used when search_source=visual_normal_search
   untestable: no documented value for required <request body>
 - id: tikhub.x.douyin-web-douyin-live-room
+  status: retired
+  status_note: "TikHub removed this route; no equivalent route remains (OpenAPI snapshot fetched 2026-09-27)."
   tier: extended
   platform: douyin
   method: GET
@@ -8845,6 +8851,8 @@ endpoints:
   verified: '2026-07-28'
   example_response: examples/tikhub.x.douyin-web-fetch-live-im-fetch.json
 - id: tikhub.x.douyin-web-fetch-live-room-product-result
+  status: retired
+  status_note: "TikHub removed this route; no equivalent route remains (OpenAPI snapshot fetched 2026-09-27)."
   tier: extended
   platform: douyin
   method: GET
@@ -9924,6 +9932,8 @@ endpoints:
   example_response: examples/tikhub.x.douyin-web-fetch-video-high-quality-play-url.json
   capability: douyin.video.play_url
 - id: tikhub.x.douyin-web-generate-a-bogus
+  status: retired
+  status_note: "TikHub removed this Douyin signature generator; no equivalent route remains (OpenAPI snapshot fetched 2026-09-27)."
   kind: utility
   tier: extended
   platform: douyin
@@ -9970,6 +9980,8 @@ endpoints:
           note: 加密明文列表的第一个值，无特殊要求，默认为14
   untestable: no documented value for required <request body>
 - id: tikhub.x.douyin-web-generate-real-mstoken
+  status: retired
+  status_note: "TikHub removed this Douyin signature generator; no equivalent route remains (OpenAPI snapshot fetched 2026-09-27)."
   kind: utility
   tier: extended
   platform: douyin
@@ -9992,6 +10004,8 @@ endpoints:
   verified: '2026-07-28'
   example_response: examples/tikhub.x.douyin-web-generate-real-mstoken.json
 - id: tikhub.x.douyin-web-generate-s-v-web-id
+  status: retired
+  status_note: "TikHub removed this Douyin signature generator; no equivalent route remains (OpenAPI snapshot fetched 2026-09-27)."
   kind: utility
   tier: extended
   platform: douyin
@@ -10042,6 +10056,8 @@ endpoints:
   verified: '2026-07-28'
   example_response: examples/tikhub.x.douyin-web-generate-ttwid.json
 - id: tikhub.x.douyin-web-generate-verify-fp
+  status: retired
+  status_note: "TikHub removed this Douyin signature generator; no equivalent route remains (OpenAPI snapshot fetched 2026-09-27)."
   kind: utility
   tier: extended
   platform: douyin
@@ -10106,6 +10122,8 @@ endpoints:
   verified: '2026-07-28'
   example_response: examples/tikhub.x.douyin-web-generate-wss-xb-signature.json
 - id: tikhub.x.douyin-web-generate-x-bogus
+  status: retired
+  status_note: "TikHub removed this Douyin signature generator; no equivalent route remains (OpenAPI snapshot fetched 2026-09-27)."
   kind: utility
   tier: extended
   platform: douyin
@@ -22817,6 +22835,8 @@ endpoints:
         version_name: 36.4.4
   unverified: 'http 400: Request failed. Please retry. Check the docs below to verify your parameters, te'
 - id: tikhub.x.tiktok-app-v3-add-video-play-count
+  status: retired
+  status_note: "TikHub removed this route; no equivalent route remains (OpenAPI snapshot fetched 2026-09-27)."
   kind: action
   tier: extended
   platform: tiktok
@@ -28024,6 +28044,9 @@ endpoints:
   example_response: examples/tikhub.x.tiktok-shop-web-fetch-product-detail.json
   capability: tiktok-shop.product.detail
 - id: tikhub.x.tiktok-shop-web-fetch-product-reviews
+  status: retired
+  status_note: "TikHub replaced this route with fetch_product_reviews_v2 (OpenAPI snapshot fetched 2026-09-27)."
+  superseded_by: tikhub.x.tiktok-shop-web-fetch-product-reviews-v2
   tier: extended
   platform: tiktok-shop
   method: GET
@@ -30302,6 +30325,8 @@ endpoints:
   example_response: examples/tikhub.x.weibo-app-fetch-video-featured-feed.json
   capability: weibo.feed.channel
 - id: tikhub.x.weibo-web-fetch-channel-feed
+  status: retired
+  status_note: "TikHub removed weibo/web in favour of weibo/web_v2; no equivalent route remains (OpenAPI snapshot fetched 2026-09-27)."
   tier: extended
   platform: weibo
   method: GET
@@ -30338,6 +30363,9 @@ endpoints:
   example_response: examples/tikhub.x.weibo-web-fetch-channel-feed.json
   capability: weibo.feed.channel
 - id: tikhub.x.weibo-web-fetch-comment-replies
+  status: retired
+  status_note: "TikHub removed weibo/web in favour of weibo/web_v2 (OpenAPI snapshot fetched 2026-09-27)."
+  superseded_by: tikhub.x.weibo-web-v2-fetch-post-sub-comments
   tier: extended
   platform: weibo
   method: GET
@@ -30374,6 +30402,8 @@ endpoints:
   example_response: examples/tikhub.x.weibo-web-fetch-comment-replies.json
   capability: weibo.comment.replies
 - id: tikhub.x.weibo-web-fetch-config-list
+  status: retired
+  status_note: "TikHub removed weibo/web in favour of weibo/web_v2; no equivalent route remains (OpenAPI snapshot fetched 2026-09-27)."
   tier: extended
   platform: weibo
   method: GET
@@ -30395,6 +30425,9 @@ endpoints:
   verified: '2026-07-28'
   example_response: examples/tikhub.x.weibo-web-fetch-config-list.json
 - id: tikhub.x.weibo-web-fetch-hot-search
+  status: retired
+  status_note: "TikHub removed weibo/web in favour of weibo/web_v2 (OpenAPI snapshot fetched 2026-09-27)."
+  superseded_by: tikhub.x.weibo-web-v2-fetch-hot-search
   tier: extended
   platform: weibo
   method: GET
@@ -30417,6 +30450,9 @@ endpoints:
   example_response: examples/tikhub.x.weibo-web-fetch-hot-search.json
   capability: weibo.trending.hot_search
 - id: tikhub.x.weibo-web-fetch-post-comments
+  status: retired
+  status_note: "TikHub removed weibo/web in favour of weibo/web_v2 (OpenAPI snapshot fetched 2026-09-27)."
+  superseded_by: tikhub.x.weibo-web-v2-fetch-post-comments
   tier: extended
   platform: weibo
   method: GET
@@ -30463,6 +30499,9 @@ endpoints:
   example_response: examples/tikhub.x.weibo-web-fetch-post-comments.json
   capability: weibo.post.comments
 - id: tikhub.x.weibo-web-fetch-post-detail
+  status: retired
+  status_note: "TikHub removed weibo/web in favour of weibo/web_v2 (OpenAPI snapshot fetched 2026-09-27)."
+  superseded_by: tikhub.x.weibo-web-v2-fetch-post-detail
   tier: extended
   platform: weibo
   method: GET
@@ -30493,6 +30532,9 @@ endpoints:
   example_response: examples/tikhub.x.weibo-web-fetch-post-detail.json
   capability: weibo.post.detail
 - id: tikhub.x.weibo-web-fetch-search
+  status: retired
+  status_note: "TikHub removed weibo/web in favour of weibo/web_v2 (OpenAPI snapshot fetched 2026-09-27)."
+  superseded_by: tikhub.x.weibo-web-v2-fetch-advanced-search
   tier: extended
   platform: weibo
   method: GET
@@ -30539,6 +30581,9 @@ endpoints:
   example_response: examples/tikhub.x.weibo-web-fetch-search.json
   capability: weibo.search.posts
 - id: tikhub.x.weibo-web-fetch-search-topics
+  status: retired
+  status_note: "TikHub removed weibo/web in favour of weibo/web_v2 (OpenAPI snapshot fetched 2026-09-27)."
+  superseded_by: tikhub.x.weibo-web-v2-fetch-topic-search
   tier: extended
   platform: weibo
   method: GET
@@ -30561,6 +30606,8 @@ endpoints:
   example_response: examples/tikhub.x.weibo-web-fetch-search-topics.json
   capability: weibo.search.topics
 - id: tikhub.x.weibo-web-fetch-trend-top
+  status: retired
+  status_note: "TikHub removed weibo/web in favour of weibo/web_v2; no equivalent route remains (OpenAPI snapshot fetched 2026-09-27)."
   tier: extended
   platform: weibo
   method: GET
@@ -30597,6 +30644,9 @@ endpoints:
   example_response: examples/tikhub.x.weibo-web-fetch-trend-top.json
   capability: weibo.trending.hot_search
 - id: tikhub.x.weibo-web-fetch-user-info
+  status: retired
+  status_note: "TikHub removed weibo/web in favour of weibo/web_v2 (OpenAPI snapshot fetched 2026-09-27)."
+  superseded_by: tikhub.x.weibo-web-v2-fetch-user-info
   tier: extended
   platform: weibo
   method: GET
@@ -30627,6 +30677,9 @@ endpoints:
   example_response: examples/tikhub.x.weibo-web-fetch-user-info.json
   capability: weibo.user.profile
 - id: tikhub.x.weibo-web-fetch-user-posts
+  status: retired
+  status_note: "TikHub removed weibo/web in favour of weibo/web_v2 (OpenAPI snapshot fetched 2026-09-27)."
+  superseded_by: tikhub.x.weibo-web-v2-fetch-user-posts
   tier: extended
   platform: weibo
   method: GET
@@ -33602,6 +33655,8 @@ endpoints:
   verified: '2026-07-28'
   example_response: examples/tikhub.x.xiaohongshu-web-v3-fetch-homefeed-categories.json
 - id: tikhub.x.xiaohongshu-web-v3-fetch-hot-list
+  status: retired
+  status_note: "TikHub removed this route; no equivalent route remains (OpenAPI snapshot fetched 2026-09-27)."
   tier: extended
   platform: xiaohongshu
   method: GET
@@ -34111,6 +34166,9 @@ endpoints:
   verified: '2026-07-28'
   example_response: examples/tikhub.x.youtube-web-get-channel-url.json
 - id: tikhub.x.youtube-web-get-channel-videos-v2
+  status: retired
+  status_note: "TikHub moved YouTube channel videos to youtube/web_v2/get_channel_videos (OpenAPI snapshot fetched 2026-09-27)."
+  superseded_by: tikhub.youtube.channel.videos
   tier: extended
   platform: youtube
   method: GET
@@ -34195,6 +34253,8 @@ endpoints:
   example_response: examples/tikhub.x.youtube-web-get-relate-video.json
   capability: youtube.video.related
 - id: tikhub.x.youtube-web-get-trending-videos
+  status: retired
+  status_note: "TikHub removed this route; no equivalent route remains (OpenAPI snapshot fetched 2026-09-27)."
   tier: extended
   platform: youtube
   method: GET
@@ -34234,6 +34294,9 @@ endpoints:
   example_response: examples/tikhub.x.youtube-web-get-trending-videos.json
   capability: youtube.trending.videos
 - id: tikhub.x.youtube-web-get-video-info
+  status: retired
+  status_note: "TikHub moved YouTube video info to youtube/web_v2 (OpenAPI snapshot fetched 2026-09-27)."
+  superseded_by: tikhub.x.youtube-web-v2-get-video-info
   tier: extended
   platform: youtube
   method: GET
@@ -34293,6 +34356,9 @@ endpoints:
       lang: zh-CN
   unverified: 'http 400: Request failed. Please retry. Check the docs below to verify your parameters, te'
 - id: tikhub.x.youtube-web-get-video-subtitles
+  status: retired
+  status_note: "TikHub moved YouTube subtitles to youtube/web_v2/get_video_captions (OpenAPI snapshot fetched 2026-09-27)."
+  superseded_by: tikhub.x.youtube-web-v2-get-video-captions
   tier: extended
   platform: youtube
   method: GET
