@@ -12,6 +12,7 @@ sources:
   - frontend/src/state/resources.js
   - frontend/src/state/resourcesComputed.js
   - frontend/src/App.vue
+  - frontend/src/views.ts
   - frontend/src/api.ts
   - frontend/src/components/DashboardNavigation.vue
   - frontend/src/components/PublicNavigation.vue
@@ -248,6 +249,17 @@ sign-in and parked OAuth authorization. Catalog and shared-link handlers modify 
 metadata as before. `_app_version()` hashes the built entry, whose asset filenames change with
 bundle content. HTML is not cached; `/app/ui/assets/{name}` serves immutable hashed assets and
 returns 404 for missing files. Assets remain a control-role surface.
+
+The entry chunk carries Vue, the shell (navigation, sign-in, the signed-out page) and the state
+modules; every page and dialog is its own chunk, registered in `frontend/src/views.ts` and mounted
+by `App.vue` behind the same `v-if`s as before. `preloadInitialView` starts the chunk for the URL
+being opened (read with boot's own route parsers) before mount, alongside `/meta` and `/auth/me`.
+After boot, `prefetchAfterBoot` loads one chunk per idle period: every screen and dialog for a
+member, only the catalog pages for a public visitor. It resolves the async wrapper itself, so a
+prefetched screen renders synchronously and navigation shows no blank frame. A dialog whose chunk
+arrives late still gets `v-dialog`'s focus, trap and focus return, since the directive acts when
+the dialog mounts. Matter.js ships only in the `/search` chunk. A chunk that fails to load after
+retries asks `checkVersion`, which offers the refresh toast when a deploy replaced the build.
 
 `bash scripts/build-dashboard.sh` installs the npm lockfile and builds into the gitignored
 `src/treg/web/dashboard/` directory. Hatch includes it in distributions and rejects missing builds;

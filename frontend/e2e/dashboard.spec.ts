@@ -58,3 +58,22 @@ test('the dashboard and catalog ask for nothing that is not there', async ({ pag
   await page.waitForLoadState('networkidle')
   expect(missing).toEqual([])
 })
+
+test('a dialog takes its first field and hands focus back, even when its code arrives late', async ({ page }) => {
+  await signIn(page, 'late-dialog')
+  // Hold the dialog's code so it mounts well after the click that opened it.
+  await page.route(/RequestToolDialog-[^/]*\.js$/, async route => {
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    await route.continue()
+  })
+  await page.goto('about:blank')
+  await page.goto('/app#connections')
+  const opener = page.getByRole('button', { name: 'Request a tool', exact: true })
+  await opener.click()
+  const dialog = page.getByRole('dialog', { name: 'Request a tool' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByPlaceholder('e.g. Ahrefs backlinks, flight prices, HN comments')).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await expect(opener).toBeFocused()
+})

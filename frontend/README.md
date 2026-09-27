@@ -4,6 +4,7 @@ This app lives in the public treg repository and is served by the existing Pytho
 There is no separate production frontend server.
 
 - `src/App.vue`: application shell and conditional page/dialog mounts.
+- `src/views.ts`: pages and dialogs as on-demand chunks, with route preload and idle prefetch.
 - `src/pages/`: catalog, getting started, activity, tools, team, referrals and help.
 - `src/components/` and `src/dialogs/`: shared navigation and overlays.
 - `src/agent-setup/`: onboarding widgets shared with the standalone Enrich Arena page.
@@ -13,8 +14,10 @@ There is no separate production frontend server.
 
 This is an incremental extraction. The old use cases still share per-application state through
 `state/context.ts`; their JavaScript is not fully typed.
-New isolated components should use typed props and events. Existing hash navigation and deep links
-remain in the navigation/catalog/details modules; this change does not replace their URL contract.
+New isolated components should use typed props and events. Register a new page or dialog in
+`src/views.ts`: a static import from `App.vue` puts it back into the entry chunk every visitor
+downloads. Existing hash navigation and deep links remain in the navigation/catalog/details
+modules; this change does not replace their URL contract.
 `frontend/` is the only Dashboard source: every entry, signed in or not, serves this compiled app.
 
 ## Develop
