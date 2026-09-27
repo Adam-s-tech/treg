@@ -904,11 +904,13 @@ against every row's maximum computable price. A `times` value outside the field'
 (or non-finite, or non-positive) matches no row and prices at the
 fallback, so a request cannot reserve zero or bill past the ceiling. With `settle: table`, the
 matched row is reserved and settled (fallback when unmatched). With `settle: usage`, the matched
-row is reserved as the rate-card estimate and the terminal `usage.path` figure settles, which may
-exceed the reserve (OpenRouter's unpublished minimums); `settle: usage` therefore requires an async
-descriptor, exactly a dotted `usage.path` and a supported `usage.unit` (`usd`; `credit` when
-fx.yaml prices that provider's credit; or a provider-native meter with a numeric
-`unit_rates_usd[provider][unit]` entry), and `settle: table` rejects a stray usage block. A `times`
+row is reserved as the rate-card estimate and the reply's `usage.path` figure settles (the
+terminal document on an async row, the buffered body on a synchronous one), which may exceed the
+reserve (OpenRouter's unpublished minimums). A flat `value` may also declare `settle: usage` with
+no table: its explicit `fallback` is the reserve. Either form requires exactly a dotted
+`usage.path` and a supported `usage.unit` (`usd`; `credit` when fx.yaml prices that provider's
+credit; or a provider-native meter with a numeric `unit_rates_usd[provider][unit]` entry), and any
+other settle rejects a stray usage block. A `times`
 value is never non-positive, whatever minimum the field declares, so a field that admits a sentinel
 such as `-1` cannot multiply a rate by it; the sentinel is priced by a flat row that pins it, and
 that row is left out of the advertised per-second rate span. The money fragment describes the settlement itself.

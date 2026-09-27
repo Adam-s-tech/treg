@@ -398,18 +398,9 @@ def check_cost_table(cost: dict, input_schema: object, where: str, errors: list[
             fail(errors, rwhere, "times_min is only valid on a row with times")
         maximums.append(maximum)
 
-    fallback = cost.get("fallback")
-    if not isinstance(fallback, dict):
-        fail(errors, where, "cost.table requires a fallback mapping with value and note")
+    if not check_cost_fallback(cost, "cost.table", where, errors):
         return
-    extra = set(fallback) - {"value", "note"}
-    if extra:
-        fail(errors, where, f"cost.fallback has unknown keys: {sorted(extra)}")
-    fallback_value = fallback.get("value")
-    if not _finite_number(fallback_value) or float(fallback_value) < 0:
-        fail(errors, where, "cost.fallback.value must be a finite non-negative number")
-    if not str(fallback.get("note") or "").strip():
-        fail(errors, where, "cost.fallback.note must explain the explicit upper bound")
+    fallback_value = cost["fallback"].get("value")
     if _finite_number(fallback_value) \
             and maximums and float(fallback_value) < max(maximums):
         fail(errors, where, "cost.fallback.value must be at least every table row's maximum "
@@ -418,6 +409,30 @@ def check_cost_table(cost: dict, input_schema: object, where: str, errors: list[
     settle = cost.get("settle", "table")
     if settle not in ("table", "usage"):
         fail(errors, where, "cost.table settle must be 'table' or 'usage'")
+    check_usage_block(cost, settle, where, errors, provider)
+
+
+def check_cost_fallback(cost: dict, owner: str, where: str, errors: list[str]) -> bool:
+    """The explicit reserve upper bound a table or a usage settlement holds when nothing narrower
+    applies (`settlement.derive_basis` reads `fallback.value` unconditionally for both)."""
+    fallback = cost.get("fallback")
+    if not isinstance(fallback, dict):
+        fail(errors, where, f"{owner} requires a fallback mapping with value and note")
+        return False
+    extra = set(fallback) - {"value", "note"}
+    if extra:
+        fail(errors, where, f"cost.fallback has unknown keys: {sorted(extra)}")
+    fallback_value = fallback.get("value")
+    if not _finite_number(fallback_value) or float(fallback_value) < 0:
+        fail(errors, where, "cost.fallback.value must be a finite non-negative number")
+    if not str(fallback.get("note") or "").strip():
+        fail(errors, where, "cost.fallback.note must explain the explicit upper bound")
+    return True
+
+
+def check_usage_block(cost: dict, settle: object, where: str, errors: list[str],
+                      provider: str | None) -> None:
+    """`settle: usage` names the dotted path and unit of the provider's own reported charge."""
     usage = cost.get("usage")
     if settle == "usage":
         if not isinstance(usage, dict) or set(usage) != {"path", "unit"} \
@@ -778,9 +793,15 @@ def check_cost(cost: dict, where: str, errors: list[str], warnings: list[str],
         if "value" in cost:
             fail(errors, where, "cost.value and cost.table are mutually exclusive")
         check_cost_table(cost, input_schema, where, errors, provider)
-    if (settle := cost.get("settle")) is not None and not has_table \
-            and settle not in ("base", "modifiers"):
-        fail(errors, where, "cost.settle currently supports only 'base' or 'modifiers'")
+    if not has_table:
+        settle = cost.get("settle")
+        if settle is not None and settle not in ("base", "modifiers", "usage"):
+            fail(errors, where, "cost.settle currently supports only 'base', 'modifiers' or 'usage'")
+        if settle == "usage":
+            # A flat rate-card price with the provider's reported charge settling: the fallback is
+            # the reserve, the reply's `usage.path` the charge (sync body or async terminal document).
+            check_cost_fallback(cost, "cost.settle 'usage'", where, errors)
+        check_usage_block(cost, settle, where, errors, provider)
     modifiers = cost.get("modifiers")
     if modifiers is not None:
         if not isinstance(modifiers, dict) or not modifiers:
@@ -1129,10 +1150,6 @@ def main(argv: list[str]) -> int:
                 terminal_ex = ep.get("terminal_example_response")
                 if terminal_ex is not None and not (CATALOG / str(terminal_ex)).is_file():
                     fail(errors, where, f"terminal_example_response '{terminal_ex}' does not exist")
-            elif isinstance(cost, dict) and cost.get("settle") == "usage":
-                # Usage evidence is read from the TERMINAL response by the worker; a synchronous
-                # response path has no consumer for it and would silently settle the reserve.
-                fail(errors, where, "cost.settle 'usage' requires an async descriptor")
             elif ep.get("terminal_example_response") is not None:
                 fail(errors, where, "terminal_example_response requires an async descriptor")
             if ep.get("resource_ownership") is not None:

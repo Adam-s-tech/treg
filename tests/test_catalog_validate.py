@@ -82,7 +82,7 @@ def test_cost_modifiers_accept_only_supported_declarative_credit_rules():
 
     bad_settle: list[str] = []
     validator.check_cost(base | {"settle": "estimate"}, "catalog:test", bad_settle, [])
-    assert any("cost.settle currently supports only 'base' or 'modifiers'" in error for error in bad_settle)
+    assert any("cost.settle currently supports only 'base', 'modifiers' or 'usage'" in error for error in bad_settle)
 
 
 def test_status_marker_references_must_exist_and_end_at_a_live_endpoint():
@@ -551,12 +551,48 @@ def test_async_param_location_must_agree_with_the_target_path(tmp_path, monkeypa
     assert "needs exactly one {id} in the target path" in out
 
 
-def test_usage_settlement_requires_an_async_descriptor_and_finite_interval():
+def _flat_usage_cost() -> dict:
+    return {"type": "per_call", "value": 0.0005, "currency": "USD", "per": 1, "unit": "call",
+            "fallback": {"value": 0.0005, "note": "small ceiling; the reported cost settles"},
+            "settle": "usage", "usage": {"path": "usage.cost", "unit": "usd"},
+            "source": "docs", "source_url": "https://example.com/pricing",
+            "checked": "2026-09-23", "confidence": "documented"}
+
+
+def test_flat_price_usage_settlement_is_accepted():
+    """A synchronous per-call price may settle the reply's own charge (`_platform_settle` hands
+    the buffered body to the usage basis), so no async descriptor or table is required."""
+    errors: list[str] = []
+    validator.check_cost(_flat_usage_cost(), "x", errors, [], provider="openrouter")
+    assert errors == []
+
+
+@pytest.mark.parametrize(("mutate", "message"), [
+    (lambda c: c.pop("fallback"), "requires a fallback mapping"),
+    (lambda c: c.update(fallback={"value": 0.0005}), "fallback.note must explain"),
+    (lambda c: c.update(fallback={"value": float("inf"), "note": "x"}), "finite non-negative"),
+    (lambda c: c.pop("usage"), "requires usage.path and usage.unit"),
+    (lambda c: c.update(usage={"path": "usage..cost", "unit": "usd"}),
+     "requires usage.path and usage.unit"),
+    (lambda c: c.update(usage={"path": "usage.cost", "unit": "tokens"}),
+     "needs a numeric fx.yaml unit_rates_usd entry"),
+    (lambda c: c.update(settle="base"), "usage is only valid with settle: usage"),
+    (lambda c: c.update(settle="later"), "supports only 'base', 'modifiers' or 'usage'"),
+])
+def test_flat_price_usage_settlement_rejects_bad_shapes(mutate, message):
+    cost = _flat_usage_cost()
+    mutate(cost)
+    errors: list[str] = []
+    validator.check_cost(cost, "x", errors, [], provider="openrouter")
+    assert any(message in e for e in errors), errors
+
+
+def test_usage_settlement_block_and_finite_interval():
     cost = _valid_table()
     cost.update(settle="usage", usage={"path": "usage.cost", "unit": "usd"})
     errors: list[str] = []
     validator.check_cost_table(cost, _valid_input(), "x", errors)
-    assert errors == []  # the block itself is fine; the pairing is checked at the endpoint level
+    assert errors == []
     descriptor = _valid_async()
     descriptor["interval"] = float("nan")
     errors = []
