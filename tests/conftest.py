@@ -108,6 +108,7 @@ from treg.api import app  # noqa: E402
 from treg import archive  # noqa: E402
 from treg.config import get_settings  # noqa: E402
 from treg.infra.db import reset_db  # noqa: E402
+from treg.domain.identity import api_keys as managed_keys  # noqa: E402
 
 
 # The OTP-start + sandbox throttles (and the OTP codes) now live in the DB's `ephemeral` table, not in
@@ -424,6 +425,10 @@ async def drain_background_writes():
     # forgives it) — the serial CI job hung exactly here, 5-minute faulthandler timeouts on
     # whichever archive test ran next (2026-08-28, twice).
     await archive.drain()
+    # And the managed-key last-used writer: ids restart with every reset_db(), so a write or a
+    # throttle claim left over from one test would land on, or suppress, the next test's key.
+    await managed_keys.drain_last_used()
+    managed_keys._last_used_claims.clear()
 
 
 @pytest.fixture
