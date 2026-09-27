@@ -705,7 +705,7 @@ Instead of adding tools/skills one at a time, point treg at what you already hav
 `treg upload` does **both** doors for the current dir; `treg upload env` / `treg upload
 skills` restrict it (`--dir` sets the location).
 
-- **env door** - scans a `.env`, matches each variable against a catalog of ~80 providers
+- **env door** - scans a `.env`, matches each variable against the providers treg recognizes
   (served at `GET /providers.json`), and registers the ones you pick as ready-to-call tools.
   Detection reads NAMES only; the value loads just for the keys you confirm. Config vars
   (`*_HOST`, `*_MODEL`) and app secrets (`SECRET_KEY`, `DATABASE_URL`, `*_WEBHOOK_SECRET`) are

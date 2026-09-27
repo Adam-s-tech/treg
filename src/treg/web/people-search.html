@@ -227,7 +227,7 @@
   .uc-chip.in { opacity: 1; transform: none; }
   .uc-chip.ok { color: var(--green); background: var(--green-soft); border-color: rgba(17,132,83,.3); }
   .uc-mask { font-family: var(--mono); font-size: 17px; letter-spacing: .04em; color: var(--ink); margin: 6px 0 4px; font-variant-numeric: tabular-nums; }
-  /* the +2,867 catalog ticker card */
+  /* the catalog ticker card */
   .uc.uc-more { background: #1B1B1A; color: #F8F8F7; }
   .uc-more .uc-stage { justify-content: flex-start; }
   .uc-more h3 { margin: 2px 0 8px; font-family: var(--display); font-weight: 500; font-size: 21px; letter-spacing: -.01em; }
@@ -462,7 +462,7 @@
 <header class="hero">
   <h1 id="heroA"><span class="hw ag-line"><span class="ag" id="agWrap"><img id="agLogo" src="media/people-search/claude-code.png" alt=""><span id="agName">Claude</span></span> for</span><br><span class="hw hl">people search.</span></h1>
   <h1 id="heroB" hidden><span class="hw">Run GTM</span> <span class="hw">from your</span><br><span class="hw"><span class="hero-agents"><img src="media/people-search/claude-code.png" alt="Claude Code"><img src="media/people-search/codex.png" alt="Codex"><img src="media/people-search/openclaw.png" alt="OpenClaw"><img src="media/people-search/hermes.png" alt="Hermes"></span></span> <span class="hw hl">terminal.</span></h1>
-  <p class="sub">One skill gives your agent <strong>1B+ contacts</strong> across Apollo, Hunter, Tomba, People&nbsp;Data&nbsp;Labs — 60 providers behind one token. It finds the companies, the people, and their <strong>verified work emails</strong>. You pay per answer, misses are free. <a href="#receipt" style="color:var(--green);text-decoration:underline;text-underline-offset:3px">27-person receipt: 20 verified emails for $0.58</a></p>
+  <p class="sub">One skill gives your agent <strong>1B+ contacts</strong> across Apollo, Hunter, Tomba, People&nbsp;Data&nbsp;Labs — {PROVIDERS} providers behind one token. It finds the companies, the people, and their <strong>verified work emails</strong>. You pay per answer, misses are free. <a href="#receipt" style="color:var(--green);text-decoration:underline;text-underline-offset:3px">27-person receipt: 20 verified emails for $0.58</a></p>
   <div class="ctas">
     <a class="pill dark" href="/app?ref=people-search" id="ctaHero">Setup treg</a>
     <a class="pill" href="#pricing">Pricing: pay per lead</a>
@@ -669,7 +669,7 @@
     <a class="uc uc-more" href="#tools">
       <div class="uc-strip"><span class="pr">›</span>and whatever comes next<span class="c"></span></div>
       <div class="uc-stage">
-        <h3><b>+ 2,867 more</b> tools</h3>
+        <h3><b>{ENDPOINTS}</b> tools</h3>
         <div class="uc-tickwrap"><ul class="uc-tick">
           <li>serp.google <s>· live results</s></li>
           <li>keywords.volume <s>· $0.006</s></li>
@@ -689,7 +689,7 @@
           <li>scrape.page <s>· any URL</s></li>
         </ul></div>
       </div>
-      <div class="uc-foot">60 providers · one token · <b>browse the catalog →</b></div>
+      <div class="uc-foot">{PROVIDERS} providers · one token · <b>browse the catalog →</b></div>
     </a>
 
   </div>
@@ -787,7 +787,7 @@
 
 
 <section class="section tools-sec" id="tools">
-  <h2>One token. 2,896 data &amp; tools.</h2>
+  <h2>One token. {ENDPOINTS} data &amp; tools.</h2>
   <p class="lede">People search is one aisle. The same token reaches social, SEO, ads, scraping — and your own keys always win over treg's.</p>
   <div class="catwrap">
     <div class="pgrid">
@@ -816,7 +816,7 @@
         <div class="pcard"><span class="ph"><img src="media/people-search/serpstat.png" alt=""></span><span class="pt"><b>Rank tracking</b><s>Serpstat</s></span></div>
       </div>
     </div>
-    <div class="moreline">+ 2,870 more across 60 providers</div>
+    <div class="moreline">+ many more across {PROVIDERS} providers</div>
     <div class="ctas" style="display:flex;justify-content:center;margin-top:20px">
       <a class="pill dark" href="/catalog">Browse the catalog →</a>
     </div>

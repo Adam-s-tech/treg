@@ -519,7 +519,7 @@ validated before resolving the shared HTTP client. `/auth/logout` remains an HTT
   `/skill.md`, so `{BASE}` templates to the **serving** host and a self-hosted registry advertises
   itself. See [skill.md](skill.md) for the other three distribution doors.
   `terms_page` (`GET /terms`) + `privacy_page` (`GET /privacy`) serve the hosted registry's legal pages
-  (`_legal_page`, no-cache) with `legal_css` (`GET /legal.css`) as the shared skin - `/privacy` is also
+  (`_static_page`: `{BASE}` and the catalog counts filled, no-cache with an ETag) with `legal_css` (`GET /legal.css`) as the shared skin - `/privacy` is also
   the URL given to OAuth providers at app-verification time, so don't rename it.
   `resources_page` (`GET /resources`) is the hub for the outcome pages and the **only** thing linking to
   them: the landing footer and each page's own footer carry one `resources` link rather than five that grow

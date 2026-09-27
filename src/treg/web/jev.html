@@ -1407,7 +1407,7 @@ than the examples written here.
 <b>Setup</b>
 1. Set up treg: read https://treg.to/llms.txt and follow it (install the CLI,
    then `treg login`).
-   treg is one token for 2,600+ data endpoints; calls are `treg call &lt;endpoint&gt; --data '{...}'`.
+   treg is one token for {ENDPOINTS} data endpoints; calls are `treg call &lt;endpoint&gt; --data '{...}'`.
 2. jev, optional to start. If I have a Vercel AI Gateway key
    (https://vercel.com/ai-gateway), put it in .env as AI_GATEWAY_API_KEY.
    jev is called with POST https://ai-gateway.vercel.sh/v4/ai/evaluation-model, headers
@@ -1490,7 +1490,7 @@ wait for my go-ahead, and build for MY answers rather than the examples written 
 <b>Setup</b>
 1. Set up treg: read https://treg.to/llms.txt and follow it (install the CLI,
    then `treg login`).
-   treg is one token for 2,600+ data endpoints. Discover with `treg search "&lt;what I want to do&gt;"`,
+   treg is one token for {ENDPOINTS} data endpoints. Discover with `treg search "&lt;what I want to do&gt;"`,
    inspect with `treg get &lt;endpoint&gt;` (parameters, price, reliability), call with
    `treg call &lt;endpoint&gt; --data '{...}'`. Every response reports its exact charge in X-Treg-Cost-Micro.
 2. jev, optional to start. If I have a Vercel AI Gateway key
@@ -1628,8 +1628,8 @@ wait for my go-ahead, and build for MY answers rather than the examples written 
 <div class="pcard"><div class="ph"><img src="https://www.google.com/s2/favicons?domain=trends.google.com&sz=64" alt="" loading="lazy"/></div><div class="pt"><b>Google Trends</b><s>no official API</s></div></div>
             </div>
           </div>
-          <div class="moreline rv">+2,500 more expert tools in the catalog<br>
-            <button class="ghostbtn sm" onclick="openSignin()">Browse all 2,630 tools</button></div>
+          <div class="moreline rv">+ many more expert tools in the catalog<br>
+            <button class="ghostbtn sm" onclick="openSignin()">Browse all {ENDPOINTS} tools</button></div>
 <div class="pcat">Video &amp; image generation</div>
           <div class="pgrid">
             <div class="pcard"><div class="ph"><img src="https://www.google.com/s2/favicons?domain=seed.bytedance.com&sz=64" alt="" loading="lazy"/></div><div class="pt"><b>Seedance 2.5 talking head</b><s>Higgsfield · $49/mo</s></div></div>
@@ -1680,7 +1680,7 @@ wait for my go-ahead, and build for MY answers rather than the examples written 
 </section>
 
 <section class="close-cta rv">
-  <h2 class="unleash">Unleash <img class="lg" src="logos/jev.png" alt=""> Jev with <svg class="lg" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="112" fill="#101010"/><rect x="111" y="111" width="140.5" height="140.5" rx="20" fill="#fff"/><rect x="260.5" y="260.5" width="140.5" height="140.5" rx="20" fill="#fff"/></svg> 2,896+ data &amp; tools</h2>
+  <h2 class="unleash">Unleash <img class="lg" src="logos/jev.png" alt=""> Jev with <svg class="lg" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="112" fill="#101010"/><rect x="111" y="111" width="140.5" height="140.5" rx="20" fill="#fff"/><rect x="260.5" y="260.5" width="140.5" height="140.5" rx="20" fill="#fff"/></svg> {ENDPOINTS} data &amp; tools</h2>
   <p>Every recipe above is a prompt away. treg gives your agent the catalog and the bill; jev gives it answers it can act on without parsing prose.</p>
   <div class="ctas"><a class="pill dark" href="/app?ref=jev" id="ctaFinal">Set up treg</a><a class="pill" href="/catalog">Browse the catalog</a></div>
 </section>

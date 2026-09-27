@@ -157,7 +157,7 @@ that isn't a catalog id or `<tool>/<path>`, POSTing the inputs as its JSON body.
 registers these tools (they are absent from `directory_mcp`), so the V2 tool count above is
 unaffected. See [the tool hub](hub.md) for the runtime.
 
-Deliberately not one tool per provider. A catalog of 2,600 endpoints exposed as 2,600 MCP tools would
+Deliberately not one tool per provider. A catalog of thousands of endpoints exposed as thousands of MCP tools would
 bury the client's tool list and force a re-connect every time the catalog grew. `catalog_search`
 plus `call` covers all of it and stays the same size.
 
