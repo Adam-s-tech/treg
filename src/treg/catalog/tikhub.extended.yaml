@@ -8398,7 +8398,6 @@ endpoints:
       danmaku_type: WebcastRoomMessage
   verified: '2026-07-28'
   example_response: examples/tikhub.x.douyin-web-douyin-live-room.json
-  capability: douyin.live.danmaku
 - id: tikhub.x.douyin-web-encrypt-uid-to-sec-user-id
   kind: utility
   tier: extended
@@ -8898,7 +8897,6 @@ endpoints:
       limit: 5
   verified: '2026-07-28'
   example_response: examples/tikhub.x.douyin-web-fetch-live-room-product-result.json
-  capability: douyin.live.products
 - id: tikhub.x.douyin-web-fetch-multi-video
   tier: extended
   platform: douyin
