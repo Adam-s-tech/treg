@@ -40,8 +40,6 @@ pricing_url: https://www.icypeas.com/pricing
 
 proposed_capabilities:
   companies.emails.role: "Find a company's role-based email addresses (contact@, support@, info@)"
-  people.search.count: "Count the people matching a search before paying for the rows"
-  companies.search.count: "Count the companies matching a search before paying for the rows"
   people.profile.url: "Find a person's professional profile URL from their name and company"
   companies.profile.url: "Find a company's professional profile URL from its name or domain"
   people.job.start: "Start a bulk contact-data job over many rows"

@@ -5,7 +5,6 @@ source:
 pricing_url: https://platform.minimax.io/docs/guides/pricing-paygo
 limits: "Video generation is asynchronous; poll every 10 seconds. Video download URLs expire after about 9 hours. Synchronous TTS accepts up to 10,000 characters; generated audio URLs expire after 24 hours."
 proposed_capabilities:
-  video-gen.result.retrieve: "Retrieve completed video generation content"
   # Per-model capabilities: each is the join key for one model, so the row stands alone in the
   # model wall today and merges with other ROUTES to the same model (aggregator listings) when
   # those are curated later. The job-level video-gen.from_text/.from_image capabilities stay

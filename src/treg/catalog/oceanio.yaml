@@ -47,7 +47,6 @@ pricing_url: https://www.ocean.io/pricing
 # customer list into ICP clusters — but treat them as less stable than the documented surface.
 
 proposed_capabilities:
-  companies.lookalike: "Find companies similar to a set of seed domains"
   companies.coverage.check: "Check which domains the provider already has data for"
   companies.search.fields: "List the industries, technologies and regions you can filter on"
   companies.search.autocomplete: "Suggest valid company-search filter values as you type"
@@ -310,7 +309,7 @@ endpoints:
 
   - id: oceanio.companies.lookalike
     domain: companies
-    capability: companies.lookalike
+    capability: companies.similar
     platform: companies
     scope: any_account
     method: POST

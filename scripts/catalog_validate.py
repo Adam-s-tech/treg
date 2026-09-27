@@ -8,6 +8,9 @@ Checks (the success criteria from docs/context/architecture/catalog.md):
   - provider file's `provider` matches its filename and exists in treg.oauth_providers.REGISTRY
   - endpoint ids unique across the WHOLE catalog; id convention `<provider>.<capability>`
   - `capability` exists in capabilities.yaml OR the file's own proposed_capabilities
+  - a proposed capability is not already in capabilities.yaml and carries one description across
+    files; WARN once endpoints of two providers use it (promote it), and WARN when two
+    capabilities of one platform share a description (one job under two ids splits the comparison)
   - `platform` equals the capability's first segment and exists in capabilities.yaml platforms
   - required fields present; enums valid (scope, method, cost.type/currency/unit/source/confidence)
   - a `cost` block is BILLABLE, not decorative: a null `value` and `confidence: unknown` appear
@@ -398,18 +401,9 @@ def check_cost_table(cost: dict, input_schema: object, where: str, errors: list[
             fail(errors, rwhere, "times_min is only valid on a row with times")
         maximums.append(maximum)
 
-    fallback = cost.get("fallback")
-    if not isinstance(fallback, dict):
-        fail(errors, where, "cost.table requires a fallback mapping with value and note")
+    if not check_cost_fallback(cost, "cost.table", where, errors):
         return
-    extra = set(fallback) - {"value", "note"}
-    if extra:
-        fail(errors, where, f"cost.fallback has unknown keys: {sorted(extra)}")
-    fallback_value = fallback.get("value")
-    if not _finite_number(fallback_value) or float(fallback_value) < 0:
-        fail(errors, where, "cost.fallback.value must be a finite non-negative number")
-    if not str(fallback.get("note") or "").strip():
-        fail(errors, where, "cost.fallback.note must explain the explicit upper bound")
+    fallback_value = cost["fallback"].get("value")
     if _finite_number(fallback_value) \
             and maximums and float(fallback_value) < max(maximums):
         fail(errors, where, "cost.fallback.value must be at least every table row's maximum "
@@ -418,6 +412,30 @@ def check_cost_table(cost: dict, input_schema: object, where: str, errors: list[
     settle = cost.get("settle", "table")
     if settle not in ("table", "usage"):
         fail(errors, where, "cost.table settle must be 'table' or 'usage'")
+    check_usage_block(cost, settle, where, errors, provider)
+
+
+def check_cost_fallback(cost: dict, owner: str, where: str, errors: list[str]) -> bool:
+    """The explicit reserve upper bound a table or a usage settlement holds when nothing narrower
+    applies (`settlement.derive_basis` reads `fallback.value` unconditionally for both)."""
+    fallback = cost.get("fallback")
+    if not isinstance(fallback, dict):
+        fail(errors, where, f"{owner} requires a fallback mapping with value and note")
+        return False
+    extra = set(fallback) - {"value", "note"}
+    if extra:
+        fail(errors, where, f"cost.fallback has unknown keys: {sorted(extra)}")
+    fallback_value = fallback.get("value")
+    if not _finite_number(fallback_value) or float(fallback_value) < 0:
+        fail(errors, where, "cost.fallback.value must be a finite non-negative number")
+    if not str(fallback.get("note") or "").strip():
+        fail(errors, where, "cost.fallback.note must explain the explicit upper bound")
+    return True
+
+
+def check_usage_block(cost: dict, settle: object, where: str, errors: list[str],
+                      provider: str | None) -> None:
+    """`settle: usage` names the dotted path and unit of the provider's own reported charge."""
     usage = cost.get("usage")
     if settle == "usage":
         if not isinstance(usage, dict) or set(usage) != {"path", "unit"} \
@@ -778,9 +796,15 @@ def check_cost(cost: dict, where: str, errors: list[str], warnings: list[str],
         if "value" in cost:
             fail(errors, where, "cost.value and cost.table are mutually exclusive")
         check_cost_table(cost, input_schema, where, errors, provider)
-    if (settle := cost.get("settle")) is not None and not has_table \
-            and settle not in ("base", "modifiers"):
-        fail(errors, where, "cost.settle currently supports only 'base' or 'modifiers'")
+    if not has_table:
+        settle = cost.get("settle")
+        if settle is not None and settle not in ("base", "modifiers", "usage"):
+            fail(errors, where, "cost.settle currently supports only 'base', 'modifiers' or 'usage'")
+        if settle == "usage":
+            # A flat rate-card price with the provider's reported charge settling: the fallback is
+            # the reserve, the reply's `usage.path` the charge (sync body or async terminal document).
+            check_cost_fallback(cost, "cost.settle 'usage'", where, errors)
+        check_usage_block(cost, settle, where, errors, provider)
     modifiers = cost.get("modifiers")
     if modifiers is not None:
         if not isinstance(modifiers, dict) or not modifiers:
@@ -956,6 +980,52 @@ def check_aliases(errors: list[str], warnings: list[str]) -> None:
                 warnings.append(f"{where}: alias {v!r} occurs nowhere in the catalog — dead weight")
 
 
+def _description_key(description: object) -> str:
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", str(description or "").lower()).split())
+
+
+def check_proposed_capabilities(taxonomy: dict[str, str], docs: list[tuple[str, dict]],
+                                errors: list[str], warnings: list[str]) -> None:
+    """Keep `proposed_capabilities` a staging area, not a second taxonomy.
+
+    The loader merges every proposal into the live taxonomy (first file wins the description), so
+    an unmerged proposal is fully live: a duplicate of a taxonomy id is dead text, two descriptions
+    for one id means the page title depends on filename order, and a proposal two providers already
+    use is a shared join key that belongs in capabilities.yaml. Two ids of one platform with the
+    same description are one job under two names, which splits its comparison row in two."""
+    proposals: dict[str, dict[str, str]] = {}
+    users: dict[str, set[str]] = {}
+    for name, data in docs:
+        provider = str(data.get("provider") or "")
+        for cap, desc in (data.get("proposed_capabilities") or {}).items():
+            proposals.setdefault(cap, {})[name] = desc
+        for ep in data.get("endpoints") or []:
+            if isinstance(ep, dict) and ep.get("capability"):
+                users.setdefault(ep["capability"], set()).add(provider)
+    for cap, by_file in sorted(proposals.items()):
+        where = f"proposed_capabilities {cap}"
+        if cap in taxonomy:
+            fail(errors, where, f"already in capabilities.yaml; delete the proposal from {sorted(by_file)}")
+            continue
+        if len({_description_key(d) for d in by_file.values()}) > 1:
+            fail(errors, where, f"proposed with different descriptions in {sorted(by_file)}; "
+                                "agree on one (or promote it to capabilities.yaml)")
+        if len(users.get(cap, ())) >= 2:
+            warnings.append(f"{where}: used by {sorted(users[cap])}; promote it to capabilities.yaml")
+    same: dict[tuple[str, str], set[str]] = {}
+    described = [(cap, desc) for cap, desc in taxonomy.items()]
+    described += [(cap, desc) for cap, by_file in proposals.items() if cap not in taxonomy
+                  for desc in by_file.values()]
+    for cap, desc in described:
+        key = _description_key(desc)
+        if key:
+            same.setdefault((cap.split(".")[0], key), set()).add(cap)
+    for (_, desc), caps in sorted(same.items()):
+        if len(caps) > 1:
+            warnings.append(f"capabilities {sorted(caps)} share the description {desc!r}; "
+                            "unify them on one id or tell the jobs apart")
+
+
 def main(argv: list[str]) -> int:
     errors: list[str] = []
     warnings: list[str] = []
@@ -963,7 +1033,8 @@ def main(argv: list[str]) -> int:
     check_aliases(errors, warnings)
     tax = yaml.safe_load((CATALOG / "capabilities.yaml").read_text())
     platforms = set(tax.get("platforms") or {})
-    capabilities = set(tax.get("capabilities") or {})
+    taxonomy = tax.get("capabilities") or {}
+    capabilities = set(taxonomy)
 
     from treg.oauth_providers import REGISTRY  # noqa: E402
 
@@ -974,16 +1045,19 @@ def main(argv: list[str]) -> int:
     # before validating any row; a one-pass lookup would make validity depend on filename order.
     endpoint_status: dict[str, str] = {}
     endpoint_index: dict[str, dict] = {}
+    docs: list[tuple[str, dict]] = []
     for path in all_files:
         data = yaml.safe_load(path.read_text()) or {}
         if not isinstance(data, dict):
             continue
+        docs.append((path.name, data))
         provider = str(data.get("provider") or path.stem.removesuffix(".extended"))
         for ep in data.get("endpoints") or []:
             if isinstance(ep, dict) and ep.get("id"):
                 endpoint_id = str(ep["id"])
                 endpoint_status[endpoint_id] = str(ep.get("status") or "").strip()
                 endpoint_index[endpoint_id] = {**ep, "provider": provider}
+    check_proposed_capabilities(taxonomy, docs, errors, warnings)
     files = list(all_files)
     # "tikhub" selects tikhub.yaml AND tikhub.extended.yaml — a service is both its tiers
     service_of = {p: p.stem.removesuffix(".extended") for p in files}
@@ -1129,10 +1203,6 @@ def main(argv: list[str]) -> int:
                 terminal_ex = ep.get("terminal_example_response")
                 if terminal_ex is not None and not (CATALOG / str(terminal_ex)).is_file():
                     fail(errors, where, f"terminal_example_response '{terminal_ex}' does not exist")
-            elif isinstance(cost, dict) and cost.get("settle") == "usage":
-                # Usage evidence is read from the TERMINAL response by the worker; a synchronous
-                # response path has no consumer for it and would silently settle the reserve.
-                fail(errors, where, "cost.settle 'usage' requires an async descriptor")
             elif ep.get("terminal_example_response") is not None:
                 fail(errors, where, "terminal_example_response requires an async descriptor")
             if ep.get("resource_ownership") is not None:

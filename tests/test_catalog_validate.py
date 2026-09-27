@@ -82,7 +82,7 @@ def test_cost_modifiers_accept_only_supported_declarative_credit_rules():
 
     bad_settle: list[str] = []
     validator.check_cost(base | {"settle": "estimate"}, "catalog:test", bad_settle, [])
-    assert any("cost.settle currently supports only 'base' or 'modifiers'" in error for error in bad_settle)
+    assert any("cost.settle currently supports only 'base', 'modifiers' or 'usage'" in error for error in bad_settle)
 
 
 def test_status_marker_references_must_exist_and_end_at_a_live_endpoint():
@@ -551,12 +551,48 @@ def test_async_param_location_must_agree_with_the_target_path(tmp_path, monkeypa
     assert "needs exactly one {id} in the target path" in out
 
 
-def test_usage_settlement_requires_an_async_descriptor_and_finite_interval():
+def _flat_usage_cost() -> dict:
+    return {"type": "per_call", "value": 0.0005, "currency": "USD", "per": 1, "unit": "call",
+            "fallback": {"value": 0.0005, "note": "small ceiling; the reported cost settles"},
+            "settle": "usage", "usage": {"path": "usage.cost", "unit": "usd"},
+            "source": "docs", "source_url": "https://example.com/pricing",
+            "checked": "2026-09-23", "confidence": "documented"}
+
+
+def test_flat_price_usage_settlement_is_accepted():
+    """A synchronous per-call price may settle the reply's own charge (`_platform_settle` hands
+    the buffered body to the usage basis), so no async descriptor or table is required."""
+    errors: list[str] = []
+    validator.check_cost(_flat_usage_cost(), "x", errors, [], provider="openrouter")
+    assert errors == []
+
+
+@pytest.mark.parametrize(("mutate", "message"), [
+    (lambda c: c.pop("fallback"), "requires a fallback mapping"),
+    (lambda c: c.update(fallback={"value": 0.0005}), "fallback.note must explain"),
+    (lambda c: c.update(fallback={"value": float("inf"), "note": "x"}), "finite non-negative"),
+    (lambda c: c.pop("usage"), "requires usage.path and usage.unit"),
+    (lambda c: c.update(usage={"path": "usage..cost", "unit": "usd"}),
+     "requires usage.path and usage.unit"),
+    (lambda c: c.update(usage={"path": "usage.cost", "unit": "tokens"}),
+     "needs a numeric fx.yaml unit_rates_usd entry"),
+    (lambda c: c.update(settle="base"), "usage is only valid with settle: usage"),
+    (lambda c: c.update(settle="later"), "supports only 'base', 'modifiers' or 'usage'"),
+])
+def test_flat_price_usage_settlement_rejects_bad_shapes(mutate, message):
+    cost = _flat_usage_cost()
+    mutate(cost)
+    errors: list[str] = []
+    validator.check_cost(cost, "x", errors, [], provider="openrouter")
+    assert any(message in e for e in errors), errors
+
+
+def test_usage_settlement_block_and_finite_interval():
     cost = _valid_table()
     cost.update(settle="usage", usage={"path": "usage.cost", "unit": "usd"})
     errors: list[str] = []
     validator.check_cost_table(cost, _valid_input(), "x", errors)
-    assert errors == []  # the block itself is fine; the pairing is checked at the endpoint level
+    assert errors == []
     descriptor = _valid_async()
     descriptor["interval"] = float("nan")
     errors = []
@@ -781,3 +817,65 @@ def test_missing_platform_auth_normalizes_as_absent():
         'path': '/values',
     }, 'example', Path('.'))
     assert normalized['platform_auth'] is None
+
+
+def _proposal_findings(taxonomy, docs):
+    errors: list[str] = []
+    warnings: list[str] = []
+    validator.check_proposed_capabilities(taxonomy, docs, errors, warnings)
+    return errors, warnings
+
+
+def _provider(name, proposed=None, used=()):
+    return (f"{name}.yaml", {"provider": name, "proposed_capabilities": proposed or {},
+                             "endpoints": [{"id": f"{name}.{cap}", "capability": cap} for cap in used]})
+
+
+def test_proposed_capability_already_in_the_taxonomy_is_an_error():
+    errors, _ = _proposal_findings(
+        {"web.search": "Search the open web"},
+        [_provider("exa", {"web.search": "Search the web by meaning"}, used=["web.search"])],
+    )
+    assert errors == ["proposed_capabilities web.search: already in capabilities.yaml; "
+                      "delete the proposal from ['exa.yaml']"]
+
+
+def test_one_proposed_id_with_two_descriptions_is_an_error_but_punctuation_is_not():
+    errors, _ = _proposal_findings({}, [
+        _provider("tomba", {"people.phone.verify": "Validate & format a phone number"}),
+        _provider("trestleiq", {"people.phone.verify": "Validate and format a phone number"}),
+    ])
+    assert len(errors) == 1 and "different descriptions" in errors[0]
+
+    errors, _ = _proposal_findings({}, [
+        _provider("a", {"web.crawl.results": "List the pages produced by a website crawl"}),
+        _provider("b", {"web.crawl.results": "List the pages produced by a website crawl."}),
+    ])
+    assert errors == []
+
+
+def test_a_proposal_two_providers_use_warns_to_promote_it():
+    _, warnings = _proposal_findings({}, [
+        _provider("exa", {"web.answer": "Answer a question from the web"}, used=["web.answer"]),
+        _provider("olostep", used=["web.answer"]),
+    ])
+    assert warnings == ["proposed_capabilities web.answer: used by ['exa', 'olostep']; "
+                        "promote it to capabilities.yaml"]
+
+    # one provider using it from both tiers is still one provider
+    _, warnings = _proposal_findings({}, [
+        _provider("exa", {"web.answer": "Answer a question from the web"}, used=["web.answer"]),
+        ("exa.extended.yaml", {"provider": "exa", "endpoints": [{"id": "exa.x", "capability": "web.answer"}]}),
+    ])
+    assert warnings == []
+
+
+def test_two_ids_of_one_platform_with_one_description_warn_across_taxonomy_and_proposals():
+    _, warnings = _proposal_findings(
+        {"companies.similar": "Find companies similar to a seed company",
+         "people.lookalike": "Find companies similar to a seed company"},
+        [_provider("findymail", {"companies.lookalike": "Find companies similar to a seed company!"})],
+    )
+    assert warnings == ["capabilities ['companies.lookalike', 'companies.similar'] share the description "
+                        "'find companies similar to a seed company'; unify them on one id or tell the jobs apart"]
+

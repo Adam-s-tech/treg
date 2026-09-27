@@ -265,7 +265,7 @@ def write_extended(provider: str, source: dict, endpoints: list[dict], notes: li
 # tikhub
 
 # path segment after /api/v1/ → platform slug. Absent = use the segment as-is.
-TIKHUB_PLATFORM = {"twitter": "x", "net_ease_cloud_music": "netease-music", "hybrid": "web"}
+TIKHUB_PLATFORM = {"twitter": "x", "hybrid": "web"}
 TIKHUB_PLATFORM.update({k: k.replace("_", "-") for k in ("wechat_channels", "wechat_mp", "wechat_search")})
 # utility families, not data: solved captchas, throwaway inboxes, the account's own meter, the
 # iOS-shortcut installer, the MCP bridge and the Sora2 video generator.

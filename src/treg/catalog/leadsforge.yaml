@@ -419,7 +419,7 @@ endpoints:
   # --- lookalike companies -------------------------------------------------------------------------
   - id: leadsforge.companies.lookalike.preview
     domain: companies
-    capability: companies.lookalike
+    capability: companies.similar
     platform: companies
     scope: any_account
     method: POST
@@ -452,7 +452,7 @@ endpoints:
 
   - id: leadsforge.companies.lookalike.search
     domain: companies
-    capability: companies.lookalike
+    capability: companies.similar
     platform: companies
     scope: any_account
     method: POST
@@ -930,12 +930,9 @@ endpoints:
     example_response: examples/leadsforge.account.usage.json
 
 proposed_capabilities:
-  people.search.count: "Count how many people match a filter set, without paging results"
-  people.search.filters: "List the accepted values for a people-search filter"
   people.enrich.job.status: "Check an async people-enrichment job"
   people.enrich.job.results: "Fetch an async people-enrichment job's results"
   people.enrich.job.list: "List your async people-enrichment jobs"
-  companies.lookalike: "Find companies similar to seed domains"
   companies.lookalike.filters: "List the accepted values for a company-lookalike filter"
   linkedin.company.followers: "List a company page's LinkedIn followers"
   linkedin.company.followers.job.status: "Check an async company-followers job"

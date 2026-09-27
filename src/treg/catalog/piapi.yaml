@@ -4,13 +4,6 @@ source:
   curated: 2026-09-14
 pricing_url: https://piapi.ai/seedance-2-5
 limits: "Generation is asynchronous: POST /api/v1/task answers with data.task_id; poll GET /api/v1/task/{task_id} every 10 seconds. Errors arrive as HTTP 200 with a non-200 `code`. Output URLs are temporary; download promptly. Reference image URLs must return raw image bytes with an image/* content-type, not an HTML file page."
-proposed_capabilities:
-  # Per-model join keys shared with reapi.yaml (see minimax.yaml for the model-wall rationale).
-  video-gen.seedance-2-5.generate: "Seedance 2.5"
-  video-gen.seedance-2-5-unrestricted.generate: "Seedance 2.5 (Less Restriction)"
-  image-gen.gemini-3-pro-image.generate: "Gemini 3 Pro Image"
-  image-gen.gpt-image-2-5.generate: "GPT Image 2.5"
-  image-gen.gpt-image-2.generate: "GPT Image 2"
 async:
   id_from: data.task_id
   poll:

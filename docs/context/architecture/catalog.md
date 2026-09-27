@@ -405,10 +405,10 @@ pages therefore render as flat model walls; the same model reachable over severa
 direct, OpenRouter, Replicate all serve Hailuo) sits adjacent under model-led names, which is the
 comparison that actually means something. The per-model capability is the join key that lets those
 routes merge onto one row if that comparison is later curated. reAPI and PiAPI are the first pair
-to share join keys on purpose: both files propose `video-gen.seedance-2-5.generate`,
+to share join keys on purpose: both files use `video-gen.seedance-2-5.generate`,
 `video-gen.seedance-2-5-unrestricted.generate`, `image-gen.gpt-image-2-5.generate`,
-`image-gen.gpt-image-2.generate` and `image-gen.gemini-3-pro-image.generate`, so the two routes to
-one model sit on one row with their prices side by side. The `-unrestricted` key names the Less Restriction route (reAPI `content_filter: false`, PiAPI's `seedance-2.5-less-restriction` task): the
+`image-gen.gpt-image-2.generate` and `image-gen.gemini-3-pro-image.generate` (shared keys, so they
+live in capabilities.yaml), so the two routes to one model sit on one row with their prices side by side. The `-unrestricted` key names the Less Restriction route (reAPI `content_filter: false`, PiAPI's `seedance-2.5-less-restriction` task): the
 only route on which a real person's photo is accepted as the subject reference, which is the whole
 reason those resellers are listed beside the official-rate OpenRouter route. OpenRouter's Seedance 2.5
 is curated into `openrouter.yaml` on the same join key (its generated extended twin is therefore
@@ -439,12 +439,23 @@ Rules:
 - A capability id is dot-delimited, lowercase; the FIRST segment is its platform slug.
 - Ids name the *job*, not the provider's endpoint ("get user profile", not "fetch_user_profile_v2").
 - Adding a capability = adding it here. Provider files may carry `proposed_capabilities:` (same
-  mapping shape) when curation discovers a job the taxonomy lacks; the reviewer merges them into
-  this file. The validator accepts a capability that is either global or proposed in the same file.
+  mapping shape) when curation discovers a job the taxonomy lacks. A proposal is live the moment it
+  loads (the loader merges it into the taxonomy, first file by name wins the description), so the
+  validator keeps it a staging area: an endpoint may use a capability that is global or proposed in
+  its own file; a proposal that repeats a capabilities.yaml id, or one id proposed with different
+  descriptions in different files, is an error; and a proposal that endpoints of two providers use
+  is a warning to promote it here, deleting it from every provider file.
+- One job, one id. Two ids of one platform with the same description are a validator warning: they
+  split one comparison row in two. Rename the losing id on its rows (endpoint ids do not change) and
+  check `contracts.yaml` and `adapters.yaml`, which are keyed by capability. Count-only search
+  variants are `<platform>.search.count`, lookalike search is `companies.similar`.
 - Under `AI generation`, platform means the generated-media modality rather than a system that owns
-  the data. The frozen vocabulary is `video-gen.from_text`, `video-gen.from_image`,
-  `video-gen.task.status`, `image-gen.from_text`, `image-gen.edit`, and `voice-gen.from_text`;
-  text-to-video and image-to-video stay separate because their required inputs and prices differ.
+  the data. The job-level `video-gen.from_text`, `video-gen.from_image`, `image-gen.from_text`,
+  `image-gen.edit` and `voice-gen.from_text` are deliberately memberless (see "Two tiers"
+  above and the capabilities.yaml header): rows carry per-model capabilities such as
+  `video-gen.hailuo.from_text`, and a model joins a job-level row only as a hand-picked editorial
+  choice. Text-to-video and image-to-video stay separate because their required inputs and prices
+  differ.
 
 ### `<service>.yaml`
 
@@ -677,10 +688,9 @@ prices are explicitly unknown, while the curated core rows carry per-model page 
 ingesters sort their inputs and produce byte-identical output when upstream data is unchanged.
 
 Utility capability names still describe the utility's actual job. OpenRouter model discovery uses
-the file-local proposed `video-gen.models.list`; OpenRouter and MiniMax content retrieval use the
-proposed `video-gen.result.retrieve`; only polling uses the frozen `video-gen.task.status`. These
-rows remain hidden management plumbing because `kind: utility`, and proposed capabilities avoid
-expanding the global generation vocabulary merely to satisfy the core-row capability requirement.
+the file-local proposed `video-gen.models.list`; OpenRouter and MiniMax content retrieval share
+`video-gen.result.retrieve`; polling uses `video-gen.task.status`. These rows remain hidden
+management plumbing because `kind: utility`.
 
 ### `<service>.extended.yaml`
 
@@ -904,11 +914,13 @@ against every row's maximum computable price. A `times` value outside the field'
 (or non-finite, or non-positive) matches no row and prices at the
 fallback, so a request cannot reserve zero or bill past the ceiling. With `settle: table`, the
 matched row is reserved and settled (fallback when unmatched). With `settle: usage`, the matched
-row is reserved as the rate-card estimate and the terminal `usage.path` figure settles, which may
-exceed the reserve (OpenRouter's unpublished minimums); `settle: usage` therefore requires an async
-descriptor, exactly a dotted `usage.path` and a supported `usage.unit` (`usd`; `credit` when
-fx.yaml prices that provider's credit; or a provider-native meter with a numeric
-`unit_rates_usd[provider][unit]` entry), and `settle: table` rejects a stray usage block. A `times`
+row is reserved as the rate-card estimate and the reply's `usage.path` figure settles (the
+terminal document on an async row, the buffered body on a synchronous one), which may exceed the
+reserve (OpenRouter's unpublished minimums). A flat `value` may also declare `settle: usage` with
+no table: its explicit `fallback` is the reserve. Either form requires exactly a dotted
+`usage.path` and a supported `usage.unit` (`usd`; `credit` when fx.yaml prices that provider's
+credit; or a provider-native meter with a numeric `unit_rates_usd[provider][unit]` entry), and any
+other settle rejects a stray usage block. A `times`
 value is never non-positive, whatever minimum the field declares, so a field that admits a sentinel
 such as `-1` cannot multiply a rate by it; the sentinel is priced by a flat row that pins it, and
 that row is left out of the advertised per-second rate span. The money fragment describes the settlement itself.

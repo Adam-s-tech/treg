@@ -20,13 +20,8 @@ pricing_url: https://exa.ai/pricing
 # a cached /contents call on example.com at $0.001; a bad key gets 401 INVALID_API_KEY.
 
 proposed_capabilities:
-  web.search: "Search the web by meaning or keyword"
   web.search.deep: "Deep multi-query web search with reasoning"
-  web.search.news: "Search recent news articles by topic"
-  web.search.publications: "Search research papers and publications"
-  web.extract: "Extract page text, highlights or summaries by URL"
   web.similar: "Find pages similar to a URL"
-  web.answer: "Get a cited answer to a question from the web"
 
 endpoints:
   - id: exa.web.search
