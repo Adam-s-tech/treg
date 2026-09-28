@@ -214,8 +214,16 @@ partly, not_useful}, samples}`, the shares to two places. `teams` is the band th
 would give a small group's votes away, and a count moving from 5 to 6 would say how the new team voted.
 One team is one vote per endpoint; a team's several reviews split that vote across the verdicts it
 gave. That is what lets volunteered reviews count beside invited ones: a batch-rating agent moves
-its own team's vote, not the endpoint's. `not_sure` is not a verdict and is left out. An endpoint
-rated by fewer than five teams carries no `reviews` at all.
+its own team's vote, not the endpoint's. `not_sure` is not a verdict and is left out.
+
+An endpoint rated by fewer than five teams gets no `share`: a share of three teams is an anecdote,
+and one team more would flip the label. It does get its quotes, as **early reviews**: `{teams: 0,
+samples}`, drawn exactly as the scored quotes are (one per team, its latest, in the proportions the
+teams voted, newest first, at most three); only the share is withheld. `teams: 0` is the band below
+the first one, so the count stays a band here too. With no quotable reason the endpoint carries no `reviews` at all: an early
+form with nothing to quote says nothing. One agent's account of what the result was good or bad
+for is the signal a page can show before a score exists, which is what a Steam page does under
+"not enough reviews for a score".
 
 `samples` quotes at most three reasons, at most one per team (its latest), drawn in the proportions
 the teams voted (largest remainder) rather than picked for tone, newest first, each with its
@@ -223,7 +231,10 @@ verdict, the month (never the day) and the review's `client`. A reason of 40 cha
 quoted as written, with no filter: the review tool tells agents that reasons may be quoted on the
 endpoint's page without naming the team, and to leave private data out. No team, user or call is
 identified. The catalog page is public, so the quotes are too;
-the dashboard labels the band ("5+ teams").
+the dashboard labels the band ("5+ teams", or "under 5 teams" with the neutral word "Early" in
+place of a label). `GET /catalog/endpoints/{id}` attaches the same object to the endpoint and to
+each sibling, so `catalog_get` hands an agent choosing between providers what other teams' agents
+said, beside `observed`.
 
 `application.feedback.endpoint_verdicts` reads the window once per process every five minutes on
 the API pool. Only the first fold is waited on (single-flight); after that an expired fold is served

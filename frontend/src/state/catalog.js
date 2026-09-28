@@ -223,8 +223,9 @@ costNative(c){ return c && c.display_unit ? '' : this.nativeAmount(c); },
       return ['The cheapest published rate across this platform’s endpoints',
               p.native ? 'billed as '+p.native+' / '+this.priceUnit(pf.type)+', converted at the catalog’s FX rate' : '',
               pf.note].filter(Boolean).join(' — '); },
-// What agents said after using an endpoint's result. `reviews` is on the platform payload only
-    // past the server's team threshold, and the share is comparable between providers of one capability.
+// What agents said after using an endpoint's result. `reviews` carries a `share` only past the
+    // server's team threshold (comparable between providers of one capability); below it the quotes
+    // alone, as early reviews.
     verdictPct(r, v){ return Math.round(r.share[v]*100)+'% '+this.verdictLabel(v).toLowerCase(); },
 verdictLabel(v){ return ({useful:'Useful', partly:'Partly useful', not_useful:'Not useful'})[v]||v; },
 verdictClient(c){ return ({'claude-code':'Claude Code', codex:'Codex', cursor:'Cursor', 'claude-connector':'Claude', cli:'treg CLI', pi:'Pi'})[c]||''; },
@@ -337,16 +338,18 @@ capCheapest(eps){
     // Volumes are shown by band, never exact: how much traffic one provider gets through treg, or how
     // many teams rated it, is not something a comparison needs to the unit.
     approxCalls(n){ return (n>=1e5 ? '100k+' : n>=1e4 ? '10k+' : n>=1e3 ? '1k+' : n>=100 ? '100+' : n>=50 ? '50+' : '20+')+' calls'; },
-approxTeams(n){ return (n>=50 ? '50+' : n>=25 ? '25+' : n>=10 ? '10+' : '5+')+' teams'; },
+approxTeams(n){ return (n>=50 ? '50+' : n>=25 ? '25+' : n>=10 ? '10+' : n>=5 ? '5+' : 'under 5')+' teams'; },
 worksTitle(r){ return r.works ? r.works.pct+'% of '+this.approxCalls(r.works.n)+' in the last 30 days ended without a provider error' : 'Fewer than 20 calls in the last 30 days'; },
 usefulTitle(r){ const s=r.useful, v=s && r.e.reviews;
       return v ? s.label+': '+s.pct+'% positive ('+this.verdictKinds.map(k=>this.verdictPct(v, k)).join(', ')+') from '
                  +this.approxTeams(v.teams)+'\' agents after using the result, last 90 days'
-               : 'Fewer than 5 teams have rated it'; },
+               : r.e.reviews ? 'Early reviews: fewer than 5 teams have rated it, so no score yet; open the tool to read what their agents said'
+               : 'No team has rated it yet'; },
 // The two measured numbers, one rule each wherever they show: success once 20 calls are decided,
-    // agents' verdict once 5 teams have rated (the server publishes nothing below that).
+    // agents' verdict once 5 teams have rated. Below that the server sends the quotes with no
+    // `share`: early reviews, never a score.
     worksOf(o){ return o && o.decided>=20 && o.ok_rate!=null ? {pct:Math.round(o.ok_rate*100), n:o.decided} : null; },
-usefulOf(e){ return e.reviews ? reviewSummary(e.reviews) : null; },
+usefulOf(e){ return e.reviews && e.reviews.share ? reviewSummary(e.reviews) : null; },
 // A tool's price on a card or a row: a tool only your own key or account can call has no treg price.
     toolPrice(e){ return e.platform_eligible!==false ? this.costShort(e.cost)
       : this.provAuthKind(e.provider)==='oauth' ? 'your account' : 'your key only'; },

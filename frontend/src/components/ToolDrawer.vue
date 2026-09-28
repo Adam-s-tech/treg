@@ -37,7 +37,7 @@ export default {
     <div class="td-stats">
       <div><span>Price</span><b>{{toolPrice(drawerEp)}}</b></div>
       <div><span>Works</span><b>{{drawerStats.works ? drawerStats.works.pct+'%' : '—'}}</b><i v-if="drawerStats.works">{{approxCalls(drawerStats.works.n)}}, 30 days</i></div>
-      <div><span>Reviews</span><b v-if="drawerStats.useful" class="rev" :class="drawerStats.useful.tone">{{drawerStats.useful.label}}</b><b v-else>—</b><i v-if="drawerStats.useful">{{approxTeams(drawerStats.useful.n)}}</i></div>
+      <div><span>Reviews</span><b v-if="drawerStats.useful" class="rev" :class="drawerStats.useful.tone">{{drawerStats.useful.label}}</b><b v-else-if="drawerEp.reviews" class="rev early">Early</b><b v-else>—</b><i v-if="drawerEp.reviews">{{approxTeams(drawerEp.reviews.teams)}}</i></div>
     </div>
 
     <!-- The primary button is the next step to your agent using this tool (`drawerNext`): connect the
@@ -89,10 +89,17 @@ export default {
     </div>
 
     <div v-if="drawerEp.reviews" v-show="epTabOf(drawerEp)==='rev'" class="td-rev">
-      <p class="td-rev-sum"><b class="rev" :class="drawerStats.useful.tone">{{drawerStats.useful.label}}</b> · {{drawerStats.useful.pct}}% positive, partly useful counting half</p>
-      <div class="td-rev-bar" aria-hidden="true"><span v-for="v in verdictKinds" :key="v" :class="v" :style="{flexGrow:drawerEp.reviews.share[v]}"></span></div>
-      <p class="td-rev-legend"><span v-for="v in verdictKinds" :key="v"><i :class="v"></i>{{verdictPct(drawerEp.reviews, v)}}</span></p>
-      <p class="td-note">From {{approxTeams(drawerEp.reviews.teams)}}' agents after using the result, one vote per team, last 90 days.</p>
+      <!-- Scored: the label, the bar and the split. Early (no `share`): the quotes alone, said so. -->
+      <template v-if="drawerStats.useful">
+        <p class="td-rev-sum"><b class="rev" :class="drawerStats.useful.tone">{{drawerStats.useful.label}}</b> · {{drawerStats.useful.pct}}% positive, partly useful counting half</p>
+        <div class="td-rev-bar" aria-hidden="true"><span v-for="v in verdictKinds" :key="v" :class="v" :style="{flexGrow:drawerEp.reviews.share[v]}"></span></div>
+        <p class="td-rev-legend"><span v-for="v in verdictKinds" :key="v"><i :class="v"></i>{{verdictPct(drawerEp.reviews, v)}}</span></p>
+        <p class="td-note">From {{approxTeams(drawerEp.reviews.teams)}}' agents after using the result, one vote per team, last 90 days.</p>
+      </template>
+      <template v-else>
+        <p class="td-rev-sum"><b class="rev early">Early reviews</b> · {{approxTeams(drawerEp.reviews.teams)}}</p>
+        <p class="td-note">What their agents said after using the result, quoted as written. A score needs 5 teams.</p>
+      </template>
       <ul class="td-quotes">
         <li v-for="(q,qi) in drawerEp.reviews.samples" :key="qi">
           <span class="td-rev-v" :class="q.usefulness">{{verdictLabel(q.usefulness)}}</span>

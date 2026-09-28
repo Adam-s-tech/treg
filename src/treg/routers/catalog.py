@@ -123,10 +123,7 @@ async def catalog_platform(slug: str, include_hidden: int = 0) -> dict:
     pairs: list[tuple[dict, dict]] = []
     verdicts = await _verdicts_or_empty()
     for ep in eps:
-        view = catalog_store.endpoint_view(ep, _provider_display(ep["provider"]), cat)
-        # Only where enough teams have rated it (`domain.feedback.verdicts`); absent otherwise.
-        if ep["id"] in verdicts:
-            view["reviews"] = verdicts[ep["id"]]
+        view = _with_reviews(catalog_store.endpoint_view(ep, _provider_display(ep["provider"]), cat), verdicts)
         pairs.append((ep, view))
         if ep["capability"]:
             grouped.setdefault(ep["capability"], []).append(view)
@@ -192,9 +189,7 @@ async def catalog_provider(service: str) -> dict:
     shelves: dict[str, list[dict]] = {}
     compared = cat.compared()
     for ep in eps:
-        view = catalog_store.endpoint_view(ep, display, cat)
-        if ep["id"] in verdicts:
-            view["reviews"] = verdicts[ep["id"]]
+        view = _with_reviews(catalog_store.endpoint_view(ep, display, cat), verdicts)
         cap, plat = ep.get("capability"), ep["platform"]
         if catalog_store.browsable(ep) and (plat, cap) in compared:
             view["compare"] = {"capability": cap, "key": catalog_store.capability_key(plat, cap),
@@ -274,6 +269,14 @@ def _observation_pending(reader: endpoint_stats.EndpointObservationReader, endpo
         return reader.pending(endpoint_ids)
     except Exception:  # noqa: BLE001 - an enrichment hint, like the numbers themselves
         return False
+
+
+def _with_reviews(view: dict, verdicts: dict[str, dict]) -> dict:
+    """What agents said after using this endpoint's result (`domain.feedback.verdicts`), on the
+    views that carry it: absent where no team has said anything quotable yet."""
+    if view.get("id") in verdicts:
+        view["reviews"] = verdicts[view["id"]]
+    return view
 
 
 async def _verdicts_or_empty() -> dict[str, dict]:
@@ -472,8 +475,11 @@ async def catalog_endpoint(
     observed_ids = [endpoint_id] + [s["id"] for s in siblings]
     stats = await _observed_or_empty(observations, observed_ids)
     overflow = await _overflow_disclosure(ep, cat)
-    view = view | {"observed": stats.get(endpoint_id)} | overflow
-    siblings = [s | {"observed": stats.get(s["id"])} for s in siblings]
+    # And what other teams' agents said after using each of them (`reviews`, where there are any):
+    # the other half of the choice, attached here for the same reason as `observed`.
+    verdicts = await _verdicts_or_empty()
+    view = _with_reviews(view | {"observed": stats.get(endpoint_id)} | overflow, verdicts)
+    siblings = [_with_reviews(s | {"observed": stats.get(s["id"])}, verdicts) for s in siblings]
     # Hub tools treg approved for this job sit beside its providers (docs/hub-listing-decisions.md
     # round 3), with a seeded success rate while they are new. Shown for comparison only: they are
     # never a routed child (AGENTS.md non-negotiable 4).

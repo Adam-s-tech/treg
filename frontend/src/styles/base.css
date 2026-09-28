@@ -1047,6 +1047,7 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
 /* A review label reads like Steam's: blue when positive, amber when mixed, red when negative. */
 .c-rev{display:block;font-size:13.5px;font-weight:550;white-space:nowrap}
 .c-rev.pos,.rev.pos{color:var(--teal)} .c-rev.mixed,.rev.mixed{color:var(--amber)} .c-rev.neg,.rev.neg{color:var(--red)}
+.c-rev.early,.rev.early{color:var(--muted)}   /* quotes, no score yet: a neutral word, not a verdict */
 .td-stats b.rev{font-family:var(--sans);font-size:14.5px;font-weight:600;line-height:1.35;margin-top:5px}
 .td-rev-sum{margin:0 0 10px;font-size:13.5px;color:var(--muted)}
 .c-n{display:block;margin-top:1px;font-size:11px;color:var(--muted2)}

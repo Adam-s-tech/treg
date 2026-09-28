@@ -896,11 +896,15 @@ drawer). The card is a light surface under the /search page's soft green light a
 field; a call line is a quiet inset, never a dark block, so the primary button leads; then **the comparison** as one surface:
 Provider, Takes, Price, Works, Reviews. Takes comes from the routing plan's `accepts` (absent means
 unmapped, never incompatible). Works is `observed.ok_rate` past 20 decided calls. Reviews reads the
-endpoint's agent verdicts (`architecture/feedback.md`, past five teams) the way Steam reads user
-reviews (`reviewSummary`): the positive share, a partly useful verdict counting half, named Positive
-(80%+), Mostly positive (70%+), Mixed (40%+), Mostly negative (20%+) or Negative, with Very at 25+
-teams and Overwhelmingly at 50+ (and 95%+ for the positive one); blue, amber or red. It sorts by label,
-then share. The drawer shows the same label, and its Reviews tab the share, the bar and the quotes.
+endpoint's agent verdicts (`architecture/feedback.md`) the way Steam reads user reviews
+(`reviewSummary`, scored past five teams): the positive share, a partly useful verdict counting half,
+named Positive (80%+), Mostly positive (70%+), Mixed (40%+), Mostly negative (20%+) or Negative, with
+Very at 25+ teams and Overwhelmingly at 50+ (and 95%+ for the positive one); blue, amber or red. It
+sorts by label, then share. Below five teams the server sends quotes with no share: the cell says
+**Early** in the neutral muted tone over the band ("under 5 teams"), never fed to `reviewSummary`,
+and sorts between the scored rows and the unrated whichever way the column goes. The drawer shows
+the same label, and its Reviews tab the share, the bar and the quotes; for an early tool the tab
+says "Early reviews", that a score needs 5 teams, and the quotes, with no bar.
 Counts are shown by band (`approxCalls`, `approxTeams`), never exact. Price, Works and Reviews sort
 (`platComparisonSort`); every column
 heading carries a hover/focus tip (`COL_TIPS`), because the ground rules behind each number matter more
@@ -917,7 +921,7 @@ key can call, else "Copy for your agent", which copies the call line. Try it sit
 optional step. Then one quiet line of facts (`drawerFacts`: whose key, live verification, scope) in place of a row
 of chips. Parameters are a definition list, not a table, so long names and types never collide;
 provider billing notes fold under "Billing and limits". The Reviews tab shows the verdict bar and the
-quotes. A drawer opened from it (Try it) stacks on top: the tool drawer steps back and rounds, and
+quotes, or the quotes alone for an early tool. A drawer opened from it (Try it) stacks on top: the tool drawer steps back and rounds, and
 springs back when the top one closes.
 
 **The search box** (`CatalogSearch.vue`) is the same component on the Catalog page and on every shelf:

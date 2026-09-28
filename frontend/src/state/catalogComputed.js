@@ -5,7 +5,7 @@ const COL_TIPS = {
   takes:'What you can send it. Each tag is one input it accepts; — means the catalog has not mapped it yet.',
   price:"What one call costs on treg's key, in the provider's own unit: per call, per result or per success. With your own key the provider bills you, and treg adds nothing.",
   works:'Share of the last 30 days of calls that ended without a provider error. Shown once there are 20 or more.',
-  useful:"What teams' agents said after using the result, read like Steam's user reviews: Positive, Mostly positive, Mixed, Mostly negative or Negative by the share that found it useful (partly useful counts half), and Very or Overwhelmingly once 25 or 50 teams agree. One vote per team, last 90 days, shown once 5 teams have rated it.",
+  useful:"What teams' agents said after using the result, read like Steam's user reviews: Positive, Mostly positive, Mixed, Mostly negative or Negative by the share that found it useful (partly useful counts half), and Very or Overwhelmingly once 25 or 50 teams agree. One vote per team, last 90 days, scored once 5 teams have rated it; before that their reasons are quoted as early reviews.",
 }
 
 export default {
@@ -196,10 +196,14 @@ platComparisonRows(){
         return {e, id:e.id, twin:perProv[e.provider]>1, takes:this.takesLabel(this.platAccepts[e.id]),
                 usd:e.platform_eligible===false ? null : this.costUsd(e.cost), works:this.worksOf(o), useful:this.usefulOf(e)}; });
       const k=this.platComparisonSort.key, val=r=>k==='price' ? r.usd : k==='works' ? (r.works&&r.works.pct) : (r.useful&&r.useful.rank*1000+r.useful.pct);
-      const dir=this.platComparisonSort.dir==='asc' ? 1 : -1;   // unmeasured rows stay last either way
-      return rows.sort((a,b)=>{ const x=val(a), y=val(b);
-        if(x==null && y==null) return (a.e.provider_display||a.e.provider).localeCompare(b.e.provider_display||b.e.provider);
-        if(x==null) return 1; if(y==null) return -1; return (x-y)*dir || (b.e.verified?1:0)-(a.e.verified?1:0); }); },
+      const dir=this.platComparisonSort.dir==='asc' ? 1 : -1;
+      // Unmeasured rows stay last either way; on Reviews, early rows (quotes, no score) sit between
+      // the scored ones and the unrated, whichever way the column sorts.
+      const tier=(r,v)=>v!=null ? 0 : k==='useful' && r.e.reviews ? 1 : 2;
+      return rows.sort((a,b)=>{ const x=val(a), y=val(b), t=tier(a,x)-tier(b,y);
+        if(t) return t;
+        if(x==null) return (a.e.provider_display||a.e.provider).localeCompare(b.e.provider_display||b.e.provider);
+        return (x-y)*dir || (b.e.verified?1:0)-(a.e.verified?1:0); }); },
 // The comparison's columns (components/ui/table DataTable). Price sorts cheapest first, the two
     // measured columns best first; every heading explains its number.
     comparisonColumns(){ const t=COL_TIPS; return [
