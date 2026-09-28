@@ -2696,6 +2696,12 @@ adapters:
     in_expr: {body.limit: limit}
     out: {results: data.web, count: "len(data.web)"}
     miss: "choose(coalesce(data.web, []) == null, coalesce(creditsUsed, 0) == 0, false)"
+  branddev.web.search:
+    accepts: [[q]]
+    in: {q: body.query}
+    const: {body.numResults: 10}
+    out: {results: results, count: "len(results)"}
+    miss: "coalesce(results, []) == []"
 
   tinyfish.web.fetch:
     accepts: [[url]]
@@ -2749,6 +2755,12 @@ adapters:
     const: {body.formats: [markdown], body.parsers: []}
     out: {pages: "list(data)", count: "len(list(data))"}
     miss: "coalesce(data.markdown, '') == null"
+  branddev.web.scrape:
+    accepts: [[url]]
+    in: {url: body.url}
+    const: {body.formats: {markdown: true}}
+    out: {pages: "list(.)", count: "len(list(.))"}
+    miss: "markdown.success == false"
 
   anyapi.web.map:
     accepts: [[url], [url, q]]
@@ -2776,6 +2788,13 @@ adapters:
     in_expr: {body.limit: limit}
     out: {results: links, count: "len(links)"}
     miss: "success == false"
+  branddev.web.map:
+    accepts: [[url]]
+    in_expr: {queryParams.domain: "host(url)"}
+    test_identity: {url: "https://docs.context.dev"}
+    const: {queryParams.maxLinks: "10"}
+    out: {results: urls, count: "len(urls)"}
+    miss: "coalesce(urls, []) == []"
 
   anyapi.web.crawl:
     accepts: [[url]]

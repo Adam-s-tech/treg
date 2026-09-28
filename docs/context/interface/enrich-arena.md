@@ -129,7 +129,7 @@ returned email domain that differs from the requested company domain (subdomains
 while preserving the vendor’s answer. This signals a possible mismatch, not automatic invalidity.
 Vendor icons are bundled locally from official sites, with source URLs in asset comments.
 Original PNG/ICO icons are embedded in SVG wrappers to preserve the shared logo paths; existing
-vector marks remain vectors. Brand.dev now redirects to Context.dev and uses its current icon.
+vector marks remain vectors. Context.dev uses its current icon under the stable `branddev` provider id.
 Initials appear only as an image-load fallback.
 A compact pixel-fighter lineup sits above pricing and results, using those same logos as heads.
 It is idle before dispatch and follows each real attempt: running punches, hits celebrate,
