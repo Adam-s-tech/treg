@@ -466,6 +466,40 @@ async def test_owned_terminal_poll_finalizes_original_task_before_response(
     assert (await task_app.settle_due()).claimed == 0
 
 
+async def test_firecrawl_crawl_poll_settles_reported_credits_once(clients: AsyncClient, monkeypatch):
+    monkeypatch.setenv("TREG_PLATFORM_KEY_FIRECRAWL", "PLATFORM-FIRECRAWL")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "firecrawl")
+    get_settings.cache_clear()
+    job_id = "01a0e894-a4fd-77fe-8131-e3f2d5720dbe"
+    try:
+        async def submit(*args, **kwargs):
+            return _response(200, {"success": True, "id": job_id,
+                                   "url": f"https://api.firecrawl.dev/v2/crawl/{job_id}"})
+
+        monkeypatch.setattr(call_service, "relay", submit)
+        org_id = (await clients.get("/orgs")).json()[0]["org_id"]
+        balance_url = f"/orgs/{org_id}/balance"
+        before = (await clients.get(balance_url)).json()["balance_micro"]
+        submitted = await clients.post("/call/firecrawl.web.crawl", json={
+            "url": "https://example.com", "limit": 3, "scrapeOptions": {"parsers": []},
+        })
+        assert submitted.status_code == 200, submitted.text
+        assert (await clients.get(balance_url)).json()["balance_micro"] == before - 15000
+
+        async def poll(*args, **kwargs):
+            return _response(200, {"success": True, "status": "completed", "total": 3,
+                                   "completed": 2, "creditsUsed": 2, "data": []})
+
+        monkeypatch.setattr(call_service, "relay", poll)
+        for _ in range(2):
+            response = await clients.get(f"/call/firecrawl.web.crawl.status?id={job_id}")
+            assert response.status_code == 200, response.text
+            assert response.json()["creditsUsed"] == 2
+            assert (await clients.get(balance_url)).json()["balance_micro"] == before - 10000
+    finally:
+        get_settings.cache_clear()
+
+
 @pytest.mark.parametrize("status, content_type, body", [
     (201, b"application/json", b"{}"),
     (200, b"text/html", b"<html>WAF challenge</html>"),

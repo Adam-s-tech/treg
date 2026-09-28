@@ -2590,6 +2590,32 @@ OLOSTEP = OAuthProvider(
     probe_path="/user/credits/info",
 )
 
+FIRECRAWL = OAuthProvider(
+    service="firecrawl",
+    display_name="Firecrawl",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="fc-…",
+    setup_url="https://www.firecrawl.dev/app/api-keys",
+    setup_action_label="Get your Firecrawl API key",
+    setup_steps=(
+        "Sign in to Firecrawl and open API Keys.",
+        "Create or copy an API key.",
+    ),
+    setup_note=(
+        "Scrape, Search, Map, Crawl and Batch Scrape spend Firecrawl credits. "
+        "Connecting checks the free credit-usage endpoint."
+    ),
+    auth_uri="", token_uri="",
+    scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="SEO",
+    summary="Scrape pages, search the web, map sites, and run bounded crawls or batches.",
+    base_url="https://api.firecrawl.dev",
+    docs_url="https://docs.firecrawl.dev/introduction",
+    probe_path="/v2/team/credit-usage",
+)
+
 SCRAPEGRAPHAI = OAuthProvider(
     service="scrapegraphai",
     display_name="ScrapeGraphAI",
@@ -3579,7 +3605,7 @@ REGISTRY: dict[str, OAuthProvider] = {
         TIKHUB, BRIGHTDATA, SEMRUSH, JUSTONEAPI,
         SCRAPECREATORS,
         # SEO API-key providers
-        DATAFORSEO, SERANKING, MOZ, MAJESTIC, SERPSTAT, EXA, TAVILY, KEENABLE, OLOSTEP,
+        DATAFORSEO, SERANKING, MOZ, MAJESTIC, SERPSTAT, EXA, TAVILY, KEENABLE, OLOSTEP, FIRECRAWL,
         SCRAPEGRAPHAI, SERPER, CLORO,
         # more Enrichment API-key providers
         LUSHA, CORESIGNAL, DIFFBOT, THECOMPANIESAPI, LEADMAGIC, FIBER_AI, CRUSTDATA, AVIATO,

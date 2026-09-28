@@ -167,9 +167,74 @@ def tavily_platform_on(monkeypatch):
     get_settings.cache_clear()
 
 
+@pytest.fixture
+def firecrawl_platform_on(monkeypatch):
+    monkeypatch.setenv("TREG_PLATFORM_KEY_FIRECRAWL", "PLATFORM-FIRECRAWL")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "firecrawl")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
 async def _balance(clients: AsyncClient) -> int:
     org_id = (await clients.get("/orgs")).json()[0]["org_id"]
     return (await clients.get(f"/orgs/{org_id}/balance")).json()["balance_micro"]
+
+
+async def test_firecrawl_platform_scrape_bills_a_returned_404_and_byok_wins(
+    clients: AsyncClient, monkeypatch, firecrawl_platform_on,
+):
+    seen = []
+
+    def upstream(request):
+        seen.append(request.headers["authorization"])
+        assert request.url.path == "/v2/scrape"
+        assert json.loads(request.content)["parsers"] == []
+        return _dropleads_response(200, {"success": True, "data": {
+            "markdown": "# Missing", "metadata": {"statusCode": 404},
+        }})
+
+    async with AsyncClient(transport=httpx.MockTransport(upstream)) as vendor:
+        monkeypatch.setattr(A.app.state, "http", vendor)
+        before = await _balance(clients)
+        response = await clients.post("/call/firecrawl.web.scrape", json={
+            "url": "https://example.com/missing", "formats": ["markdown"], "parsers": [],
+        })
+        assert response.status_code == 200, response.text
+        assert response.headers["X-Treg-Cost-Micro"] == "5000"
+        assert await _balance(clients) == before - 5000
+        assert seen == ["Bearer PLATFORM-FIRECRAWL"]
+
+        secret = await clients.post("/secrets", json={"name": "firecrawl", "value": "OWN-FIRECRAWL"})
+        assert secret.status_code == 200, secret.text
+        own_before = await _balance(clients)
+        own = await clients.post("/call/firecrawl.web.scrape", json={
+            "url": "https://example.com", "formats": ["markdown"], "parsers": [],
+        })
+        assert own.status_code == 200, own.text
+        assert "X-Treg-Cost-Micro" not in own.headers
+        assert await _balance(clients) == own_before
+        assert seen[-1] == "Bearer OWN-FIRECRAWL"
+
+
+async def test_firecrawl_search_settles_reported_credits(
+    clients: AsyncClient, monkeypatch, firecrawl_platform_on,
+):
+    def upstream(request):
+        assert request.url.path == "/v2/search"
+        return _dropleads_response(200, {
+            "success": True, "data": {"web": []}, "creditsUsed": 1,
+        })
+
+    async with AsyncClient(transport=httpx.MockTransport(upstream)) as vendor:
+        monkeypatch.setattr(A.app.state, "http", vendor)
+        before = await _balance(clients)
+        response = await clients.post("/call/firecrawl.web.search", json={
+            "query": "example", "limit": 3,
+        })
+        assert response.status_code == 200, response.text
+        assert response.headers["X-Treg-Cost-Micro"] == "5000"
+        assert await _balance(clients) == before - 5000
 
 
 async def _entries(clients: AsyncClient) -> list[dict]:

@@ -2690,6 +2690,12 @@ adapters:
     in_expr: {body.gl: "lower(country)", body.hl: language}
     out: {results: organic, count: "len(organic)"}
     miss: "coalesce(organic, []) == []"
+  firecrawl.web.search:
+    accepts: [[q]]
+    in: {q: body.query}
+    in_expr: {body.limit: limit}
+    out: {results: data.web, count: "len(data.web)"}
+    miss: "choose(coalesce(data.web, []) == null, coalesce(creditsUsed, 0) == 0, false)"
 
   tinyfish.web.fetch:
     accepts: [[url]]
@@ -2737,6 +2743,12 @@ adapters:
     const: {body.includeMarkdown: true}
     out: {pages: "list(.)", count: "len(list(.))"}
     miss: "coalesce(text, '') == ''"
+  firecrawl.web.scrape:
+    accepts: [[url]]
+    in: {url: body.url}
+    const: {body.formats: [markdown], body.parsers: []}
+    out: {pages: "list(data)", count: "len(list(data))"}
+    miss: "coalesce(data.markdown, '') == null"
 
   anyapi.web.map:
     accepts: [[url], [url, q]]
@@ -2758,6 +2770,12 @@ adapters:
     test_identity: {url: "https://docs.olostep.com", q: "billing and credits"}
     out: {results: urls, count: "len(urls)"}
     miss: "coalesce(urls, []) == []"
+  firecrawl.web.map:
+    accepts: [[url, q], [url]]
+    in: {url: body.url, q: body.search}
+    in_expr: {body.limit: limit}
+    out: {results: links, count: "len(links)"}
+    miss: "success == false"
 
   anyapi.web.crawl:
     accepts: [[url]]

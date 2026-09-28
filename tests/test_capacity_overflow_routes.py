@@ -287,6 +287,7 @@ _UNRECORDED_SIGNATURE = {
     "getleadsio",  # promotional allocation was not exhausted; bare 402 remains the generic signal
     "keenable",  # funded request balance remains; documented bare 402 was not forced
     "olostep",  # funded credit balance remains; documented 402 was not forced
+    "firecrawl",  # credit balance remains; documented 402 was not deliberately forced
     "scrapegraphai",  # trial credits remain; no provider-specific empty-balance body was forced
     "scrubby",  # funded account not exhausted; no provider-specific empty-balance body recorded
     "millionverifier",  # funded-account exhaustion not observed; trial still has credits
