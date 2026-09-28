@@ -26,6 +26,10 @@ WINDOW_DAYS = 90
 MIN_TEAMS = 5
 SAMPLES = 3
 MIN_REASON_CHARS = 40
+# How many teams rated an endpoint is published as the band it falls in (its floor), never exactly:
+# an exact count next to the shares would give each small group's votes away, and a count that
+# moves from 5 to 6 would say how the new team voted.
+TEAM_BANDS = (5, 10, 25, 50)
 
 # A quoted reason must read as a verdict on the endpoint, not as the task it served. Anything that
 # can name who or what another team was looking up keeps the reason out of the quotes: an address,
@@ -59,6 +63,10 @@ async def since(db: AsyncSession, start: datetime) -> list[Review]:
     return [Review(*row) for row in rows]
 
 
+def team_band(n: int) -> int:
+    return max((b for b in TEAM_BANDS if b <= n), default=0)
+
+
 def quotable(reason: str | None) -> bool:
     text = (reason or "").strip()
     return len(text) >= MIN_REASON_CHARS and not any(p.search(text) for p in _PRIVATE)
@@ -86,7 +94,7 @@ def _samples(candidates: list[Review], share: dict[str, float], slots: int) -> l
 
 
 def summarize(reviews: list[Review], *, min_teams: int = MIN_TEAMS, samples: int = SAMPLES) -> dict[str, dict]:
-    """Per endpoint id with at least `min_teams` teams: `{teams, share, samples}`."""
+    """Per endpoint id with at least `min_teams` teams: `{teams, share, samples}`, `teams` banded."""
     by_endpoint: dict[str, dict[int, list[Review]]] = {}
     for r in reviews:
         by_endpoint.setdefault(r.endpoint_id, {}).setdefault(r.org_id, []).append(r)
@@ -104,7 +112,7 @@ def summarize(reviews: list[Review], *, min_teams: int = MIN_TEAMS, samples: int
                 candidates.append(max(quoted, key=lambda r: r.created_at))
         share = {v: votes[v] / len(teams) for v in VERDICTS}
         out[endpoint_id] = {
-            "teams": len(teams),
+            "teams": team_band(len(teams)),
             # Two places and a month: enough to read, not enough to reconstruct one team's votes or
             # to date a quote to the day another team ran its task.
             "share": {v: round(s, 2) for v, s in share.items()},

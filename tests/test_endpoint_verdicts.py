@@ -19,6 +19,11 @@ def test_endpoint_below_threshold_publishes_nothing():
     assert summarize([review(org) for org in range(5)])["a.b.c"]["teams"] == 5
 
 
+def test_the_team_count_is_published_as_its_band():
+    for n, band in ((5, 5), (9, 5), (10, 10), (24, 10), (25, 25), (60, 50)):
+        assert summarize([review(org) for org in range(n)])["a.b.c"]["teams"] == band
+
+
 def test_a_team_is_one_vote_however_many_times_its_agent_rated():
     flood = [review(1, "not_useful", day=d) for d in range(40)]
     out = summarize(flood + [review(org) for org in range(2, 6)])["a.b.c"]
