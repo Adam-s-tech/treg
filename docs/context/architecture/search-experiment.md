@@ -119,9 +119,9 @@ audience differs:
 - **Streamed.** Two NDJSON events: `candidates` as soon as the recall is computed, `judged` when the
   judge answers. The pages animate the gap on the first event.
 - **Scopable to one shelf.** `?platform=<slug>` (a platform page's own box) keeps recall, the keyword
-  fallback and a bare name's answer on that platform. Recall reads eight times deeper before the cut,
-  so the judge still gets a full set of that shelf's candidates; on a shelf a bare name can only mean
-  a provider there.
+  fallback and a bare name's answer on that platform: `store.candidates` and `store.search` rank that
+  shelf's rows only (the idf stays the catalog's, so a row scores the same scoped or not), and the
+  judge gets a full set of them; on a shelf a bare name can only mean a provider there (`name_rows`).
 - **A stricter question, and a name question.** Each candidate question carries `FIT_CRITERIA`,
   whose `false` side includes "the task only names a product, company or platform": without it a
   bare "google" scored 0.6+ against every Google endpoint and read as a weak answer. The same

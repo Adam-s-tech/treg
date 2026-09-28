@@ -1099,3 +1099,10 @@ async def test_every_job_page_in_the_sitemap_serves(clients):
         assert r.status_code == 200 and "text/html" in r.headers["content-type"], path
     assert (await clients.get("/catalog/companies/not-a-job")).status_code == 404
     assert (await clients.get("/catalog/platforms/companies")).headers["content-type"].startswith("application/json")
+    # A capability only one provider serves is a tool on its shelf, not a job: no page of its own.
+    from treg.domain.catalog import store as catalog_store
+    cat = catalog_store.load()
+    solo = next((e["platform"], e["capability"]) for e in cat.endpoints
+                if e.get("capability") and catalog_store.browsable(e) and (e["platform"], e["capability"]) not in cat.jobs())
+    assert (await clients.get(f"/catalog/{solo[0]}/{catalog_store.job_key(*solo)}")).status_code == 404
+    assert (await clients.get("/catalog/providers/crustdata")).headers["content-type"].startswith("application/json")

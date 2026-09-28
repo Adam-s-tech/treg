@@ -152,8 +152,9 @@ async def catalog_platform(slug: str, include_hidden: int = 0) -> dict:
         # ?include_hidden=1 they are already folded into the shapes above (tagged by `kind`).
         "hidden_count": hidden_count,
         # The ledger the platform page renders: sections by subject, ordered and merged server-side
-        # so every client shows the same page (see `catalog_store.domain_rows`).
-        "domains": catalog_store.domain_rows(pairs, cat.capabilities),
+        # so every client shows the same page (see `catalog_store.domain_rows`). A row that is a
+        # JOB (`Catalog.jobs`) carries `job`, its URL key.
+        "domains": _with_jobs(catalog_store.domain_rows(pairs, cat.capabilities), slug, cat),
         # Provider-wide facts (limits, pricing page, docs), once per provider rather than copied onto
         # every row — an expanded endpoint needs them and shouldn't cost a second request.
         "providers": {
@@ -167,13 +168,21 @@ async def catalog_platform(slug: str, include_hidden: int = 0) -> dict:
     }
 
 
+def _with_jobs(domains: list[dict], slug: str, cat) -> list[dict]:
+    jobs = cat.jobs()
+    for sec in domains:
+        for row in sec["rows"]:
+            if row["kind"] == "merged" and (slug, row["capability"]) in jobs:
+                row["job"] = catalog_store.job_key(slug, row["capability"])
+    return domains
+
+
 @app.get("/catalog/providers/{service}")
 async def catalog_provider(service: str) -> dict:
     """Open: every tool one provider serves, filed by platform. A tool that is one of several
-    providers doing the same job on its platform carries `job` (the capability and how many
-    providers do it), so a page listing a provider's tools can link to the comparison. The same
-    rule the platform page uses: a capability at least two providers serve on that platform, routed
-    rows and account/utility plumbing not counted. Plumbing is listed, tagged by `kind`."""
+    providers doing the same job on its platform (`Catalog.jobs`) carries `job`: the capability, its
+    URL key and how many providers do it, so a page listing a provider's tools can link to the
+    comparison. Plumbing is listed, tagged by `kind`."""
     cat = catalog_store.load()
     eps = [e for e in cat.for_provider(service) if e.get("kind") != "routed"]
     if not eps:
@@ -181,19 +190,15 @@ async def catalog_provider(service: str) -> dict:
     verdicts = await _verdicts_or_empty()
     display = _provider_display(service)
     shelves: dict[str, list[dict]] = {}
-    job_size: dict[tuple[str, str], int] = {}
+    jobs = cat.jobs()
     for ep in eps:
         view = catalog_store.endpoint_view(ep, display, cat)
         if ep["id"] in verdicts:
             view["reviews"] = verdicts[ep["id"]]
         cap, plat = ep.get("capability"), ep["platform"]
-        if cap and catalog_store.browsable(ep):
-            if (plat, cap) not in job_size:
-                job_size[(plat, cap)] = len({e["provider"] for e in cat.for_platform(plat)
-                                             if e["capability"] == cap and catalog_store.browsable(e)})
-            if job_size[(plat, cap)] >= 2:
-                view["job"] = {"capability": cap, "providers": job_size[(plat, cap)],
-                               "description": cat.capabilities.get(cap, "")}
+        if catalog_store.browsable(ep) and (plat, cap) in jobs:
+            view["job"] = {"capability": cap, "key": catalog_store.job_key(plat, cap),
+                           "providers": len(jobs[(plat, cap)]), "description": cat.capabilities.get(cap, "")}
         shelves.setdefault(plat, []).append(view)
     return {
         "provider": {"service": service, "display_name": display, **cat.provider_meta.get(service, {})},
@@ -262,6 +267,13 @@ async def _observed_or_empty(
     except Exception:  # noqa: BLE001
         logging.getLogger("treg.catalog").warning("endpoint stats unavailable", exc_info=True)
         return {}
+
+
+def _observation_pending(reader: endpoint_stats.EndpointObservationReader, endpoint_ids: list[str]) -> bool:
+    try:
+        return reader.pending(endpoint_ids)
+    except Exception:  # noqa: BLE001 - an enrichment hint, like the numbers themselves
+        return False
 
 
 async def _verdicts_or_empty() -> dict[str, dict]:
@@ -457,7 +469,8 @@ async def catalog_endpoint(
     # of "compare providers" that only treg can answer (see endpoint_stats + CAPABILITY-CHOICE-PLAN).
     # Attached to the SAME response because the choice is made here; a second round-trip to compare
     # reliability is a round-trip an agent will skip.
-    stats = await _observed_or_empty(observations, [endpoint_id] + [s["id"] for s in siblings])
+    observed_ids = [endpoint_id] + [s["id"] for s in siblings]
+    stats = await _observed_or_empty(observations, observed_ids)
     overflow = await _overflow_disclosure(ep, cat)
     view = view | {"observed": stats.get(endpoint_id)} | overflow
     siblings = [s | {"observed": stats.get(s["id"])} for s in siblings]
@@ -503,6 +516,8 @@ async def catalog_endpoint(
         "provider": {"service": ep["provider"], "display_name": _provider_display(ep["provider"]),
                      **cat.provider_meta.get(ep["provider"], {})},
         "siblings": siblings,
+        # The observation cache had not read some of these yet: ask again shortly for the numbers.
+        **({"observed_pending": True} if _observation_pending(observations, observed_ids) else {}),
         **({"related_capabilities": rel} if (rel := _related_capabilities(ep, cat)) else {}),
         **({"routing": routing} if routing is not None else {}),
         "call_template": catalog_store.call_template(ep),

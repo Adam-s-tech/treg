@@ -44,7 +44,7 @@ class EndpointObservationCacheCounts:
 
 @dataclass(frozen=True)
 class _Entry:
-    value: stats.EndpointObservation
+    value: stats.EndpointObservation | None   # None: read, and nothing to publish (never called)
     stored_at: float
 
 
@@ -89,6 +89,9 @@ class PostgresEndpointObservationReader:
             latency_seen=row.latency_seen, latencies=list(row.latency_sample or []),
         )) for row in rows)
         return stats.publish(ids, tallies, per_success=per_success)
+
+    def pending(self, endpoint_ids: Collection[str]) -> bool:
+        return False   # every read waits on the database, so nothing is ever still on its way
 
 
 class CachedEndpointObservationReader:
@@ -153,10 +156,12 @@ class CachedEndpointObservationReader:
                 age = now - entry.stored_at if entry is not None else None
                 if entry is not None and age is not None and age <= self._fresh_ttl_s:
                     self._fresh += 1
-                    result[endpoint_id] = entry.value
+                    if entry.value is not None:
+                        result[endpoint_id] = entry.value
                 elif entry is not None and age is not None and age <= self._stale_ttl_s:
                     self._stale += 1
-                    result[endpoint_id] = entry.value
+                    if entry.value is not None:
+                        result[endpoint_id] = entry.value
                     refresh_ids.add(endpoint_id)
                 else:
                     self._miss += 1
@@ -200,9 +205,12 @@ class CachedEndpointObservationReader:
                 else:
                     stored_at = self._clock()
                     async with self._lock:
-                        for endpoint_id, value in refreshed.items():
+                        # An id the source had nothing for is remembered as such, so an endpoint
+                        # nobody calls is not a miss, and a database read, on every request.
+                        for endpoint_id in endpoint_ids:
                             if endpoint_id in self._inflight:
-                                self._entries[endpoint_id] = _Entry(value=value, stored_at=stored_at)
+                                self._entries[endpoint_id] = _Entry(value=refreshed.get(endpoint_id),
+                                                                    stored_at=stored_at)
                         self._retry_not_before = 0.0
                 finally:
                     async with self._lock:
@@ -211,6 +219,11 @@ class CachedEndpointObservationReader:
             async with self._lock:
                 if self._task is asyncio.current_task():
                     self._task = None
+
+    def pending(self, endpoint_ids: Collection[str]) -> bool:
+        """Whether any of these has never been read and is being read now: a view that shows it
+        unmeasured may have numbers a moment later."""
+        return any(i not in self._entries and (i in self._pending or i in self._inflight) for i in endpoint_ids)
 
     async def wait_for_idle(self) -> None:
         """Wait for the current shared refresh task, primarily for orderly tests and shutdown."""

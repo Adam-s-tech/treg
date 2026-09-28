@@ -243,6 +243,11 @@ class EndpointObservationReader(Protocol):
 
     async def get_many(self, endpoint_ids: Collection[str]) -> ObservationSnapshot: ...
 
+    def pending(self, endpoint_ids: Collection[str]) -> bool:
+        """Whether an id `get_many` just left out is still being read (a cold cache), rather than
+        unmeasured: a client may ask again shortly instead of showing "no data" for good."""
+        ...
+
 
 def _now() -> datetime:
     # Naive UTC — CallRecord.created_at is TIMESTAMP WITHOUT TIME ZONE (models._now).

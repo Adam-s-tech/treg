@@ -226,8 +226,10 @@ identified. The catalog page is public, so the quotes are too, and the dashboard
 band ("5+ teams"), never exact.
 
 `application.feedback.endpoint_verdicts` reads the window once per process every five minutes on
-the API pool, single-flight, and keeps the previous fold when a refresh fails; the router attaches
-nothing when there is no fold at all, because an enrichment must never take the catalog down.
+the API pool. Only the first fold is waited on (single-flight); after that an expired fold is served
+while the next is read in a background task, so no catalog page waits on the database, and a failed
+refresh keeps the previous fold for another full period. The router attaches nothing when there is no
+fold at all, because an enrichment must never take the catalog down.
 
 ## Response-rate query
 

@@ -5909,7 +5909,7 @@
     },
     "/catalog/providers/{service}": {
       "get": {
-        "description": "Open: every tool one provider serves, filed by platform. A tool that is one of several\nproviders doing the same job on its platform carries `job` (the capability and how many\nproviders do it), so a page listing a provider's tools can link to the comparison. The same\nrule the platform page uses: a capability at least two providers serve on that platform, routed\nrows and account/utility plumbing not counted. Plumbing is listed, tagged by `kind`.",
+        "description": "Open: every tool one provider serves, filed by platform. A tool that is one of several\nproviders doing the same job on its platform (`Catalog.jobs`) carries `job`: the capability, its\nURL key and how many providers do it, so a page listing a provider's tools can link to the\ncomparison. Plumbing is listed, tagged by `kind`.",
         "operationId": "catalog_provider_catalog_providers__service__get",
         "parameters": [
           {

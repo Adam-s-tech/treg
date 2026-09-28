@@ -134,31 +134,45 @@ async def submit_review(
 VERDICTS_TTL_S = 300
 _verdicts: tuple[float, dict[str, dict]] | None = None
 _verdicts_lock = asyncio.Lock()
+_verdicts_refresh: asyncio.Task | None = None
+
+
+async def _fold_verdicts() -> dict[str, dict]:
+    async with session_maker() as db:
+        rows = await verdicts.since(db, utcnow_naive() - timedelta(days=verdicts.WINDOW_DAYS))
+    return verdicts.summarize(rows)
+
+
+async def _refresh_verdicts() -> None:
+    global _verdicts
+    assert _verdicts is not None
+    try:
+        fold = await _fold_verdicts()
+    except Exception:
+        fold = _verdicts[1]   # keep serving the previous fold; retry after a full TTL, not per request
+    _verdicts = (time.monotonic(), fold)
 
 
 async def endpoint_verdicts() -> dict[str, dict]:
     """Every endpoint's published verdicts (`domain.feedback.verdicts`), one fold per process every
     `VERDICTS_TTL_S`. The whole window is read at once: the catalog asks for a platform's worth of
-    endpoints per page, and one small table scan serves every page until it expires. A failed
-    refresh keeps serving the previous fold; the caller decides what no fold at all means."""
-    global _verdicts
-    if _verdicts is not None and time.monotonic() - _verdicts[0] < VERDICTS_TTL_S:
-        return _verdicts[1]
-    async with _verdicts_lock:
-        if _verdicts is not None and time.monotonic() - _verdicts[0] < VERDICTS_TTL_S:
-            return _verdicts[1]
-        try:
-            async with session_maker() as db:
-                rows = await verdicts.since(db, utcnow_naive() - timedelta(days=verdicts.WINDOW_DAYS))
-        except Exception:
+    endpoints per page, and one small table scan serves every page. Only the first fold is waited
+    on; after that an expired fold is served while the next one is read in the background, so no
+    catalog page waits on the database. A failed first fold raises; the caller decides what no
+    fold at all means."""
+    global _verdicts, _verdicts_refresh
+    if _verdicts is None:
+        async with _verdicts_lock:
             if _verdicts is None:
-                raise
-            _verdicts = (time.monotonic(), _verdicts[1])   # retry after a full TTL, not per request
-            return _verdicts[1]
-        _verdicts = (time.monotonic(), verdicts.summarize(rows))
+                _verdicts = (time.monotonic(), await _fold_verdicts())
         return _verdicts[1]
+    if time.monotonic() - _verdicts[0] >= VERDICTS_TTL_S and (_verdicts_refresh is None or _verdicts_refresh.done()):
+        _verdicts_refresh = asyncio.create_task(_refresh_verdicts())
+    return _verdicts[1]
 
 
 def forget_endpoint_verdicts() -> None:
-    global _verdicts, _verdicts_lock
-    _verdicts, _verdicts_lock = None, asyncio.Lock()
+    global _verdicts, _verdicts_lock, _verdicts_refresh
+    if _verdicts_refresh is not None:
+        _verdicts_refresh.cancel()
+    _verdicts, _verdicts_lock, _verdicts_refresh = None, asyncio.Lock(), None
