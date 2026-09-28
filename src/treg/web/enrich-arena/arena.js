@@ -5,7 +5,7 @@
   const SIGNUP_SETUP = 'treg.arena.signup-setup.v1';
   const DRAFT = 'treg.arena.draft.v1';
   const ACTIVE = 'treg.arena.active.v1'; // Cleanup only: saved runs now reopen through their URL.
-  const NAMES = {'treg':'Email verification waterfall','millionverifier':'MillionVerifier','contactout':'ContactOut','trykitt':'Kitt','fiber-ai':'Fiber','pdl':'People Data Labs','branddev':'Brand.dev',
+  const NAMES = {'treg':'Email verification waterfall','millionverifier':'MillionVerifier','contactout':'ContactOut','trykitt':'Kitt','fiber-ai':'Fiber','pdl':'People Data Labs','branddev':'Context.dev',
     'thecompaniesapi':'TheCompaniesAPI','companyenrich':'CompanyEnrich','leadmagic':'LeadMagic',
     'findymail':'Findymail','leadsforge':'Leadsforge','icypeas':'Icypeas','predictleads':'PredictLeads',
     'apollo':'Apollo','exa':'Exa','aviato':'Aviato','aiark':'AI Ark','hunter':'Hunter','tomba':'Tomba','lusha':'Lusha'};

@@ -18,6 +18,7 @@ sources:
   - frontend/src/pages/TeamPage.vue
   - src/treg/health.py
   - src/treg/application/connect.py
+  - src/treg/alembic/versions/0051_context_dev_tool_host.py
   - src/treg/routers/connections.py
   - src/treg/routers/resources.py
   - src/treg/domain/tools/__init__.py
@@ -279,6 +280,12 @@ unrenewable one earns a warning (`EXPIRING_SOON_DAYS=7`). `connection_view()` is
 (no token material) the dashboard/CLI read, with a single actionable `needs_reconnect` flag.
 
 ## Curated OAuth provider registry (`oauth_providers.py`)
+Connecting a provider persists its API `base_url` and indexed `host` on the team's tool. Changing
+the registry's base URL affects new connections and direct catalog calls, but an existing named
+tool or URL-passthrough call keeps using its stored host until reconnect or a scoped data migration.
+Host migrations must identify the provider-created tool through its connection binding, leaving
+manually registered tools at their caller-chosen URL.
+
 Two ways to connect a provider. **Bring-your-own (BYO):** `POST /oauth/start` takes a caller-supplied
 `client_id`/`client_secret`/URIs — works for any OAuth2 provider. **Curated:** for the providers where
 **treg itself holds the approved app** (Google Search Console/Analytics/Business Profile/Tag Manager/Ads, YouTube,

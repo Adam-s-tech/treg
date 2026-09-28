@@ -2984,32 +2984,31 @@ FINDYMAIL = OAuthProvider(
 
 BRANDDEV = OAuthProvider(
     service="branddev",
-    display_name="Brand.dev",
+    display_name="Context.dev",
     auth_kind="key",
     token_label="API key",
-    token_placeholder="your Brand.dev API key",
+    token_placeholder="your Context.dev API key",
     # token_header / token_format default to Authorization: Bearer {secret} — which is exactly
-    # what this API wants (verified live 2026-08-20).
-    setup_url="https://brand.dev",
-    setup_action_label="Get your Brand.dev API key",
+    # what this API wants (verified live on the Context.dev host 2026-09-28).
+    setup_url="https://context.dev",
+    setup_action_label="Get your Context.dev API key",
     setup_steps=(
-        "Create a Brand.dev account — a work email gets the larger free credit grant.",
+        "Create a Context.dev account.",
         "Open the dashboard's API keys page and copy your key.",
     ),
-    setup_note="Brand lookups spend credits (10 per brand record, 5 for fonts, 1 for a "
-               "screenshot); credits are charged only on a successful response, and "
-               "malformed requests are free.",
+    setup_note="Context.dev calls spend credits; the response reports credits_consumed. "
+               "Brand records cost 10 credits and basic web requests start at 1 credit.",
     auth_uri="", token_uri="",
     scopes={},
     client_id_setting="", client_secret_setting="",
     category="Enrichment",
-    summary="Turn a domain, company name, work email, ticker or card descriptor into a brand "
-            "profile — logos, colors, fonts, styleguide, slogan, socials and industry codes.",
-    base_url="https://api.brand.dev/v1",
-    docs_url="https://docs.brand.dev",
+    summary="Search, scrape, map and crawl the web, or turn a company identifier into a brand "
+            "profile with logos, colors, fonts, socials and industry codes.",
+    base_url="https://api.context.dev/v1",
+    docs_url="https://docs.context.dev",
     # There is NO free account/usage route on this API (every /v1/account, /v1/usage, /v1/key
     # guess answers 403 "does not exist"). The probe is therefore the Coresignal pattern: call
-    # the data route with NO parameters. Observed live 2026-08-20:
+    # the data route with NO parameters. Observed live on the Context.dev host 2026-09-28:
     #   valid key   -> 400 {"error_code":"INPUT_VALIDATION_ERROR", ... credits_consumed: 0}
     #   bogus key   -> 401 {"error_code":"NOT_FOUND","message":"API key not found …"}
     # so 400 must count as "key accepted" and only 401/403 as a rejection. The probe is FREE.

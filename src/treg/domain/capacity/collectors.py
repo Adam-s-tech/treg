@@ -656,7 +656,7 @@ async def _findymail(c, key):
 async def _branddev(c, key):
     # No free account route exists — but a deliberate no-param call is a FREE validation error
     # (400, credits_consumed 0) whose body still carries key_metadata.credits_remaining.
-    r = await c.get("https://api.brand.dev/v1/brand/retrieve",
+    r = await c.get("https://api.context.dev/v1/brand/retrieve",
                     headers={"Authorization": f"Bearer {key}"})
     meta = (r.json() or {}).get("key_metadata", {}) if r.status_code < 500 else {}
     return {"value": meta.get("credits_remaining"), "unit": "credits",
