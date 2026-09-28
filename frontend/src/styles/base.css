@@ -935,7 +935,7 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
 .td-rev-legend i{width:8px;height:8px;border-radius:2px;display:inline-block}
 .td-rev-v{font-size:10.5px;font-weight:500;white-space:nowrap}
 .td-rev-v.useful{color:var(--green)} .td-rev-v.partly{color:var(--amber)} .td-rev-v.not_useful{color:var(--red)}
-/* ---- Catalog shelf, job and provider tool pages (PlatformPage, ToolDrawer, ProviderPage) ----
+/* ---- Catalog shelf, comparison and provider tool pages (PlatformPage, ToolDrawer, ProviderPage) ----
    The landing page's rules (usecase.css): no accent colour, emphasis is ink; sans everywhere, mono
    only for identifiers, commands and counts; Geist Pixel on the h1 only; cards are surfaces lifted
    by shadow, never boxes drawn by border; no rules between rows. */
@@ -953,7 +953,7 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
 .pl-crumbs a{color:var(--muted);text-decoration:none}
 .pl-crumbs a:hover{color:var(--ink)}
 .pl .pl-hero h1{margin:14px 0 0;font-family:var(--display);font-weight:400;font-size:clamp(34px,4.6vw,52px);line-height:1.08;letter-spacing:0}
-.pl .pl-hero h1.pl-h1-job{font-size:clamp(26px,3vw,36px);line-height:1.2}
+.pl .pl-hero h1.pl-h1-cmp{font-size:clamp(26px,3vw,36px);line-height:1.2}
 .pl-lede{margin:14px 0 0;max-width:68ch;font-size:16px;line-height:1.6;color:var(--muted)}
 
 /* Section heading: title, a hairline to the edge, the count. */
@@ -974,12 +974,12 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
 .pl-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-1px);text-decoration:none}
 .pl-card:focus-visible{outline:none;box-shadow:var(--shadow-md),0 0 0 1.5px var(--ink)}
 .pl-card.on{box-shadow:var(--shadow-md),0 0 0 1.5px var(--ink)}
-.pl-job b{font-size:15.5px;font-weight:500;line-height:1.4}
-.pl-job-h{display:flex;align-items:flex-start;gap:12px}
-.pl-job-h b{flex:1}
-.pl-job-f{display:flex;align-items:center;gap:10px;margin-top:auto;flex-wrap:wrap}
-.pl-job.sm{gap:6px;padding:15px 18px}
-.pl-job.sm b{font-size:14px}
+.pl-cmp b{font-size:15.5px;font-weight:500;line-height:1.4}
+.pl-cmp-h{display:flex;align-items:flex-start;gap:12px}
+.pl-cmp-h b{flex:1}
+.pl-cmp-f{display:flex;align-items:center;gap:10px;margin-top:auto;flex-wrap:wrap}
+.pl-cmp.sm{gap:6px;padding:15px 18px}
+.pl-cmp.sm b{font-size:14px}
 .pl-meta{font-family:var(--mono);font-size:11.5px;color:var(--muted2);font-variant-numeric:tabular-nums}
 .pl-auto{flex:0 0 auto;margin-top:1px;padding:3px 9px;border-radius:999px;background:var(--inverse);color:var(--inverse-ink);
   font-size:11px;font-weight:500;letter-spacing:.01em}
@@ -1008,7 +1008,7 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
 .pl-prov .pl-logo{width:20px;height:20px;flex-basis:20px;border-radius:6px}
 .pl-prov .pl-logo img{width:13px;height:13px}
 
-/* Job page: treg's answer, a dark card like the landing's "give this to your agent". */
+/* Comparison page: treg's answer, a dark card like the landing's "give this to your agent". */
 .pl-autocard{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:36px;align-items:center;margin:0 0 56px;
   padding:34px 36px;border-radius:20px;background:var(--inverse);color:var(--inverse-ink);box-shadow:var(--shadow-lg)}
 .pl-eyebrow.inv{color:color-mix(in srgb,var(--inverse-ink) 55%,transparent)}

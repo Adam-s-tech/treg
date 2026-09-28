@@ -1,21 +1,21 @@
 // ---- the catalog-v2 experiment ----
-// A platform page is either the shelf (jobs, a comparison per job, the tool drawer) or, for the
+// A platform page is either the shelf (a comparison per capability, the tool drawer) or, for the
 // control arm, the ledger it replaced (LegacyPlatformPage.vue). The PostHog multivariate flag
 // `catalog-v2` (control | test) deals the arm, per person, on the first platform page of a load;
 // posthog-js records the exposure on that read. Every catalog action is one event set in both arms,
 // so the arms compare on the same numbers.
 //
 // `catalogArm`: '' not dealt yet, 'pending' waiting on the flag, 'control' | 'test' in the
-// experiment, 'direct' landed on a job page (only v2 has them, so outside the experiment),
+// experiment, 'direct' landed on a comparison page (only v2 has them, so outside the experiment),
 // 'off' no flag answer (analytics off, blocked, experiment not running, or too slow): the shelf.
 export const CATALOG_FLAG = 'catalog-v2'
 const FLAG_WAIT_MS = 1000
 
 export default {
-  catalogEnroll(job){
+  catalogEnroll(cap){
     if(this.catalogArm && this.catalogArm!=='pending') return Promise.resolve()
     if(this.elements.catalogDealt) return this.elements.catalogDealt
-    if(job){ this.catalogSetArm('direct'); return Promise.resolve() }
+    if(cap){ this.catalogSetArm('direct'); return Promise.resolve() }
     const ph=window.posthog
     if(!ph || !ph.onFeatureFlags){ this.catalogSetArm('off'); return Promise.resolve() }
     this.catalogArm='pending'
@@ -38,10 +38,10 @@ export default {
     try{ window.posthog?.register?.({catalog_arm:arm}) }catch(e){}
   },
 
-  // Where a catalog action happened: the ledger (control), the shelf or a job (v2), a provider's
+  // Where a catalog action happened: the ledger (control), the shelf or a comparison (v2), a provider's
   // page, or the Catalog index. null elsewhere, so a Try-it from the team pages is not counted.
   catalogSurface(){
-    if(this.view==='platform') return this.catalogLegacy ? 'ledger' : this.platJob ? 'job' : 'shelf'
+    if(this.view==='platform') return this.catalogLegacy ? 'ledger' : this.platCap ? 'comparison' : 'shelf'
     if(this.view==='provider') return 'provider'
     if(this.view==='connections') return 'catalog'
     return null

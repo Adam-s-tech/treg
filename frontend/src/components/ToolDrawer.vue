@@ -2,7 +2,7 @@
 import { useDashboard } from '../state/context'
 import ProviderLogo from './ProviderLogo.vue'
 
-// One tool, over whichever list opened it (a platform shelf, a job's comparison, a provider's
+// One tool, over whichever list opened it (a platform shelf, a comparison, a provider's
 // tools). Not modal: the list behind it stays live, and ↑ ↓ walk it (`drawerIds`).
 // Reading order is the decision order: what it does, what it costs and how well it does it, the
 // one action, the command; parameters, the captured response and reviews after that.

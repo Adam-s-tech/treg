@@ -29,18 +29,18 @@ for (const [width, height] of [[1440, 1000], [390, 844]] as const) {
   test.describe(`at ${width}px`, () => {
     test.use({ viewport: { width, height } })
 
-    test('the public catalog, a shelf, a job and a tool lay out cleanly', async ({ page }) => {
+    test('the public catalog, a shelf, a comparison and a tool lay out cleanly', async ({ page }) => {
       await page.goto('/catalog')
       await expect(page.locator('.cat-find')).toBeVisible()
       await expectClean(page, '/catalog')
       for (const slug of ['companies', 'people']) {
         await page.goto('/catalog/' + slug)
-        await expect(page.locator('.pl-job').first()).toBeVisible()
+        await expect(page.locator('.pl-cmp').first()).toBeVisible()
         await expectClean(page, '/catalog/' + slug)
       }
-      await page.locator('.pl-job').first().click()
+      await page.locator('.pl-cmp').first().click()
       await expect(page.locator('.ui-data-table .ui-tbody .ui-tr').first()).toBeVisible()
-      await expectClean(page, 'a job page')
+      await expectClean(page, 'a comparison page')
       await page.locator('.ui-data-table .ui-tbody .ui-tr').first().click()
       await expect(page.getByRole('complementary', { name: 'Tool details' })).toBeVisible()
       await expectClean(page, 'the tool drawer')

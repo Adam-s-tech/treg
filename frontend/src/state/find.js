@@ -175,8 +175,8 @@ export default {
     this.findTrackClick('job', group.platform, {provider:group.rows[0]?.provider, rank});
     if(this.view==='platform' && group.platform===this.platSlug){
       const cap=group.rows[0]?.capability;
-      const job=cap && this.platJobIndex.find(j=>j.key===cap);
-      if(job) this.openJob(job.slug);
+      const job=cap && this.platComparisons.find(j=>j.key===cap);
+      if(job) this.openComparison(job.slug);
       else this.openTool(group.rows[0].id);
       return;
     }

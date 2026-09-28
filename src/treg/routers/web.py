@@ -89,7 +89,7 @@ app = catalog_pages_router
 #
 # `/catalog/<slug>` is registered after the JSON routes so /catalog/platforms, /catalog/search,
 # /catalog/endpoints/… and /catalog/examples/… keep matching first. Registration order alone is a
-# thin guarantee, so the reserved names are also refused explicitly below, and the job page's
+# thin guarantee, so the reserved names are also refused explicitly below, and the comparison page's
 # convertor (`_ShelfSlug`) never matches them. Every `/catalog/<segment>` API prefix belongs here.
 _CATALOG_RESERVED = frozenset({"platforms", "search", "find", "endpoints", "examples", "call", "providers"})
 
@@ -451,7 +451,7 @@ async def catalog_page(slug: str):
     # them. Asking for a different population than the view that is about to replace this would put
     # two different endpoint counts on one URL.
     detail = await catalog_platform(slug, include_hidden=1)
-    jobs = catalog_store.load().jobs()
+    compared = catalog_store.load().compared()
     base = get_settings().public_url.rstrip("/")
     plat = detail["platform"]
     label, category = plat["label"], plat["category"]
@@ -499,8 +499,8 @@ async def catalog_page(slug: str):
          "numberOfItems": len(caps),
          "itemListElement": [
              {"@type": "ListItem", "position": i, "name": cap["description"] or cap["id"],
-              "url": (f"{base}/catalog/{slug}/{catalog_store.job_key(slug, cap['id'])}"
-                      if (slug, cap["id"]) in jobs else f"{base}/catalog/{slug}#{cap['id']}")}
+              "url": (f"{base}/catalog/{slug}/{catalog_store.capability_key(slug, cap['id'])}"
+                      if (slug, cap["id"]) in compared else f"{base}/catalog/{slug}#{cap['id']}")}
              for i, cap in enumerate(caps, 1)]},
         {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
             {"@type": "ListItem", "position": 1, "name": "treg.to", "item": base + "/"},
@@ -515,7 +515,7 @@ async def catalog_page(slug: str):
 
 class _ShelfSlug(Convertor):
     """A platform slug that is never one of the catalog's own API segments (`_CATALOG_RESERVED`).
-    `/catalog/call/<id>` and friends share the `/catalog/<a>/<b>` shape with the job page, and route
+    `/catalog/call/<id>` and friends share the `/catalog/<a>/<b>` shape with the comparison page, and route
     order across the app roles is not something this page should depend on: the path simply does
     not match them."""
     regex = rf"(?!(?:{'|'.join(sorted(_CATALOG_RESERVED))})(?:/|$))[^/]+"
@@ -530,15 +530,15 @@ class _ShelfSlug(Convertor):
 register_url_convertor("shelf", _ShelfSlug())
 
 
-@app.get("/catalog/{slug:shelf}/{job}", include_in_schema=False)
-async def catalog_job_page(slug: str, job: str):
-    """One job on a shelf: the providers that do it, side by side. `job` is the capability id
-    without its platform prefix (`enrich` for `companies.enrich`), or the whole id when it is filed
-    under another prefix. Same SPA as the shelf; the head and the no-JS text name this job."""
+@app.get("/catalog/{slug:shelf}/{key}", include_in_schema=False)
+async def catalog_comparison_page(slug: str, key: str):
+    """One capability on a shelf, compared: the providers that do it, side by side. `key` is the
+    capability id without its platform prefix (`enrich` for `companies.enrich`), or the whole id when
+    it is filed under another prefix. Same SPA as the shelf; the head and the no-JS text name it."""
     cat = catalog_store.load()
-    cap_id = catalog_store.job_capability(cat, slug, job)
+    cap_id = catalog_store.compared_capability(cat, slug, key)
     if cap_id is None:
-        raise HTTPException(status_code=404, detail=f"no job {job!r} on {slug!r}")
+        raise HTTPException(status_code=404, detail=f"no comparison {key!r} on {slug!r}")
     base = get_settings().public_url.rstrip("/")
     label = cat.platforms.get(slug, {}).get("label", slug)
     does = cat.capabilities.get(cap_id) or cap_id
@@ -549,7 +549,7 @@ async def catalog_job_page(slug: str, job: str):
         f'<li><b>{_esc_html(e["provider_display"])}</b> <i>{_esc_html(e.get("summary") or "")}</i>'
         f'<span class="m">{_esc_html(_price_label(e.get("cost")) or "")} · {_esc_html(e["id"])}</span></li>'
         for e in eps)
-    path = f"/catalog/{slug}/{job}"
+    path = f"/catalog/{slug}/{key}"
     prerender = (f'<p class="m"><a href="/catalog">Catalog</a> / <a href="/catalog/{_esc_html(slug)}">'
                  f"{_esc_html(label)}</a></p><h1>{_esc_html(does)}</h1>"
                  f'<p class="lede">{len(provs)} providers do this through one treg key: '
@@ -3395,9 +3395,9 @@ def _iso_day(ts: float) -> str:
     return datetime.fromtimestamp(ts, tz=timezone.utc).date().isoformat() if ts else ""
 
 
-def _job_paths() -> list[tuple[str, str]]:
-    """Every public job page (`Catalog.jobs`), keyed the way its URL is."""
-    return sorted((plat, catalog_store.job_key(plat, cap)) for plat, cap in catalog_store.load().jobs())
+def _comparison_paths() -> list[tuple[str, str]]:
+    """Every public comparison page (`Catalog.compared`), keyed the way its URL is."""
+    return sorted((plat, catalog_store.capability_key(plat, cap)) for plat, cap in catalog_store.load().compared())
 
 
 @app.get("/sitemap.xml", include_in_schema=False)
@@ -3426,8 +3426,8 @@ async def sitemap_xml():
         add(path, day, priority)
     for row in _platform_rows():
         add(f"/catalog/{row['slug']}", cat_day, "0.6")
-    for slug, job in _job_paths():
-        add(f"/catalog/{slug}/{job}", cat_day, "0.6")
+    for slug, key in _comparison_paths():
+        add(f"/catalog/{slug}/{key}", cat_day, "0.6")
     for prow in _provider_rows():
         add(f"/tools/{prow['service']}", cat_day, "0.5")
     # The agent pages exist only on the hosted deployment (see `_hosted`); their lastmod follows the

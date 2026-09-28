@@ -84,12 +84,12 @@ export default function data(){
       platQ:'',            // the shelf's search box
       epTab:{},            // endpoint id → which pane of its detail is showing ('req' | 'res' | 'rev')
       verdictKinds:['useful','partly','not_useful'],   // an endpoint's agent verdicts, in bar order
-      platJob:null,        // the job (capability, minus the platform prefix) a platform URL names
+      platCap:null,        // the compared capability a platform URL names, by its key (`compare`)
       drawerTool:null,       // endpoint id open in the tool drawer
       catalogArm:'',         // the catalog-v2 arm this load was dealt (state/catalogExperiment.js)
       epInfo:{},         // endpoint id → {loading, data} from /catalog/endpoints/<id>
-      platJobLead:null,    // the endpoint whose detail carries the open job's siblings and plan
-      platJobSort:{key:'price', dir:'asc'},   // the comparison's order (DataTable v-model:sort)
+      platComparisonLead:null,    // the endpoint whose detail carries the open comparison's siblings and plan
+      platComparisonSort:{key:'price', dir:'asc'},   // the comparison's order (DataTable v-model:sort)
       mkTools:null,        // {service, loading, err, data} from /catalog/providers/<service>
       platEx:{},           // endpoint id → {open, loading, err, text} for the lazily-fetched example
       platCopied:'',       // endpoint id whose `treg call` line was just copied

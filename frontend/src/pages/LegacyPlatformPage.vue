@@ -5,7 +5,7 @@ import { useDashboard } from '../state/context'
 // experiment (state/catalogExperiment.js), restored as it shipped and kept whole in this file, its
 // state, rows and styles included, so the experiment ends by deleting it. Its actions go through
 // the same tracked methods as the shelf's (`catalogTry`, `catalogCopy`, …), and opening a row is
-// `catalog_job_viewed` (a merged row: the comparison) or `catalog_tool_opened` (one endpoint).
+// `catalog_comparison_viewed` (a merged row: the comparison) or `catalog_tool_opened` (one endpoint).
 
 // The ledger's section headings stick right under the filter bar, so their offset is the bar's
 // live height. Written on the bar's parent, which also holds the table: the redesign shell
@@ -110,7 +110,7 @@ export default {
     toggleRow(r) {
       const open = this.platOpen[r.key] = !this.platOpen[r.key]
       if (!open) return
-      if (r.kind === 'merged') this.catalogTrack('catalog_job_viewed', { job: r.job || r.capability, via: 'row' })
+      if (r.kind === 'merged') this.catalogTrack('catalog_comparison_viewed', { compare: r.compare || r.capability, via: 'row' })
       else this.catalogToolEvent('catalog_tool_opened', r.endpoints[0], { via: 'row' })
     },
     // Level two: a provider sub-row under a merged row opens its own instruction.

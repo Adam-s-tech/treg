@@ -19,13 +19,13 @@ export default {
 // Platform pages are hash routes (/app#platform/<slug>): unlike /app/marketplace/<service> there
     // is no server route to serve the SPA on a hard reload of a /app/platforms/<slug> path.
     platformFromHash(){ const m=/^#platform\/([^/]+)/.exec(location.hash||''); return m?decodeURIComponent(m[1]):null; },
-// The job a platform URL names, if any: `/catalog/<slug>/<job>` publicly, `#platform/<slug>/<job>`
-    // in the app. `<job>` is the job's key, which the server puts on the job's row (`job`: the
-    // capability id without its platform prefix); `platJobMeta` resolves it once the shelf has loaded.
-    platJobFromLocation(){
+// The compared capability a platform URL names, if any: `/catalog/<slug>/<key>` publicly,
+    // `#platform/<slug>/<key>` in the app. `<key>` is what the server puts on its row (`compare`: the
+    // capability id without its platform prefix); `platComparison` resolves it once the shelf has loaded.
+    platCapFromLocation(){
       const m=/^#platform\/[^/]+\/(.+)$/.exec(location.hash||'') || /^\/catalog\/[^/]+\/([^/]+)\/?$/.exec(location.pathname||'');
       return m?decodeURIComponent(m[1]):null; },
-platUrl(slug, job){ const tail=job ? '/'+encodeURIComponent(job) : '';
+platUrl(slug, cap){ const tail=cap ? '/'+encodeURIComponent(cap) : '';
       return this.publicCatalog ? '/catalog/'+encodeURIComponent(slug)+tail : '/app#platform/'+encodeURIComponent(slug)+tail; },
 // The PUBLIC catalog lives at real paths (/catalog, /catalog/<slug>), not hash routes, because
     // a hash is never a distinct URL to a crawler and the whole catalog was therefore unindexable.
@@ -46,24 +46,24 @@ platUrl(slug, job){ const tail=job ? '/'+encodeURIComponent(job) : '';
     openCatalogRoute(r){
       if(r.view==='find'){ this.view='find'; this.loadPlatforms(); return; }
       if(r.slug) this.openPlatform(r.slug, true); else this.go('connections', true); },
-openPlatform(slug, fromPop, job){ this.resetConfirms();
-      if(job===undefined) job = fromPop ? this.platJobFromLocation() : null;
-      // The ledger has no job pages: the control arm reads a job's address as its shelf.
-      if(this.catalogLegacy) job=null;
-      this.catalogEnroll(job).then(()=>{ if(this.view==='platform' && this.platSlug===slug)
-        this.catalogTrack(job ? 'catalog_job_viewed' : 'catalog_platform_viewed', job ? {job} : {}); });
-      // Moving between a shelf and one of its jobs keeps the loaded shelf: the job page is the same
+openPlatform(slug, fromPop, cap){ this.resetConfirms();
+      if(cap===undefined) cap = fromPop ? this.platCapFromLocation() : null;
+      // The ledger has no comparison pages: the control arm reads one's address as its shelf.
+      if(this.catalogLegacy) cap=null;
+      this.catalogEnroll(cap).then(()=>{ if(this.view==='platform' && this.platSlug===slug)
+        this.catalogTrack(cap ? 'catalog_comparison_viewed' : 'catalog_platform_viewed', cap ? {compare:cap} : {}); });
+      // Moving between a shelf and one of its comparisons keeps the loaded shelf: the page is the same
       // payload read another way, so only the address and the view state change.
       const same = this.view==='platform' && this.platSlug===slug && (this.platData || this.platLoading);
-      this.detail=null; this.platSlug=slug; this.view='platform'; this.platJob=job||null; this.drawerTool=null;
+      this.detail=null; this.platSlug=slug; this.view='platform'; this.platCap=cap||null; this.drawerTool=null;
       this.epTab={}; this.platCopied='';
       if(!same){ this.platEx={}; this.platQ=''; this.epInfo={};
         if(this.find.scope) this.findExit(); }     // a shelf's answer belongs to that shelf
-      this.platJobSort={key:'price', dir:'asc'};
+      this.platComparisonSort={key:'price', dir:'asc'};
       // A public visitor stays on the indexable /catalog/<slug> URL; a signed-in one keeps the
       // in-app hash route. Same view either way — only the address bar differs.
-      if(!fromPop) history.pushState({platform:slug}, '', this.platUrl(slug, job));
-      if(this.platJob) this.loadJobInfo();
+      if(!fromPop) history.pushState({platform:slug}, '', this.platUrl(slug, cap));
+      if(this.platCap) this.loadComparisonInfo();
       window.scrollTo(0,0);
       if(same) return;
       this.loadPlatforms();                                   // the header's provider links need the list
@@ -75,7 +75,7 @@ openPlatform(slug, fromPop, job){ this.resetConfirms();
     // signed in. Both list every tool the provider serves.
     provUrl(service){ return this.publicCatalog ? '/tools/'+encodeURIComponent(service) : '/app/marketplace/'+encodeURIComponent(service); },
 goProvider(service){ if(this.publicCatalog) this.goPublicTool(service); else this.openProvider(service); },
-openJobOn(slug, key){ this.openPlatform(slug, false, key); },
+openComparisonOn(slug, key){ this.openPlatform(slug, false, key); },
 async loadProviderTools(service){
       if(this.mkTools && this.mkTools.service===service && (this.mkTools.data || this.mkTools.loading)) return;
       this.mkTools={service, loading:true, err:'', data:null};
@@ -83,11 +83,11 @@ async loadProviderTools(service){
       try{ const d=await this.api('/catalog/providers/'+encodeURIComponent(service)); if(slot.service===this.mkService) slot.data=markRaw(d); }
       catch(e){ slot.err = e.status===404 ? '' : 'Could not load this provider\'s tools.'; }
       finally{ slot.loading=false; } },
-openJob(key){ this.openPlatform(this.platSlug, false, key); },
-closeJob(){ this.openPlatform(this.platSlug, false, null); },
-// What the calls treg served say about a job's providers, and which inputs each accepts: one
+openComparison(key){ this.openPlatform(this.platSlug, false, key); },
+closeComparison(){ this.openPlatform(this.platSlug, false, null); },
+// What the calls treg served say about a comparison's providers, and which inputs each accepts: one
     // `/catalog/endpoints/<id>` read returns the endpoint and every sibling of its capability with
-    // `observed`, plus the routing plan's `accepts` when the job has a routed tool. Cached per id.
+    // `observed`, plus the routing plan's `accepts` when the capability has a routed tool. Cached per id.
     // The server's observation cache never waits on the database: an id it has not read yet comes
     // back empty while it is read in the background, and the answer says so (`observed_pending`).
     // Then the detail is asked for once more, shortly after, and the numbers fill in.
@@ -100,11 +100,11 @@ closeJob(){ this.openPlatform(this.platSlug, false, null); },
         if(d.observed_pending && !retried) setTimeout(()=>this.loadEndpointInfo(id, true), 1500); }
       catch(e){ if(!retried) slot.data=null; }
       finally{ slot.loading=false; } },
-async loadJobInfo(){
+async loadComparisonInfo(){
       if(!this.platData){ return; }      // loadPlatform calls back once the shelf arrives
-      const row=this.platJobMeta && this.platJobMeta.row; if(!row) return;
+      const row=this.platComparison && this.platComparison.row; if(!row) return;
       const lead=(row.endpoints.find(e=>e.kind==='routed')||row.endpoints[0]).id;
-      this.platJobLead=lead;
+      this.platComparisonLead=lead;
       await this.loadEndpointInfo(lead); },
 openTool(id, via='click'){ this.drawerTool=id; this.loadEndpointInfo(id);
       const e=this.drawerEp; if(e) this.catalogToolEvent('catalog_tool_opened', e, {via}); },
@@ -134,7 +134,7 @@ async loadPlatform(){ if(!this.platSlug) return;
       // off each endpoint's `kind` (see platRowsAll).
       try{ const data=await (pre && pre.slug===this.platSlug ? pre.request
         : this.api('/catalog/platforms/'+encodeURIComponent(this.platSlug)+'?include_hidden=1'));
-        if(live()){ this.platData=data; if(this.platJob) this.loadJobInfo(); } }
+        if(live()){ this.platData=data; if(this.platCap) this.loadComparisonInfo(); } }
       catch(e){ if(live()) this.platErr = e.status===404
         ? 'No catalog for this platform on this server yet.'
         : 'Could not load the endpoint catalog'+(e.detail?': '+e.detail:'.'); }
@@ -209,7 +209,7 @@ costNative(c){ return c && c.display_unit ? '' : this.nativeAmount(c); },
               p.native ? 'billed as '+p.native+' / '+this.priceUnit(pf.type)+', converted at the catalog’s FX rate' : '',
               pf.note].filter(Boolean).join(' — '); },
 // What agents said after using an endpoint's result. `reviews` is on the platform payload only
-    // past the server's team threshold, and the share is comparable between providers of one job.
+    // past the server's team threshold, and the share is comparable between providers of one capability.
     verdictPct(r, v){ return Math.round(r.share[v]*100)+'% '+this.verdictLabel(v).toLowerCase(); },
 verdictLabel(v){ return ({useful:'Useful', partly:'Partly useful', not_useful:'Not useful'})[v]||v; },
 verdictClient(c){ return ({'claude-code':'Claude Code', codex:'Codex', cursor:'Cursor', 'claude-connector':'Claude', cli:'treg CLI', pi:'Pi'})[c]||''; },
@@ -302,8 +302,8 @@ capCheapest(eps){
     clip(text, n){ const s=String(text||'').trim(); if(s.length<=n) return s;
       const cut=s.slice(0,n); const sp=cut.lastIndexOf(' ');
       return (sp>n*0.6 ? cut.slice(0,sp) : cut).replace(/[\s,;:.—-]+$/,'')+'…'; },
-// "free – $0.38": the spread of a job's published prices. Units differ between providers, so the
-    // card states the range, never a "from" that reads as the job's price.
+// "free – $0.38": the spread of a capability's published prices. Units differ between providers,
+    // so the card states the range, never a "from" that reads as one price.
     priceRange(eps){ const ns=eps.map(e=>e.platform_eligible===false ? null : this.costUsd(e.cost)).filter(n=>n!=null);
       if(!ns.length) return ''; const lo=Math.min(...ns), hi=Math.max(...ns);
       const f=n=>n===0 ? 'free' : '$'+this.usdNum(n);

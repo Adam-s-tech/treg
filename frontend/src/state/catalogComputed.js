@@ -1,6 +1,6 @@
 import { isJobQuery } from './find.js'
 
-// What each comparison column means, on hover or focus of its heading (jobColumns).
+// What each comparison column means, on hover or focus of its heading (comparisonColumns).
 const COL_TIPS = {
   takes:'What you can send it. Each tag is one input it accepts; — means the catalog has not mapped it yet.',
   price:"What one call costs on treg's key, in the provider's own unit: per call, per result or per success. With your own key the provider bills you, and treg adds nothing.",
@@ -9,7 +9,7 @@ const COL_TIPS = {
 }
 
 export default {
-// The catalog-v2 control arm (state/catalogExperiment.js): the ledger, and no job pages anywhere.
+// The catalog-v2 control arm (state/catalogExperiment.js): the ledger, and no comparison pages anywhere.
     catalogLegacy(){ return this.catalogArm==='control'; },
 mkProvider(){ return this.providers.find(p=>p.service===this.mkService)||null; },
 mkConns(){ return this.connections.filter(c=>c.provider===this.mkService); },
@@ -141,29 +141,30 @@ platProviders(){  // providers with endpoints here, in catalog order
                  e.provider+' '+(e.provider_display||'')+' '+(e.name||'')+' '+e.path+' '+e.summary).join(' ')).toLowerCase()});
       }
       return out; },
-// ---- the shelf, read as jobs and tools ----
-    // A JOB is a capability at least two providers serve on the shelf: the one place a comparison
-    // means something, so it gets a card and a page of its own. The server marks those rows (`job`,
-    // the key its URL uses; `Catalog.jobs`). Everything else is a TOOL, listed once, opened in the
-    // drawer. Plumbing (account/utility) stays folded at the foot.
-    platJobIndex(){
-      return this.platRowsAll.filter(r=>r.job).map(r=>{
+// ---- the shelf, read as comparisons and tools ----
+    // A capability at least two providers serve on the shelf is the one place a comparison means
+    // something, so it gets a card and a page of its own (the page calls them "jobs several
+    // providers do"). The server marks those rows (`compare`, the key its URL uses;
+    // `Catalog.compared`). Everything else is a TOOL, listed once, opened in the drawer. Plumbing
+    // (account/utility) stays folded at the foot.
+    platComparisons(){
+      return this.platRowsAll.filter(r=>r.compare).map(r=>{
         const direct=r.endpoints.filter(e=>e.kind!=='routed'), provs=[...new Set(direct.map(e=>e.provider))];
         const range=this.priceRange(direct);
-        return {key:r.capability, slug:r.job, row:r, title:r.description, hay:r.hay, logos:provs.slice(0,5),
+        return {key:r.capability, slug:r.compare, row:r, title:r.description, hay:r.hay, logos:provs.slice(0,5),
                 routed:r.endpoints.find(e=>e.kind==='routed')||null, provN:provs.length,
                 meta:provs.length+' providers'+(range ? ' · '+range : '')}; }); },
 // What the shelf's lists filter by as you type: a name or a word. A described job is not a filter
     // (no row contains a sentence); the finder answers it above the lists, which stay whole.
     platFilterQ(){ return isJobQuery(this.platQ) ? '' : this.platQ.trim().toLowerCase(); },
-platJobList(){ const q=this.platFilterQ;
-      return this.platJobIndex.filter(j=>!q || j.hay.includes(q)); },
-// Every endpoint on the shelf that is not part of a job card, one line each, alphabetical, built
+platComparisonsShown(){ const q=this.platFilterQ;
+      return this.platComparisons.filter(j=>!q || j.hay.includes(q)); },
+// Every endpoint on the shelf that is not part of a comparison card, one line each, alphabetical, built
     // once per shelf; the search box only filters it.
     platToolIndex(){
       const out=[];
       for(const r of this.platRowsAll){
-        if(r.job) continue;
+        if(r.compare) continue;
         for(const e of r.endpoints){
           if(e.kind==='routed') continue;
           const title=r.endpoints.length===1 ? r.title : this.clip(e.name||e.summary||r.description, 90);
@@ -178,41 +179,41 @@ platEpById(){ const m={}; for(const r of this.platRowsAll) for(const e of r.endp
     drawerEp(){ if(!this.drawerTool) return null;
       return (this.view==='provider' ? this.mkToolById : this.platEpById)[this.drawerTool]||null; },
 drawerInfo(){ const i=this.drawerTool && this.epInfo[this.drawerTool]; return i&&i.data||null; },
-// The job a URL names, by its key (`enrich` on the companies shelf is `companies.enrich`).
-    platJobMeta(){ return this.platJob ? this.platJobIndex.find(j=>j.slug===this.platJob)||null : null; },
-platJobRow(){ return this.platJobMeta ? this.platJobMeta.row : null; },
-platJobData(){ const i=this.platJobLead && this.epInfo[this.platJobLead]; return i&&i.data||null; },
+// The comparison a URL names, by its key (`enrich` on the companies shelf is `companies.enrich`).
+    platComparison(){ return this.platCap ? this.platComparisons.find(j=>j.slug===this.platCap)||null : null; },
+platCapRow(){ return this.platComparison ? this.platComparison.row : null; },
+platComparisonData(){ const i=this.platComparisonLead && this.epInfo[this.platComparisonLead]; return i&&i.data||null; },
 // Measured reliability by endpoint id, from the lead's detail: the endpoint itself and its siblings.
-    platObserved(){ const d=this.platJobData, m={}; if(!d) return m;
+    platObserved(){ const d=this.platComparisonData, m={}; if(!d) return m;
       if(d.endpoint) m[d.endpoint.id]=d.endpoint.observed;
       for(const s of d.siblings||[]) m[s.id]=s.observed; return m; },
-platAccepts(){ const m={}; for(const p of (((this.platJobData||{}).routing)||{}).plan||[]) m[p.endpoint_id]=p.accepts; return m; },
-platJobChoices(){
-      const row=this.platJobRow; if(!row) return [];
+platAccepts(){ const m={}; for(const p of (((this.platComparisonData||{}).routing)||{}).plan||[]) m[p.endpoint_id]=p.accepts; return m; },
+platComparisonRows(){
+      const row=this.platCapRow; if(!row) return [];
       const eps=row.endpoints.filter(e=>e.kind!=='routed');
       const perProv={}; for(const e of eps) perProv[e.provider]=(perProv[e.provider]||0)+1;
       const rows=eps.map(e=>{ const o=this.platObserved[e.id];
         return {e, id:e.id, twin:perProv[e.provider]>1, takes:this.takesLabel(this.platAccepts[e.id]),
                 usd:e.platform_eligible===false ? null : this.costUsd(e.cost), works:this.worksOf(o), useful:this.usefulOf(e)}; });
-      const k=this.platJobSort.key, val=r=>k==='price' ? r.usd : k==='works' ? (r.works&&r.works.pct) : (r.useful&&r.useful.pct);
-      const dir=this.platJobSort.dir==='asc' ? 1 : -1;   // unmeasured rows stay last either way
+      const k=this.platComparisonSort.key, val=r=>k==='price' ? r.usd : k==='works' ? (r.works&&r.works.pct) : (r.useful&&r.useful.pct);
+      const dir=this.platComparisonSort.dir==='asc' ? 1 : -1;   // unmeasured rows stay last either way
       return rows.sort((a,b)=>{ const x=val(a), y=val(b);
         if(x==null && y==null) return (a.e.provider_display||a.e.provider).localeCompare(b.e.provider_display||b.e.provider);
         if(x==null) return 1; if(y==null) return -1; return (x-y)*dir || (b.e.verified?1:0)-(a.e.verified?1:0); }); },
 // The comparison's columns (components/ui/table DataTable). Price sorts cheapest first, the two
     // measured columns best first; every heading explains its number.
-    jobColumns(){ const t=COL_TIPS; return [
+    comparisonColumns(){ const t=COL_TIPS; return [
       {key:'provider', header:'Provider', mobile:'primary', minWidth:'240px', wrap:true},
       {key:'takes', header:'Takes', tip:t.takes, minWidth:'150px', wrap:true, mobile:'wide'},
       {key:'price', header:'Price', tip:t.price, align:'right', sortable:true, sortFirst:'asc'},
       {key:'works', header:'Works', tip:t.works, align:'right', sortable:true, sortFirst:'desc'},
       {key:'useful', header:'Useful', tip:t.useful, align:'right', sortable:true, sortFirst:'desc'}]; },
-platOtherJobs(){ return this.platJobIndex.filter(j=>j!==this.platJobMeta).slice(0,6); },
+platOtherComparisons(){ return this.platComparisons.filter(j=>j!==this.platComparison).slice(0,6); },
 drawerIds(){
       if(this.view==='provider') return [...this.mkToolShelves.flatMap(p=>p.tools), ...this.mkToolShelves.flatMap(p=>p.plumbing)].map(t=>t.id);
-      if(this.platJobRow) return [...(this.platJobMeta&&this.platJobMeta.routed ? [this.platJobMeta.routed.id] : []), ...this.platJobChoices.map(r=>r.id)];
+      if(this.platCapRow) return [...(this.platComparison&&this.platComparison.routed ? [this.platComparison.routed.id] : []), ...this.platComparisonRows.map(r=>r.id)];
       return [...this.platTools, ...this.platPlumbing].map(t=>t.id); },
-// The drawer's three numbers: measured success (the tool's own detail, else the job's), agents' verdict.
+// The drawer's three numbers: measured success (the tool's own detail, else the comparison's), agents' verdict.
     drawerStats(){ const e=this.drawerEp; if(!e) return {};
       const d=this.drawerInfo;
       return {works:this.worksOf(d && d.endpoint && d.endpoint.observed) || this.worksOf(this.platObserved[e.id]), useful:this.usefulOf(e)}; },
@@ -225,7 +226,7 @@ drawerIds(){
     mkToolData(){ const t=this.mkTools; return t && t.service===this.mkService ? t.data : null; },
 mkToolShelves(){ const d=this.mkToolData; if(!d) return [];
       return d.platforms.map(p=>{ const hidden=t=>t.kind==='account'||t.kind==='utility';
-        const item=t=>({id:t.id, e:t, job:t.job||null, title:this.clip(t.name||t.summary||t.id, 90)});
+        const item=t=>({id:t.id, e:t, compare:t.compare||null, title:this.clip(t.name||t.summary||t.id, 90)});
         return {slug:p.slug, label:p.label, tools:p.tools.filter(t=>!hidden(t)).map(item), plumbing:p.tools.filter(hidden).map(item)}; })
         .filter(p=>p.tools.length || p.plumbing.length); },
 mkToolById(){ const m={}; for(const p of (this.mkToolData||{platforms:[]}).platforms) for(const t of p.tools) m[t.id]=t; return m; },

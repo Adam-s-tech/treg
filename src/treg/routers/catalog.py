@@ -153,8 +153,8 @@ async def catalog_platform(slug: str, include_hidden: int = 0) -> dict:
         "hidden_count": hidden_count,
         # The ledger the platform page renders: sections by subject, ordered and merged server-side
         # so every client shows the same page (see `catalog_store.domain_rows`). A row that is a
-        # JOB (`Catalog.jobs`) carries `job`, its URL key.
-        "domains": _with_jobs(catalog_store.domain_rows(pairs, cat.capabilities), slug, cat),
+        # compared capability (`Catalog.compared`) carries `compare`, its URL key.
+        "domains": _mark_compared(catalog_store.domain_rows(pairs, cat.capabilities), slug, cat),
         # Provider-wide facts (limits, pricing page, docs), once per provider rather than copied onto
         # every row — an expanded endpoint needs them and shouldn't cost a second request.
         "providers": {
@@ -168,19 +168,19 @@ async def catalog_platform(slug: str, include_hidden: int = 0) -> dict:
     }
 
 
-def _with_jobs(domains: list[dict], slug: str, cat) -> list[dict]:
-    jobs = cat.jobs()
+def _mark_compared(domains: list[dict], slug: str, cat) -> list[dict]:
+    compared = cat.compared()
     for sec in domains:
         for row in sec["rows"]:
-            if row["kind"] == "merged" and (slug, row["capability"]) in jobs:
-                row["job"] = catalog_store.job_key(slug, row["capability"])
+            if row["kind"] == "merged" and (slug, row["capability"]) in compared:
+                row["compare"] = catalog_store.capability_key(slug, row["capability"])
     return domains
 
 
 @app.get("/catalog/providers/{service}")
 async def catalog_provider(service: str) -> dict:
     """Open: every tool one provider serves, filed by platform. A tool that is one of several
-    providers doing the same job on its platform (`Catalog.jobs`) carries `job`: the capability, its
+    providers doing the same capability on its platform (`Catalog.compared`) carries `compare`: the capability, its
     URL key and how many providers do it, so a page listing a provider's tools can link to the
     comparison. Plumbing is listed, tagged by `kind`."""
     cat = catalog_store.load()
@@ -190,15 +190,15 @@ async def catalog_provider(service: str) -> dict:
     verdicts = await _verdicts_or_empty()
     display = _provider_display(service)
     shelves: dict[str, list[dict]] = {}
-    jobs = cat.jobs()
+    compared = cat.compared()
     for ep in eps:
         view = catalog_store.endpoint_view(ep, display, cat)
         if ep["id"] in verdicts:
             view["reviews"] = verdicts[ep["id"]]
         cap, plat = ep.get("capability"), ep["platform"]
-        if catalog_store.browsable(ep) and (plat, cap) in jobs:
-            view["job"] = {"capability": cap, "key": catalog_store.job_key(plat, cap),
-                           "providers": len(jobs[(plat, cap)]), "description": cat.capabilities.get(cap, "")}
+        if catalog_store.browsable(ep) and (plat, cap) in compared:
+            view["compare"] = {"capability": cap, "key": catalog_store.capability_key(plat, cap),
+                               "providers": len(compared[(plat, cap)]), "description": cat.capabilities.get(cap, "")}
         shelves.setdefault(plat, []).append(view)
     return {
         "provider": {"service": service, "display_name": display, **cat.provider_meta.get(service, {})},

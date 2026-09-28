@@ -29,11 +29,11 @@ test('a hub tool page does not scroll sideways on a phone', async ({ page }) => 
   expect(await fitsWidth(page)).toBe(true)
 })
 
-test('a job comparison keeps provider prices clear of each other on a phone', async ({ page }) => {
+test('a comparison keeps provider prices clear of each other on a phone', async ({ page }) => {
   await page.goto('/catalog/people')
-  await expect(page.locator('.pl-job').first()).toBeVisible()
+  await expect(page.locator('.pl-cmp').first()).toBeVisible()
   expect(await fitsWidth(page)).toBe(true)
-  await page.locator('.pl-job').first().click()
+  await page.locator('.pl-cmp').first().click()
   await expect(page.getByRole('table').first()).toBeVisible()
   expect(await fitsWidth(page)).toBe(true)
   // No two pieces of text in one comparison row paint over each other (helpers.textCollisions).

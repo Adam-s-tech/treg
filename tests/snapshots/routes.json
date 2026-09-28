@@ -140,8 +140,8 @@
       "GET",
       "HEAD"
     ],
-    "name": "catalog_job_page",
-    "path": "/catalog/{slug:shelf}/{job}"
+    "name": "catalog_comparison_page",
+    "path": "/catalog/{slug:shelf}/{key}"
   },
   {
     "kind": "APIRoute",

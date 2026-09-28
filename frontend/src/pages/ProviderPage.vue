@@ -85,10 +85,10 @@ export default { components: { ToolDrawer }, setup: useDashboard }
           </div>
 
           <!-- Every tool this provider serves, by platform. A tool that is one of several providers
-               doing the same job links to that job's comparison: from "what does my key do" to
+               doing the same thing links to that capability's comparison: from "what does my key do" to
                "who else does this, and how do they compare". -->
           <!-- The catalog-v2 control arm (state/catalogExperiment.js) keeps the page it had: platform
-               chips in place of the tool list, whose links lead to job pages the ledger does not have. -->
+               chips in place of the tool list, whose links lead to comparison pages the ledger does not have. -->
           <div class="tgroup" v-if="!catalogLegacy && (mkToolShelves.length || (mkTools && mkTools.loading))">
             <div class="tgh">Tools <span class="tgh-n" v-if="mkToolCount">{{mkToolCount}}</span>
               <span class="tgh-hint">what an agent can call on {{mkProvider.display_name}}, by platform</span></div>
@@ -100,8 +100,8 @@ export default { components: { ToolDrawer }, setup: useDashboard }
                 <div v-for="t in p.tools" :key="t.id" class="pl-card pl-tool" :class="{on:drawerTool===t.id}" role="button" tabindex="0"
                      @click="openTool(t.id)" @keydown.enter="openTool(t.id)">
                   <span class="pl-tool-b"><b>{{t.title}}</b>
-                    <span class="pl-meta">{{toolPrice(t.e)}}<template v-if="t.job"> · <a class="pv-cmp"
-                      :href="platUrl(p.slug, t.job.key)" @click.stop.prevent="openJobOn(p.slug, t.job.key)" :title="t.job.description">compare with {{t.job.providers-1}} other{{t.job.providers>2?'s':''}}</a></template></span></span>
+                    <span class="pl-meta">{{toolPrice(t.e)}}<template v-if="t.compare"> · <a class="pv-cmp"
+                      :href="platUrl(p.slug, t.compare.key)" @click.stop.prevent="openComparisonOn(p.slug, t.compare.key)" :title="t.compare.description">compare with {{t.compare.providers-1}} other{{t.compare.providers>2?'s':''}}</a></template></span></span>
                 </div>
               </div>
             </div>

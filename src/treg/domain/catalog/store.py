@@ -109,7 +109,7 @@ class Catalog:
     aliases: dict[str, list[str]] = field(default_factory=dict)
     # lazy per-instance search index (see _search_fields) — never part of identity or repr
     _search_fields: list | None = field(default=None, init=False, repr=False, compare=False)
-    _jobs: dict | None = field(default=None, init=False, repr=False, compare=False)  # see jobs()
+    _compared: dict | None = field(default=None, init=False, repr=False, compare=False)  # see compared()
     by_id: dict[str, dict] = field(default_factory=dict)
     provider_meta: dict[str, dict] = field(default_factory=dict)  # service -> {limits, pricing_url, docs}
     contracts: dict = field(default_factory=dict)   # capability -> routing.Contract
@@ -127,17 +127,18 @@ class Catalog:
     def for_provider(self, service: str) -> list[dict]:
         return [e for e in self.endpoints if e["provider"] == service]
 
-    def jobs(self) -> dict[tuple[str, str], frozenset[str]]:
-        """Every JOB, (platform, capability) -> its providers: a capability at least two providers
-        serve on one platform, browsable endpoints only. The one rule behind a shelf's job cards,
-        the job pages and the sitemap entries for them, and a provider's "compare" links."""
-        if self._jobs is None:
+    def compared(self) -> dict[tuple[str, str], frozenset[str]]:
+        """The capabilities worth a comparison, (platform, capability) -> its providers: at least two
+        providers serve it on that platform, browsable endpoints only. The one rule behind a shelf's
+        comparison cards, the comparison pages and their sitemap entries, and a provider's
+        "compare" links."""
+        if self._compared is None:
             sellers: dict[tuple[str, str], set[str]] = {}
             for e in self.endpoints:
                 if e.get("capability") and browsable(e):
                     sellers.setdefault((e["platform"], e["capability"]), set()).add(e["provider"])
-            object.__setattr__(self, "_jobs", {k: frozenset(v) for k, v in sellers.items() if len(v) >= 2})
-        return self._jobs
+            object.__setattr__(self, "_compared", {k: frozenset(v) for k, v in sellers.items() if len(v) >= 2})
+        return self._compared
 
 
     def cost_view(self, cost, provider: str | None = None) -> dict | None:
@@ -270,16 +271,16 @@ class Catalog:
 
 _CACHE: Catalog | None = None
 
-def job_key(platform: str, capability: str) -> str:
-    """A job's URL segment: the capability without its platform's prefix (`enrich` for
+def capability_key(platform: str, capability: str) -> str:
+    """A capability's URL segment on a platform: its id without the platform's prefix (`enrich` for
     `companies.enrich` on companies), or the whole id when it is filed under another prefix."""
     return capability.removeprefix(platform + ".")
 
 
-def job_capability(cat: Catalog, platform: str, key: str) -> str | None:
-    """The job a URL segment names on a platform, or None when that is not a job there."""
-    jobs = cat.jobs()
-    return next((c for c in (f"{platform}.{key}", key) if (platform, c) in jobs), None)
+def compared_capability(cat: Catalog, platform: str, key: str) -> str | None:
+    """The compared capability a URL segment names on a platform, or None when there is none."""
+    compared = cat.compared()
+    return next((c for c in (f"{platform}.{key}", key) if (platform, c) in compared), None)
 
 
 def load(*, refresh: bool = False, directory: Path | None = None) -> Catalog:

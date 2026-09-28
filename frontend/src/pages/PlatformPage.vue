@@ -6,8 +6,8 @@ import CatalogSearch from '../components/CatalogSearch.vue'
 import ProviderLogo from '../components/ProviderLogo.vue'
 import { DataTable } from '../components/ui/table'
 
-// A platform shelf, read at two levels: the shelf (the jobs several providers do, then every other
-// tool) and one job (let treg pick, or compare the providers). A tool opens in a drawer over either,
+// A platform shelf, read at two levels: the shelf (the capabilities several providers serve, then
+// every other tool) and one comparison (let treg pick, or compare the providers). A tool opens in a drawer over either,
 // so a comparison never loses its table. The look is the landing page's: surfaces, not boxes.
 export default {
   components: { ToolDrawer, FindAnswer, CatalogSearch, DataTable, ProviderLogo },
@@ -21,10 +21,10 @@ export default {
   <div v-else-if="platErr" class="pl-empty">{{platErr}}</div>
 
   <!-- THE SHELF -->
-  <template v-else-if="platData && !platJob">
+  <template v-else-if="platData && !platCap">
     <header class="pl-hero">
       <nav class="pl-crumbs" aria-label="Breadcrumb"><a href="/catalog" @click.prevent="go('connections')">Catalog</a><span>/</span>{{platLabel}}</nav>
-      <p class="pl-eyebrow">{{platJobIndex.length}} jobs compared · {{platToolTotal}} more tools · {{platProvLine.length}} providers</p>
+      <p class="pl-eyebrow">{{platComparisons.length}} jobs compared · {{platToolTotal}} more tools · {{platProvLine.length}} providers</p>
       <h1>{{platLabel}}</h1>
       <p v-if="platRow && platRow.summary" class="pl-lede">{{platRow.summary}}</p>
       <CatalogSearch v-model="platQ" :scope="platSlug" :scope-label="platLabel"
@@ -33,12 +33,12 @@ export default {
 
     <FindAnswer v-if="findActive && find.scope===platSlug" class="pl-find" />
 
-    <section v-if="platJobList.length" class="pl-sec">
-      <h2 class="pl-h"><span>Jobs several providers do</span><i></i><em>{{platJobList.length}}</em></h2>
+    <section v-if="platComparisonsShown.length" class="pl-sec">
+      <h2 class="pl-h"><span>Jobs several providers do</span><i></i><em>{{platComparisonsShown.length}}</em></h2>
       <div class="pl-grid">
-        <a v-for="j in platJobList" :key="j.key" class="pl-card pl-job" :href="platUrl(platSlug, j.slug)" @click.prevent="openJob(j.slug)">
-          <span class="pl-job-h"><b>{{j.title}}</b><span v-if="j.routed" class="pl-auto" title="One call: treg picks the provider for you">Autopilot</span></span>
-          <span class="pl-job-f">
+        <a v-for="j in platComparisonsShown" :key="j.key" class="pl-card pl-cmp" :href="platUrl(platSlug, j.slug)" @click.prevent="openComparison(j.slug)">
+          <span class="pl-cmp-h"><b>{{j.title}}</b><span v-if="j.routed" class="pl-auto" title="One call: treg picks the provider for you">Autopilot</span></span>
+          <span class="pl-cmp-f">
             <span class="pl-stack" aria-hidden="true"><ProviderLogo v-for="s in j.logos" :key="s" :service="s" /></span>
             <span class="pl-meta">{{j.meta}}</span>
           </span>
@@ -47,7 +47,7 @@ export default {
     </section>
 
     <!-- Every other tool, then the account and setup plumbing: one card each, the same card. -->
-    <section v-for="sec in [{key:'tools', label:platJobList.length ? 'More tools' : 'Tools', items:platTools},
+    <section v-for="sec in [{key:'tools', label:platComparisonsShown.length ? 'More tools' : 'Tools', items:platTools},
                             {key:'setup', label:'Account and setup', items:platPlumbing, quiet:true}].filter(s=>s.items.length)"
              :key="sec.key" class="pl-sec">
       <h2 class="pl-h" :class="{'pl-h-quiet':sec.quiet}"><span>{{sec.label}}</span><i></i><em>{{sec.items.length}}</em></h2>
@@ -59,7 +59,7 @@ export default {
       </div>
     </section>
 
-    <p v-if="platFilterQ && !platJobList.length && !platTools.length && !platPlumbing.length && !findActive && !findSoon" class="pl-empty">
+    <p v-if="platFilterQ && !platComparisonsShown.length && !platTools.length && !platPlumbing.length && !findActive && !findSoon" class="pl-empty">
       Nothing in {{platLabel}} matches “{{platQ.trim()}}”. <button class="pl-link" @click="platQ=''">Clear the search</button></p>
 
     <footer v-if="platProvLine.length" class="pl-provs">
@@ -72,42 +72,42 @@ export default {
   </template>
 
   <!-- ONE JOB -->
-  <template v-else-if="platData && platJob">
-    <div v-if="!platJobRow" class="pl-empty">{{platLabel}} has no job called “{{platJob}}”.
-      <button class="pl-link" @click="closeJob">See every job on {{platLabel}}</button></div>
+  <template v-else-if="platData && platCap">
+    <div v-if="!platCapRow" class="pl-empty">{{platLabel}} has no job called “{{platCap}}”.
+      <button class="pl-link" @click="closeComparison">See every job on {{platLabel}}</button></div>
     <template v-else>
       <header class="pl-hero">
         <nav class="pl-crumbs" aria-label="Breadcrumb"><a href="/catalog" @click.prevent="go('connections')">Catalog</a><span>/</span><a
-          :href="platUrl(platSlug)" @click.prevent="closeJob">{{platLabel}}</a></nav>
-        <p class="pl-eyebrow">{{platJobMeta.meta}}</p>
-        <h1 class="pl-h1-job">{{platJobRow.description}}</h1>
+          :href="platUrl(platSlug)" @click.prevent="closeComparison">{{platLabel}}</a></nav>
+        <p class="pl-eyebrow">{{platComparison.meta}}</p>
+        <h1 class="pl-h1-cmp">{{platCapRow.description}}</h1>
       </header>
 
       <!-- treg's own answer first when there is one: one call, and nobody has to choose. -->
-      <section v-if="platJobMeta.routed" class="pl-autocard">
+      <section v-if="platComparison.routed" class="pl-autocard">
         <div class="pl-auto-t">
           <p class="pl-eyebrow inv">Autopilot</p>
-          <h2>{{platJobMeta.provN}} providers, one call.</h2>
+          <h2>{{platComparison.provN}} providers, one call.</h2>
           <p>treg picks the best match for what you send and tries the next if one comes back empty.
             Your own keys always go first.</p>
           <ul class="pl-auto-f">
-            <li><b>{{costShort(platJobMeta.routed.cost)}}</b>starting price</li>
+            <li><b>{{costShort(platComparison.routed.cost)}}</b>starting price</li>
             <li><b>$1</b>cap per call</li>
           </ul>
         </div>
         <div class="pl-auto-r">
-          <div class="pl-code"><code>{{platJobMeta.routed.call_template}}</code>
-            <button @click="catalogCopy(platJobMeta.routed)">{{platCopied===platJobMeta.routed.id ? 'Copied' : 'Copy'}}</button></div>
+          <div class="pl-code"><code>{{platComparison.routed.call_template}}</code>
+            <button @click="catalogCopy(platComparison.routed)">{{platCopied===platComparison.routed.id ? 'Copied' : 'Copy'}}</button></div>
           <div class="pl-auto-a">
-            <button class="pl-btn inv" @click="catalogTry(platJobMeta.routed)">Try it</button>
-            <button class="pl-link inv" @click="openTool(platJobMeta.routed.id)">How it picks →</button>
+            <button class="pl-btn inv" @click="catalogTry(platComparison.routed)">Try it</button>
+            <button class="pl-link inv" @click="openTool(platComparison.routed.id)">How it picks →</button>
           </div>
         </div>
       </section>
 
       <section class="pl-sec">
-        <h2 class="pl-h"><span>{{platJobMeta.routed ? 'Or choose a provider' : 'Choose a provider'}}</span><i></i><em>{{platJobChoices.length}}</em></h2>
-        <DataTable :columns="jobColumns" :rows="platJobChoices" :row-key="r => r.id" v-model:sort="platJobSort"
+        <h2 class="pl-h"><span>{{platComparison.routed ? 'Or choose a provider' : 'Choose a provider'}}</span><i></i><em>{{platComparisonRows.length}}</em></h2>
+        <DataTable :columns="comparisonColumns" :rows="platComparisonRows" :row-key="r => r.id" v-model:sort="platComparisonSort"
                    :selected="drawerTool" interactive variant="plain" surface @row-click="r => openTool(r.id)">
           <template #cell-provider="{ row: r }"><div class="c-prov-i">
             <ProviderLogo :service="r.e.provider" large />
@@ -123,10 +123,10 @@ export default {
           <b>Useful</b> what teams' agents said after using the result, one vote per team, past 5 teams; compare it within this table only.</p>
       </section>
 
-      <section v-if="platOtherJobs.length" class="pl-sec">
+      <section v-if="platOtherComparisons.length" class="pl-sec">
         <h2 class="pl-h"><span>Other jobs on {{platLabel}}</span><i></i></h2>
         <div class="pl-grid">
-          <a v-for="j in platOtherJobs" :key="j.key" class="pl-card pl-job sm" :href="platUrl(platSlug, j.slug)" @click.prevent="openJob(j.slug)">
+          <a v-for="j in platOtherComparisons" :key="j.key" class="pl-card pl-cmp sm" :href="platUrl(platSlug, j.slug)" @click.prevent="openComparison(j.slug)">
             <b>{{j.title}}</b><span class="pl-meta">{{j.meta}}</span>
           </a>
         </div>
