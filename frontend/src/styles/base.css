@@ -1008,24 +1008,33 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
 .pl-prov .pl-logo{width:20px;height:20px;flex-basis:20px;border-radius:6px}
 .pl-prov .pl-logo img{width:13px;height:13px}
 
-/* Comparison page: treg's answer, a dark card like the landing's "give this to your agent". */
-.pl-autocard{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:36px;align-items:center;margin:0 0 56px;
-  padding:34px 36px;border-radius:20px;background:var(--inverse);color:var(--inverse-ink);box-shadow:var(--shadow-lg)}
-.pl-eyebrow.inv{color:color-mix(in srgb,var(--inverse-ink) 55%,transparent)}
+/* Comparison page: treg's answer, lit like /search: a surface under the landing hero's soft green
+   light and a dot field fading out from the same corner. */
+.pl-autocard{--pl-glow:#5b8a5a38;--pl-dot:#ffffff1c;position:relative;isolation:isolate;overflow:hidden;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:36px;align-items:center;margin:0 0 56px;
+  padding:34px 36px;border-radius:20px;background:var(--surface);color:var(--ink);box-shadow:var(--shadow-md)}
+[data-theme="light"] .pl-autocard{--pl-glow:#dce8d5;--pl-dot:#1a1a1a1a}
+.pl-autocard::before,.pl-autocard::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none}
+.pl-autocard::before{background:radial-gradient(ellipse 110% 150% at 30% -10%,var(--pl-glow),transparent 68%)}
+.pl-autocard::after{background:radial-gradient(var(--pl-dot) .8px,transparent 1.1px) 0 0/7px 7px;
+  -webkit-mask-image:radial-gradient(ellipse 85% 130% at 25% -10%,#000 10%,transparent 70%);
+  mask-image:radial-gradient(ellipse 85% 130% at 25% -10%,#000 10%,transparent 70%)}
 .pl-autocard h2{margin:10px 0 0;font-size:26px;font-weight:600;letter-spacing:-.02em;line-height:1.2}
-.pl-autocard p{margin:10px 0 0;font-size:14.5px;line-height:1.6;color:color-mix(in srgb,var(--inverse-ink) 72%,transparent)}
-.pl-auto-f{display:flex;gap:28px;margin:22px 0 0;padding:0;list-style:none;font-size:12px;color:color-mix(in srgb,var(--inverse-ink) 55%,transparent)}
-.pl-auto-f b{display:block;margin-bottom:2px;font-family:var(--mono);font-size:15px;font-weight:500;color:var(--inverse-ink)}
-.pl-auto-a{display:flex;align-items:center;gap:18px;margin-top:14px}
-.pl-code{display:flex;align-items:flex-start;gap:10px;padding:12px 12px 12px 16px;border-radius:12px;background:#0f0f0f;color:#e8e8e2}
+.pl-autocard p{margin:10px 0 0;font-size:14.5px;line-height:1.6;color:var(--muted)}
+.pl-auto-f{display:flex;gap:28px;margin:22px 0 0;padding:0;list-style:none;font-size:12px;color:var(--muted)}
+.pl-auto-f b{display:block;margin-bottom:2px;font-family:var(--mono);font-size:15px;font-weight:500;color:var(--ink)}
+.pl-auto-a{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-top:14px}
+/* A command is read and copied, never the headline: a quiet inset, not a black slab. The copy is
+   the primary button beside it. */
+.pl-code{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:12px;
+  background:color-mix(in srgb,var(--bg) 70%,transparent);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line2)}
 .pl-code code{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere;background:none;padding:0;font-family:var(--mono);font-size:12.5px;line-height:1.55;color:inherit}
-.pl-code button{flex:0 0 auto;padding:6px 12px;border:0;border-radius:8px;background:rgba(255,255,255,.1);color:#e8e8e2;font:inherit;font-size:12px;cursor:pointer}
-.pl-code button:hover{background:rgba(255,255,255,.18)}
 .pl-btn{display:inline-flex;align-items:center;height:38px;padding:0 18px;border:0;border-radius:999px;background:var(--inverse);
   color:var(--inverse-ink);font:inherit;font-size:13.5px;font-weight:500;cursor:pointer;transition:transform .15s var(--ease)}
 .pl-btn:hover{transform:translateY(-1px)}
-.pl-btn.inv{background:var(--inverse-ink);color:var(--inverse)}
-.pl-link.inv{color:var(--inverse-ink);text-decoration-color:color-mix(in srgb,var(--inverse-ink) 35%,transparent)}
+.pl-btn.ghost{background:var(--surface);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line2)}
+.pl-btn.ghost:hover{background:var(--hover)}
+.pl-copy{min-width:172px;justify-content:center}   /* "Copied" must not shift the buttons beside it */
 
 .c-prov-i{display:flex;align-items:center;gap:12px}
 .c-name{display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -1035,7 +1044,11 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
 .pl-tag{display:inline-block;max-width:100%;margin:2px 4px 2px 0;padding:2px 8px;border-radius:6px;background:var(--panel2);font-size:12px;color:var(--ink)}
 .c-price{font-family:var(--mono);font-size:12.5px;color:var(--ink);white-space:nowrap}
 .c-v{display:block;font-family:var(--mono);font-size:14px;font-weight:500;font-variant-numeric:tabular-nums}
-.c-v.low{color:var(--red)}
+/* A review label reads like Steam's: blue when positive, amber when mixed, red when negative. */
+.c-rev{display:block;font-size:13.5px;font-weight:550;white-space:nowrap}
+.c-rev.pos,.rev.pos{color:var(--teal)} .c-rev.mixed,.rev.mixed{color:var(--amber)} .c-rev.neg,.rev.neg{color:var(--red)}
+.td-stats b.rev{font-family:var(--sans);font-size:14.5px;font-weight:600;line-height:1.35;margin-top:5px}
+.td-rev-sum{margin:0 0 10px;font-size:13.5px;color:var(--muted)}
 .c-n{display:block;margin-top:1px;font-size:11px;color:var(--muted2)}
 .c-none{color:var(--muted2)}
 .pl-note{display:none;margin:14px 4px 0;max-width:92ch;font-size:12px;line-height:1.6;color:var(--muted2)}
@@ -1068,9 +1081,8 @@ a.td-prov:hover{color:var(--ink);text-decoration:underline;text-underline-offset
 .td-stats span{display:block;font-size:11.5px;color:var(--muted)}
 .td-stats b{display:block;margin-top:4px;font-family:var(--mono);font-size:16px;font-weight:500;font-variant-numeric:tabular-nums;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.td-stats b.low{color:var(--red)}
 .td-stats i{display:block;margin-top:2px;font-style:normal;font-size:11px;color:var(--muted2)}
-.td-act{display:flex;align-items:center;gap:18px;margin:0 0 14px}
+.td-act{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin:12px 0 14px}
 .td-act .pl-link{font-size:13.5px}
 .td-facts{margin:12px 0 26px;font-size:12.5px;color:var(--muted2)}
 .td-tabs{display:flex;gap:22px;margin:0 0 18px;box-shadow:inset 0 -1px 0 var(--line)}

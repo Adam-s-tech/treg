@@ -86,7 +86,7 @@ export default {
       <!-- treg's own answer first when there is one: one call, and nobody has to choose. -->
       <section v-if="platComparison.routed" class="pl-autocard">
         <div class="pl-auto-t">
-          <p class="pl-eyebrow inv">Autopilot</p>
+          <p class="pl-eyebrow">Autopilot</p>
           <h2>{{platComparison.provN}} providers, one call.</h2>
           <p>treg picks the best match for what you send and tries the next if one comes back empty.
             Your own keys always go first.</p>
@@ -96,11 +96,13 @@ export default {
           </ul>
         </div>
         <div class="pl-auto-r">
-          <div class="pl-code"><code>{{platComparison.routed.call_template}}</code>
-            <button @click="catalogCopy(platComparison.routed)">{{platCopied===platComparison.routed.id ? 'Copied' : 'Copy'}}</button></div>
+          <!-- The page's one primary action is handing this line to your agent: copying needs no
+               account and costs nothing. Trying it here is the optional step beside it. -->
+          <div class="pl-code"><code>{{platComparison.routed.call_template}}</code></div>
           <div class="pl-auto-a">
-            <button class="pl-btn inv" @click="catalogTry(platComparison.routed)">Try it</button>
-            <button class="pl-link inv" @click="openTool(platComparison.routed.id)">How it picks →</button>
+            <button class="pl-btn pl-copy" @click="catalogCopy(platComparison.routed)">{{platCopied===platComparison.routed.id ? 'Copied' : 'Copy for your agent'}}</button>
+            <button class="pl-btn ghost" @click="catalogTry(platComparison.routed)">Try it</button>
+            <button class="pl-link" @click="openTool(platComparison.routed.id)">How it picks →</button>
           </div>
         </div>
       </section>
@@ -117,10 +119,10 @@ export default {
           <template #cell-takes="{ row: r }"><span v-for="t in r.takes" :key="t" class="pl-tag">{{t}}</span><span v-if="!r.takes.length" class="c-none">—</span></template>
           <template #cell-price="{ row: r }"><span class="c-price">{{toolPrice(r.e)}}</span></template>
           <template #cell-works="{ row: r }"><span :title="worksTitle(r)"><template v-if="r.works"><span class="c-v">{{r.works.pct}}%</span><span class="c-n">{{approxCalls(r.works.n)}}</span></template><span v-else class="c-none">—</span></span></template>
-          <template #cell-useful="{ row: r }"><span :title="usefulTitle(r)"><template v-if="r.useful"><span class="c-v" :class="{low:r.useful.pct<50}">{{r.useful.pct}}%</span><span class="c-n">{{approxTeams(r.useful.n)}}</span></template><span v-else class="c-none">—</span></span></template>
+          <template #cell-useful="{ row: r }"><span :title="usefulTitle(r)"><template v-if="r.useful"><span class="c-rev" :class="r.useful.tone">{{r.useful.label}}</span><span class="c-n">{{approxTeams(r.useful.n)}}</span></template><span v-else class="c-none">—</span></span></template>
         </DataTable>
         <p class="pl-note"><b>Works</b> share of the last 30 days' calls that did not end in a provider error, past 20 calls.
-          <b>Useful</b> what teams' agents said after using the result, one vote per team, past 5 teams; compare it within this table only.</p>
+          <b>Reviews</b> what teams' agents said after using the result, from Positive to Negative, one vote per team, once 5 teams have rated it.</p>
       </section>
 
       <section v-if="platOtherComparisons.length" class="pl-sec">

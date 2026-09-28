@@ -120,3 +120,18 @@ test('a routed tool can be tried by hand, and says who serves it in one line', a
   await expect(drawer.getByRole('button', { name: /Run/ })).toBeVisible()
   await expect(drawer.getByText(/needs a key/)).toHaveCount(0)
 })
+
+test("a tool drawer's primary button is the next step to an agent using the tool", async ({ page }) => {
+  const drawer = page.getByRole('complementary', { name: 'Tool details' })
+  const primary = () => drawer.locator('.td-act .pl-btn:not(.ghost)').first()
+  await page.goto('/catalog/companies/enrich')
+  await page.getByRole('table').getByRole('row').filter({ hasText: 'Crustdata' }).first().click()
+  await expect(primary()).toHaveText('Copy for your agent')        // treg's key serves it: hand it over
+  await expect(drawer.getByRole('button', { name: 'Try it' })).toHaveClass(/ghost/)
+  await page.getByRole('table').getByRole('row').filter({ hasText: 'Ocean' }).first().click()
+  await expect(primary()).toHaveText(/^Add your .+ key$/)          // only your own key can call it
+  await page.goto('/catalog/google-analytics')
+  await page.locator('.pl-tool').first().click()
+  await expect(primary()).toHaveText(/^Connect /)                  // an account to connect first
+  await expect(drawer.locator('.td-stats')).toContainText('your account')
+})

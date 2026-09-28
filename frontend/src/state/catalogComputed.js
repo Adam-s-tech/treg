@@ -5,7 +5,7 @@ const COL_TIPS = {
   takes:'What you can send it. Each tag is one input it accepts; — means the catalog has not mapped it yet.',
   price:"What one call costs on treg's key, in the provider's own unit: per call, per result or per success. With your own key the provider bills you, and treg adds nothing.",
   works:'Share of the last 30 days of calls that ended without a provider error. Shown once there are 20 or more.',
-  useful:"Share of teams whose agents found the result useful after using it, one vote per team, last 90 days. Shown once 5 teams have rated it; compare it within this table only.",
+  useful:"What teams' agents said after using the result, read like Steam's user reviews: Positive, Mostly positive, Mixed, Mostly negative or Negative by the share that found it useful (partly useful counts half), and Very or Overwhelmingly once 25 or 50 teams agree. One vote per team, last 90 days, shown once 5 teams have rated it.",
 }
 
 export default {
@@ -195,7 +195,7 @@ platComparisonRows(){
       const rows=eps.map(e=>{ const o=this.platObserved[e.id];
         return {e, id:e.id, twin:perProv[e.provider]>1, takes:this.takesLabel(this.platAccepts[e.id]),
                 usd:e.platform_eligible===false ? null : this.costUsd(e.cost), works:this.worksOf(o), useful:this.usefulOf(e)}; });
-      const k=this.platComparisonSort.key, val=r=>k==='price' ? r.usd : k==='works' ? (r.works&&r.works.pct) : (r.useful&&r.useful.pct);
+      const k=this.platComparisonSort.key, val=r=>k==='price' ? r.usd : k==='works' ? (r.works&&r.works.pct) : (r.useful&&r.useful.rank*1000+r.useful.pct);
       const dir=this.platComparisonSort.dir==='asc' ? 1 : -1;   // unmeasured rows stay last either way
       return rows.sort((a,b)=>{ const x=val(a), y=val(b);
         if(x==null && y==null) return (a.e.provider_display||a.e.provider).localeCompare(b.e.provider_display||b.e.provider);
@@ -207,7 +207,7 @@ platComparisonRows(){
       {key:'takes', header:'Takes', tip:t.takes, minWidth:'150px', wrap:true, mobile:'wide'},
       {key:'price', header:'Price', tip:t.price, align:'right', sortable:true, sortFirst:'asc'},
       {key:'works', header:'Works', tip:t.works, align:'right', sortable:true, sortFirst:'desc'},
-      {key:'useful', header:'Useful', tip:t.useful, align:'right', sortable:true, sortFirst:'desc'}]; },
+      {key:'useful', header:'Reviews', tip:t.useful, align:'right', sortable:true, sortFirst:'desc', minWidth:'132px'}]; },
 platOtherComparisons(){ return this.platComparisons.filter(j=>j!==this.platComparison).slice(0,6); },
 drawerIds(){
       if(this.view==='provider') return [...this.mkToolShelves.flatMap(p=>p.tools), ...this.mkToolShelves.flatMap(p=>p.plumbing)].map(t=>t.id);
@@ -217,6 +217,12 @@ drawerIds(){
     drawerStats(){ const e=this.drawerEp; if(!e) return {};
       const d=this.drawerInfo;
       return {works:this.worksOf(d && d.endpoint && d.endpoint.observed) || this.worksOf(this.platObserved[e.id]), useful:this.usefulOf(e)}; },
+// What stands between your agent and this tool: an account to connect (OAuth), a key to add (a tool
+    // only your own key can call), or nothing, and the line can go to the agent as it is.
+    drawerNext(){ const e=this.drawerEp; if(!e) return '';
+      if(this.catEndpointConnected(e)) return 'copy';
+      if(this.provAuthKind(e.provider)==='oauth') return 'connect';
+      return e.platform_eligible===false ? 'key' : 'copy'; },
 // Everything else worth knowing, as one quiet line instead of a row of chips.
     drawerFacts(){ const e=this.drawerEp; if(!e) return '';
       const access={'Platform + BYOK':"treg's key or yours", 'Platform access':"treg's key", 'BYOK only':'your own key only'}[this.endpointAccessLabel(e)] || this.endpointAccessLabel(e);

@@ -890,12 +890,19 @@ h1, the platform summary, the search box), then three zones, nothing behind "sho
   signed out, `/app/marketplace/<service>` signed in).
 
 **The comparison page** answers "which provider". Its h1 is the capability's description; a dark
-**Autopilot** card leads when the capability has a routed tool ("29 providers, one call.", the starting price, the $1 cap, the call line, Try
-it, and "How it picks" opening the routed tool in the drawer); then **the comparison** as one surface:
-Provider, Takes, Price, Works, Useful. Takes comes from the routing plan's `accepts` (absent means
-unmapped, never incompatible). Works is `observed.ok_rate` past 20 decided calls; Useful is the
-endpoint's agent verdict share past five teams (`architecture/feedback.md`). Counts are shown by band
-(`approxCalls`, `approxTeams`), never exact. Price, Works and Useful sort (`platComparisonSort`); every column
+**Autopilot** card leads when the capability has a routed tool ("29 providers, one call.", the starting price, the $1 cap, the call line, "Copy for your agent" as
+the page's primary action with Try it beside it, and "How it picks" opening the routed tool in the
+drawer). The card is a light surface under the /search page's soft green light and a fading dot
+field; a call line is a quiet inset, never a dark block, so the primary button leads; then **the comparison** as one surface:
+Provider, Takes, Price, Works, Reviews. Takes comes from the routing plan's `accepts` (absent means
+unmapped, never incompatible). Works is `observed.ok_rate` past 20 decided calls. Reviews reads the
+endpoint's agent verdicts (`architecture/feedback.md`, past five teams) the way Steam reads user
+reviews (`reviewSummary`): the positive share, a partly useful verdict counting half, named Positive
+(80%+), Mostly positive (70%+), Mixed (40%+), Mostly negative (20%+) or Negative, with Very at 25+
+teams and Overwhelmingly at 50+ (and 95%+ for the positive one); blue, amber or red. It sorts by label,
+then share. The drawer shows the same label, and its Reviews tab the share, the bar and the quotes.
+Counts are shown by band (`approxCalls`, `approxTeams`), never exact. Price, Works and Reviews sort
+(`platComparisonSort`); every column
 heading carries a hover/focus tip (`COL_TIPS`), because the ground rules behind each number matter more
 than the number. One `/catalog/endpoints/<lead>` read supplies every sibling's `observed` and the
 plan; when the server's observation cache had not read some of them yet (`observed_pending`) it is
@@ -903,9 +910,11 @@ asked once more 1.5 s later. The drawer's example tab reads the example from tha
 comparisons follow as small cards.
 
 **The tool drawer** (`ToolDrawer.vue`) is not modal: the list behind it stays live, ↑/↓ walk the list
-it was opened from (`drawerIds`), Esc closes. It leads with the tool and three numbers (price, works,
-useful), one primary action (Try it, or Connect for an OAuth provider not connected), the call line,
-then one quiet line of facts (`drawerFacts`: whose key, live verification, scope) in place of a row
+it was opened from (`drawerIds`), Esc closes. It leads with the tool and three figures (price, works,
+reviews), the call line, and one primary action: the next step to an agent using the tool
+(`drawerNext`): Connect for an OAuth provider not connected, "Add your key" for a tool only your own
+key can call, else "Copy for your agent", which copies the call line. Try it sits beside it as the
+optional step. Then one quiet line of facts (`drawerFacts`: whose key, live verification, scope) in place of a row
 of chips. Parameters are a definition list, not a table, so long names and types never collide;
 provider billing notes fold under "Billing and limits". The Reviews tab shows the verdict bar and the
 quotes. A drawer opened from it (Try it) stacks on top: the tool drawer steps back and rounds, and
