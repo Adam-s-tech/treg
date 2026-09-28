@@ -1,5 +1,20 @@
 import { markRaw } from 'vue'
 
+// Agents' verdicts read the way Steam reads user reviews: the positive share (a partly useful verdict
+// counts half) named by its band, and the stronger words only once enough teams stand behind it.
+// `teams` is already a band (5, 10, 25, 50), which is exactly where Very and Overwhelmingly start.
+export function reviewSummary(r){
+  const s=r.share.useful+r.share.partly/2, n=r.teams;
+  const [tone, label] = s>=.8 ? ['pos', s>=.95 && n>=50 ? 'Overwhelmingly positive' : n>=25 ? 'Very positive' : 'Positive']
+    : s>=.7 ? ['pos', 'Mostly positive'] : s>=.4 ? ['mixed', 'Mixed'] : s>=.2 ? ['neg', 'Mostly negative']
+    : ['neg', n>=50 ? 'Overwhelmingly negative' : n>=25 ? 'Very negative' : 'Negative'];
+  // `rank` orders the labels (Very positive above Positive: as good, and more teams say so); sorts
+  // go by it first, then by the share.
+  return {tone, label, pct:Math.round(s*100), n, rank:REVIEW_LABELS.indexOf(label)};
+}
+const REVIEW_LABELS = ['Overwhelmingly negative', 'Very negative', 'Negative', 'Mostly negative', 'Mixed',
+  'Mostly positive', 'Positive', 'Very positive', 'Overwhelmingly positive']
+
 export default {
 // ---- endpoint catalog (/catalog/*) ----
     // The catalog is additive: every failure here leaves the marketplace exactly as it was, so a
@@ -215,6 +230,10 @@ verdictLabel(v){ return ({useful:'Useful', partly:'Partly useful', not_useful:'N
 verdictClient(c){ return ({'claude-code':'Claude Code', codex:'Codex', cursor:'Cursor', 'claude-connector':'Claude', cli:'treg CLI', pi:'Pi'})[c]||''; },
 verdictDate(d){ try{ const m=String(d).length===7;   // a review carries only its month
       return new Date(d+(m?'-01':'')+'T00:00:00Z').toLocaleDateString('en-US', m ? {month:'short', year:'numeric', timeZone:'UTC'} : {month:'short', day:'numeric', timeZone:'UTC'}); }catch(err){ return d; } },
+// How a provider authorizes: the member's connection registry when signed in, else the open
+    // platform payload, so a signed-out visitor is told the same thing.
+    provAuthKind(service){ const p=this.providers.find(p=>p.service===service)
+      || (this.platData&&this.platData.providers||{})[service]; return (p&&p.auth_kind)||''; },
 endpointAccessLabel(e){
       if(e.kind==='routed') return 'Routed platform call';
       if(e.id==='fishaudio.voices.list') return 'Team voices + BYOK';
@@ -320,15 +339,17 @@ capCheapest(eps){
     approxCalls(n){ return (n>=1e5 ? '100k+' : n>=1e4 ? '10k+' : n>=1e3 ? '1k+' : n>=100 ? '100+' : n>=50 ? '50+' : '20+')+' calls'; },
 approxTeams(n){ return (n>=50 ? '50+' : n>=25 ? '25+' : n>=10 ? '10+' : '5+')+' teams'; },
 worksTitle(r){ return r.works ? r.works.pct+'% of '+this.approxCalls(r.works.n)+' in the last 30 days ended without a provider error' : 'Fewer than 20 calls in the last 30 days'; },
-usefulTitle(r){ const v=r.useful && r.e.reviews;
-      return v ? this.verdictKinds.map(k=>this.verdictPct(v, k)).join(' · ')+' - from '+this.approxTeams(v.teams)+'\' agents after using the result, last 90 days'
+usefulTitle(r){ const s=r.useful, v=s && r.e.reviews;
+      return v ? s.label+': '+s.pct+'% positive ('+this.verdictKinds.map(k=>this.verdictPct(v, k)).join(', ')+') from '
+                 +this.approxTeams(v.teams)+'\' agents after using the result, last 90 days'
                : 'Fewer than 5 teams have rated it'; },
 // The two measured numbers, one rule each wherever they show: success once 20 calls are decided,
     // agents' verdict once 5 teams have rated (the server publishes nothing below that).
     worksOf(o){ return o && o.decided>=20 && o.ok_rate!=null ? {pct:Math.round(o.ok_rate*100), n:o.decided} : null; },
-usefulOf(e){ return e.reviews ? {pct:Math.round(e.reviews.share.useful*100), n:e.reviews.teams} : null; },
-// A tool's price on a card or a row: an own-key-only tool has no treg price to show.
-    toolPrice(e){ return e.platform_eligible===false ? 'your key only' : this.costShort(e.cost); },
+usefulOf(e){ return e.reviews ? reviewSummary(e.reviews) : null; },
+// A tool's price on a card or a row: a tool only your own key or account can call has no treg price.
+    toolPrice(e){ return e.platform_eligible!==false ? this.costShort(e.cost)
+      : this.provAuthKind(e.provider)==='oauth' ? 'your account' : 'your key only'; },
 // A price small enough for a collapsed line: "$0.024/call", "2 rows", "free", "credit-priced".
     // The long form ("per success · price in provider dashboard") is true but belongs in the
     // expanded detail — inline it wraps a row onto three lines, which is what broke the merged rows.

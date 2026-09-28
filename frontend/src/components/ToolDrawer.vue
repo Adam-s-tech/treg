@@ -37,19 +37,20 @@ export default {
     <div class="td-stats">
       <div><span>Price</span><b>{{toolPrice(drawerEp)}}</b></div>
       <div><span>Works</span><b>{{drawerStats.works ? drawerStats.works.pct+'%' : '—'}}</b><i v-if="drawerStats.works">{{approxCalls(drawerStats.works.n)}}, 30 days</i></div>
-      <div><span>Useful</span><b :class="{low:drawerStats.useful && drawerStats.useful.pct<50}">{{drawerStats.useful ? drawerStats.useful.pct+'%' : '—'}}</b><i v-if="drawerStats.useful">{{approxTeams(drawerStats.useful.n)}}</i></div>
+      <div><span>Reviews</span><b v-if="drawerStats.useful" class="rev" :class="drawerStats.useful.tone">{{drawerStats.useful.label}}</b><b v-else>—</b><i v-if="drawerStats.useful">{{approxTeams(drawerStats.useful.n)}}</i></div>
     </div>
 
+    <!-- The primary button is the next step to your agent using this tool (`drawerNext`): connect the
+         account or add the key it needs, else hand it the line. Trying it here is optional. -->
+    <div v-if="drawerEp.call_template" class="pl-code"><code>{{drawerEp.call_template}}</code></div>
     <div class="td-act">
-      <button v-if="mkOauth(drawerEp.provider) && !catEndpointConnected(drawerEp)" class="pl-btn"
-              @click="catalogConnect(drawerEp)">{{endpointConnectLabel(drawerEp)}}</button>
-      <button v-else class="pl-btn" @click="catalogTry(drawerEp)">Try it</button>
+      <button v-if="drawerNext==='connect'" class="pl-btn" @click="catalogConnect(drawerEp)">{{endpointConnectLabel(drawerEp)}}</button>
+      <button v-else-if="drawerNext==='key'" class="pl-btn" @click="catalogByok(drawerEp.provider, drawerEp)">Add your {{drawerEp.provider_display||drawerEp.provider}} key</button>
+      <button v-if="drawerEp.call_template" class="pl-btn pl-copy" :class="{ghost:drawerNext!=='copy'}" @click="catalogCopy(drawerEp)">{{platCopied===drawerEp.id ? 'Copied' : 'Copy for your agent'}}</button>
+      <button v-if="drawerNext==='copy'" class="pl-btn" :class="{ghost:!!drawerEp.call_template}" @click="catalogTry(drawerEp)">Try it</button>
       <a v-if="drawerEp.docs_url || provFact(drawerEp.provider,'pricing_url')" class="pl-link" :href="drawerEp.docs_url || provFact(drawerEp.provider,'pricing_url')"
          target="_blank" rel="noopener" @click="catalogDocs(drawerEp)">{{drawerEp.docs_url ? 'Docs' : 'Pricing'}} ↗</a>
     </div>
-
-    <div v-if="drawerEp.call_template" class="pl-code"><code>{{drawerEp.call_template}}</code>
-      <button @click="catalogCopy(drawerEp)">{{platCopied===drawerEp.id ? 'Copied' : 'Copy'}}</button></div>
 
     <p class="td-facts">{{drawerFacts}}</p>
 
@@ -76,7 +77,7 @@ export default {
         <summary>Billing and limits</summary>
         <ul><li v-for="(f,fi) in epFacts(drawerEp)" :key="fi">{{f}}</li></ul>
       </details>
-      <p v-if="!publicCatalog && mkKnown(drawerEp.provider) && !mkOauth(drawerEp.provider)" class="td-byok">
+      <p v-if="!publicCatalog && drawerNext==='copy' && mkKnown(drawerEp.provider) && !mkOauth(drawerEp.provider)" class="td-byok">
         Have your own {{drawerEp.provider_display||drawerEp.provider}} key? <button class="pl-link" @click="catalogByok(drawerEp.provider, drawerEp)">Use it</button>:
         your key always wins, and those calls are never metered.</p>
     </div>
@@ -88,6 +89,7 @@ export default {
     </div>
 
     <div v-if="drawerEp.reviews" v-show="epTabOf(drawerEp)==='rev'" class="td-rev">
+      <p class="td-rev-sum"><b class="rev" :class="drawerStats.useful.tone">{{drawerStats.useful.label}}</b> · {{drawerStats.useful.pct}}% positive, partly useful counting half</p>
       <div class="td-rev-bar" aria-hidden="true"><span v-for="v in verdictKinds" :key="v" :class="v" :style="{flexGrow:drawerEp.reviews.share[v]}"></span></div>
       <p class="td-rev-legend"><span v-for="v in verdictKinds" :key="v"><i :class="v"></i>{{verdictPct(drawerEp.reviews, v)}}</span></p>
       <p class="td-note">From {{approxTeams(drawerEp.reviews.teams)}}' agents after using the result, one vote per team, last 90 days.</p>
