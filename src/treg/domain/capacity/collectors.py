@@ -167,6 +167,16 @@ async def _firecrawl(c, key):
             "note": f"billing period ends {data.get('billingPeriodEnd') or 'unknown'}"}
 
 
+async def _linkup(c, key):
+    d = await _get(c, "https://api.linkup.so/v1/credits/balance",
+                   headers={"Authorization": f"Bearer {key}"})
+    raw = d.get("balance") if isinstance(d, dict) else None
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)) \
+            or not math.isfinite(float(raw)) or raw < 0:
+        raise ValueError("Linkup returned no valid USD balance")
+    return {"value": float(raw), "unit": "USD", "note": "prepaid credit balance"}
+
+
 async def _scrapegraphai(c, key):
     d = await _get(c, "https://v2-api.scrapegraphai.com/api/credits",
                    headers={"SGAI-APIKEY": key})
@@ -810,6 +820,7 @@ BALANCE_ROUTES = {
     "tinyfish": _tinyfish,
     "fishaudio": _fishaudio,
     "tavily": _tavily,
+    "linkup": _linkup,
     "serper": _serper,
     "olostep": _olostep,
     "firecrawl": _firecrawl,

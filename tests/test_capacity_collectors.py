@@ -438,6 +438,24 @@ async def test_firecrawl_balance_uses_free_credit_usage_endpoint():
             await collectors._firecrawl(client, "test-key")
 
 
+async def test_linkup_balance_uses_free_credit_route_and_rejects_invalid_values():
+    def probe(request):
+        assert str(request.url) == "https://api.linkup.so/v1/credits/balance"
+        assert request.headers["authorization"] == "Bearer test-key"
+        return httpx.Response(200, json={"balance": 12.34})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(probe)) as client:
+        assert await collectors._linkup(client, "test-key") == {
+            "value": 12.34, "unit": "USD", "note": "prepaid credit balance",
+        }
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(
+        lambda _: httpx.Response(200, json={"balance": True})
+    )) as client:
+        with pytest.raises(ValueError, match="valid USD balance"):
+            await collectors._linkup(client, "test-key")
+
+
 async def test_scrapegraphai_balance(monkeypatch):
     monkeypatch.setenv("TREG_PLATFORM_KEY_SCRAPEGRAPHAI", "test-key")
     collectors.get_settings.cache_clear()

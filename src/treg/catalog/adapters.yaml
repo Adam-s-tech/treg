@@ -2663,6 +2663,13 @@ adapters:
     const: {body.search_depth: basic, body.include_usage: true}
     out: {results: results, count: "len(results)"}
     miss: "coalesce(results, []) == []"
+  linkup.web.search:
+    accepts: [[q]]
+    in: {q: body.q}
+    in_expr: {body.maxResults: limit}
+    const: {body.depth: flash, body.outputType: searchResults}
+    out: {results: results, count: "len(results)"}
+    miss: "choose(results == null, false, results == [])"
   exa.web.search:
     accepts: [[q]]
     in: {q: body.query}
@@ -2737,6 +2744,13 @@ adapters:
     const: {body.extract_depth: basic}
     out: {pages: results, count: "len(results)"}
     miss: "coalesce(results, []) == []"
+  linkup.web.fetch:
+    accepts: [[url]]
+    in: {url: body.url}
+    test_identity: {url: "https://example.com"}
+    const: {body.mode: standard, body.renderJs: false}
+    out: {pages: "list(.)", count: "len(list(.))"}
+    miss: "coalesce(markdown, '') == ''"
   keenable.web.fetch:
     accepts: [[url]]
     in: {url: queryParams.url}

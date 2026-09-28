@@ -2500,6 +2500,32 @@ TAVILY = OAuthProvider(
     probe_path="/usage",
 )
 
+LINKUP = OAuthProvider(
+    service="linkup",
+    display_name="Linkup",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="your Linkup API key",
+    setup_url="https://app.linkup.so",
+    setup_action_label="Get your Linkup API key",
+    setup_steps=(
+        "Sign in to Linkup and open the API Keys section.",
+        "Create or copy a key.",
+    ),
+    setup_note=(
+        "Search, Fetch and Research use prepaid USD credit. treg checks the free balance "
+        "endpoint when you connect the key."
+    ),
+    auth_uri="", token_uri="",
+    scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="SEO",
+    summary="Search the web, fetch pages, and run sourced research.",
+    base_url="https://api.linkup.so",
+    docs_url="https://docs.linkup.so/pages/documentation/get-started/introduction",
+    probe_path="/v1/credits/balance",
+)
+
 SERPER = OAuthProvider(
     service="serper",
     display_name="Serper",
@@ -3604,7 +3630,7 @@ REGISTRY: dict[str, OAuthProvider] = {
         TIKHUB, BRIGHTDATA, SEMRUSH, JUSTONEAPI,
         SCRAPECREATORS,
         # SEO API-key providers
-        DATAFORSEO, SERANKING, MOZ, MAJESTIC, SERPSTAT, EXA, TAVILY, KEENABLE, OLOSTEP, FIRECRAWL,
+        DATAFORSEO, SERANKING, MOZ, MAJESTIC, SERPSTAT, EXA, TAVILY, LINKUP, KEENABLE, OLOSTEP, FIRECRAWL,
         SCRAPEGRAPHAI, SERPER, CLORO,
         # more Enrichment API-key providers
         LUSHA, CORESIGNAL, DIFFBOT, THECOMPANIESAPI, LEADMAGIC, FIBER_AI, CRUSTDATA, AVIATO,
