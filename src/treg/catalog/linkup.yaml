@@ -156,7 +156,7 @@ endpoints:
       body:
         q: {type: string, required: true, example: "What is example.com used for?"}
         outputType: {type: string, required: true, enum: [sourcedAnswer, structured], example: sourcedAnswer}
-        reasoningDepth: {type: string, required: false, default: L, enum: [S, M, L, XL], example: S}
+        reasoningDepth: {type: string, required: true, enum: [S, M, L, XL], example: S}
         mode: {type: string, required: false, default: auto, enum: [answer, auto, investigate, research]}
         includeDomains: {type: "array[string]", required: false, maxItems: 100}
         excludeDomains: {type: "array[string]", required: false}
@@ -179,7 +179,7 @@ endpoints:
       source_url: https://docs.linkup.so/pages/documentation/platform/pricing
       checked: '2026-09-29'
       confidence: documented
-      note: "Successful Research tasks are billed by reasoning depth; failed tasks are free."
+      note: "Research price depends on reasoningDepth, not mode. Linkup documents that errors deduct no credit; treg releases a failed task's hold."
     verified: '2026-09-29'
     docs_url: https://docs.linkup.so/pages/documentation/endpoints/research/post
     example_response: examples/linkup.web.answer.json

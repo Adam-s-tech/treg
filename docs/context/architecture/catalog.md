@@ -317,8 +317,11 @@ Linkup's curated `web.search` and Markdown `web.extract` rows have verified rout
 Research remains a direct asynchronous `web.answer` tool. Search's `depth` and `outputType` select
 one published per-success price. The Fetch route has separate Markdown and structured catalog
 rows because supplying `schema` changes the price; both rows price `mode` and `renderJs` with
-declarative tables and enforce distinct body allowlists. Research reserves the requested
-`reasoningDepth` price, releases failed tasks, and settles successful tasks after the owned
+declarative tables and enforce distinct body allowlists. Research requires an explicit
+`reasoningDepth` so callers choose its $0.25–$2.50 price; Linkup otherwise defaults to L at $1.50.
+Its published pricing varies by depth, not mode. Research reserves the requested depth price,
+releases failed tasks under Linkup's documented no-charge-on-error policy, and settles successful
+tasks after the owned
 `GET /v1/research/{id}` poll reports completion. The polling read is free and restricted to the
 team that submitted the task on the shared key. Account-wide task listing, mixed batch Tasks,
 closed-beta Extract, and the undocumented Responses route are outside the shared-key catalog.
