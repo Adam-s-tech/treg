@@ -43,6 +43,7 @@ sources:
   - frontend/src/pages/DetailPage.vue
   - frontend/src/pages/GettingStartedPage.vue
   - frontend/src/pages/getting-started-art.ts
+  - frontend/e2e/experiments.spec.ts
   - frontend/src/components/AgentCover.vue
   - frontend/src/pages/HelpPage.vue
   - frontend/src/pages/PlatformPage.vue
@@ -327,11 +328,15 @@ The authenticated wrapper's `.redesign` class scopes `media/redesign/dashboard.c
 the existing `/media` mount. It uses the system UI font for interface text, Geist Pixel for page titles,
 and DM Mono for commands and balances (the only two web fonts, bundled from pinned `@fontsource`
 packages; see `design.md`), with light and dark semantic colors. Getting started uses
-an approximately 1080px centered column, a split agent-preview/setup card, prompt cards with a
-banner under a frosted panel, and the existing optional Build on treg and manual setup flows. On
+an approximately 1080px centered column, a split agent-preview/setup card, prompt cards, and the existing optional Build on treg and manual setup flows. On
 mobile the setup card and prompt grid stack. OpenClaw's preview is a static poster; every other agent
 gets `AgentCover.vue`, a gradient, cropped mark and title over a dot grid that animates only while on
-screen and not under reduced motion. Getting started artwork is imported through
+screen and not under reduced motion. The prompt cards are a PostHog experiment,
+`getting-started-example-art`: `test` puts a banner under a frosted panel on each card, `control`
+keeps them text-only. The grid renders once `featureVariant` (state/analytics.js) answers; with no
+PostHog, a loading error or no answer within 800 ms it shows control without reading the flag, so
+only people who saw an assigned arm count as exposed. `tryit_prompt_copied` carries the arm as
+`art`. Getting started artwork is imported through
 `pages/getting-started-art.ts`, so Vite hashes it and serves it immutable from `/app/ui/assets`:
 banners and the designer's mark variants from `frontend/src/assets/getting-started/`, unmodified
 brand marks from the pinned `@lobehub/icons-static-svg` package. The older shell artwork is still

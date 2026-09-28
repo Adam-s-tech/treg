@@ -125,14 +125,18 @@ body:has(.redesign)::before { display:none; }
 .rd-try .start-bd { padding:12px 24px 24px; }
 .rd-try-intro { max-width:427px; margin:0 0 22px; font:400 16px/22px var(--display); }
 .rd-start .try-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-/* Each card is a banner with a frosted panel over its lower edge. Cards in a grid row stretch to
-   one height, so their panels line up without measuring. */
-.rd-start .try-card { --try-bg:#f3f3f3; position:relative; isolation:isolate; display:flex; flex-direction:column; min-width:0; overflow:hidden; container-type:inline-size; padding:0; border:0; border-radius:20px; background:var(--try-bg); }
-[data-theme="dark"] .rd-start .try-card { --try-bg:var(--panel2); }
-.rd-try-banner { position:absolute; inset:0 0 auto; z-index:0; width:100%; height:40cqw; object-fit:cover; object-position:center top; transition:transform 1s cubic-bezier(.16,1,.3,1); }
+.rd-start .try-card { display:flex; flex-direction:column; min-width:0; padding:16px; border:1px solid var(--line); border-radius:20px; background:var(--panel2); transition:border-color .15s,background .15s; }
+.rd-start .try-card:hover { border-color:var(--line2); background:var(--surface); }
+/* The experiment's banner arm: a banner with a frosted panel over its lower edge. Cards in a grid
+   row stretch to one height, so their panels line up without measuring. The banner is clipped
+   short of the card's bottom, or it shows through the rounded corners of a one-line card. */
+.rd-start .try-card.rd-try-art { --try-bg:#f3f3f3; position:relative; isolation:isolate; overflow:hidden; container-type:inline-size; padding:0; border:0; background:var(--try-bg); }
+[data-theme="dark"] .rd-start .try-card.rd-try-art { --try-bg:var(--panel2); }
+.rd-try-banner { position:absolute; inset:0 0 auto; z-index:0; width:100%; height:40cqw; object-fit:cover; object-position:center top; clip-path:inset(0 0 24px); transition:transform 1s cubic-bezier(.16,1,.3,1); }
 .rd-start .try-card:hover .rd-try-banner { transform:scale(1.07); }
-.rd-try-panel { position:relative; z-index:1; display:block; flex:1; margin-top:22cqw; padding:16px; border-radius:16px 16px 0 0; background-color:var(--try-bg); background-image:linear-gradient(color-mix(in srgb,var(--try-bg) 88%,transparent),color-mix(in srgb,var(--try-bg) 97%,transparent) 48%,var(--try-bg)); backdrop-filter:blur(8px); overflow-wrap:anywhere; transition:background-color .7s cubic-bezier(.16,1,.3,1); }
-@media (hover:hover) and (pointer:fine) { :root:not([data-theme="dark"]) .rd-start .try-card:hover .rd-try-panel { background-color:transparent; } }
+.rd-try-panel { display:block; }
+.rd-try-art .rd-try-panel { position:relative; z-index:1; flex:1; margin-top:22cqw; padding:16px; border-radius:16px 16px 0 0; background-color:var(--try-bg); background-image:linear-gradient(color-mix(in srgb,var(--try-bg) 88%,transparent),color-mix(in srgb,var(--try-bg) 97%,transparent) 48%,var(--try-bg)); backdrop-filter:blur(8px); overflow-wrap:anywhere; transition:background-color .7s cubic-bezier(.16,1,.3,1); }
+@media (hover:hover) and (pointer:fine) { :root:not([data-theme="dark"]) .rd-start .try-card.rd-try-art:hover .rd-try-panel { background-color:transparent; } }
 @media (prefers-reduced-motion:reduce) { .rd-try-banner, .rd-try-panel { transition:none; } }
 .rd-start .try-cat { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0; color:var(--ink); font:400 12.5px/19px var(--sans); letter-spacing:0; text-transform:none; }
 [data-theme="dark"] .rd-start .try-ico { filter:brightness(0) invert(1); }
