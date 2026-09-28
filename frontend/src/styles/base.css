@@ -1116,3 +1116,39 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
 @keyframes boot-in{to{opacity:1}}
 @keyframes boot-slide{from{transform:translateX(-100%)}to{transform:translateX(290%)}}
 @media (prefers-reduced-motion:reduce){.boot-bar::before{animation:none;width:100%;opacity:.35}}
+/* Agent verdicts on a catalog endpoint: a quiet line on the row, the bar and quotes one tab down.
+   Grey unless most teams found it not useful - a green "82%" on every line was a wall of colour
+   that ranked nothing, since the share only compares providers of one job. */
+.lrev{font-family:var(--sans);font-size:11px;color:var(--muted);white-space:nowrap;
+  font-variant-numeric:tabular-nums;margin-right:7px}
+.lrev.low{color:var(--red)}
+.lsub .lrev{margin-right:0}
+.lrevs{max-width:82ch;padding-bottom:4px}
+.lrev-bar{display:flex;gap:2px;height:6px;border-radius:3px;overflow:hidden;margin:2px 0 8px}
+.lrev-bar span{flex-basis:0;min-width:0}
+.lrev-bar .useful,.lrev-legend i.useful{background:var(--green)}
+.lrev-bar .partly,.lrev-legend i.partly{background:var(--amber)}
+.lrev-bar .not_useful,.lrev-legend i.not_useful{background:var(--red)}
+.lrev-legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin:0 0 6px;font-size:11.5px;color:var(--ink);
+  font-variant-numeric:tabular-nums}
+.lrev-legend span{display:inline-flex;align-items:center;gap:6px}
+.lrev-legend i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.lrev-note{margin:0 0 12px;font-size:11.5px;line-height:1.55;color:var(--muted)}
+.lrev-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+.lrev-list li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;align-items:baseline;
+  font-size:12px;line-height:1.5}
+.lrev-v{font-size:10.5px;font-weight:500;white-space:nowrap}
+.lrev-v.useful{color:var(--green)} .lrev-v.partly{color:var(--amber)} .lrev-v.not_useful{color:var(--red)}
+.lrev-q{color:var(--ink);overflow-wrap:anywhere}
+.lrev-m{grid-column:2;font-size:10.5px;color:var(--muted2)}
+/* Phone width, after the rules it overrides: a provider line keeps its name whole (price, marks
+   and verdict wrap under it, the route drops), and the detail's tabs sit on one line with the
+   buttons on the next, never a tab squeezed to a letter per line. */
+@media(max-width:760px){
+  .lsub{flex-wrap:wrap;row-gap:3px}
+  .lsub-label{flex:1 1 calc(100% - 60px)}
+  .lsub-path{display:none}
+  .ltabs{flex-wrap:wrap;row-gap:7px}
+  .ltab{white-space:nowrap}
+  .ltabs-r{margin-left:0;flex-wrap:wrap}
+}

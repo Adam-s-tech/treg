@@ -87,7 +87,8 @@ export default function data(){
       platOpen:{},         // ledger row key → row expanded
       platActionsOpen:false,  // the single platform-wide account/utility ("Actions") section is open
       epOpen:{},           // endpoint id → its provider sub-row (level two, merged rows only) is open
-      epTab:{},            // endpoint id → which pane of its detail is showing ('req' | 'res')
+      epTab:{},            // endpoint id → which pane of its detail is showing ('req' | 'res' | 'rev')
+      verdictKinds:['useful','partly','not_useful'],   // an endpoint's agent verdicts, in bar order
       platEx:{},           // endpoint id → {open, loading, err, text} for the lazily-fetched example
       platCopied:'',       // endpoint id whose `treg call` line was just copied
       capAsk:null,  // the access question, asked when a one-method provider has several scope levels

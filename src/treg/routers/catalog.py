@@ -12,6 +12,7 @@ from .. import audit, oauth_providers
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..application import catalog_find as find
+from ..application import feedback as feedback_app
 from ..config import get_settings
 from ..infra.db import get_session
 from ..domain.capacity.routes_view import view as overflow_routes_view
@@ -120,8 +121,12 @@ async def catalog_platform(slug: str, include_hidden: int = 0) -> dict:
     grouped: dict[str, list[dict]] = {}
     extended: list[dict] = []
     pairs: list[tuple[dict, dict]] = []
+    verdicts = await _verdicts_or_empty()
     for ep in eps:
         view = catalog_store.endpoint_view(ep, _provider_display(ep["provider"]), cat)
+        # Only where enough teams have rated it (`domain.feedback.verdicts`); absent otherwise.
+        if ep["id"] in verdicts:
+            view["reviews"] = verdicts[ep["id"]]
         pairs.append((ep, view))
         if ep["capability"]:
             grouped.setdefault(ep["capability"], []).append(view)
@@ -218,6 +223,16 @@ async def _observed_or_empty(
         return await reader.get_many(endpoint_ids)
     except Exception:  # noqa: BLE001
         logging.getLogger("treg.catalog").warning("endpoint stats unavailable", exc_info=True)
+        return {}
+
+
+async def _verdicts_or_empty() -> dict[str, dict]:
+    """What agents said after using each endpoint's result — or `{}`, for the same reason as
+    `_observed_or_empty`: an enrichment must never take the catalog down."""
+    try:
+        return await feedback_app.endpoint_verdicts()
+    except Exception:  # noqa: BLE001
+        logging.getLogger("treg.catalog").warning("endpoint verdicts unavailable", exc_info=True)
         return {}
 
 

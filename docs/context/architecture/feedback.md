@@ -6,6 +6,7 @@ sources:
   - src/treg/domain/feedback/__init__.py
   - src/treg/domain/feedback/reports.py
   - src/treg/domain/feedback/reviews.py
+  - src/treg/domain/feedback/verdicts.py
   - src/treg/hints.py
   - src/treg/config.py
   - src/treg/routers/call.py
@@ -20,6 +21,7 @@ sources:
   - src/treg/web/feedback.md
   - tests/test_feedback.py
   - tests/test_reviews.py
+  - tests/test_endpoint_verdicts.py
   - tests/test_hints.py
   - tests/test_kv.py
 related:
@@ -120,8 +122,9 @@ parent endpoint as `routed_via`; otherwise it retains parent attribution. `invit
 from a 2xx, non-cached record with `credential_tier == "platform"` and the current review
 sampling rate. Routed and own-key catalog calls can still be reviewed uninvited. Every agent-facing
 text says one review per invitation: volunteered reviews are accepted and labelled `invited=false`,
-but they are not requested, and a future score must use invited rows only (an agent that reviews
-every call of a batch, seen in production on launch day, would otherwise weigh as much as a team). Retries return
+but they are not requested. An agent that reviews every call of a batch (seen in production on
+launch day) must not weigh more than a team, which the published score below settles by counting
+teams, not rows. Retries return
 the original ID and `already_reviewed`; a unique index also arbitrates concurrent submissions. Its savepoint
 stays open until the application commit, avoiding SQLite deferred-BEGIN early commits. The sole writer
 is `domain.feedback.reviews`; the moved `reports` module preserves feedback behavior.
@@ -197,8 +200,30 @@ cap or adaptive sampling is implemented.
 
 Models lean toward `useful`, ratings often precede actual use despite the instructions, and
 models differ in how they use the scale. A score is only meaningful when comparing sibling
-endpoints of one capability. Phase 1 collects only: no aggregation, catalog scores, ranking,
-team-side read route, dashboard, or adaptive per-endpoint sampling.
+endpoints of one capability, so it is published per endpoint and never rolled up per provider: a
+provider's average would mostly measure how hard its jobs are (keyword volume is easier to answer
+than finding a person's phone). There is no ranking, no effect on routing or `catalog_get`, no
+team-side read route, and no adaptive per-endpoint sampling.
+
+## Published verdicts
+
+`domain.feedback.verdicts` folds the last 90 days of reviews into what `GET /catalog/platforms/{slug}`
+attaches to an endpoint as `reviews`: `{teams, share: {useful, partly, not_useful}, samples}`.
+One team is one vote per endpoint; a team's several reviews split that vote across the verdicts it
+gave. That is what lets volunteered reviews count beside invited ones: a batch-rating agent moves
+its own team's vote, not the endpoint's. `not_sure` is not a verdict and is left out. An endpoint
+rated by fewer than five teams carries no `reviews` at all.
+
+`samples` quotes at most three reasons, at most one per team (its latest), drawn in the proportions
+the teams voted (largest remainder) rather than picked for tone, newest first, each with its
+verdict, date and the review's `client`. A reason is quotable only at 40 characters or more and
+without an email address or a link or domain, which name what another team was looking up rather
+than how the endpoint did. No team, user or call is identified. The catalog page is public, so the
+quotes are too.
+
+`application.feedback.endpoint_verdicts` reads the window once per process every five minutes on
+the API pool, single-flight, and keeps the previous fold when a refresh fails; the router attaches
+nothing when there is no fold at all, because an enrichment must never take the catalog down.
 
 ## Response-rate query
 

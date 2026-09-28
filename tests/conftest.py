@@ -499,6 +499,9 @@ def _reset_call_path_caches():
         # Who a key is, for the hub's lists: remembered a minute, and keys repeat across resets.
         from treg.routers import hub_gate
         hub_gate._readers.clear()
+        # The catalog's agent verdicts: a five-minute fold of callreview, which reset_db() empties.
+        from treg.application import feedback
+        feedback.forget_endpoint_verdicts()
     _clear()
     yield
     _clear()

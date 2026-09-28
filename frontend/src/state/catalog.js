@@ -140,6 +140,19 @@ costNative(c){ return c && c.display_unit ? '' : this.nativeAmount(c); },
       return ['The cheapest published rate across this platform’s endpoints',
               p.native ? 'billed as '+p.native+' / '+this.priceUnit(pf.type)+', converted at the catalog’s FX rate' : '',
               pf.note].filter(Boolean).join(' — '); },
+// Whether an endpoint's access deserves a chip on its line: only the exceptions to "treg's key or
+    // yours", the way a single row has always shown it.
+    accessNotable(e){ return e.kind==='routed' || e.platform_eligible===false; },
+// What agents said after using an endpoint's result. `reviews` is on the platform payload only
+    // past the server's team threshold, and the share is comparable between providers of one job,
+    // nothing more, so the line stays quiet grey unless most teams found it not useful.
+    verdictPct(e){ return Math.round(e.reviews.share.useful*100); },
+verdictLow(e){ return e.reviews.share.useful<0.5; },
+verdictTitle(e){ const r=e.reviews, p=v=>Math.round(r.share[v]*100)+'% '+this.verdictLabel(v).toLowerCase();
+      return this.verdictKinds.map(p).join(' · ')+' - from '+r.teams+' teams\' agents after using the result, last 90 days'; },
+verdictLabel(v){ return ({useful:'Useful', partly:'Partly useful', not_useful:'Not useful'})[v]||v; },
+verdictClient(c){ return ({'claude-code':'Claude Code', codex:'Codex', cursor:'Cursor', 'claude-connector':'Claude', cli:'treg CLI', pi:'Pi'})[c]||''; },
+verdictDate(d){ try{ return new Date(d+'T00:00:00Z').toLocaleDateString('en-US',{month:'short', day:'numeric', timeZone:'UTC'}); }catch(err){ return d; } },
 endpointAccessLabel(e){
       if(e.kind==='routed') return 'Routed platform call';
       if(e.id==='fishaudio.voices.list') return 'Team voices + BYOK';
@@ -305,9 +318,10 @@ async copyCall(e){
 // Which pane of an endpoint's detail is showing. What you SEND and what comes BACK are two
     // documents; stacking them made the expansion a page you scrolled rather than read.
     epTabOf(e){ const t=this.epTab[e.id];
-      return (t==='res' && !e.has_example) ? 'req' : (t || 'req'); },
+      return ((t==='res' && !e.has_example) || (t==='rev' && !e.reviews)) ? 'req' : (t || 'req'); },
 setEpTab(e, tab){
       if(tab==='res' && !e.has_example) return;      // no such tab; nothing to show
+      if(tab==='rev' && !e.reviews) return;
       this.epTab[e.id]=tab;
       if(tab==='res') this.loadExample(e); },
 // Fetched when the response tab is FIRST opened, never with the page: a platform can carry

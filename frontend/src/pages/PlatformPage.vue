@@ -131,7 +131,8 @@ export default {
                               v-if="pill.verified" class="vmark">✓</span></span>
                         <span v-if="r.pillsMore" class="pchip more" :title="r.pillsMoreTitle">+{{r.pillsMore}}</span>
                       </div>
-                      <span v-else class="lpath mono"><b>{{r.endpoints[0].provider_display||r.endpoints[0].provider}}</b>
+                      <span v-else class="lpath mono"><b>{{r.endpoints[0].provider_display||r.endpoints[0].provider}}</b><span
+                          v-if="r.endpoints[0].reviews" class="lrev" :class="{low:verdictLow(r.endpoints[0])}" :title="verdictTitle(r.endpoints[0])">{{verdictPct(r.endpoints[0])}}% useful</span>
                         <span class="chip" v-if="r.endpoints[0].platform_eligible===false">{{endpointAccessLabel(r.endpoints[0])}}</span><span class="cat-m">{{r.endpoints[0].method}}</span>{{r.endpoints[0].path}}<!--
                         --><span v-if="r.mgmt" class="chip lkind"
                               :title="r.endpoints[0].kind==='account' ? 'Manages the provider account itself — lists, campaigns, webhooks' : 'A helper route: token exchange, enum lookups, format cleanup'">{{r.endpoints[0].kind}}</span></span>
@@ -154,9 +155,12 @@ export default {
                           <span class="lcar">▸</span>
                           <span class="plogo-tile"><img class="plogo" :src="'/logos/'+e.provider+'.svg'" alt="" aria-hidden="true" @error="$event.target.style.visibility='hidden'"></span>
                           <span class="lsub-label"><b>{{e.provider_display||e.provider}}</b><span v-if="e.name" class="lsub-name">{{e.name}}</span></span>
-                          <span class="chip">{{endpointAccessLabel(e)}}</span>
+                          <!-- Only the exception gets a chip, as on a single row: nearly every provider
+                               here is "Platform + BYOK", and a chip on every line said nothing. -->
+                          <span v-if="accessNotable(e)" class="chip">{{endpointAccessLabel(e)}}</span>
                           <span class="lsub-price" :title="costTitle(e.cost)">{{costShort(e.cost)}}</span>
                           <span v-if="e.verified" class="vmark" :title="'Called for real on '+e.verified">✓</span>
+                          <span v-if="e.reviews" class="lrev" :class="{low:verdictLow(e)}" :title="verdictTitle(e)">{{verdictPct(e)}}% useful</span>
                           <span v-if="catEndpointConnected(e)" class="chip go" title="You have a connected account with an authorization method that can call this"><span class="godot"></span>connected</span>
                           <span class="lsub-path mono"><span class="cat-m">{{e.method}}</span>{{e.path}}</span>
                         </button>
@@ -203,6 +207,8 @@ export default {
                                tab, which reads as a label for the pane under it. -->
                           <button v-if="e.has_example" class="ltab" :class="{on:epTabOf(e)==='res'}"
                                   @click.stop="setEpTab(e,'res')">Example response</button>
+                          <button v-if="e.reviews" class="ltab" :class="{on:epTabOf(e)==='rev'}"
+                                  @click.stop="setEpTab(e,'rev')">Reviews</button>
                           <span class="ltabs-r">
                             <a v-if="e.docs_url" class="btn sm" :href="e.docs_url" target="_blank" rel="noopener" @click.stop>Docs ↗</a>
                             <a v-else-if="provFact(e.provider,'pricing_url')" class="btn sm" :href="provFact(e.provider,'pricing_url')" target="_blank" rel="noopener" @click.stop>Pricing ↗</a>
@@ -272,6 +278,26 @@ export default {
                           <div v-if="!platEx[e.id] || platEx[e.id].loading" class="mk-quiet" style="font-size:12px">Loading the captured response…</div>
                           <div v-else-if="platEx[e.id].err" class="mk-quiet" style="font-size:12px">{{platEx[e.id].err}}</div>
                           <pre v-else class="code">{{platEx[e.id].text}}</pre>
+                        </div>
+                        <!-- What agents said after using the result: one vote per team, published
+                             only past the server's team threshold (domain.feedback.verdicts). The
+                             quotes are drawn in the proportions the teams voted, not picked for tone. -->
+                        <div class="lrevs" v-if="e.reviews" v-show="epTabOf(e)==='rev'">
+                          <div class="lrev-bar" :title="verdictTitle(e)" aria-hidden="true">
+                            <span v-for="v in verdictKinds" :key="v" :class="v" :style="{flexGrow:e.reviews.share[v]}"></span>
+                          </div>
+                          <p class="lrev-legend">
+                            <span v-for="v in verdictKinds" :key="v"><i :class="v"></i>{{Math.round(e.reviews.share[v]*100)}}% {{verdictLabel(v).toLowerCase()}}</span>
+                          </p>
+                          <p class="lrev-note">From {{e.reviews.teams}} teams' agents after using the result, one vote per team, last 90 days.
+                            Compare it with the other providers of the same job; the scale is not absolute.</p>
+                          <ul class="lrev-list" v-if="e.reviews.samples.length">
+                            <li v-for="(q,qi) in e.reviews.samples" :key="qi">
+                              <span class="lrev-v" :class="q.usefulness">{{verdictLabel(q.usefulness)}}</span>
+                              <span class="lrev-q">{{q.reason}}</span>
+                              <span class="lrev-m">{{verdictDate(q.date)}}<template v-if="verdictClient(q.client)"> · via {{verdictClient(q.client)}}</template></span>
+                            </li>
+                          </ul>
                         </div>
                         </div>
                       </div>

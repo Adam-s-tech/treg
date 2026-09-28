@@ -1005,6 +1005,17 @@ thing that isn't there. Those endpoints show a single tab, which reads as a labe
 `epTabOf` also folds a stale `res` state back to `req`, so an endpoint can never be left showing a pane
 whose tab is gone.
 
+**Agent verdicts.** An endpoint whose platform payload carries `reviews` (only past the server's team
+threshold, `architecture/feedback.md`) shows a quiet `N% useful` after its price and ✓, on a single row
+and on a merged row's provider line, and gains a third tab, **Reviews**: a useful / partly / not useful
+bar, the team count and window, and up to three quoted reasons with date and runtime. The line is grey
+and turns red only below half useful: the share compares providers of one job and nothing else, so a
+green figure on every line would have ranked nothing. `epTabOf` folds a stale `rev` to `req` like `res`.
+A provider line shows its access chip only for the exceptions (`accessNotable`: routed, or not on
+treg's key), the same rule a single row always used; "Platform + BYOK" on every line said nothing. At
+phone width a provider line wraps its price and marks under the name and drops the route, and the tab
+bar wraps its buttons to their own line.
+
 Both panes are the **same bounded box**: `.prm` and `.cat-ex pre` cap at **320px** and scroll inside
 themselves. A DataForSEO body carries thirty parameters, and uncapped a single expansion pushed every
 row below it off the screen.

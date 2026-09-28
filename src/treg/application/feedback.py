@@ -1,15 +1,20 @@
 """Accept a report in one transaction, independently of best-effort call auditing."""
 
+import asyncio
+import time
+from datetime import timedelta
+
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 
 from .. import hints, ratestore
 from ..domain import feedback
-from ..domain.feedback import reviews
+from ..domain.feedback import reviews, verdicts
 from ..domain.governance.access import pinned_tag_predicates
 from ..feedback_contract import FeedbackCategory, ReviewUsefulness
 from ..infra.db import session_maker
 from ..models import CallRecord, LedgerEntry
+from ..timeutil import utcnow_naive
 
 RATE_MAX = 30
 RATE_WINDOW_S = 3600
@@ -124,3 +129,36 @@ async def submit_review(
         review_id = row.id
         await db.commit()
         return review_id, True
+
+
+VERDICTS_TTL_S = 300
+_verdicts: tuple[float, dict[str, dict]] | None = None
+_verdicts_lock = asyncio.Lock()
+
+
+async def endpoint_verdicts() -> dict[str, dict]:
+    """Every endpoint's published verdicts (`domain.feedback.verdicts`), one fold per process every
+    `VERDICTS_TTL_S`. The whole window is read at once: the catalog asks for a platform's worth of
+    endpoints per page, and one small table scan serves every page until it expires. A failed
+    refresh keeps serving the previous fold; the caller decides what no fold at all means."""
+    global _verdicts
+    if _verdicts is not None and time.monotonic() - _verdicts[0] < VERDICTS_TTL_S:
+        return _verdicts[1]
+    async with _verdicts_lock:
+        if _verdicts is not None and time.monotonic() - _verdicts[0] < VERDICTS_TTL_S:
+            return _verdicts[1]
+        try:
+            async with session_maker() as db:
+                rows = await verdicts.since(db, utcnow_naive() - timedelta(days=verdicts.WINDOW_DAYS))
+        except Exception:
+            if _verdicts is None:
+                raise
+            _verdicts = (time.monotonic(), _verdicts[1])   # retry after a full TTL, not per request
+            return _verdicts[1]
+        _verdicts = (time.monotonic(), verdicts.summarize(rows))
+        return _verdicts[1]
+
+
+def forget_endpoint_verdicts() -> None:
+    global _verdicts, _verdicts_lock
+    _verdicts, _verdicts_lock = None, asyncio.Lock()
