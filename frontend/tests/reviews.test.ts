@@ -27,3 +27,19 @@ test('a label ranks above the one below it, whatever the share', () => {
   expect([very.label, plain.label]).toEqual(['Very positive', 'Positive'])
   expect(very.rank).toBeGreaterThan(plain.rank)
 })
+
+// Early reviews (quotes from fewer than 5 teams, no `share`) never reach `reviewSummary`.
+import catalog from '../src/state/catalog.js'
+const early = { teams: 0, samples: [{ usefulness: 'partly', reason: 'x', client: 'codex', month: '2026-09' }] }
+
+test('an early object is not a score', () => {
+  expect(catalog.usefulOf({ reviews: early })).toBeNull()
+  expect(catalog.usefulOf({ reviews: r(0.8, 0, 5) })).toMatchObject({ label: 'Positive' })
+  expect(catalog.usefulOf({})).toBeNull()
+})
+
+test('the team band names the early state below five', () => {
+  expect(catalog.approxTeams(0)).toBe('under 5 teams')
+  expect(catalog.approxTeams(5)).toBe('5+ teams')
+  expect(catalog.approxTeams(25)).toBe('25+ teams')
+})

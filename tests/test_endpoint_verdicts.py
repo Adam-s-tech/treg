@@ -14,9 +14,23 @@ def review(org, usefulness="useful", reason=LONG, endpoint="a.b.c", day=0):
     return Review(endpoint, org, usefulness, reason, "codex", T0 + timedelta(days=day))
 
 
-def test_endpoint_below_threshold_publishes_nothing():
-    assert summarize([review(org) for org in range(4)]) == {}
+def test_endpoint_below_threshold_publishes_early_quotes_and_no_score():
+    early = summarize([review(org, day=org) for org in range(4)])["a.b.c"]
+    assert early["teams"] == 0 and "share" not in early
+    assert len(early["samples"]) == 3
     assert summarize([review(org) for org in range(5)])["a.b.c"]["teams"] == 5
+
+
+def test_early_reviews_without_a_quotable_reason_publish_nothing():
+    assert summarize([review(org, reason="Short.") for org in range(4)]) == {}
+    assert summarize([review(org, reason=None) for org in range(4)]) == {}
+
+
+def test_early_quotes_are_the_newest_one_per_team():
+    rows = ([review(1, "not_useful", day=d, reason=f"{LONG} Run {d}.") for d in range(3)]
+            + [review(2, "partly", day=9), review(3, reason="Short.", day=20)])
+    samples = summarize(rows)["a.b.c"]["samples"]
+    assert [(q["usefulness"], q["reason"]) for q in samples] == [("partly", LONG), ("not_useful", f"{LONG} Run 2.")]
 
 
 def test_the_team_count_is_published_as_its_band():
@@ -60,7 +74,8 @@ def test_quotable():
 
 async def test_platform_payload_carries_verdicts_past_the_threshold(clients):
     body = (await clients.get("/catalog/platforms/tiktok")).json()
-    target, other = [e["id"] for cap in body["capabilities"] for e in cap["endpoints"]][:2]
+    # Two providers of one capability, so the detail's siblings carry the other's reviews too.
+    target, other = [e["id"] for e in next(c for c in body["capabilities"] if len(c["endpoints"]) >= 2)["endpoints"]][:2]
     assert all("reviews" not in e for cap in body["capabilities"] for e in cap["endpoints"])
 
     orgs = [(await clients.post("/orgs", json={"name": f"Verdicts {i}"})).json()["org_id"] for i in range(5)]
@@ -82,9 +97,16 @@ async def test_platform_payload_carries_verdicts_past_the_threshold(clients):
     assert views[target]["reviews"]["teams"] == 5
     assert views[target]["reviews"]["share"]["useful"] == 0.8
     assert {q["client"] for q in views[target]["reviews"]["samples"]} == {"claude-code"}
-    assert "reviews" not in views[other]   # four verdicts and a `not_sure` are not five teams
+    # Four verdicts and a `not_sure` are not five teams: quoted as early, with no share.
+    assert views[other]["reviews"]["teams"] == 0 and "share" not in views[other]["reviews"]
+    assert len(views[other]["reviews"]["samples"]) == 3
     ledger = [e for d in body["domains"] for r in d["rows"] for e in r["endpoints"]]
     assert next(e for e in ledger if e["id"] == target)["reviews"]["teams"] == 5
+
+    # The endpoint's own detail (what `catalog_get` relays) carries the same object, siblings too.
+    detail = (await clients.get(f"/catalog/endpoints/{target}")).json()
+    assert detail["endpoint"]["reviews"]["teams"] == 5
+    assert next(s for s in detail["siblings"] if s["id"] == other)["reviews"]["teams"] == 0
 
 
 async def test_a_failed_fold_never_takes_the_catalog_down(clients, monkeypatch):

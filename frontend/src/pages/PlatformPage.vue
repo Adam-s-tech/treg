@@ -119,10 +119,10 @@ export default {
           <template #cell-takes="{ row: r }"><span v-for="t in r.takes" :key="t" class="pl-tag">{{t}}</span><span v-if="!r.takes.length" class="c-none">—</span></template>
           <template #cell-price="{ row: r }"><span class="c-price">{{toolPrice(r.e)}}</span></template>
           <template #cell-works="{ row: r }"><span :title="worksTitle(r)"><template v-if="r.works"><span class="c-v">{{r.works.pct}}%</span><span class="c-n">{{approxCalls(r.works.n)}}</span></template><span v-else class="c-none">—</span></span></template>
-          <template #cell-useful="{ row: r }"><span :title="usefulTitle(r)"><template v-if="r.useful"><span class="c-rev" :class="r.useful.tone">{{r.useful.label}}</span><span class="c-n">{{approxTeams(r.useful.n)}}</span></template><span v-else class="c-none">—</span></span></template>
+          <template #cell-useful="{ row: r }"><span :title="usefulTitle(r)"><template v-if="r.useful"><span class="c-rev" :class="r.useful.tone">{{r.useful.label}}</span><span class="c-n">{{approxTeams(r.useful.n)}}</span></template><template v-else-if="r.e.reviews"><span class="c-rev early">Early</span><span class="c-n">{{approxTeams(r.e.reviews.teams)}}</span></template><span v-else class="c-none">—</span></span></template>
         </DataTable>
         <p class="pl-note"><b>Works</b> share of the last 30 days' calls that did not end in a provider error, past 20 calls.
-          <b>Reviews</b> what teams' agents said after using the result, from Positive to Negative, one vote per team, once 5 teams have rated it.</p>
+          <b>Reviews</b> what teams' agents said after using the result, from Positive to Negative, one vote per team, scored once 5 teams have rated it; before that, Early, with their reasons quoted in the tool.</p>
       </section>
 
       <section v-if="platOtherComparisons.length" class="pl-sec">

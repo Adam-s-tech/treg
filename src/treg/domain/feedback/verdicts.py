@@ -3,8 +3,11 @@
 One team is one vote per endpoint. A team's several reviews of one endpoint split its vote across
 the verdicts it gave, so an agent that rates every call of a batch weighs as much as a team that
 rated once; that is what lets volunteered reviews count alongside invited ones. `not_sure` is not
-a verdict and is left out. An endpoint below `MIN_TEAMS` teams publishes nothing: a share of three
-teams is an anecdote, and the row stays silent rather than saying so.
+a verdict and is left out. An endpoint below `MIN_TEAMS` teams gets no share and no label: a
+share of three teams is an anecdote. What it does get is its reasons, quoted as early reviews
+under the band `teams: 0`, because one agent's account of what the result was good or bad for
+says more about an endpoint than a percentage over three votes would. With no quotable reason
+there is nothing to say, and the row stays silent.
 
 The score is only comparable between sibling endpoints of one capability (models lean toward
 `useful`, and a harder job draws harsher verdicts), which is why it is shown per endpoint and
@@ -80,15 +83,22 @@ def _samples(candidates: list[Review], share: dict[str, float], slots: int) -> l
     return sorted(picked, key=lambda r: r.created_at, reverse=True)
 
 
+def _quote(r: Review) -> dict:
+    # A month, never a day: enough to read, not enough to date a quote to the day another team
+    # ran its task.
+    return {"usefulness": r.usefulness, "reason": r.reason.strip(), "client": r.client,
+            "month": r.created_at.strftime("%Y-%m")}
+
+
 def summarize(reviews: list[Review], *, min_teams: int = MIN_TEAMS, samples: int = SAMPLES) -> dict[str, dict]:
-    """Per endpoint id with at least `min_teams` teams: `{teams, share, samples}`, `teams` banded."""
+    """Per endpoint id: `{teams, share, samples}` from `min_teams` teams, `teams` banded. Below
+    that the `share` is withheld (`teams` is then the band below the first, 0) and the row exists
+    only when there is a quotable reason to show."""
     by_endpoint: dict[str, dict[int, list[Review]]] = {}
     for r in reviews:
         by_endpoint.setdefault(r.endpoint_id, {}).setdefault(r.org_id, []).append(r)
     out: dict[str, dict] = {}
     for endpoint_id, teams in by_endpoint.items():
-        if len(teams) < min_teams:
-            continue
         votes = dict.fromkeys(VERDICTS, 0.0)
         candidates: list[Review] = []
         for rows in teams.values():
@@ -98,13 +108,11 @@ def summarize(reviews: list[Review], *, min_teams: int = MIN_TEAMS, samples: int
             if quoted:  # one quote per team at most: its latest
                 candidates.append(max(quoted, key=lambda r: r.created_at))
         share = {v: votes[v] / len(teams) for v in VERDICTS}
-        out[endpoint_id] = {
-            "teams": team_band(len(teams)),
-            # Two places and a month: enough to read, not enough to reconstruct one team's votes or
-            # to date a quote to the day another team ran its task.
-            "share": {v: round(s, 2) for v, s in share.items()},
-            "samples": [{"usefulness": r.usefulness, "reason": r.reason.strip(), "client": r.client,
-                         "month": r.created_at.strftime("%Y-%m")}
-                        for r in _samples(candidates, share, samples)],
-        }
+        scored = len(teams) >= min_teams
+        quotes = [_quote(r) for r in _samples(candidates, share, samples)]
+        if scored or quotes:
+            out[endpoint_id] = {"teams": team_band(len(teams)), "samples": quotes}
+        if scored:
+            # Two places: enough to read, not enough to reconstruct one team's votes.
+            out[endpoint_id]["share"] = {v: round(s, 2) for v, s in share.items()}
     return out
