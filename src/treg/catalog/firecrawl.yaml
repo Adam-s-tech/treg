@@ -72,8 +72,7 @@ endpoints:
     test_request: {body: {query: "Firecrawl API documentation", limit: 3}}
     cost:
       type: per_success
-      table:
-        - {when: {body.limit: 10}, value: 2}
+      value: 2
       fallback: {value: 2, note: "The curated request allows at most ten search results and no scrape add-on."}
       currency: credit
       unit: call
@@ -140,6 +139,7 @@ endpoints:
     test_request: {body: {url: "https://example.com", limit: 1, maxDiscoveryDepth: 0, scrapeOptions: {parsers: []}}}
     cost:
       type: per_success
+      # Table rows require `when`; enumerate limits to hold requested pages rather than all ten.
       table:
         - {when: {body.limit: 1}, value: 1, times: body.limit}
         - {when: {body.limit: 2}, value: 1, times: body.limit}

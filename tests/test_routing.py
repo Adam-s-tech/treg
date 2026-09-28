@@ -27,7 +27,7 @@ from treg.domain.catalog.routing.plan import Candidate, cost_at, rank
 from treg.infra.catalog_observations import CachedEndpointObservationReader
 from treg.models import CallRecord, Hold, LedgerEntry, OverflowRoute
 
-from test_marketplace_call import _balance, platform_on  # noqa: F401
+from test_marketplace_call import _balance, firecrawl_platform_on, platform_on  # noqa: F401
 
 ROUTED = "treg.people.email.find"
 
@@ -117,6 +117,62 @@ def test_every_shipped_adapter_round_trips_its_fixture():
     assert b == {"firstName": "Patrick", "lastName": "Collison", "companyDomain": "stripe.com"} and q == {}
     assert ad.from_upstream({"email": "p@stripe.com", "status": "succeeded"}) == {"email": "p@stripe.com"}
     assert ad.is_miss({"email": None}) and not ad.is_miss({"email": "x"})
+
+
+def test_firecrawl_web_adapters_are_verified_routed_children():
+    cat = catalog_store.load()
+    for parent, child in (
+        ("treg.web.search", "firecrawl.web.search"),
+        ("treg.web.extract", "firecrawl.web.scrape"),
+        ("treg.web.map", "firecrawl.web.map"),
+    ):
+        adapter = cat.adapters[child]
+        assert adapter.verified, (child, adapter.verify_note)
+        assert not adapter.verify_note, child
+        assert child in cat.by_id[parent]["routed_children"], (parent, child)
+
+
+@pytest.mark.parametrize(("parent", "child", "routed_input", "upstream_body", "expected_body", "expected_cost"), [
+    (
+        "treg.web.search", "firecrawl.web.search",
+        {"q": "example", "limit": 3},
+        {"success": True, "data": {"web": [{"title": "Example", "url": "https://example.com"}]}, "creditsUsed": 2},
+        {"query": "example", "limit": 3}, 10_000,
+    ),
+    (
+        "treg.web.extract", "firecrawl.web.scrape",
+        {"url": "https://example.com"},
+        {"success": True, "data": {"markdown": "# Example", "metadata": {"sourceURL": "https://example.com"}}},
+        {"url": "https://example.com", "formats": ["markdown"], "parsers": []}, 5_000,
+    ),
+    (
+        "treg.web.map", "firecrawl.web.map",
+        {"url": "https://example.com", "q": "docs", "limit": 3},
+        {"success": True, "links": [{"url": "https://example.com/docs"}]},
+        {"url": "https://example.com", "search": "docs", "limit": 3}, 5_000,
+    ),
+])
+async def test_firecrawl_web_routed_calls_serve_and_settle(
+    clients, monkeypatch, firecrawl_platform_on,
+    parent, child, routed_input, upstream_body, expected_body, expected_cost,
+):
+    seen = []
+    monkeypatch.setattr(call_service, "relay", _relay_by_provider({
+        "firecrawl": [(200, upstream_body)],
+    }, seen))
+
+    before = await _balance(clients)
+    response = await clients.post(
+        f"/call/{parent}", json=routed_input,
+        headers={"X-Treg-Route-Prefer": "firecrawl", "X-Treg-Route-Waterfall": "0"},
+    )
+    assert response.status_code == 200, response.text
+    doc = response.json()
+    assert doc["_treg"]["served_by"] == child
+    assert doc["_treg"]["charged_micro"] == expected_cost
+    assert response.headers["X-Treg-Route-Outcome"] == "hit"
+    assert before - await _balance(clients) == expected_cost
+    assert len(seen) == 1 and seen[0][3] == expected_body
 
 
 async def test_tavily_routed_empty_search_is_a_paid_miss_then_falls_through(

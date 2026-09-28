@@ -2771,7 +2771,7 @@ adapters:
     out: {results: urls, count: "len(urls)"}
     miss: "coalesce(urls, []) == []"
   firecrawl.web.map:
-    accepts: [[url], [url, q]]
+    accepts: [[url, q], [url]]
     in: {url: body.url, q: body.search}
     in_expr: {body.limit: limit}
     out: {results: links, count: "len(links)"}
