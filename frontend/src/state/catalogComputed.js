@@ -1,5 +1,16 @@
 import { isJobQuery } from './find.js'
+
+// What each comparison column means, on hover or focus of its heading (jobColumns).
+const COL_TIPS = {
+  takes:'What you can send it. Each tag is one input it accepts; — means the catalog has not mapped it yet.',
+  price:"What one call costs on treg's key, in the provider's own unit: per call, per result or per success. With your own key the provider bills you, and treg adds nothing.",
+  works:'Share of the last 30 days of calls that ended without a provider error. Shown once there are 20 or more.',
+  useful:"Share of teams whose agents found the result useful after using it, one vote per team, last 90 days. Shown once 5 teams have rated it; compare it within this table only.",
+}
+
 export default {
+// The catalog-v2 control arm (state/catalogExperiment.js): the ledger, and no job pages anywhere.
+    catalogLegacy(){ return this.catalogArm==='control'; },
 mkProvider(){ return this.providers.find(p=>p.service===this.mkService)||null; },
 mkConns(){ return this.connections.filter(c=>c.provider===this.mkService); },
 mkNeedsCred(){ return this.mkConns.filter(c=>c.extra_credential_note); },
@@ -131,35 +142,45 @@ platProviders(){  // providers with endpoints here, in catalog order
       }
       return out; },
 // ---- the shelf, read as jobs and tools ----
-    // A JOB is a merged row at least two providers serve: the one place a comparison means
-    // something, so it gets a card and a page of its own. Everything else is a TOOL, listed once,
-    // opened in the drawer. Plumbing (account/utility) stays folded at the foot.
+    // A JOB is a capability at least two providers serve on the shelf: the one place a comparison
+    // means something, so it gets a card and a page of its own. The server marks those rows (`job`,
+    // the key its URL uses; `Catalog.jobs`). Everything else is a TOOL, listed once, opened in the
+    // drawer. Plumbing (account/utility) stays folded at the foot.
     platJobIndex(){
-      return this.platRowsAll.filter(r=>r.kind==='merged' && !r.mgmt
-        && new Set(r.endpoints.filter(e=>e.kind!=='routed').map(e=>e.provider)).size>=2)
-        .map(r=>{ const direct=r.endpoints.filter(e=>e.kind!=='routed');
-          return {key:r.capability, row:r, title:r.description, hay:r.hay,
-                  logos:[...new Set(direct.map(e=>e.provider))].slice(0,5),
-                  routed:r.endpoints.find(e=>e.kind==='routed')||null,
-                  provN:new Set(direct.map(e=>e.provider)).size, range:this.priceRange(direct)}; }); },
+      return this.platRowsAll.filter(r=>r.job).map(r=>{
+        const direct=r.endpoints.filter(e=>e.kind!=='routed'), provs=[...new Set(direct.map(e=>e.provider))];
+        const range=this.priceRange(direct);
+        return {key:r.capability, slug:r.job, row:r, title:r.description, hay:r.hay, logos:provs.slice(0,5),
+                routed:r.endpoints.find(e=>e.kind==='routed')||null, provN:provs.length,
+                meta:provs.length+' providers'+(range ? ' · '+range : '')}; }); },
 // What the shelf's lists filter by as you type: a name or a word. A described job is not a filter
     // (no row contains a sentence); the finder answers it above the lists, which stay whole.
     platFilterQ(){ return isJobQuery(this.platQ) ? '' : this.platQ.trim().toLowerCase(); },
 platJobList(){ const q=this.platFilterQ;
       return this.platJobIndex.filter(j=>!q || j.hay.includes(q)); },
-platTools(){ return this.platToolItems(false); },
-platToolTotal(){ return this.platFilterQ ? this.platToolItems(false, true).length : this.platTools.length; },
-platPlumbing(){ return this.platToolItems(true); },
+// Every endpoint on the shelf that is not part of a job card, one line each, alphabetical, built
+    // once per shelf; the search box only filters it.
+    platToolIndex(){
+      const out=[];
+      for(const r of this.platRowsAll){
+        if(r.job) continue;
+        for(const e of r.endpoints){
+          if(e.kind==='routed') continue;
+          const title=r.endpoints.length===1 ? r.title : this.clip(e.name||e.summary||r.description, 90);
+          out.push({id:e.id, title, e, mgmt:r.mgmt,
+                    hay:(title+' '+e.provider+' '+(e.provider_display||'')+' '+(e.summary||'')+' '+e.id).toLowerCase()}); } }
+      const by=new Intl.Collator(); return out.sort((a,b)=>by.compare(a.title, b.title)); },
+platTools(){ const q=this.platFilterQ; return this.platToolIndex.filter(t=>!t.mgmt && (!q || t.hay.includes(q))); },
+platToolTotal(){ return this.platToolIndex.filter(t=>!t.mgmt).length; },
+platPlumbing(){ const q=this.platFilterQ; return this.platToolIndex.filter(t=>t.mgmt && (!q || t.hay.includes(q))); },
 platEpById(){ const m={}; for(const r of this.platRowsAll) for(const e of r.endpoints) m[e.id]=e; return m; },
 // The drawer reads from the list of the view it was opened on.
     drawerEp(){ if(!this.drawerTool) return null;
       return (this.view==='provider' ? this.mkToolById : this.platEpById)[this.drawerTool]||null; },
 drawerInfo(){ const i=this.drawerTool && this.epInfo[this.drawerTool]; return i&&i.data||null; },
-// The job a URL names: `enrich` on the companies shelf is `companies.enrich`, and a capability
-    // filed under another prefix is named whole.
-    platJobRow(){ if(!this.platJob) return null; const want=[this.platSlug+'.'+this.platJob, this.platJob];
-      const j=this.platJobIndex.find(j=>want.includes(j.key)); return j ? j.row : null; },
-platJobMeta(){ return this.platJobRow ? this.platJobIndex.find(j=>j.key===this.platJobRow.capability) : null; },
+// The job a URL names, by its key (`enrich` on the companies shelf is `companies.enrich`).
+    platJobMeta(){ return this.platJob ? this.platJobIndex.find(j=>j.slug===this.platJob)||null : null; },
+platJobRow(){ return this.platJobMeta ? this.platJobMeta.row : null; },
 platJobData(){ const i=this.platJobLead && this.epInfo[this.platJobLead]; return i&&i.data||null; },
 // Measured reliability by endpoint id, from the lead's detail: the endpoint itself and its siblings.
     platObserved(){ const d=this.platJobData, m={}; if(!d) return m;
@@ -172,33 +193,29 @@ platJobChoices(){
       const perProv={}; for(const e of eps) perProv[e.provider]=(perProv[e.provider]||0)+1;
       const rows=eps.map(e=>{ const o=this.platObserved[e.id];
         return {e, id:e.id, twin:perProv[e.provider]>1, takes:this.takesLabel(this.platAccepts[e.id]),
-                usd:e.platform_eligible===false ? null : this.costUsd(e.cost),
-                works:o && o.decided>=20 && o.ok_rate!=null ? {pct:Math.round(o.ok_rate*100), n:o.decided} : null,
-                useful:e.reviews ? {pct:Math.round(e.reviews.share.useful*100), n:e.reviews.teams} : null}; });
+                usd:e.platform_eligible===false ? null : this.costUsd(e.cost), works:this.worksOf(o), useful:this.usefulOf(e)}; });
       const k=this.platJobSort.key, val=r=>k==='price' ? r.usd : k==='works' ? (r.works&&r.works.pct) : (r.useful&&r.useful.pct);
       const dir=this.platJobSort.dir==='asc' ? 1 : -1;   // unmeasured rows stay last either way
       return rows.sort((a,b)=>{ const x=val(a), y=val(b);
         if(x==null && y==null) return (a.e.provider_display||a.e.provider).localeCompare(b.e.provider_display||b.e.provider);
         if(x==null) return 1; if(y==null) return -1; return (x-y)*dir || (b.e.verified?1:0)-(a.e.verified?1:0); }); },
 // The comparison's columns (components/ui/table DataTable). Price sorts cheapest first, the two
-    // measured columns best first; every heading explains its number (`colTips`).
-    jobColumns(){ const t=this.colTips; return [
+    // measured columns best first; every heading explains its number.
+    jobColumns(){ const t=COL_TIPS; return [
       {key:'provider', header:'Provider', mobile:'primary', minWidth:'240px', wrap:true},
       {key:'takes', header:'Takes', tip:t.takes, minWidth:'150px', wrap:true, mobile:'wide'},
       {key:'price', header:'Price', tip:t.price, align:'right', sortable:true, sortFirst:'asc'},
       {key:'works', header:'Works', tip:t.works, align:'right', sortable:true, sortFirst:'desc'},
       {key:'useful', header:'Useful', tip:t.useful, align:'right', sortable:true, sortFirst:'desc'}]; },
-platOtherJobs(){ return this.platJobIndex.filter(j=>!this.platJobRow || j.key!==this.platJobRow.capability).slice(0,6); },
+platOtherJobs(){ return this.platJobIndex.filter(j=>j!==this.platJobMeta).slice(0,6); },
 drawerIds(){
       if(this.view==='provider') return [...this.mkToolShelves.flatMap(p=>p.tools), ...this.mkToolShelves.flatMap(p=>p.plumbing)].map(t=>t.id);
       if(this.platJobRow) return [...(this.platJobMeta&&this.platJobMeta.routed ? [this.platJobMeta.routed.id] : []), ...this.platJobChoices.map(r=>r.id)];
       return [...this.platTools, ...this.platPlumbing].map(t=>t.id); },
 // The drawer's three numbers: measured success (the tool's own detail, else the job's), agents' verdict.
     drawerStats(){ const e=this.drawerEp; if(!e) return {};
-      const d=this.drawerInfo, mine=d&&d.endpoint&&d.endpoint.observed, job=this.platObserved[e.id];
-      const o=[mine, job].find(x=>x && x.decided>=20 && x.ok_rate!=null);
-      return {works:o && o.decided>=20 && o.ok_rate!=null ? {pct:Math.round(o.ok_rate*100), n:o.decided} : null,
-              useful:e.reviews ? {pct:Math.round(e.reviews.share.useful*100), n:e.reviews.teams} : null}; },
+      const d=this.drawerInfo;
+      return {works:this.worksOf(d && d.endpoint && d.endpoint.observed) || this.worksOf(this.platObserved[e.id]), useful:this.usefulOf(e)}; },
 // Everything else worth knowing, as one quiet line instead of a row of chips.
     drawerFacts(){ const e=this.drawerEp; if(!e) return '';
       const access={'Platform + BYOK':"treg's key or yours", 'Platform access':"treg's key", 'BYOK only':'your own key only'}[this.endpointAccessLabel(e)] || this.endpointAccessLabel(e);

@@ -168,14 +168,15 @@ export default {
       signed_in:!!this.authed, ...extra});
   },
 
-  // Open the platform shelf the row lives on, with its ledger filtered to this job's capability.
+  // Open the platform shelf the row lives on, its search box filtered to this job.
   // On a shelf's own search the answer is already on that shelf: a job several providers do opens its
   // comparison, anything else opens in the tool drawer.
   findOpen(group, rank){
     this.findTrackClick('job', group.platform, {provider:group.rows[0]?.provider, rank});
     if(this.view==='platform' && group.platform===this.platSlug){
       const cap=group.rows[0]?.capability;
-      if(cap && this.platJobIndex.some(j=>j.key===cap)) this.openJob(cap);
+      const job=cap && this.platJobIndex.find(j=>j.key===cap);
+      if(job) this.openJob(job.slug);
       else this.openTool(group.rows[0].id);
       return;
     }

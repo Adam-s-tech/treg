@@ -49,6 +49,8 @@ sources:
   - frontend/src/pages/PlatformPage.vue
   - frontend/src/pages/ProviderPage.vue
   - frontend/src/components/ToolDrawer.vue
+  - frontend/src/pages/LegacyPlatformPage.vue
+  - frontend/src/state/catalogExperiment.js
   - frontend/src/components/CatalogSearch.vue
   - frontend/src/components/ui/table/DataTable.vue
   - frontend/src/components/FindAnswer.vue
@@ -873,7 +875,8 @@ with borders; no rules between rows; Geist Pixel on the h1 only; mono only for i
 
 **The shelf** answers "what can I do here". A left-aligned hero (breadcrumb, a mono count line, the
 h1, the platform summary, the search box), then three zones, nothing behind "show more":
-- **Jobs several providers do** (`platJobIndex`): a merged row at least two providers serve, as a card
+- **Jobs several providers do** (`platJobIndex`): a row the server marks as a job (`job`, its URL key;
+  `Catalog.jobs`: a capability at least two providers serve on the shelf), as a card
   with a stack of provider logos, the provider count, the price spread (`priceRange`: "free – $0.38",
   never a "from" that reads as the job's price) and an **Autopilot** badge when a routed tool exists.
   A card links to the job page.
@@ -890,10 +893,10 @@ Provider, Takes, Price, Works, Useful. Takes comes from the routing plan's `acce
 unmapped, never incompatible). Works is `observed.ok_rate` past 20 decided calls; Useful is the
 endpoint's agent verdict share past five teams (`architecture/feedback.md`). Counts are shown by band
 (`approxCalls`, `approxTeams`), never exact. Price, Works and Useful sort (`platJobSort`); every column
-heading carries a hover/focus tip (`colTips`), because the ground rules behind each number matter more
+heading carries a hover/focus tip (`COL_TIPS`), because the ground rules behind each number matter more
 than the number. One `/catalog/endpoints/<lead>` read supplies every sibling's `observed` and the
-plan; when the server's observation cache answers cold (everything unmeasured) it is asked once more
-1.5 s later. Other jobs on the platform follow as small cards.
+plan; when the server's observation cache had not read some of them yet (`observed_pending`) it is
+asked once more 1.5 s later. The drawer's example tab reads the example from that same detail. Other jobs on the platform follow as small cards.
 
 **The tool drawer** (`ToolDrawer.vue`) is not modal: the list behind it stays live, ↑/↓ walk the list
 it was opened from (`drawerIds`), Esc closes. It leads with the tool and three numbers (price, works,
@@ -925,6 +928,20 @@ painted over other text or past its row, and names what makes a page scroll side
 **A provider's page** (`/app/marketplace/<service>`) lists every tool it serves by platform
 (`GET /catalog/providers/<service>`), each a card opening the same drawer; a tool that is one of
 several providers doing a job links to that job's comparison ("compare with 24 others").
+
+**The catalog-v2 experiment** (`state/catalogExperiment.js`) compares this shelf with the ledger it
+replaced, which is kept whole as `LegacyPlatformPage.vue` (its rows, state and styles in the one
+file) and shown to the control arm. The PostHog multivariate flag `catalog-v2` (`control` | `test`)
+deals the arm per person on the first platform page of a load, waiting at most a second; the flag
+read is the exposure. No flag answer (analytics off, blocked, too slow, experiment stopped) shows the
+shelf, unexposed, and so does landing on a job page, which only the shelf has (`catalog_arm:
+direct`). The arm is registered on every later event as `catalog_arm`. The control arm reads a job
+address as its shelf and keeps the provider page's platform chips instead of its tool list. Both
+arms send the same events: `catalog_platform_viewed`, `catalog_job_viewed` (a job page, or a merged
+ledger row opened), `catalog_tool_opened` (the drawer, or one endpoint opened in the ledger), and
+`catalog_action` with `action` try, copy, connect, byok or docs, the experiment's primary metric;
+each carries `surface` (ledger, shelf, job, provider, catalog), `arm`, `platform` and `signed_in`.
+The experiment ends by deleting the legacy page, the module and the arm checks.
 
 **The Try-it drawer (`epTry`) is four tabs** (`epTryTab`, default **AI Agent**): **AI Agent** — the
 one-line setup (`epTrySetupLine`, with team + token embedded **here only**, a copy-and-run-now context;

@@ -3,20 +3,21 @@ import { useDashboard } from '../state/context'
 import ToolDrawer from '../components/ToolDrawer.vue'
 import FindAnswer from '../components/FindAnswer.vue'
 import CatalogSearch from '../components/CatalogSearch.vue'
+import ProviderLogo from '../components/ProviderLogo.vue'
 import { DataTable } from '../components/ui/table'
 
 // A platform shelf, read at two levels: the shelf (the jobs several providers do, then every other
 // tool) and one job (let treg pick, or compare the providers). A tool opens in a drawer over either,
 // so a comparison never loses its table. The look is the landing page's: surfaces, not boxes.
 export default {
-  components: { ToolDrawer, FindAnswer, CatalogSearch, DataTable },
+  components: { ToolDrawer, FindAnswer, CatalogSearch, DataTable, ProviderLogo },
   setup: useDashboard,
 }
 </script>
 
 <template>
 <div class="pl" :class="{dopen:!!drawerEp}">
-  <div v-if="platLoading" class="pl-empty">Loading the catalog…</div>
+  <div v-if="platLoading || catalogArm==='pending'" class="pl-empty">Loading the catalog…</div>
   <div v-else-if="platErr" class="pl-empty">{{platErr}}</div>
 
   <!-- THE SHELF -->
@@ -35,22 +36,25 @@ export default {
     <section v-if="platJobList.length" class="pl-sec">
       <h2 class="pl-h"><span>Jobs several providers do</span><i></i><em>{{platJobList.length}}</em></h2>
       <div class="pl-grid">
-        <a v-for="j in platJobList" :key="j.key" class="pl-card pl-job" :href="platUrl(platSlug, platJobSlug(j.key))" @click.prevent="openJob(j.key)">
+        <a v-for="j in platJobList" :key="j.key" class="pl-card pl-job" :href="platUrl(platSlug, j.slug)" @click.prevent="openJob(j.slug)">
           <span class="pl-job-h"><b>{{j.title}}</b><span v-if="j.routed" class="pl-auto" title="One call: treg picks the provider for you">Autopilot</span></span>
           <span class="pl-job-f">
-            <span class="pl-stack" aria-hidden="true"><span v-for="s in j.logos" :key="s" class="pl-logo"><img :src="'/logos/'+s+'.svg'" alt="" @error="$event.target.style.visibility='hidden'"></span></span>
-            <span class="pl-meta">{{j.provN}} providers<template v-if="j.range"> · {{j.range}}</template></span>
+            <span class="pl-stack" aria-hidden="true"><ProviderLogo v-for="s in j.logos" :key="s" :service="s" /></span>
+            <span class="pl-meta">{{j.meta}}</span>
           </span>
         </a>
       </div>
     </section>
 
-    <section v-if="platTools.length" class="pl-sec">
-      <h2 class="pl-h"><span>{{platJobList.length ? 'More tools' : 'Tools'}}</span><i></i><em>{{platTools.length}}</em></h2>
+    <!-- Every other tool, then the account and setup plumbing: one card each, the same card. -->
+    <section v-for="sec in [{key:'tools', label:platJobList.length ? 'More tools' : 'Tools', items:platTools},
+                            {key:'setup', label:'Account and setup', items:platPlumbing, quiet:true}].filter(s=>s.items.length)"
+             :key="sec.key" class="pl-sec">
+      <h2 class="pl-h" :class="{'pl-h-quiet':sec.quiet}"><span>{{sec.label}}</span><i></i><em>{{sec.items.length}}</em></h2>
       <div class="pl-grid pl-grid-t">
-        <button v-for="t in platTools" :key="t.id" class="pl-card pl-tool" :class="{on:drawerTool===t.id}" @click="openTool(t.id)">
-          <span class="pl-logo lg"><img :src="'/logos/'+t.e.provider+'.svg'" alt="" aria-hidden="true" @error="$event.target.style.visibility='hidden'"></span>
-          <span class="pl-tool-b"><b>{{t.title}}</b><span class="pl-meta">{{t.e.provider_display||t.e.provider}} · {{t.e.platform_eligible===false ? 'your key' : costShort(t.e.cost)}}</span></span>
+        <button v-for="t in sec.items" :key="t.id" class="pl-card pl-tool" :class="{on:drawerTool===t.id, quiet:sec.quiet}" @click="openTool(t.id)">
+          <ProviderLogo :service="t.e.provider" large />
+          <span class="pl-tool-b"><b>{{t.title}}</b><span class="pl-meta">{{t.e.provider_display||t.e.provider}} · {{toolPrice(t.e)}}</span></span>
         </button>
       </div>
     </section>
@@ -58,21 +62,11 @@ export default {
     <p v-if="platFilterQ && !platJobList.length && !platTools.length && !platPlumbing.length && !findActive && !findSoon" class="pl-empty">
       Nothing in {{platLabel}} matches “{{platQ.trim()}}”. <button class="pl-link" @click="platQ=''">Clear the search</button></p>
 
-    <section v-if="platPlumbing.length" class="pl-sec">
-      <h2 class="pl-h pl-h-quiet"><span>Account and setup</span><i></i><em>{{platPlumbing.length}}</em></h2>
-      <div class="pl-grid pl-grid-t">
-        <button v-for="t in platPlumbing" :key="t.id" class="pl-card pl-tool quiet" :class="{on:drawerTool===t.id}" @click="openTool(t.id)">
-          <span class="pl-logo lg"><img :src="'/logos/'+t.e.provider+'.svg'" alt="" aria-hidden="true" @error="$event.target.style.visibility='hidden'"></span>
-          <span class="pl-tool-b"><b>{{t.title}}</b><span class="pl-meta">{{t.e.provider_display||t.e.provider}} · {{t.e.platform_eligible===false ? 'your key' : costShort(t.e.cost)}}</span></span>
-        </button>
-      </div>
-    </section>
-
     <footer v-if="platProvLine.length" class="pl-provs">
       <span class="pl-eyebrow">Served by</span>
       <div class="pl-provs-l">
         <a v-for="p in platProvLine" :key="p.s" class="pl-prov" :href="provUrl(p.s)" @click.prevent="goProvider(p.s)">
-          <span class="pl-logo"><img :src="'/logos/'+p.s+'.svg'" alt="" aria-hidden="true" @error="$event.target.style.visibility='hidden'"></span>{{p.name}}</a>
+          <ProviderLogo :service="p.s" />{{p.name}}</a>
       </div>
     </footer>
   </template>
@@ -85,7 +79,7 @@ export default {
       <header class="pl-hero">
         <nav class="pl-crumbs" aria-label="Breadcrumb"><a href="/catalog" @click.prevent="go('connections')">Catalog</a><span>/</span><a
           :href="platUrl(platSlug)" @click.prevent="closeJob">{{platLabel}}</a></nav>
-        <p class="pl-eyebrow">{{platJobMeta.provN}} providers<template v-if="platJobMeta.range"> · {{platJobMeta.range}}</template></p>
+        <p class="pl-eyebrow">{{platJobMeta.meta}}</p>
         <h1 class="pl-h1-job">{{platJobRow.description}}</h1>
       </header>
 
@@ -103,9 +97,9 @@ export default {
         </div>
         <div class="pl-auto-r">
           <div class="pl-code"><code>{{platJobMeta.routed.call_template}}</code>
-            <button @click="copyCall(platJobMeta.routed)">{{platCopied===platJobMeta.routed.id ? 'Copied' : 'Copy'}}</button></div>
+            <button @click="catalogCopy(platJobMeta.routed)">{{platCopied===platJobMeta.routed.id ? 'Copied' : 'Copy'}}</button></div>
           <div class="pl-auto-a">
-            <button class="pl-btn inv" @click="publicCatalog ? openSignin() : openEpTry(platJobMeta.routed)">Try it</button>
+            <button class="pl-btn inv" @click="catalogTry(platJobMeta.routed)">Try it</button>
             <button class="pl-link inv" @click="openTool(platJobMeta.routed.id)">How it picks →</button>
           </div>
         </div>
@@ -116,12 +110,12 @@ export default {
         <DataTable :columns="jobColumns" :rows="platJobChoices" :row-key="r => r.id" v-model:sort="platJobSort"
                    :selected="drawerTool" interactive variant="plain" surface @row-click="r => openTool(r.id)">
           <template #cell-provider="{ row: r }"><div class="c-prov-i">
-            <span class="pl-logo lg"><img :src="'/logos/'+r.e.provider+'.svg'" alt="" aria-hidden="true" @error="$event.target.style.visibility='hidden'"></span>
+            <ProviderLogo :service="r.e.provider" large />
             <span class="c-name"><b>{{r.e.provider_display||r.e.provider}}<span v-if="!r.e.verified" class="c-unv" title="Documented, but treg has not called it with a live key yet">unverified</span></b>
               <span v-if="r.twin" class="c-sub">{{clip(r.e.name||r.e.summary, 52)}}</span></span>
           </div></template>
           <template #cell-takes="{ row: r }"><span v-for="t in r.takes" :key="t" class="pl-tag">{{t}}</span><span v-if="!r.takes.length" class="c-none">—</span></template>
-          <template #cell-price="{ row: r }"><span class="c-price">{{r.e.platform_eligible===false ? 'your key only' : costShort(r.e.cost)}}</span></template>
+          <template #cell-price="{ row: r }"><span class="c-price">{{toolPrice(r.e)}}</span></template>
           <template #cell-works="{ row: r }"><span :title="worksTitle(r)"><template v-if="r.works"><span class="c-v">{{r.works.pct}}%</span><span class="c-n">{{approxCalls(r.works.n)}}</span></template><span v-else class="c-none">—</span></span></template>
           <template #cell-useful="{ row: r }"><span :title="usefulTitle(r)"><template v-if="r.useful"><span class="c-v" :class="{low:r.useful.pct<50}">{{r.useful.pct}}%</span><span class="c-n">{{approxTeams(r.useful.n)}}</span></template><span v-else class="c-none">—</span></span></template>
         </DataTable>
@@ -132,8 +126,8 @@ export default {
       <section v-if="platOtherJobs.length" class="pl-sec">
         <h2 class="pl-h"><span>Other jobs on {{platLabel}}</span><i></i></h2>
         <div class="pl-grid">
-          <a v-for="j in platOtherJobs" :key="j.key" class="pl-card pl-job sm" :href="platUrl(platSlug, platJobSlug(j.key))" @click.prevent="openJob(j.key)">
-            <b>{{j.title}}</b><span class="pl-meta">{{j.provN}} providers<template v-if="j.range"> · {{j.range}}</template></span>
+          <a v-for="j in platOtherJobs" :key="j.key" class="pl-card pl-job sm" :href="platUrl(platSlug, j.slug)" @click.prevent="openJob(j.slug)">
+            <b>{{j.title}}</b><span class="pl-meta">{{j.meta}}</span>
           </a>
         </div>
       </section>

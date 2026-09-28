@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// The table primitives follow shadcn/ui's Table one to one (Table, TableHeader, TableBody,
-// TableFooter, TableRow, TableHead, TableCell, TableCaption): native elements, one class each, the
+// The table primitives follow shadcn/ui's Table (Table, TableHeader, TableBody, TableRow, TableHead,
+// TableCell; a footer and a caption join when a table needs them): native elements, one class each, the
 // look in styles/base.css under "ui/table". The global `table`/`th`/`td` rules skip `.ui-table`, so
 // a table built from these starts clean instead of undoing the sheet's defaults.
 //

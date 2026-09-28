@@ -20,12 +20,11 @@ export default {
     // is no server route to serve the SPA on a hard reload of a /app/platforms/<slug> path.
     platformFromHash(){ const m=/^#platform\/([^/]+)/.exec(location.hash||''); return m?decodeURIComponent(m[1]):null; },
 // The job a platform URL names, if any: `/catalog/<slug>/<job>` publicly, `#platform/<slug>/<job>`
-    // in the app. `<job>` is the capability id without its platform prefix (`companies.enrich` on
-    // the companies shelf is `enrich`); `platJobRow` resolves it once the shelf has loaded.
+    // in the app. `<job>` is the job's key, which the server puts on the job's row (`job`: the
+    // capability id without its platform prefix); `platJobMeta` resolves it once the shelf has loaded.
     platJobFromLocation(){
       const m=/^#platform\/[^/]+\/(.+)$/.exec(location.hash||'') || /^\/catalog\/[^/]+\/([^/]+)\/?$/.exec(location.pathname||'');
       return m?decodeURIComponent(m[1]):null; },
-platJobSlug(cap){ const pre=this.platSlug+'.'; return cap.startsWith(pre) ? cap.slice(pre.length) : cap; },
 platUrl(slug, job){ const tail=job ? '/'+encodeURIComponent(job) : '';
       return this.publicCatalog ? '/catalog/'+encodeURIComponent(slug)+tail : '/app#platform/'+encodeURIComponent(slug)+tail; },
 // The PUBLIC catalog lives at real paths (/catalog, /catalog/<slug>), not hash routes, because
@@ -49,12 +48,16 @@ platUrl(slug, job){ const tail=job ? '/'+encodeURIComponent(job) : '';
       if(r.slug) this.openPlatform(r.slug, true); else this.go('connections', true); },
 openPlatform(slug, fromPop, job){ this.resetConfirms();
       if(job===undefined) job = fromPop ? this.platJobFromLocation() : null;
+      // The ledger has no job pages: the control arm reads a job's address as its shelf.
+      if(this.catalogLegacy) job=null;
+      this.catalogEnroll(job).then(()=>{ if(this.view==='platform' && this.platSlug===slug)
+        this.catalogTrack(job ? 'catalog_job_viewed' : 'catalog_platform_viewed', job ? {job} : {}); });
       // Moving between a shelf and one of its jobs keeps the loaded shelf: the job page is the same
       // payload read another way, so only the address and the view state change.
       const same = this.view==='platform' && this.platSlug===slug && (this.platData || this.platLoading);
       this.detail=null; this.platSlug=slug; this.view='platform'; this.platJob=job||null; this.drawerTool=null;
       this.epTab={}; this.platCopied='';
-      if(!same){ this.platEx={}; this.platClearFilters(); this.epInfo={};
+      if(!same){ this.platEx={}; this.platQ=''; this.epInfo={};
         if(this.find.scope) this.findExit(); }     // a shelf's answer belongs to that shelf
       this.platJobSort={key:'price', dir:'asc'};
       // A public visitor stays on the indexable /catalog/<slug> URL; a signed-in one keeps the
@@ -72,7 +75,7 @@ openPlatform(slug, fromPop, job){ this.resetConfirms();
     // signed in. Both list every tool the provider serves.
     provUrl(service){ return this.publicCatalog ? '/tools/'+encodeURIComponent(service) : '/app/marketplace/'+encodeURIComponent(service); },
 goProvider(service){ if(this.publicCatalog) this.goPublicTool(service); else this.openProvider(service); },
-openJobOn(slug, cap){ const pre=slug+'.'; this.openPlatform(slug, false, cap.startsWith(pre) ? cap.slice(pre.length) : cap); },
+openJobOn(slug, key){ this.openPlatform(slug, false, key); },
 async loadProviderTools(service){
       if(this.mkTools && this.mkTools.service===service && (this.mkTools.data || this.mkTools.loading)) return;
       this.mkTools={service, loading:true, err:'', data:null};
@@ -80,37 +83,37 @@ async loadProviderTools(service){
       try{ const d=await this.api('/catalog/providers/'+encodeURIComponent(service)); if(slot.service===this.mkService) slot.data=markRaw(d); }
       catch(e){ slot.err = e.status===404 ? '' : 'Could not load this provider\'s tools.'; }
       finally{ slot.loading=false; } },
-openJob(cap){ this.openPlatform(this.platSlug, false, this.platJobSlug(cap)); },
+openJob(key){ this.openPlatform(this.platSlug, false, key); },
 closeJob(){ this.openPlatform(this.platSlug, false, null); },
 // What the calls treg served say about a job's providers, and which inputs each accepts: one
     // `/catalog/endpoints/<id>` read returns the endpoint and every sibling of its capability with
     // `observed`, plus the routing plan's `accepts` when the job has a routed tool. Cached per id.
-    // The server's observation cache never waits on the database: an entry it has not read in half an
-    // hour comes back empty while it refreshes in the background. So a detail whose every endpoint
-    // reads as unmeasured is asked for once more, shortly after, and the numbers fill in.
+    // The server's observation cache never waits on the database: an id it has not read yet comes
+    // back empty while it is read in the background, and the answer says so (`observed_pending`).
+    // Then the detail is asked for once more, shortly after, and the numbers fill in.
     async loadEndpointInfo(id, retried){
       if(!id || (this.epInfo[id] && !retried)) return;
       if(!retried) this.epInfo[id]={loading:true, data:null};
       const slot=this.epInfo[id];      // the reactive copy: writes to the literal would not render
       try{ const d=await this.api('/catalog/endpoints/'+encodeURIComponent(id));
         slot.data=markRaw(d);
-        const measured=[d.endpoint, ...(d.siblings||[])].some(x=>x && x.observed && x.observed.samples>0);
-        if(!measured && !retried) setTimeout(()=>this.loadEndpointInfo(id, true), 1500); }
+        if(d.observed_pending && !retried) setTimeout(()=>this.loadEndpointInfo(id, true), 1500); }
       catch(e){ if(!retried) slot.data=null; }
       finally{ slot.loading=false; } },
 async loadJobInfo(){
       if(!this.platData){ return; }      // loadPlatform calls back once the shelf arrives
-      const row=this.platJobRow; if(!row) return;
+      const row=this.platJobMeta && this.platJobMeta.row; if(!row) return;
       const lead=(row.endpoints.find(e=>e.kind==='routed')||row.endpoints[0]).id;
       this.platJobLead=lead;
       await this.loadEndpointInfo(lead); },
-openTool(id){ this.drawerTool=id; this.loadEndpointInfo(id); },
+openTool(id, via='click'){ this.drawerTool=id; this.loadEndpointInfo(id);
+      const e=this.drawerEp; if(e) this.catalogToolEvent('catalog_tool_opened', e, {via}); },
 closeTool(){ this.drawerTool=null; },
 // Up and down walk the list the drawer was opened from, so a comparison reads row after row
     // without closing anything.
     stepTool(d){ const ids=this.drawerIds; const i=ids.indexOf(this.drawerTool);
       if(i<0) return; const next=ids[Math.min(ids.length-1, Math.max(0, i+d))];
-      if(next && next!==this.drawerTool) this.openTool(next); },
+      if(next && next!==this.drawerTool) this.openTool(next, 'step'); },
 drawerKeys(ev){
       if(!this.drawerTool || this.epTry || ev.metaKey || ev.ctrlKey || ev.altKey) return;
       const t=ev.target; if(t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
@@ -127,8 +130,8 @@ async loadPlatform(){ if(!this.platSlug) return;
       this.platErr=''; this.platLoading=true; this.platData=null; const live=this.ticket('platform', false);
       const pre=this.platPrefetch; this.platPrefetch=null;
       // include_hidden=1: pull the account/utility endpoints too. They render behind a per-section
-      // "N management endpoints" expander rather than in the main ledger — the page decides that,
-      // client-side, off each endpoint's `kind` (see platRowsAll / platLedger).
+      // "Account and setup" section rather than among the tools; the page decides that, client-side,
+      // off each endpoint's `kind` (see platRowsAll).
       try{ const data=await (pre && pre.slug===this.platSlug ? pre.request
         : this.api('/catalog/platforms/'+encodeURIComponent(this.platSlug)+'?include_hidden=1'));
         if(live()){ this.platData=data; if(this.platJob) this.loadJobInfo(); } }
@@ -207,8 +210,7 @@ costNative(c){ return c && c.display_unit ? '' : this.nativeAmount(c); },
               pf.note].filter(Boolean).join(' — '); },
 // What agents said after using an endpoint's result. `reviews` is on the platform payload only
     // past the server's team threshold, and the share is comparable between providers of one job.
-    verdictTitle(e){ const r=e.reviews, p=v=>Math.round(r.share[v]*100)+'% '+this.verdictLabel(v).toLowerCase();
-      return this.verdictKinds.map(p).join(' · ')+' - from '+this.approxTeams(r.teams)+'\' agents after using the result, last 90 days'; },
+    verdictPct(r, v){ return Math.round(r.share[v]*100)+'% '+this.verdictLabel(v).toLowerCase(); },
 verdictLabel(v){ return ({useful:'Useful', partly:'Partly useful', not_useful:'Not useful'})[v]||v; },
 verdictClient(c){ return ({'claude-code':'Claude Code', codex:'Codex', cursor:'Cursor', 'claude-connector':'Claude', cli:'treg CLI', pi:'Pi'})[c]||''; },
 verdictDate(d){ try{ const m=String(d).length===7;   // a review carries only its month
@@ -304,7 +306,7 @@ capCheapest(eps){
     // card states the range, never a "from" that reads as the job's price.
     priceRange(eps){ const ns=eps.map(e=>e.platform_eligible===false ? null : this.costUsd(e.cost)).filter(n=>n!=null);
       if(!ns.length) return ''; const lo=Math.min(...ns), hi=Math.max(...ns);
-      const f=n=>n===0 ? 'free' : '$'+(+n.toPrecision(2));
+      const f=n=>n===0 ? 'free' : '$'+this.usdNum(n);
       return lo===hi ? f(lo) : f(lo)+' – '+f(hi); },
 // What a provider takes, from the routing plan's `accepts` (alternatives of required inputs).
     // Absent when the plan does not cover the endpoint: unknown, never "incompatible".
@@ -318,20 +320,15 @@ capCheapest(eps){
     approxCalls(n){ return (n>=1e5 ? '100k+' : n>=1e4 ? '10k+' : n>=1e3 ? '1k+' : n>=100 ? '100+' : n>=50 ? '50+' : '20+')+' calls'; },
 approxTeams(n){ return (n>=50 ? '50+' : n>=25 ? '25+' : n>=10 ? '10+' : '5+')+' teams'; },
 worksTitle(r){ return r.works ? r.works.pct+'% of '+this.approxCalls(r.works.n)+' in the last 30 days ended without a provider error' : 'Fewer than 20 calls in the last 30 days'; },
-usefulTitle(r){ return r.useful ? this.verdictTitle(r.e) : 'Fewer than 5 teams have rated it'; },
-// Every endpoint on the shelf that is not part of a job card, one line each, alphabetical;
-    // `mgmt` picks the account/utility plumbing instead of the browse surface.
-    platToolItems(mgmt, all){
-      const jobs=new Set(this.platJobIndex.map(j=>j.key)); const q=all ? '' : this.platFilterQ; const out=[];
-      for(const r of this.platRowsAll){
-        if(r.mgmt!==mgmt || (r.kind==='merged' && jobs.has(r.capability))) continue;
-        for(const e of r.endpoints){
-          if(e.kind==='routed') continue;
-          const title=r.endpoints.length===1 ? r.title : this.clip(e.name||e.summary||r.description, 90);
-          const hay=(title+' '+e.provider+' '+(e.provider_display||'')+' '+(e.summary||'')+' '+e.id).toLowerCase();
-          if(!q || hay.includes(q)) out.push({id:e.id, title, e}); } }
-      return out.sort((a,b)=>a.title.localeCompare(b.title)); },
-platClearFilters(){ this.platQ=''; },
+usefulTitle(r){ const v=r.useful && r.e.reviews;
+      return v ? this.verdictKinds.map(k=>this.verdictPct(v, k)).join(' · ')+' - from '+this.approxTeams(v.teams)+'\' agents after using the result, last 90 days'
+               : 'Fewer than 5 teams have rated it'; },
+// The two measured numbers, one rule each wherever they show: success once 20 calls are decided,
+    // agents' verdict once 5 teams have rated (the server publishes nothing below that).
+    worksOf(o){ return o && o.decided>=20 && o.ok_rate!=null ? {pct:Math.round(o.ok_rate*100), n:o.decided} : null; },
+usefulOf(e){ return e.reviews ? {pct:Math.round(e.reviews.share.useful*100), n:e.reviews.teams} : null; },
+// A tool's price on a card or a row: an own-key-only tool has no treg price to show.
+    toolPrice(e){ return e.platform_eligible===false ? 'your key only' : this.costShort(e.cost); },
 // A price small enough for a collapsed line: "$0.024/call", "2 rows", "free", "credit-priced".
     // The long form ("per success · price in provider dashboard") is true but belongs in the
     // expanded detail — inline it wraps a row onto three lines, which is what broke the merged rows.
@@ -387,6 +384,8 @@ setEpTab(e, tab){
     // hundreds of endpoints and the captured responses are the heaviest thing in the catalog.
     async loadExample(e){
       if(this.platEx[e.id]) return;                  // already loaded, loading, or failed
+      const info=this.epInfo[e.id] && this.epInfo[e.id].data;   // the drawer's detail carries it
+      if(info && info.example_response!=null){ this.platEx[e.id]={loading:false, err:'', text:JSON.stringify(info.example_response,null,2)}; return; }
       this.platEx[e.id]={loading:true, err:'', text:''};
       const slot=this.platEx[e.id];
       try{ const d=await this.api('/catalog/examples/'+encodeURIComponent(e.id)); slot.text=JSON.stringify(d,null,2); }

@@ -87,7 +87,9 @@ export default { components: { ToolDrawer }, setup: useDashboard }
           <!-- Every tool this provider serves, by platform. A tool that is one of several providers
                doing the same job links to that job's comparison: from "what does my key do" to
                "who else does this, and how do they compare". -->
-          <div class="tgroup" v-if="mkToolShelves.length || (mkTools && mkTools.loading)">
+          <!-- The catalog-v2 control arm (state/catalogExperiment.js) keeps the page it had: platform
+               chips in place of the tool list, whose links lead to job pages the ledger does not have. -->
+          <div class="tgroup" v-if="!catalogLegacy && (mkToolShelves.length || (mkTools && mkTools.loading))">
             <div class="tgh">Tools <span class="tgh-n" v-if="mkToolCount">{{mkToolCount}}</span>
               <span class="tgh-hint">what an agent can call on {{mkProvider.display_name}}, by platform</span></div>
             <div v-if="mkTools && mkTools.loading && !mkToolShelves.length" class="mk-empty">Loading…</div>
@@ -98,9 +100,8 @@ export default { components: { ToolDrawer }, setup: useDashboard }
                 <div v-for="t in p.tools" :key="t.id" class="pl-card pl-tool" :class="{on:drawerTool===t.id}" role="button" tabindex="0"
                      @click="openTool(t.id)" @keydown.enter="openTool(t.id)">
                   <span class="pl-tool-b"><b>{{t.title}}</b>
-                    <span class="pl-meta">{{t.e.platform_eligible===false ? 'your key' : costShort(t.e.cost)}}<template v-if="t.job"> · <a class="pv-cmp"
-                      :href="platUrl(p.slug, t.job.capability.startsWith(p.slug+'.') ? t.job.capability.slice(p.slug.length+1) : t.job.capability)"
-                      @click.stop.prevent="openJobOn(p.slug, t.job.capability)" :title="t.job.description">compare with {{t.job.providers-1}} other{{t.job.providers>2?'s':''}}</a></template></span></span>
+                    <span class="pl-meta">{{toolPrice(t.e)}}<template v-if="t.job"> · <a class="pv-cmp"
+                      :href="platUrl(p.slug, t.job.key)" @click.stop.prevent="openJobOn(p.slug, t.job.key)" :title="t.job.description">compare with {{t.job.providers-1}} other{{t.job.providers>2?'s':''}}</a></template></span></span>
                 </div>
               </div>
             </div>
@@ -109,7 +110,7 @@ export default { components: { ToolDrawer }, setup: useDashboard }
               <div class="pl-grid pl-grid-t">
                 <template v-for="p in mkToolShelves" :key="'x'+p.slug">
                   <button v-for="t in p.plumbing" :key="t.id" class="pl-card pl-tool quiet" :class="{on:drawerTool===t.id}" @click="openTool(t.id)">
-                    <span class="pl-tool-b"><b>{{t.title}}</b><span class="pl-meta">{{t.e.platform_eligible===false ? 'your key' : costShort(t.e.cost)}}</span></span>
+                    <span class="pl-tool-b"><b>{{t.title}}</b><span class="pl-meta">{{toolPrice(t.e)}}</span></span>
                   </button>
                 </template>
               </div>
@@ -133,6 +134,14 @@ export default { components: { ToolDrawer }, setup: useDashboard }
                   </li>
                 </ul>
               </div>
+            </div>
+          </div>
+
+          <div class="tgroup" v-if="catalogLegacy && mkPlatforms.length">
+            <div class="tgh">Covered in the catalog <span class="tgh-n">{{mkPlatforms.length}}</span>
+              <span class="tgh-hint">the platforms {{mkProvider.display_name}} serves - compare its endpoints with the other providers'</span></div>
+            <div class="mk-filters" style="margin:0">
+              <button v-for="pl in mkPlatforms" :key="pl.slug" class="mk-chip" @click="openPlatform(pl.slug)">{{pl.label}} <span>{{pl.endpoints}}</span></button>
             </div>
           </div>
 

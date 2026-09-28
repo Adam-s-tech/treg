@@ -81,23 +81,15 @@ export default function data(){
       find:{...FIND_EMPTY}, findCopied:'', findSoon:false,
       platSlug:null, platData:null, platErr:'', platLoading:false,
       platShelfOpen:{},    // category → its featured shelf has been expanded to the full tile list
-      // The ledger's filter bar. All three narrow the SAME row list, and a section with no
-      // surviving rows disappears rather than showing an empty heading.
       platQ:'',            // the shelf's search box
       epTab:{},            // endpoint id → which pane of its detail is showing ('req' | 'res' | 'rev')
       verdictKinds:['useful','partly','not_useful'],   // an endpoint's agent verdicts, in bar order
       platJob:null,        // the job (capability, minus the platform prefix) a platform URL names
       drawerTool:null,       // endpoint id open in the tool drawer
+      catalogArm:'',         // the catalog-v2 arm this load was dealt (state/catalogExperiment.js)
       epInfo:{},         // endpoint id → {loading, data} from /catalog/endpoints/<id>
       platJobLead:null,    // the endpoint whose detail carries the open job's siblings and plan
       platJobSort:{key:'price', dir:'asc'},   // the comparison's order (DataTable v-model:sort)
-      // What each comparison column means, on hover or focus of its heading.
-      colTips:{
-        takes:'What you can send it. Each tag is one input it accepts; — means the catalog has not mapped it yet.',
-        price:"What one call costs on treg's key, in the provider's own unit: per call, per result or per success. With your own key the provider bills you, and treg adds nothing.",
-        works:'Share of the last 30 days of calls that ended without a provider error. Shown once there are 20 or more.',
-        useful:"Share of teams whose agents found the result useful after using it, one vote per team, last 90 days. Shown once 5 teams have rated it; compare it within this table only.",
-      },
       mkTools:null,        // {service, loading, err, data} from /catalog/providers/<service>
       platEx:{},           // endpoint id → {open, loading, err, text} for the lazily-fetched example
       platCopied:'',       // endpoint id whose `treg call` line was just copied

@@ -110,3 +110,18 @@ export async function textCollisions(page: Page, rows: string): Promise<string[]
     return [...new Set(found)]
   }, rows)
 }
+
+// PostHog stood in by a stub that answers the catalog-v2 flag (state/catalogExperiment.js) with
+// `variant` and records what the page reads (`__ph.reads`), registers and captures.
+export async function stubPostHog(page: Page, variant: string | null) {
+  await page.addInitScript(v => {
+    const w = window as any
+    w.__ph = { reads: [] as string[], registered: {} as Record<string, unknown>, events: [] as [string, any][] }
+    w.posthog = {
+      onFeatureFlags(cb: () => void) { setTimeout(cb, 50) },
+      getFeatureFlag(key: string) { w.__ph.reads.push(key); return v ?? undefined },
+      register(props: Record<string, unknown>) { Object.assign(w.__ph.registered, props) },
+      capture(name: string, props: any) { w.__ph.events.push([name, props]) },
+    }
+  }, variant)
+}

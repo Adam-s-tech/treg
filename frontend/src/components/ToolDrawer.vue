@@ -1,11 +1,13 @@
 <script>
 import { useDashboard } from '../state/context'
+import ProviderLogo from './ProviderLogo.vue'
 
 // One tool, over whichever list opened it (a platform shelf, a job's comparison, a provider's
 // tools). Not modal: the list behind it stays live, and ↑ ↓ walk it (`drawerIds`).
 // Reading order is the decision order: what it does, what it costs and how well it does it, the
 // one action, the command; parameters, the captured response and reviews after that.
 export default {
+  components: { ProviderLogo },
   setup: useDashboard,
   mounted() { this._keys = e => this.drawerKeys(e); window.addEventListener('keydown', this._keys) },
   unmounted() { window.removeEventListener('keydown', this._keys) },
@@ -15,7 +17,7 @@ export default {
 <template>
 <aside class="td" :class="{behind:!!epTry}" aria-label="Tool details">
   <div class="td-h">
-    <span class="pl-logo lg"><img :src="'/logos/'+drawerEp.provider+'.svg'" alt="" aria-hidden="true" @error="$event.target.style.visibility='hidden'"></span>
+    <ProviderLogo :service="drawerEp.provider" large />
     <div class="td-t">
       <a v-if="view!=='provider'" class="td-prov" :href="provUrl(drawerEp.provider)" @click.prevent="goProvider(drawerEp.provider)"
          :title="'Every tool '+(drawerEp.provider_display||drawerEp.provider)+' serves'">{{drawerEp.provider_display||drawerEp.provider}}</a>
@@ -33,21 +35,21 @@ export default {
     <p v-if="drawerEp.summary && drawerEp.summary!==drawerEp.name" class="td-sum">{{drawerEp.summary}}</p>
 
     <div class="td-stats">
-      <div><span>Price</span><b>{{drawerEp.platform_eligible===false ? 'your key' : costShort(drawerEp.cost)}}</b></div>
+      <div><span>Price</span><b>{{toolPrice(drawerEp)}}</b></div>
       <div><span>Works</span><b>{{drawerStats.works ? drawerStats.works.pct+'%' : '—'}}</b><i v-if="drawerStats.works">{{approxCalls(drawerStats.works.n)}}, 30 days</i></div>
       <div><span>Useful</span><b :class="{low:drawerStats.useful && drawerStats.useful.pct<50}">{{drawerStats.useful ? drawerStats.useful.pct+'%' : '—'}}</b><i v-if="drawerStats.useful">{{approxTeams(drawerStats.useful.n)}}</i></div>
     </div>
 
     <div class="td-act">
       <button v-if="mkOauth(drawerEp.provider) && !catEndpointConnected(drawerEp)" class="pl-btn"
-              @click="publicCatalog ? openSignin() : openProvider(drawerEp.provider)">{{endpointConnectLabel(drawerEp)}}</button>
-      <button v-else class="pl-btn" @click="publicCatalog ? openSignin() : openEpTry(drawerEp)">Try it</button>
+              @click="catalogConnect(drawerEp)">{{endpointConnectLabel(drawerEp)}}</button>
+      <button v-else class="pl-btn" @click="catalogTry(drawerEp)">Try it</button>
       <a v-if="drawerEp.docs_url || provFact(drawerEp.provider,'pricing_url')" class="pl-link" :href="drawerEp.docs_url || provFact(drawerEp.provider,'pricing_url')"
-         target="_blank" rel="noopener">{{drawerEp.docs_url ? 'Docs' : 'Pricing'}} ↗</a>
+         target="_blank" rel="noopener" @click="catalogDocs(drawerEp)">{{drawerEp.docs_url ? 'Docs' : 'Pricing'}} ↗</a>
     </div>
 
     <div v-if="drawerEp.call_template" class="pl-code"><code>{{drawerEp.call_template}}</code>
-      <button @click="copyCall(drawerEp)">{{platCopied===drawerEp.id ? 'Copied' : 'Copy'}}</button></div>
+      <button @click="catalogCopy(drawerEp)">{{platCopied===drawerEp.id ? 'Copied' : 'Copy'}}</button></div>
 
     <p class="td-facts">{{drawerFacts}}</p>
 
@@ -75,7 +77,7 @@ export default {
         <ul><li v-for="(f,fi) in epFacts(drawerEp)" :key="fi">{{f}}</li></ul>
       </details>
       <p v-if="!publicCatalog && mkKnown(drawerEp.provider) && !mkOauth(drawerEp.provider)" class="td-byok">
-        Have your own {{drawerEp.provider_display||drawerEp.provider}} key? <button class="pl-link" @click="goByok(drawerEp.provider)">Use it</button>:
+        Have your own {{drawerEp.provider_display||drawerEp.provider}} key? <button class="pl-link" @click="catalogByok(drawerEp.provider, drawerEp)">Use it</button>:
         your key always wins, and those calls are never metered.</p>
     </div>
 
@@ -86,12 +88,12 @@ export default {
     </div>
 
     <div v-if="drawerEp.reviews" v-show="epTabOf(drawerEp)==='rev'" class="td-rev">
-      <div class="lrev-bar" aria-hidden="true"><span v-for="v in verdictKinds" :key="v" :class="v" :style="{flexGrow:drawerEp.reviews.share[v]}"></span></div>
-      <p class="lrev-legend"><span v-for="v in verdictKinds" :key="v"><i :class="v"></i>{{Math.round(drawerEp.reviews.share[v]*100)}}% {{verdictLabel(v).toLowerCase()}}</span></p>
+      <div class="td-rev-bar" aria-hidden="true"><span v-for="v in verdictKinds" :key="v" :class="v" :style="{flexGrow:drawerEp.reviews.share[v]}"></span></div>
+      <p class="td-rev-legend"><span v-for="v in verdictKinds" :key="v"><i :class="v"></i>{{verdictPct(drawerEp.reviews, v)}}</span></p>
       <p class="td-note">From {{approxTeams(drawerEp.reviews.teams)}}' agents after using the result, one vote per team, last 90 days.</p>
       <ul class="td-quotes">
         <li v-for="(q,qi) in drawerEp.reviews.samples" :key="qi">
-          <span class="lrev-v" :class="q.usefulness">{{verdictLabel(q.usefulness)}}</span>
+          <span class="td-rev-v" :class="q.usefulness">{{verdictLabel(q.usefulness)}}</span>
           <p>{{q.reason}}</p>
           <span class="td-qm">{{verdictDate(q.month)}}<template v-if="verdictClient(q.client)"> · via {{verdictClient(q.client)}}</template></span>
         </li>
