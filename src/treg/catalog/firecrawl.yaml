@@ -107,12 +107,12 @@ endpoints:
         limit: {type: integer, required: false, min: 1, max: 1000, example: 10}
         includeSubdomains: {type: boolean, required: false, default: false}
         ignoreQueryParameters: {type: boolean, required: false, default: true}
-      note: "Firecrawl's billing guide says one credit per Map call, while its pricing page labels Map per page. A live one-link call cost one credit."
+      note: "Firecrawl's billing guide says one credit per Map call, while its pricing page labels Map per page. Live one-link, three-link and five-link calls each cost one credit."
     test_request: {body: {url: "https://example.com", limit: 5}}
     cost:
       <<: *one_page
       unit: call
-      note: "A live one-link map reduced the balance by one credit; Firecrawl's billing guide states one credit per call."
+      note: "Live one-link, three-link and five-link maps each reduced the balance by one credit; Firecrawl's billing guide states one credit per call."
     verified: '2026-09-28'
     docs_url: https://docs.firecrawl.dev/api-reference/endpoint/map
     example_response: examples/firecrawl.web.map.json
