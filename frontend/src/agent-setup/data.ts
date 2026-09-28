@@ -7,18 +7,20 @@ export type Example = { k: string, cat: string, logo: string, avatar?: string, s
 export type OAuthGroup = { label: string, items: { s: string, n: string }[], soon: { s: string, n: string }[] }
 export type IconUrl = (icon: string | null | undefined, theme?: string) => string
 
+// Ordered by how many people who pick each agent go on to make a call; the first is the default.
+// 'other' stays last, as the catch-all.
 export const agents: Agent[] = [
-  {id:'openclaw',name:'OpenClaw',icon:'openclaw-color'},
-  {id:'grokbot',name:'Grok Bot',icon:'/logos/agents/grokbot.png',plugin:'https://x.ai/bot/plugin/55647425'},
-  {id:'hermes',name:'Hermes Agent',icon:'hermesagent'},
-  {id:'claudeai',name:'Claude.ai',icon:'claude-color'},
   {id:'claude-code',name:'Claude Code',icon:'claudecode-color'},
   {id:'codex',name:'Codex',icon:'codex-color'},
+  {id:'claudeai',name:'Claude.ai',icon:'claude-color'},
+  {id:'grokbot',name:'Grok Bot',icon:'/logos/agents/grokbot.png',plugin:'https://x.ai/bot/plugin/55647425'},
+  {id:'hermes',name:'Hermes Agent',icon:'hermesagent'},
+  {id:'cursor',name:'Cursor',icon:'cursor'},
 ]
 export const moreAgents: Agent[] = [
+  {id:'openclaw',name:'OpenClaw',icon:'openclaw-color'},
   {id:'opencode',name:'opencode',icon:'opencode'},
   {id:'pi',name:'pi',icon:'pi'},
-  {id:'cursor',name:'Cursor',icon:'cursor'},
   {id:'gemini-cli',name:'Gemini CLI',icon:'gemini-color'},
   {id:'other',name:'Other',icon:null},
 ]

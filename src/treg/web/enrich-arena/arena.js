@@ -164,7 +164,7 @@
       user(){this.scheduleQuote();}
     },
     computed:{
-      setupFeatured(){return ['claude-code','codex','openclaw','hermes'].map(id=>TregAgentSetup.agents.find(a=>a.id===id));},
+      setupFeatured(){const all=TregAgentSetup.agents.concat(TregAgentSetup.moreAgents);return ['claude-code','codex','openclaw','hermes'].map(id=>all.find(a=>a.id===id));},
       setupOtherCount(){return TregAgentSetup.agents.length+TregAgentSetup.moreAgents.length-this.setupFeatured.length;},
       setupAgent(){return [...TregAgentSetup.agents,...TregAgentSetup.moreAgents].find(a=>a.id===this.setupAgentId)||TregAgentSetup.agents[0];},
       setupCommand(){return TregAgentSetup.command(this.meta.public_url||location.origin);},
