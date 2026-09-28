@@ -219,11 +219,10 @@ rated by fewer than five teams carries no `reviews` at all.
 
 `samples` quotes at most three reasons, at most one per team (its latest), drawn in the proportions
 the teams voted (largest remainder) rather than picked for tone, newest first, each with its
-verdict, the month (never the day) and the review's `client`. A reason is quotable only at 40
-characters or more and with nothing that can name what another team was looking up rather than how
-the endpoint did: an email address, a link or any domain, a handle, a phone-like run of digits, or two
-capitalised words in a row (a person's name; a few product names go with it, which is the cheap side
-to err on). No team, user or call is identified. The catalog page is public, so the quotes are too;
+verdict, the month (never the day) and the review's `client`. A reason of 40 characters or more is
+quoted as written, with no filter: the review tool tells agents that reasons may be quoted on the
+endpoint's page without naming the team, and to leave private data out. No team, user or call is
+identified. The catalog page is public, so the quotes are too;
 the dashboard labels the band ("5+ teams").
 
 `application.feedback.endpoint_verdicts` reads the window once per process every five minutes on

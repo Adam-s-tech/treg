@@ -34,16 +34,14 @@ def test_a_team_is_one_vote_however_many_times_its_agent_rated():
     assert summarize(split)["a.b.c"]["share"] == {"useful": 0.9, "partly": 0.0, "not_useful": 0.1}
 
 
-def test_quotes_follow_the_vote_and_skip_what_names_a_lookup():
+def test_quotes_follow_the_vote_newest_first():
     rows = ([review(org, "not_useful", day=org) for org in range(6)]
             + [review(org, "useful", day=org) for org in range(6, 9)]
-            + [review(9, "useful", reason="Found jane@acme.io at the company, as asked for here.")]
             + [review(10, "useful", reason="Short.")])
     out = summarize(rows)["a.b.c"]
     kinds = [q["usefulness"] for q in out["samples"]]
     assert sorted(kinds) == ["not_useful", "not_useful", "useful"]
     assert [q["month"] for q in out["samples"]] == sorted((q["month"] for q in out["samples"]), reverse=True)
-    assert all("@" not in q["reason"] for q in out["samples"])
     assert out["samples"][0] == {"usefulness": "useful", "reason": LONG, "client": "codex", "month": "2026-09"}
 
 
@@ -55,14 +53,9 @@ def test_one_quote_per_team_its_latest():
 
 def test_quotable():
     assert quotable(LONG)
+    assert quotable(LONG + " Found jane@acme.io at https://acme.io, as asked.")   # quoted as written
     assert not quotable("   too short   ")
     assert not quotable(None)
-    assert not quotable(LONG + " See https://example.org/page")
-    assert not quotable(LONG + " The site acme-widgets.com had it.")
-    assert not quotable(LONG + " Matched lubglass.pl correctly.")          # any TLD, not a list
-    assert not quotable(LONG + " Returned Tamara Kimmel of Florida.")       # a person
-    assert not quotable(LONG + " Mobile +44 20 7946 0958 was valid.")       # a phone number
-    assert not quotable(LONG + " The @acmehq account matched.")             # a handle
 
 
 async def test_platform_payload_carries_verdicts_past_the_threshold(clients):

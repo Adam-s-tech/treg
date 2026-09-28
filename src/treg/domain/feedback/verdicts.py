@@ -12,7 +12,6 @@ never rolled up per provider.
 """
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -30,19 +29,6 @@ MIN_REASON_CHARS = 40
 # an exact count next to the shares would give each small group's votes away, and a count that
 # moves from 5 to 6 would say how the new team voted.
 TEAM_BANDS = (5, 10, 25, 50)
-
-# A quoted reason must read as a verdict on the endpoint, not as the task it served. Anything that
-# can name who or what another team was looking up keeps the reason out of the quotes: an address,
-# a link or any domain, a handle, a phone-like run of digits, or two capitalised words in a row (a
-# person's name, and a few product names along with them; losing those quotes is the cheap side).
-_PRIVATE = tuple(re.compile(p) for p in (
-    r"[\w.%+-]+@[\w-]+\.[\w.-]+",                              # email
-    r"(?i)https?://|www\.",                                        # link
-    r"(?i)\b[a-z0-9][\w-]*(?:\.[\w-]+)*\.[a-z]{2,24}\b",          # any domain, any TLD
-    r"(?<![\w.])@\w{2,}",                                          # handle
-    r"\+?\d[\d\s().-]{6,}\d",                                     # phone-like digits
-    r"\b[A-Z][a-z]{2,}(?: [A-Z]\.)? [A-Z][a-z]{2,}\b",               # a name
-))
 
 
 @dataclass(frozen=True)
@@ -68,8 +54,9 @@ def team_band(n: int) -> int:
 
 
 def quotable(reason: str | None) -> bool:
-    text = (reason or "").strip()
-    return len(text) >= MIN_REASON_CHARS and not any(p.search(text) for p in _PRIVATE)
+    """A reason long enough to say something about the endpoint. Quoted as written: the review tool
+    tells agents reasons may be quoted without naming the team, and to leave private data out."""
+    return len((reason or "").strip()) >= MIN_REASON_CHARS
 
 
 def _quotas(share: dict[str, float], slots: int) -> dict[str, int]:
