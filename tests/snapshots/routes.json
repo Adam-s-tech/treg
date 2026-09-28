@@ -807,6 +807,15 @@
       "GET",
       "HEAD"
     ],
+    "name": "lead_signals_skill_md",
+    "path": "/skills/lead-signals/SKILL.md"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
     "name": "feedback_md",
     "path": "/feedback.md"
   },
@@ -962,6 +971,15 @@
     ],
     "name": "people_search_page",
     "path": "/people-search"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "leads_signals_page",
+    "path": "/leads-signals"
   },
   {
     "kind": "APIRoute",
@@ -1146,6 +1164,15 @@
     ],
     "name": "well_known_make_ugc_md",
     "path": "/.well-known/skills/make-ugc/SKILL.md"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "well_known_lead_signals_md",
+    "path": "/.well-known/skills/lead-signals/SKILL.md"
   },
   {
     "kind": "APIRoute",

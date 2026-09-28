@@ -4,6 +4,7 @@ status: shipped
 sources:
   - src/treg/web/skill.md
   - src/treg/web/skills/make-ugc/SKILL.md
+  - src/treg/web/skills/lead-signals/SKILL.md
   - src/treg/routers/web.py
   - src/treg/mcp_install.py
   - scripts/build_plugin.py
@@ -65,7 +66,7 @@ served**, because a second copy of the product's most-read page is a copy that r
 
 | door | artifact | who reaches it |
 |---|---|---|
-| the installer | `install.sh` → `treg skill bootstrap` → every detected agent's skills dir | people who ran the curl one-liner |
+| the installer | `install.sh` → `treg skill bootstrap` → every detected agent's skills dir, the treg skill plus every workflow skill in `/.well-known/skills/index.json` | people who ran the curl one-liner |
 | Claude Code plugin | `.claude-plugin/` + generated `skills/treg/SKILL.md` (repo root) | `/plugin marketplace add superdesigndev/treg` |
 | Codex/ChatGPT plugin | `plugin/.codex-plugin/` + generated `plugin/skills/treg/SKILL.md` | the directory ChatGPT and Codex share. Submission runbook: [docs/PLUGIN-SUBMISSION.md](../../PLUGIN-SUBMISSION.md), test cases: [skill-openai-test-cases.md](skill-openai-test-cases.md), per-tool justifications: [skill-openai-tool-justifications.md](skill-openai-tool-justifications.md) |
 | Cursor plugin | `.cursor-plugin/marketplace.json` + generated `plugins/treg/skills/treg/SKILL.md` | the Cursor marketplace (plugin root is never the repo root) |
@@ -73,9 +74,13 @@ served**, because a second copy of the product's most-read page is a copy that r
 | MiniMax plugin | `plugins/minimax/.minimax-plugin/plugin.json` + generated `plugins/minimax/skills/treg/SKILL.md`; `scripts/minimax_plugin.py` pre-runs their validator and builds the ZIP | the MiniMax Plugin Marketplace (MiniMax Code + MiniMax Agent), submitted by form as GitHub subdir `plugins/minimax`; skills-only because the package may hold no credential and the bootstrap omits `treg mcp install`, which cannot write a MiniMax config. See [docs/MINIMAX-PLUGIN.md](../../MINIMAX-PLUGIN.md) |
 | the domain itself | `GET /.well-known/skills/index.json` + `/.well-known/skills/treg/SKILL.md` | anything speaking the agentskills.io convention (Hermes reads this directly) |
 | a workflow skill | `GET /skills/ugc/SKILL.md` (also `/.well-known/skills/make-ugc/SKILL.md`, second entry in the index): `make-ugc`, the `/ugc` workflow as a file to follow. Source `src/treg/web/skills/make-ugc/SKILL.md`; `.agents/skills/make-ugc` is a symlink to it so the repo's own agents and the served copy never drift. It delegates to `portrait-clone` and `ugc-talking-head-video` by URL rather than repeating them | anyone the /ugc page or the onboarding "Make UGC videos" card sends here |
+| a workflow skill | `GET /skills/lead-signals/SKILL.md` (also `/.well-known/skills/lead-signals/SKILL.md`, third entry in the index): `lead-signals`, the `/leads-signals` workflow as a file to follow: detect, qualify, contact, keep watching. It names signal families and the words to search the catalog with, never endpoint ids, because the catalog changes weekly; the schedule and the diff against the last list are the agent's, not treg's. Source `src/treg/web/skills/lead-signals/SKILL.md`; `.agents/skills/lead-signals` is a symlink to it. | anyone pointed at the URL |
 
 `scripts/build_plugin.py` renders every plugin copy from the one source and `--check` fails if any is
-stale (`tests/test_plugin.py`). The variants differ **only** in their prepended bootstrap, because they arrive in opposite worlds: the Codex plugin ships an MCP connector, so its
+stale (`tests/test_plugin.py`). It also writes real copies of the workflow skills (`src/treg/web/skills/*`) to
+`skills/<name>/SKILL.md`, because `npx skills add superdesigndev/treg` (skills.sh) reads `skills/` and
+skips symlinks; repo-tooling skills under `.agents/skills` and `.claude/skills` carry
+`metadata.internal: true` so that command offers only what a user should install. The variants differ **only** in their prepended bootstrap, because they arrive in opposite worlds: the Codex plugin ships an MCP connector, so its
 bootstrap says *use the tools, not the terminal*; the Claude plugin declares **no connector in its
 manifest** — so it installs with no token and nothing waits on a directory review — and its bootstrap
 does the opposite, walking the agent through `install.sh` → `treg login` → `treg mcp install` so the
