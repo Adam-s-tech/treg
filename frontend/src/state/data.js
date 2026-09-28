@@ -83,12 +83,22 @@ export default function data(){
       platShelfOpen:{},    // category → its featured shelf has been expanded to the full tile list
       // The ledger's filter bar. All three narrow the SAME row list, and a section with no
       // surviving rows disappears rather than showing an empty heading.
-      platDomain:'', platQ:'', platVerifiedOnly:false,
-      platOpen:{},         // ledger row key → row expanded
-      platActionsOpen:false,  // the single platform-wide account/utility ("Actions") section is open
-      epOpen:{},           // endpoint id → its provider sub-row (level two, merged rows only) is open
+      platQ:'',            // the shelf's search box
       epTab:{},            // endpoint id → which pane of its detail is showing ('req' | 'res' | 'rev')
       verdictKinds:['useful','partly','not_useful'],   // an endpoint's agent verdicts, in bar order
+      platJob:null,        // the job (capability, minus the platform prefix) a platform URL names
+      drawerTool:null,       // endpoint id open in the tool drawer
+      epInfo:{},         // endpoint id → {loading, data} from /catalog/endpoints/<id>
+      platJobLead:null,    // the endpoint whose detail carries the open job's siblings and plan
+      platJobSort:'price', // the job table's order: 'price' | 'works' | 'useful'
+      // What each comparison column means, on hover or focus of its heading.
+      colTips:{
+        takes:'What you can send it. Each tag is one input it accepts; — means the catalog has not mapped it yet.',
+        price:"What one call costs on treg's key, in the provider's own unit: per call, per result or per success. With your own key the provider bills you, and treg adds nothing.",
+        works:'Share of the last 30 days of calls that ended without a provider error. Shown once there are 20 or more.',
+        useful:"Share of teams whose agents found the result useful after using it, one vote per team, last 90 days. Shown once 5 teams have rated it; compare it within this table only.",
+      },
+      mkTools:null,        // {service, loading, err, data} from /catalog/providers/<service>
       platEx:{},           // endpoint id → {open, loading, err, text} for the lazily-fetched example
       platCopied:'',       // endpoint id whose `treg call` line was just copied
       capAsk:null,  // the access question, asked when a one-method provider has several scope levels

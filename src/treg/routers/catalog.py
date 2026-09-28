@@ -167,6 +167,44 @@ async def catalog_platform(slug: str, include_hidden: int = 0) -> dict:
     }
 
 
+@app.get("/catalog/providers/{service}")
+async def catalog_provider(service: str) -> dict:
+    """Open: every tool one provider serves, filed by platform. A tool that is one of several
+    providers doing the same job on its platform carries `job` (the capability and how many
+    providers do it), so a page listing a provider's tools can link to the comparison. The same
+    rule the platform page uses: a capability at least two providers serve on that platform, routed
+    rows and account/utility plumbing not counted. Plumbing is listed, tagged by `kind`."""
+    cat = catalog_store.load()
+    eps = [e for e in cat.for_provider(service) if e.get("kind") != "routed"]
+    if not eps:
+        raise HTTPException(status_code=404, detail=f"unknown provider {service!r}")
+    verdicts = await _verdicts_or_empty()
+    display = _provider_display(service)
+    shelves: dict[str, list[dict]] = {}
+    job_size: dict[tuple[str, str], int] = {}
+    for ep in eps:
+        view = catalog_store.endpoint_view(ep, display, cat)
+        if ep["id"] in verdicts:
+            view["reviews"] = verdicts[ep["id"]]
+        cap, plat = ep.get("capability"), ep["platform"]
+        if cap and catalog_store.browsable(ep):
+            if (plat, cap) not in job_size:
+                job_size[(plat, cap)] = len({e["provider"] for e in cat.for_platform(plat)
+                                             if e["capability"] == cap and catalog_store.browsable(e)})
+            if job_size[(plat, cap)] >= 2:
+                view["job"] = {"capability": cap, "providers": job_size[(plat, cap)],
+                               "description": cat.capabilities.get(cap, "")}
+        shelves.setdefault(plat, []).append(view)
+    return {
+        "provider": {"service": service, "display_name": display, **cat.provider_meta.get(service, {})},
+        "platforms": [
+            {"slug": slug, "label": cat.platforms.get(slug, {}).get("label", slug),
+             "tools": sorted(tools, key=lambda v: (v["kind"] in catalog_store.HIDDEN_KINDS, v["name"] or v["summary"] or v["id"]))}
+            for slug, tools in sorted(shelves.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+        ],
+    }
+
+
 def _plan_row(c) -> dict:
     """One quote line, token-frugal: what an agent needs to pick or set a ceiling. Measured rates
     ride only when they exist; the unmeasured case says nothing rather than four nulls."""
@@ -321,24 +359,27 @@ async def catalog_search(request: Request, q: str = "", limit: int = 25,
 
 
 @app.get("/catalog/find")
-async def catalog_find(request: Request, q: str = ""):
+async def catalog_find(request: Request, q: str = "", platform: str = ""):
     """Open, rate limited: find the endpoints that can do a described JOB (application.catalog_find).
 
     Streams newline-delimited JSON, two events: `candidates` (the lexical recall, immediately) and
     `judged` (the relevance judge's kept rows and a verdict, when it answers). The pages that call
-    this animate the gap between them. Agents keep `/catalog/search` and MCP `catalog_search`."""
+    this animate the gap between them. `?platform=<slug>` scopes it to one shelf, for that shelf's
+    own search box. Agents keep `/catalog/search` and MCP `catalog_search`."""
     from .auth import _client_ip   # auth imports web, which imports this module
 
     query = find.clean_query(q)
     if not query:
         raise HTTPException(status_code=400, detail="describe the job in ?q=")
+    if platform and not catalog_store.load().for_platform(platform):
+        raise HTTPException(status_code=404, detail=f"unknown platform {platform!r}")
     if not find.configured():
         raise HTTPException(status_code=503, detail="finding tools by description is not configured on this server")
     if not await find.admit(_client_ip(request)):
         raise HTTPException(status_code=429, detail="too many searches from here this hour; try again later or use /catalog/search")
 
     async def lines():
-        async for event in find.stream(query, _provider_display):
+        async for event in find.stream(query, _provider_display, platform or None):
             yield json.dumps(event) + "\n"
 
     return StreamingResponse(lines(), media_type="application/x-ndjson",

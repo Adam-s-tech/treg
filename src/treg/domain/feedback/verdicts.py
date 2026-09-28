@@ -27,10 +27,18 @@ MIN_TEAMS = 5
 SAMPLES = 3
 MIN_REASON_CHARS = 40
 
-# A quoted reason must read as a verdict on the endpoint, not as the task it served: an address or
-# a link names who or what another team was looking up.
-_EMAIL = re.compile(r"[\w.%+-]+@[\w-]+\.[\w.-]+")
-_LINK = re.compile(r"https?://|www\.|\b[\w-]+\.(?:com|net|org|io|co|ai|dev|app|me|so|xyz)\b", re.IGNORECASE)
+# A quoted reason must read as a verdict on the endpoint, not as the task it served. Anything that
+# can name who or what another team was looking up keeps the reason out of the quotes: an address,
+# a link or any domain, a handle, a phone-like run of digits, or two capitalised words in a row (a
+# person's name, and a few product names along with them; losing those quotes is the cheap side).
+_PRIVATE = tuple(re.compile(p) for p in (
+    r"[\w.%+-]+@[\w-]+\.[\w.-]+",                              # email
+    r"(?i)https?://|www\.",                                        # link
+    r"(?i)\b[a-z0-9][\w-]*(?:\.[\w-]+)*\.[a-z]{2,24}\b",          # any domain, any TLD
+    r"(?<![\w.])@\w{2,}",                                          # handle
+    r"\+?\d[\d\s().-]{6,}\d",                                     # phone-like digits
+    r"\b[A-Z][a-z]{2,}(?: [A-Z]\.)? [A-Z][a-z]{2,}\b",               # a name
+))
 
 
 @dataclass(frozen=True)
@@ -53,7 +61,7 @@ async def since(db: AsyncSession, start: datetime) -> list[Review]:
 
 def quotable(reason: str | None) -> bool:
     text = (reason or "").strip()
-    return len(text) >= MIN_REASON_CHARS and not _EMAIL.search(text) and not _LINK.search(text)
+    return len(text) >= MIN_REASON_CHARS and not any(p.search(text) for p in _PRIVATE)
 
 
 def _quotas(share: dict[str, float], slots: int) -> dict[str, int]:
@@ -97,9 +105,11 @@ def summarize(reviews: list[Review], *, min_teams: int = MIN_TEAMS, samples: int
         share = {v: votes[v] / len(teams) for v in VERDICTS}
         out[endpoint_id] = {
             "teams": len(teams),
-            "share": {v: round(s, 3) for v, s in share.items()},
+            # Two places and a month: enough to read, not enough to reconstruct one team's votes or
+            # to date a quote to the day another team ran its task.
+            "share": {v: round(s, 2) for v, s in share.items()},
             "samples": [{"usefulness": r.usefulness, "reason": r.reason.strip(), "client": r.client,
-                         "date": r.created_at.date().isoformat()}
+                         "month": r.created_at.strftime("%Y-%m")}
                         for r in _samples(candidates, share, samples)],
         }
     return out

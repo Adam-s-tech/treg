@@ -13,6 +13,7 @@ import re
 from urllib.parse import quote, urlsplit
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request
+from starlette.convertors import Convertor, register_url_convertor
 from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse, PlainTextResponse,
                                RedirectResponse, Response)
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -481,9 +482,9 @@ async def catalog_page(slug: str):
                  + f'<p class="lede">{_esc_html(summary)} {len(eps)} endpoints from '
                    f"{_esc_html(provs)}"
                  + (f", from {_esc_html(cheapest)} per call" if cheapest else "")
-                 + ". Jobs that several providers do sit on one row, so you can compare price and "
-                   "coverage before you spend a call — <b>choosing is yours</b>; treg does not route "
-                   "between providers automatically.</p>"
+                 + ". A job several providers do has its own page comparing them by price, measured "
+                   "success and agents' verdicts; where treg offers a routed tool for it, treg can "
+                   "pick the provider for you.</p>"
                  + "".join(blocks))
 
     desc = (f"{len(eps)} {label.lower()} API endpoints from "
@@ -496,7 +497,9 @@ async def catalog_page(slug: str):
          "numberOfItems": len(caps),
          "itemListElement": [
              {"@type": "ListItem", "position": i, "name": cap["description"] or cap["id"],
-              "url": f"{base}/catalog/{slug}#{cap['id']}"}
+              "url": (f"{base}/catalog/{slug}/{cap['id'].removeprefix(slug + '.')}"
+                      if len({e["provider"] for e in cap["endpoints"] if e.get("kind") != "routed"}) >= 2
+                      else f"{base}/catalog/{slug}#{cap['id']}")}
              for i, cap in enumerate(caps, 1)]},
         {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
             {"@type": "ListItem", "position": 1, "name": "treg.to", "item": base + "/"},
@@ -507,6 +510,57 @@ async def catalog_page(slug: str):
     # title leads with it; the brand is treg.to and the copy carries no em-dash.
     return _spa_catalog_page(f"{label} API pricing: {len(eps)} endpoints priced per call | treg.to",
                              desc[:300], f"/catalog/{slug}", ld, prerender)
+
+
+class _ShelfSlug(Convertor):
+    """A platform slug that is never one of the catalog's own API segments. `/catalog/call/<id>`
+    and friends share the `/catalog/<a>/<b>` shape with the job page, and route order across the
+    app roles is not something this page should depend on: the path simply does not match them."""
+    regex = r"(?!(?:call|platforms|endpoints|examples|search|find)(?:/|$))[^/]+"
+
+    def convert(self, value: str) -> str:
+        return value
+
+    def to_string(self, value: str) -> str:
+        return value
+
+
+register_url_convertor("shelf", _ShelfSlug())
+
+
+@app.get("/catalog/{slug:shelf}/{job}", include_in_schema=False)
+async def catalog_job_page(slug: str, job: str):
+    """One job on a shelf: the providers that do it, side by side. `job` is the capability id
+    without its platform prefix (`enrich` for `companies.enrich`), or the whole id when it is filed
+    under another prefix. Same SPA as the shelf; the head and the no-JS text name this job."""
+    if slug in _CATALOG_RESERVED:
+        raise HTTPException(status_code=404, detail=f"unknown platform {slug!r}")
+    detail = await catalog_platform(slug)
+    cap = next((c for c in detail["capabilities"] if c["id"] in (f"{slug}.{job}", job)), None)
+    if cap is None:
+        raise HTTPException(status_code=404, detail=f"unknown job {job!r} on {slug!r}")
+    base = get_settings().public_url.rstrip("/")
+    label = detail["platform"]["label"]
+    does = cap["description"] or cap["id"]
+    eps = [e for e in cap["endpoints"] if e.get("kind") != "routed"]
+    provs = sorted({e["provider_display"] for e in eps})
+    lis = "".join(
+        f'<li><b>{_esc_html(e["provider_display"])}</b> <i>{_esc_html(e.get("summary") or "")}</i>'
+        f'<span class="m">{_esc_html(_price_label(e.get("cost")) or "")} · {_esc_html(e["id"])}</span></li>'
+        for e in eps)
+    path = f"/catalog/{slug}/{job}"
+    prerender = (f'<p class="m"><a href="/catalog">Catalog</a> / <a href="/catalog/{_esc_html(slug)}">'
+                 f"{_esc_html(label)}</a></p><h1>{_esc_html(does)}</h1>"
+                 f'<p class="lede">{len(provs)} providers do this through one treg key: '
+                 f"{_esc_html(', '.join(provs))}.</p><ul>{lis}</ul>")
+    ld = [{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "Catalog", "item": base + "/catalog"},
+        {"@type": "ListItem", "position": 2, "name": label, "item": f"{base}/catalog/{slug}"},
+        {"@type": "ListItem", "position": 3, "name": does, "item": base + path}]}]
+    return _spa_catalog_page(f"{does}: {len(provs)} APIs compared | treg.to",
+                             f"{does}. Compare {', '.join(provs[:4])} and more by price, measured "
+                             "success and agents' verdicts; call any of them through one treg key."[:300],
+                             path, ld, prerender)
 
 
 # --------------------------------------------------------------------------- /agents/<agent>
@@ -3340,6 +3394,18 @@ def _iso_day(ts: float) -> str:
     return datetime.fromtimestamp(ts, tz=timezone.utc).date().isoformat() if ts else ""
 
 
+def _job_paths() -> list[tuple[str, str]]:
+    """Every public job page: a capability at least two providers serve on its shelf, the same rule
+    the shelf uses for its job cards, keyed the way its URL is (`enrich` for `companies.enrich`)."""
+    cat = catalog_store.load()
+    sellers: dict[tuple[str, str], set[str]] = {}
+    for e in cat.endpoints:
+        if e.get("capability") and catalog_store.browsable(e):
+            sellers.setdefault((e["platform"], e["capability"]), set()).add(e["provider"])
+    return sorted((plat, cap.removeprefix(plat + "."))
+                  for (plat, cap), provs in sellers.items() if len(provs) >= 2)
+
+
 @app.get("/sitemap.xml", include_in_schema=False)
 async def sitemap_xml():
     """Generated, not bundled: 80 of its URLs are the catalog's platform shelves, which move with the
@@ -3366,6 +3432,8 @@ async def sitemap_xml():
         add(path, day, priority)
     for row in _platform_rows():
         add(f"/catalog/{row['slug']}", cat_day, "0.6")
+    for slug, job in _job_paths():
+        add(f"/catalog/{slug}/{job}", cat_day, "0.6")
     for prow in _provider_rows():
         add(f"/tools/{prow['service']}", cat_day, "0.5")
     # The agent pages exist only on the hosted deployment (see `_hosted`); their lastmod follows the

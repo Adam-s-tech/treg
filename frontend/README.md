@@ -47,6 +47,10 @@ uv build
 Test behavior, not template source strings, CSS class names or component arrangement. Keep transport
 unit tests and HTTP rollout/packaging checks; use browser tests for user interactions.
 
+Browser tests run against the **built** dashboard (`TREG_FRONTEND_DEV=false`), not the source: run
+`bash scripts/build-dashboard.sh` after every frontend change, or the browser tests pass or fail on the
+previous build. A regression test only counts once it has failed against a build without the fix.
+
 Browser tests start their own server with a disposable database and no dotenv file, on a port
 the OS reports free when the run starts, so parallel runs in other worktrees never collide
 (`TREG_E2E_PORT` pins one).

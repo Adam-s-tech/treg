@@ -170,8 +170,13 @@ def names_a_platform(query: str, cat: catalog_store.Catalog) -> bool:
     return any(_is_named(query.lower(), slug, p) for slug, p in cat.platforms.items())
 
 
+def in_scope(eps, platform: str | None):
+    """Only what lives on `platform`, when a search is scoped to one shelf; everything otherwise."""
+    return eps if not platform else [e for e in eps if (e[0] if isinstance(e, tuple) else e).get("platform") == platform]
+
+
 async def judge(query: str, cands: list[tuple[dict, float]], cat: catalog_store.Catalog,
-                provider_display) -> Judged:
+                provider_display, platform: str | None = None) -> Judged:
     """Judge the recall and decide the verdict. Never raises: an abstaining judge yields the
     keyword page (possibly empty) under the KEYWORD verdict. Rows are best fit first: this page is
     an answer to one job, so unlike the experiment's `interleave.bucketed` it does not keep the
@@ -184,29 +189,41 @@ async def judge(query: str, cands: list[tuple[dict, float]], cat: catalog_store.
                                 url=s.typesafe_url, timeout_s=float(s.find_timeout_s),
                                 criteria=FIT_CRITERIA, extra={"name": NAME_QUESTION})
     if j.probs is None:
-        page, _, _ = catalog_store.rank_band(query, cat, 25)
-        return Judged(KEYWORD, [(ep, None) for ep, _ in page], j)
+        page, _, _ = catalog_store.rank_band(query, cat, 25 if not platform else 200)
+        return Judged(KEYWORD, [(ep, None) for ep, _ in in_scope(page, platform)[:25]], j)
     keep, high = float(s.search_judge_keep), float(s.search_judge_high)
     scored = sorted(zip((ep for ep, _ in cands), j.probs), key=lambda t: -t[1])
     strong = bool(scored) and scored[0][1] >= high
     kept = [(ep, p) for ep, p in scored if p >= keep]
-    if not strong and ((j.extra or {}).get("name", 0.0) >= float(s.find_name_min) or names_a_platform(query, cat)):
+    if platform and not strong and (j.extra or {}).get("name", 0.0) >= float(s.find_name_min):
+        # On one shelf a bare name can only mean a provider there: what it offers on this platform.
+        q = query.strip().lower()
+        rows = [e for e in cat.for_platform(platform) if catalog_store.browsable(e)
+                and q in (e["provider"].lower(), provider_display(e["provider"]).lower())]
+        if rows:
+            return Judged(NAME, [(ep, None) for ep in rows], j, kept, "provider")
+    elif not strong and ((j.extra or {}).get("name", 0.0) >= float(s.find_name_min) or names_a_platform(query, cat)):
         named, rows = name_rows(query, cat, provider_display)
         if rows:
             return Judged(NAME, [(ep, None) for ep in rows], j, kept, named)
     return Judged(STRONG if strong else CLOSEST if kept else NONE, kept, j, kept)
 
 
-async def stream(query: str, provider_display) -> AsyncIterator[dict]:
+async def stream(query: str, provider_display, platform: str | None = None) -> AsyncIterator[dict]:
     """The two events of one find, in order: `candidates` (the lexical recall, at once) and `judged`
     (the kept rows and the verdict, when the judge answers). Logged once the answer is out.
-    `high` rides along so the pages draw the strong cut from this server's setting, not a copy."""
+    `high` rides along so the pages draw the strong cut from this server's setting, not a copy.
+
+    `platform` scopes the whole find to one shelf: recall, the keyword fallback and a bare name's
+    answer. The recall reads deeper before the cut so a scoped search still gives the judge a full
+    set of that shelf's candidates."""
     cat = catalog_store.load()
-    cands = catalog_store.candidates(query, cat, max(1, int(get_settings().find_candidates)))
+    n = max(1, int(get_settings().find_candidates))
+    cands = in_scope(catalog_store.candidates(query, cat, n if not platform else n * 8), platform)[:n]
     yield {"event": "candidates",
            "candidates": [{"id": ep["id"], "platform": ep.get("platform") or "", "provider": ep["provider"]}
                           for ep, _ in cands]}
-    judged = await judge(query, cands, cat, provider_display)
+    judged = await judge(query, cands, cat, provider_display, platform)
     yield {"event": "judged", "verdict": judged.verdict, "named": judged.named, "read": len(cands),
            "high": float(get_settings().search_judge_high),
            "rows": [_row(ep, cat, provider_display, p) for ep, p in judged.rows]}

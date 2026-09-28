@@ -68,6 +68,15 @@
       "GET",
       "HEAD"
     ],
+    "name": "catalog_provider",
+    "path": "/catalog/providers/{service}"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
     "name": "catalog_search",
     "path": "/catalog/search"
   },
@@ -124,6 +133,15 @@
     ],
     "name": "catalog_page",
     "path": "/catalog/{slug}"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "catalog_job_page",
+    "path": "/catalog/{slug:shelf}/{job}"
   },
   {
     "kind": "APIRoute",

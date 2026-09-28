@@ -156,3 +156,40 @@ async def test_search_page_is_served_to_signed_out_visitors(clients):
     assert r.status_code == 200 and "/app/ui/assets/" in r.text
     # `find` is reserved: it is the JSON route, never a platform shelf
     assert (await clients.get("/catalog/find")).status_code == 400
+
+
+async def _find_on(clients, q, platform):
+    clients.headers.pop("X-Treg-Token", None)
+    r = await clients.get("/catalog/find", params={"q": q, "platform": platform})
+    return r, [json.loads(line) for line in r.text.splitlines() if line.strip()]
+
+
+async def test_a_shelf_search_reads_and_answers_only_that_shelf(clients, monkeypatch):
+    """The platform page's box asks the same judge, over that platform's endpoints only."""
+    seen = []
+    _on(monkeypatch, find_candidates=30)
+    monkeypatch.setattr(judge_infra, "judge", _fake_judge({}, seen))
+    r, (first, second) = await _find_on(clients, "enrich a company from its domain", "companies")
+    assert r.status_code == 200
+    assert first["candidates"] and {c["platform"] for c in first["candidates"]} == {"companies"}
+    (_, judged_ids, _), = seen
+    assert judged_ids == [c["id"] for c in first["candidates"]] and len(judged_ids) <= 30
+    # an abstaining judge falls back to the keyword page, cut to the same shelf
+    monkeypatch.setattr(judge_infra, "judge", _abstain)
+    _, (_, fallback) = await _find_on(clients, "company enrich domain", "companies")
+    assert fallback["verdict"] == "keyword" and fallback["rows"]
+    assert {row["platform"] for row in fallback["rows"]} == {"companies"}
+
+
+async def test_a_bare_name_on_a_shelf_means_that_provider_there(clients, monkeypatch):
+    _on(monkeypatch)
+    monkeypatch.setattr(judge_infra, "judge", _fake_judge({}, name=0.95))
+    _, (_, judged) = await _find_on(clients, "hunter", "companies")
+    assert judged["verdict"] == "name" and judged["named"] == "provider" and judged["rows"]
+    assert {(row["provider"], row["platform"]) for row in judged["rows"]} == {("hunter", "companies")}
+
+
+async def test_an_unknown_shelf_is_a_404(clients, monkeypatch):
+    _on(monkeypatch)
+    r, _ = await _find_on(clients, "anything at all", "no-such-shelf")
+    assert r.status_code == 404

@@ -18,14 +18,23 @@ export default {
       finally{ this.plats.loading=false; this.plats.settled=true; } },
 // Platform pages are hash routes (/app#platform/<slug>): unlike /app/marketplace/<service> there
     // is no server route to serve the SPA on a hard reload of a /app/platforms/<slug> path.
-    platformFromHash(){ const m=/^#platform\/(.+)$/.exec(location.hash||''); return m?decodeURIComponent(m[1]):null; },
+    platformFromHash(){ const m=/^#platform\/([^/]+)/.exec(location.hash||''); return m?decodeURIComponent(m[1]):null; },
+// The job a platform URL names, if any: `/catalog/<slug>/<job>` publicly, `#platform/<slug>/<job>`
+    // in the app. `<job>` is the capability id without its platform prefix (`companies.enrich` on
+    // the companies shelf is `enrich`); `platJobRow` resolves it once the shelf has loaded.
+    platJobFromLocation(){
+      const m=/^#platform\/[^/]+\/(.+)$/.exec(location.hash||'') || /^\/catalog\/[^/]+\/([^/]+)\/?$/.exec(location.pathname||'');
+      return m?decodeURIComponent(m[1]):null; },
+platJobSlug(cap){ const pre=this.platSlug+'.'; return cap.startsWith(pre) ? cap.slice(pre.length) : cap; },
+platUrl(slug, job){ const tail=job ? '/'+encodeURIComponent(job) : '';
+      return this.publicCatalog ? '/catalog/'+encodeURIComponent(slug)+tail : '/app#platform/'+encodeURIComponent(slug)+tail; },
 // The PUBLIC catalog lives at real paths (/catalog, /catalog/<slug>), not hash routes, because
     // a hash is never a distinct URL to a crawler and the whole catalog was therefore unindexable.
     // Same Vue views as the signed-in marketplace — this is one UI, not a second implementation.
     catalogFromPath(p){
       if(p==='/catalog' || p==='/catalog/') return {view:'connections', slug:null};
       if(p==='/search' || p==='/search/') return {view:'find', slug:null};
-      const m=/^\/catalog\/([^/]+)\/?$/.exec(p||'');
+      const m=/^\/catalog\/([^/]+)(?:\/[^/]+)?\/?$/.exec(p||'');
       return m ? {view:'platform', slug:decodeURIComponent(m[1])} : null;
     },
 // A plain view hash (#usage, #orgs, …) so deep links land on the right pane on a FRESH load,
@@ -38,20 +47,77 @@ export default {
     openCatalogRoute(r){
       if(r.view==='find'){ this.view='find'; this.loadPlatforms(); return; }
       if(r.slug) this.openPlatform(r.slug, true); else this.go('connections', true); },
-openPlatform(slug, fromPop){ this.resetConfirms();
-      this.detail=null; this.platSlug=slug; this.view='platform'; this.platOpen={}; this.epOpen={}; this.epTab={}; this.platEx={}; this.platActionsOpen=false;
-      this.platClearFilters(); this.platCopied='';
+openPlatform(slug, fromPop, job){ this.resetConfirms();
+      if(job===undefined) job = fromPop ? this.platJobFromLocation() : null;
+      // Moving between a shelf and one of its jobs keeps the loaded shelf: the job page is the same
+      // payload read another way, so only the address and the view state change.
+      const same = this.view==='platform' && this.platSlug===slug && (this.platData || this.platLoading);
+      this.detail=null; this.platSlug=slug; this.view='platform'; this.platJob=job||null; this.drawerTool=null;
+      this.epTab={}; this.platCopied='';
+      if(!same){ this.platEx={}; this.platClearFilters(); this.epInfo={};
+        if(this.find.scope) this.findExit(); }     // a shelf's answer belongs to that shelf
+      this.platJobSort='price';
       // A public visitor stays on the indexable /catalog/<slug> URL; a signed-in one keeps the
       // in-app hash route. Same view either way — only the address bar differs.
-      if(!fromPop) history.pushState({platform:slug}, '', this.publicCatalog
-        ? '/catalog/'+encodeURIComponent(slug)
-        : '/app#platform/'+encodeURIComponent(slug));
+      if(!fromPop) history.pushState({platform:slug}, '', this.platUrl(slug, job));
+      if(this.platJob) this.loadJobInfo();
+      window.scrollTo(0,0);
+      if(same) return;
       this.loadPlatforms();                                   // the header's provider links need the list
       // Connected/not-connected is a member fact and the endpoint needs a session; a public
       // visitor has none, so skip it rather than fire a guaranteed 401 on every shelf view.
       if(!this.publicCatalog && !this.providers.length) this.loadConnections();
-      this.loadPlatform();
-      window.scrollTo(0,0); },
+      this.loadPlatform(); },
+// Where a provider name leads: the public provider page signed out, the provider's page in the app
+    // signed in. Both list every tool the provider serves.
+    provUrl(service){ return this.publicCatalog ? '/tools/'+encodeURIComponent(service) : '/app/marketplace/'+encodeURIComponent(service); },
+goProvider(service){ if(this.publicCatalog) this.goPublicTool(service); else this.openProvider(service); },
+openJobOn(slug, cap){ const pre=slug+'.'; this.openPlatform(slug, false, cap.startsWith(pre) ? cap.slice(pre.length) : cap); },
+async loadProviderTools(service){
+      if(this.mkTools && this.mkTools.service===service && (this.mkTools.data || this.mkTools.loading)) return;
+      this.mkTools={service, loading:true, err:'', data:null};
+      const slot=this.mkTools;
+      try{ const d=await this.api('/catalog/providers/'+encodeURIComponent(service)); if(slot.service===this.mkService) slot.data=markRaw(d); }
+      catch(e){ slot.err = e.status===404 ? '' : 'Could not load this provider\'s tools.'; }
+      finally{ slot.loading=false; } },
+openJob(cap){ this.openPlatform(this.platSlug, false, this.platJobSlug(cap)); },
+closeJob(){ this.openPlatform(this.platSlug, false, null); },
+// What the calls treg served say about a job's providers, and which inputs each accepts: one
+    // `/catalog/endpoints/<id>` read returns the endpoint and every sibling of its capability with
+    // `observed`, plus the routing plan's `accepts` when the job has a routed tool. Cached per id.
+    // The server's observation cache never waits on the database: an entry it has not read in half an
+    // hour comes back empty while it refreshes in the background. So a detail whose every endpoint
+    // reads as unmeasured is asked for once more, shortly after, and the numbers fill in.
+    async loadEndpointInfo(id, retried){
+      if(!id || (this.epInfo[id] && !retried)) return;
+      if(!retried) this.epInfo[id]={loading:true, data:null};
+      const slot=this.epInfo[id];      // the reactive copy: writes to the literal would not render
+      try{ const d=await this.api('/catalog/endpoints/'+encodeURIComponent(id));
+        slot.data=markRaw(d);
+        const measured=[d.endpoint, ...(d.siblings||[])].some(x=>x && x.observed && x.observed.samples>0);
+        if(!measured && !retried) setTimeout(()=>this.loadEndpointInfo(id, true), 1500); }
+      catch(e){ if(!retried) slot.data=null; }
+      finally{ slot.loading=false; } },
+async loadJobInfo(){
+      if(!this.platData){ return; }      // loadPlatform calls back once the shelf arrives
+      const row=this.platJobRow; if(!row) return;
+      const lead=(row.endpoints.find(e=>e.kind==='routed')||row.endpoints[0]).id;
+      this.platJobLead=lead;
+      await this.loadEndpointInfo(lead); },
+openTool(id){ this.drawerTool=id; this.loadEndpointInfo(id); },
+closeTool(){ this.drawerTool=null; },
+// Up and down walk the list the drawer was opened from, so a comparison reads row after row
+    // without closing anything.
+    stepTool(d){ const ids=this.drawerIds; const i=ids.indexOf(this.drawerTool);
+      if(i<0) return; const next=ids[Math.min(ids.length-1, Math.max(0, i+d))];
+      if(next && next!==this.drawerTool) this.openTool(next); },
+platSortBy(k){ this.platJobSort=k; },
+drawerKeys(ev){
+      if(!this.drawerTool || this.epTry || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+      const t=ev.target; if(t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
+      if(ev.key==='Escape'){ ev.preventDefault(); this.closeTool(); }
+      else if(ev.key==='ArrowDown' || ev.key==='j'){ ev.preventDefault(); this.stepTool(1); }
+      else if(ev.key==='ArrowUp' || ev.key==='k'){ ev.preventDefault(); this.stepTool(-1); } },
 // Start a shelf's request before boot has resolved the session, so it is already in flight when
     // the view opens. `loadPlatform` takes it over instead of asking again.
     prefetchPlatform(slug){
@@ -66,7 +132,7 @@ async loadPlatform(){ if(!this.platSlug) return;
       // client-side, off each endpoint's `kind` (see platRowsAll / platLedger).
       try{ const data=await (pre && pre.slug===this.platSlug ? pre.request
         : this.api('/catalog/platforms/'+encodeURIComponent(this.platSlug)+'?include_hidden=1'));
-        if(live()) this.platData=data; }
+        if(live()){ this.platData=data; if(this.platJob) this.loadJobInfo(); } }
       catch(e){ if(live()) this.platErr = e.status===404
         ? 'No catalog for this platform on this server yet.'
         : 'Could not load the endpoint catalog'+(e.detail?': '+e.detail:'.'); }
@@ -140,19 +206,14 @@ costNative(c){ return c && c.display_unit ? '' : this.nativeAmount(c); },
       return ['The cheapest published rate across this platform’s endpoints',
               p.native ? 'billed as '+p.native+' / '+this.priceUnit(pf.type)+', converted at the catalog’s FX rate' : '',
               pf.note].filter(Boolean).join(' — '); },
-// Whether an endpoint's access deserves a chip on its line: only the exceptions to "treg's key or
-    // yours", the way a single row has always shown it.
-    accessNotable(e){ return e.kind==='routed' || e.platform_eligible===false; },
 // What agents said after using an endpoint's result. `reviews` is on the platform payload only
-    // past the server's team threshold, and the share is comparable between providers of one job,
-    // nothing more, so the line stays quiet grey unless most teams found it not useful.
-    verdictPct(e){ return Math.round(e.reviews.share.useful*100); },
-verdictLow(e){ return e.reviews.share.useful<0.5; },
-verdictTitle(e){ const r=e.reviews, p=v=>Math.round(r.share[v]*100)+'% '+this.verdictLabel(v).toLowerCase();
-      return this.verdictKinds.map(p).join(' · ')+' - from '+r.teams+' teams\' agents after using the result, last 90 days'; },
+    // past the server's team threshold, and the share is comparable between providers of one job.
+    verdictTitle(e){ const r=e.reviews, p=v=>Math.round(r.share[v]*100)+'% '+this.verdictLabel(v).toLowerCase();
+      return this.verdictKinds.map(p).join(' · ')+' - from '+this.approxTeams(r.teams)+'\' agents after using the result, last 90 days'; },
 verdictLabel(v){ return ({useful:'Useful', partly:'Partly useful', not_useful:'Not useful'})[v]||v; },
 verdictClient(c){ return ({'claude-code':'Claude Code', codex:'Codex', cursor:'Cursor', 'claude-connector':'Claude', cli:'treg CLI', pi:'Pi'})[c]||''; },
-verdictDate(d){ try{ return new Date(d+'T00:00:00Z').toLocaleDateString('en-US',{month:'short', day:'numeric', timeZone:'UTC'}); }catch(err){ return d; } },
+verdictDate(d){ try{ const m=String(d).length===7;   // a review carries only its month
+      return new Date(d+(m?'-01':'')+'T00:00:00Z').toLocaleDateString('en-US', m ? {month:'short', year:'numeric', timeZone:'UTC'} : {month:'short', day:'numeric', timeZone:'UTC'}); }catch(err){ return d; } },
 endpointAccessLabel(e){
       if(e.kind==='routed') return 'Routed platform call';
       if(e.id==='fishaudio.voices.list') return 'Team voices + BYOK';
@@ -240,39 +301,38 @@ capCheapest(eps){
     clip(text, n){ const s=String(text||'').trim(); if(s.length<=n) return s;
       const cut=s.slice(0,n); const sp=cut.lastIndexOf(' ');
       return (sp>n*0.6 ? cut.slice(0,sp) : cut).replace(/[\s,;:.—-]+$/,'')+'…'; },
-platClearFilters(){ this.platDomain=''; this.platQ=''; this.platVerifiedOnly=false; },
-// Every ledger row expands, merged or not: the row says what it does, the expansion says how to
-    // call it, and which of the two a visitor needs is not something the row shape can decide.
-    toggleRow(r){ this.platOpen[r.key] = !this.platOpen[r.key]; },
-// The per-section "N management endpoints" expander: reveals the account/utility rows folded
-    // out of the browse ledger (see platLedger).
-    // Level two: a provider sub-row under a merged row opens its own instruction. Single rows have
-    // nothing to compare and skip this level entirely.
-    toggleEp(e){ this.epOpen[e.id] = !this.epOpen[e.id]; },
-// One pill per provider on a merged row, carrying that provider's CHEAPEST priced endpoint —
-    // the number a comparison turns on — and a ✓ if any of its endpoints is verified.
-    provPills(eps){
-      const by=new Map();
-      for(const e of eps){
-        const cur=by.get(e.provider), n=this.costUsd(e.cost);
-        if(!cur) by.set(e.provider, {name:e.provider_display||e.provider, cost:e.cost, n, endpoint:e, verified:!!e.verified});
-        else { cur.verified = cur.verified || !!e.verified;
-               if(n!=null && (cur.n==null || n<cur.n)){ cur.cost=e.cost; cur.n=n; cur.endpoint=e; } }
-      }
-      // Cheapest first, then verified: only three of these are ever shown, so the three that
-      // survive have to be the ones worth seeing. Unpriced providers sort to the tail — they are
-      // exactly the ones whose pill would say nothing but a name.
-      return [...by.values()]
-        .sort((a,b)=>(a.n==null)-(b.n==null) || (a.n-b.n) || (b.verified-a.verified))
-        .map(p=>({name:p.name, verified:p.verified, price:p.endpoint.platform_eligible ? this.pillPrice(p.cost) : this.endpointAccessLabel(p.endpoint)})); },
-// A pill prices an endpoint only when there IS a price: a published number, or "free". A
-    // credit-metered or dashboard-only rate has no number to show, and saying so at length is what
-    // broke the row — the pill just drops it, and the sub-row below carries the full story.
-    pillPrice(c){
-      if(!c || !c.type) return '';
-      if(c.type==='free') return 'free';
-      if(c.type==='quota_rows'){ const l=this.costLabel(c); return l.length<=8 ? l : ''; }
-      return typeof c.usd==='number' ? this.costLabel(c) : ''; },
+// "free – $0.38": the spread of a job's published prices. Units differ between providers, so the
+    // card states the range, never a "from" that reads as the job's price.
+    priceRange(eps){ const ns=eps.map(e=>e.platform_eligible===false ? null : this.costUsd(e.cost)).filter(n=>n!=null);
+      if(!ns.length) return ''; const lo=Math.min(...ns), hi=Math.max(...ns);
+      const f=n=>n===0 ? 'free' : '$'+(+n.toPrecision(2));
+      return lo===hi ? f(lo) : f(lo)+' – '+f(hi); },
+// What a provider takes, from the routing plan's `accepts` (alternatives of required inputs).
+    // Absent when the plan does not cover the endpoint: unknown, never "incompatible".
+    takesLabel(acc){ if(!acc||!acc.length) return [];
+      const n={domain:'domain', website:'website', name:'name', email:'email', linkedin_url:'LinkedIn URL',
+               linkedin_handle:'LinkedIn handle', query:'query'};
+      return acc.map(a=>a.map(x=>n[x]||x.replace(/_/g,' ')).join(' + ')); },
+// 141059 → "141k": a count beside a percentage is its denominator, not a figure to read digit by digit.
+    // Volumes are shown by band, never exact: how much traffic one provider gets through treg, or how
+    // many teams rated it, is not something a comparison needs to the unit.
+    approxCalls(n){ return (n>=1e5 ? '100k+' : n>=1e4 ? '10k+' : n>=1e3 ? '1k+' : n>=100 ? '100+' : n>=50 ? '50+' : '20+')+' calls'; },
+approxTeams(n){ return (n>=50 ? '50+' : n>=25 ? '25+' : n>=10 ? '10+' : '5+')+' teams'; },
+worksTitle(r){ return r.works ? r.works.pct+'% of '+this.approxCalls(r.works.n)+' in the last 30 days ended without a provider error' : 'Fewer than 20 calls in the last 30 days'; },
+usefulTitle(r){ return r.useful ? this.verdictTitle(r.e) : 'Fewer than 5 teams have rated it'; },
+// Every endpoint on the shelf that is not part of a job card, one line each, alphabetical;
+    // `mgmt` picks the account/utility plumbing instead of the browse surface.
+    platToolItems(mgmt, all){
+      const jobs=new Set(this.platJobIndex.map(j=>j.key)); const q=all ? '' : this.platFilterQ; const out=[];
+      for(const r of this.platRowsAll){
+        if(r.mgmt!==mgmt || (r.kind==='merged' && jobs.has(r.capability))) continue;
+        for(const e of r.endpoints){
+          if(e.kind==='routed') continue;
+          const title=r.endpoints.length===1 ? r.title : this.clip(e.name||e.summary||r.description, 90);
+          const hay=(title+' '+e.provider+' '+(e.provider_display||'')+' '+(e.summary||'')+' '+e.id).toLowerCase();
+          if(!q || hay.includes(q)) out.push({id:e.id, title, e}); } }
+      return out.sort((a,b)=>a.title.localeCompare(b.title)); },
+platClearFilters(){ this.platQ=''; },
 // A price small enough for a collapsed line: "$0.024/call", "2 rows", "free", "credit-priced".
     // The long form ("per success · price in provider dashboard") is true but belongs in the
     // expanded detail — inline it wraps a row onto three lines, which is what broke the merged rows.

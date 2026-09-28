@@ -47,13 +47,13 @@ export default {
             <img v-if="!platLogoBad[g.platform]" :src="'/logos/platforms/'+g.platform+'.svg'" alt="" @error="platLogoBad[g.platform]=true">
             <span v-else>{{platInitial({label:g.platform_label, slug:g.platform})}}</span>
           </span>
-          <span class="fa-what"><b>{{g.label}}</b><small>{{platShort(g.platform_label)}}</small></span>
+          <span class="fa-what"><b>{{g.label}}</b><small v-if="!find.scope">{{platShort(g.platform_label)}}</small></span>
           <span class="fa-provs" :title="g.rows.map(r=>r.provider_display||r.provider).join(', ')">
             <span class="fa-stack"><img v-for="p in findProviders(g).slice(0,3)" :key="p" :src="'/logos/'+p+'.svg'" alt=""
                  @error="$event.target.style.visibility='hidden'"></span>
             {{findProviders(g).length}} provider{{findProviders(g).length===1?'':'s'}}
           </span>
-          <span class="fa-price">{{findPrice(g)}}</span>
+          <span class="fa-price" :title="findPrice(g)">{{findPrice(g)}}</span>
           <span v-if="g.p!=null" class="fa-fit" :title="'Fit for this job: '+Math.round(g.p*100)+'%'">
             <i :style="{width:Math.round(g.p*100)+'%'}"></i></span>
         </button>
@@ -81,7 +81,7 @@ export default {
 .fa-row:nth-child(2){animation-delay:30ms}.fa-row:nth-child(3){animation-delay:60ms}.fa-row:nth-child(4){animation-delay:90ms}
 .fa-row:nth-child(5){animation-delay:120ms}.fa-row:nth-child(n+6){animation-delay:150ms}
 @keyframes fa-in{from{opacity:0}}
-.fa-main{width:100%;display:grid;grid-template-columns:36px minmax(0,1fr) 150px 120px 56px;align-items:center;gap:16px;
+.fa-main{width:100%;display:grid;grid-template-columns:36px minmax(0,1fr) 150px 180px 56px;align-items:center;gap:16px;
   padding:12px 140px 12px 8px;border:0;background:none;text-align:left;color:var(--ink);cursor:pointer;border-radius:10px;font:inherit}
 .fa-main:hover{background:var(--hover,rgba(0,0,0,.035))}
 .fa-logo{width:36px;height:36px;border-radius:10px;background:#fff;border:1px solid var(--line);display:grid;place-items:center;color:#fff;font-weight:600;font-size:14px}
@@ -92,7 +92,8 @@ export default {
 .fa-provs{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);white-space:nowrap}
 .fa-stack{display:flex;padding-left:6px}
 .fa-stack img{width:20px;height:20px;margin-left:-6px;border-radius:6px;background:#fff;border:1.5px solid var(--bg);object-fit:contain;padding:1px}
-.fa-price{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+/* A rate can be a phrase ("$0.025/started 10 emails"): one width for every row so the columns line up, wide enough for that, and past it an ellipsis, never over the fit bar. */
+.fa-price{overflow:hidden;text-overflow:ellipsis;font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
 .fa-fit{height:4px;border-radius:2px;background:var(--line);overflow:hidden}
 .fa-fit i{display:block;height:100%;background:var(--ink);border-radius:2px}
 .fa-row.weak .fa-what b,.fa-row.weak .fa-logo{opacity:.62}
