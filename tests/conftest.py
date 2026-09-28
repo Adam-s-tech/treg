@@ -431,9 +431,20 @@ async def drain_background_writes():
     managed_keys._last_used_claims.clear()
 
 
+@pytest.fixture(autouse=True)
+async def _drain_around_each_test():
+    """Every test starts and ends with no background write in flight. A fixture that calls
+    reset_db() itself (many do) would otherwise race the previous test's audit rows: a call record
+    committed between reset_db's delete of `callrecord` and its delete of `org` breaks the foreign
+    key, and one that lands after the reset attaches to the next test's rewound ids. Autouse
+    fixtures set up first and tear down last, so this brackets every other fixture's reset."""
+    await drain_background_writes()
+    yield
+    await drain_background_writes()
+
+
 @pytest.fixture
 async def clients():
-    await drain_background_writes()
     # The archive report's 30s server-side cache would outlive this reset and serve the previous
     # test's numbers — clear it with the schema.
     from treg.routers import admin as admin_routes
