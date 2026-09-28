@@ -42,6 +42,9 @@ sources:
   - frontend/src/pages/CatalogPage.vue
   - frontend/src/pages/DetailPage.vue
   - frontend/src/pages/GettingStartedPage.vue
+  - frontend/src/pages/getting-started-art.ts
+  - frontend/e2e/experiments.spec.ts
+  - frontend/src/components/AgentCover.vue
   - frontend/src/pages/HelpPage.vue
   - frontend/src/pages/PlatformPage.vue
   - frontend/src/pages/ProviderPage.vue
@@ -325,10 +328,20 @@ The authenticated wrapper's `.redesign` class scopes `media/redesign/dashboard.c
 the existing `/media` mount. It uses the system UI font for interface text, Geist Pixel for page titles,
 and DM Mono for commands and balances (the only two web fonts, bundled from pinned `@fontsource`
 packages; see `design.md`), with light and dark semantic colors. Getting started uses
-an approximately 1080px centered column, a split agent-preview/setup card, image-backed prompt cards,
-and the existing optional Build on treg and manual setup flows. On mobile the setup card and prompt
-grid stack. Images are copied from the pinned designer repository; provenance is in
-`media/redesign/SOURCES.md`. This first implementation uses static posters instead of autoplay video.
+an approximately 1080px centered column, a split agent-preview/setup card, prompt cards, and the existing optional Build on treg and manual setup flows. On
+mobile the setup card and prompt grid stack. OpenClaw's preview is a static poster; every other agent
+gets `AgentCover.vue`, a gradient, cropped mark and title over a dot grid that animates only while on
+screen and not under reduced motion. The prompt cards are a PostHog experiment,
+`getting-started-example-art`: `test` puts a banner under a frosted panel on each card, `control`
+keeps them text-only. The grid renders once `featureVariant` (state/analytics.js) answers; with no
+PostHog, a loading error or no answer within 800 ms it shows control without reading the flag, so
+only people who saw an assigned arm count as exposed. `tryit_prompt_copied` carries the arm as
+`art`. Getting started artwork is imported through
+`pages/getting-started-art.ts`, so Vite hashes it and serves it immutable from `/app/ui/assets`:
+banners and the designer's mark variants from `frontend/src/assets/getting-started/`, unmodified
+brand marks from the pinned `@lobehub/icons-static-svg` package. The older shell artwork is still
+under `media/redesign/` (provenance in `SOURCES.md`). Write only the standard `backdrop-filter`:
+the CSS minifier adds the `-webkit-` form and drops the standard one when a rule declares both.
 Existing agent selection, token masking/copying, OAuth entry points and all backend data remain wired.
 Copy failures, including unavailable clipboard APIs, surface a dismissible message, and the agent picker/account disclosure close on Escape
 or outside interaction. The search entry on Getting started navigates to Catalog and focuses the

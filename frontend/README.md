@@ -10,7 +10,8 @@ There is no separate production frontend server.
 - `src/agent-setup/`: onboarding widgets shared with the standalone Enrich Arena page.
 - `src/state/`: existing Options API use cases, grouped by feature, plus initial state and boot.
 - `src/api.ts`: same-origin JSON transport, session expiry and edge-encoding behavior.
-- `src/styles/`: base styling. Redesign styles and artwork are shared from `src/treg/web/media/redesign/`.
+- `src/styles/`: base styling. Redesign styles and shell artwork are shared from `src/treg/web/media/redesign/`.
+- `src/assets/`: artwork imported by components, hashed by Vite and served from `/app/ui/assets`.
 
 This is an incremental extraction. The old use cases still share per-application state through
 `state/context.ts`; their JavaScript is not fully typed.

@@ -1,6 +1,19 @@
 <script>
 import { useDashboard } from '../state/context'
-export default { setup: useDashboard, mounted(){ this.loadPlatforms() } }  // the catalog size in the copy
+import AgentCover from '../components/AgentCover.vue'
+import { exampleBanners, exampleIcons } from './getting-started-art'
+export default {
+  components: { AgentCover },
+  setup: useDashboard,
+  // Experiment: prompt cards with banners ('test') against text-only cards ('control'). The grid
+  // waits for the variant so no one sees one arm and then the other; without PostHog it is control.
+  data: () => ({ tryArt: '' }),
+  computed: { exampleBanners: () => exampleBanners, exampleIcons: () => exampleIcons },
+  mounted(){
+    this.loadPlatforms()  // the catalog size in the copy
+    this.featureVariant('getting-started-example-art').then(v => { this.tryArt = v === 'test' ? 'test' : 'control' })
+  },
+}
 </script>
 
 <template>
@@ -24,7 +37,7 @@ export default { setup: useDashboard, mounted(){ this.loadPlatforms() } }  // th
                   </div>
                 </div>
                 <img v-if="welcome.agent==='openclaw'" class="rd-agent-preview" src="/media/redesign/openclaw-preview.png" alt="OpenClaw">
-                <div v-else class="rd-agent-preview rd-agent-fallback"><img v-if="welcomeAgent.icon" :src="agentIcon(welcomeAgent.icon)" alt=""><span>{{welcomeAgent.name}}</span></div>
+                <agent-cover v-else class="rd-agent-preview" :agent="welcome.agent" :name="welcomeAgent.name"></agent-cover>
               </div>
               <div class="start-bd rd-setup-body">
                 <p class="rd-agent-context">Setting up treg for <b>{{welcomeAgent.name}}</b></p>
@@ -52,10 +65,13 @@ export default { setup: useDashboard, mounted(){ this.loadPlatforms() } }  // th
             <div class="start-hd"><span class="start-num">2</span><b style="font-size:16px">Try it out</b></div>
             <div class="start-bd">
               <p class="rd-try-intro">Copy an example below and send it to your agent.</p>
-              <div class="try-grid">
-                <button v-for="ex in tryExamples" :key="ex.k" type="button" class="try-card" :class="'rd-task-'+ex.k" @click="track('tryit_prompt_copied',{key:ex.k,cat:ex.cat,from:'getting_started'}); copyStart(ex.prompt,'try-'+ex.k)">
-                  <span class="try-cat"><span style="display:inline-flex;align-items:center;gap:7px"><img class="try-ico" :src="ex.k==='ugc' ? '/logos/platforms/seedance.svg' : '/media/redesign/try-'+({trend:'tiktok',enr:'people',serp:'google',soc:'linkedin',posts:'linkedin'}[ex.k] || 'people')+'.svg'" alt=""/>{{ex.cat}}</span><span class="try-copy" :class="{done:startCopied==='try-'+ex.k}">{{startCopied==='try-'+ex.k ? '✓ copied' : '⧉ copy'}}</span></span>
-                  <span class="try-txt">{{ex.show || ex.prompt}}</span>
+              <div v-if="tryArt" class="try-grid" :data-art="tryArt">
+                <button v-for="ex in tryExamples" :key="ex.k" type="button" class="try-card" :class="['rd-task-'+ex.k, {'rd-try-art':tryArt==='test'}]" @click="track('tryit_prompt_copied',{key:ex.k,cat:ex.cat,from:'getting_started',art:tryArt}); copyStart(ex.prompt,'try-'+ex.k)">
+                  <img v-if="tryArt==='test' && exampleBanners[ex.k]" class="rd-try-banner" :src="exampleBanners[ex.k]" alt="" loading="lazy">
+                  <span class="rd-try-panel">
+                    <span class="try-cat"><span style="display:inline-flex;align-items:center;gap:7px"><img class="try-ico" :src="exampleIcons[ex.k] || '/media/redesign/try-'+({trend:'tiktok',enr:'people',serp:'google',soc:'linkedin',posts:'linkedin'}[ex.k] || 'people')+'.svg'" alt=""/>{{ex.cat}}</span><span class="try-copy" :class="{done:startCopied==='try-'+ex.k}">{{startCopied==='try-'+ex.k ? '✓ copied' : '⧉ copy'}}</span></span>
+                    <span class="try-txt">{{ex.show || ex.prompt}}</span>
+                  </span>
                 </button>
               </div>
               <div class="oauth-div"><span>also connect OAuth to unlock new agent capabilities</span></div>
