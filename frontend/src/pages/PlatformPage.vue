@@ -3,12 +3,13 @@ import { useDashboard } from '../state/context'
 import ToolDrawer from '../components/ToolDrawer.vue'
 import FindAnswer from '../components/FindAnswer.vue'
 import CatalogSearch from '../components/CatalogSearch.vue'
+import { DataTable } from '../components/ui/table'
 
 // A platform shelf, read at two levels: the shelf (the jobs several providers do, then every other
 // tool) and one job (let treg pick, or compare the providers). A tool opens in a drawer over either,
 // so a comparison never loses its table. The look is the landing page's: surfaces, not boxes.
 export default {
-  components: { ToolDrawer, FindAnswer, CatalogSearch },
+  components: { ToolDrawer, FindAnswer, CatalogSearch, DataTable },
   setup: useDashboard,
 }
 </script>
@@ -112,31 +113,18 @@ export default {
 
       <section class="pl-sec">
         <h2 class="pl-h"><span>{{platJobMeta.routed ? 'Or choose a provider' : 'Choose a provider'}}</span><i></i><em>{{platJobChoices.length}}</em></h2>
-        <div class="pl-table">
-          <table class="pl-cmp">
-            <thead><tr>
-              <th class="c-prov">Provider</th>
-              <th class="c-takes"><span class="pl-tip" tabindex="0" :data-tip="colTips.takes">Takes</span></th>
-              <th v-for="c in [['price','Price'],['works','Works'],['useful','Useful']]" :key="c[0]" :class="'c-'+c[0]"
-                  :aria-sort="platJobSort===c[0] ? (c[0]==='price' ? 'ascending' : 'descending') : 'none'">
-                <button class="pl-sort pl-tip" :class="{on:platJobSort===c[0]}" :data-tip="colTips[c[0]]" @click="platSortBy(c[0])">{{c[1]}}</button></th>
-            </tr></thead>
-            <tbody>
-              <tr v-for="r in platJobChoices" :key="r.id" :class="{on:drawerTool===r.id}" tabindex="0"
-                  @click="openTool(r.id)" @keydown.enter="openTool(r.id)">
-                <td class="c-prov"><div class="c-prov-i">
-                  <span class="pl-logo lg"><img :src="'/logos/'+r.e.provider+'.svg'" alt="" aria-hidden="true" @error="$event.target.style.visibility='hidden'"></span>
-                  <span class="c-name"><b>{{r.e.provider_display||r.e.provider}}<span v-if="!r.e.verified" class="c-unv" title="Documented, but treg has not called it with a live key yet">unverified</span></b>
-                    <span v-if="r.twin" class="c-sub">{{clip(r.e.name||r.e.summary, 52)}}</span></span>
-                </div></td>
-                <td class="c-takes"><span v-for="t in r.takes" :key="t" class="pl-tag">{{t}}</span><span v-if="!r.takes.length" class="c-none">—</span></td>
-                <td class="c-price">{{r.e.platform_eligible===false ? 'your key only' : costShort(r.e.cost)}}</td>
-                <td class="c-works" :title="worksTitle(r)"><template v-if="r.works"><span class="c-v">{{r.works.pct}}%</span><span class="c-n">{{approxCalls(r.works.n)}}</span></template><span v-else class="c-none">—</span></td>
-                <td class="c-useful" :title="usefulTitle(r)"><template v-if="r.useful"><span class="c-v" :class="{low:r.useful.pct<50}">{{r.useful.pct}}%</span><span class="c-n">{{approxTeams(r.useful.n)}}</span></template><span v-else class="c-none">—</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <DataTable :columns="jobColumns" :rows="platJobChoices" :row-key="r => r.id" v-model:sort="platJobSort"
+                   :selected="drawerTool" interactive variant="plain" surface @row-click="r => openTool(r.id)">
+          <template #cell-provider="{ row: r }"><div class="c-prov-i">
+            <span class="pl-logo lg"><img :src="'/logos/'+r.e.provider+'.svg'" alt="" aria-hidden="true" @error="$event.target.style.visibility='hidden'"></span>
+            <span class="c-name"><b>{{r.e.provider_display||r.e.provider}}<span v-if="!r.e.verified" class="c-unv" title="Documented, but treg has not called it with a live key yet">unverified</span></b>
+              <span v-if="r.twin" class="c-sub">{{clip(r.e.name||r.e.summary, 52)}}</span></span>
+          </div></template>
+          <template #cell-takes="{ row: r }"><span v-for="t in r.takes" :key="t" class="pl-tag">{{t}}</span><span v-if="!r.takes.length" class="c-none">—</span></template>
+          <template #cell-price="{ row: r }"><span class="c-price">{{r.e.platform_eligible===false ? 'your key only' : costShort(r.e.cost)}}</span></template>
+          <template #cell-works="{ row: r }"><span :title="worksTitle(r)"><template v-if="r.works"><span class="c-v">{{r.works.pct}}%</span><span class="c-n">{{approxCalls(r.works.n)}}</span></template><span v-else class="c-none">—</span></span></template>
+          <template #cell-useful="{ row: r }"><span :title="usefulTitle(r)"><template v-if="r.useful"><span class="c-v" :class="{low:r.useful.pct<50}">{{r.useful.pct}}%</span><span class="c-n">{{approxTeams(r.useful.n)}}</span></template><span v-else class="c-none">—</span></span></template>
+        </DataTable>
         <p class="pl-note"><b>Works</b> share of the last 30 days' calls that did not end in a provider error, past 20 calls.
           <b>Useful</b> what teams' agents said after using the result, one vote per team, past 5 teams; compare it within this table only.</p>
       </section>

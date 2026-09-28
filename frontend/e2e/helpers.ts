@@ -45,3 +45,68 @@ export async function openTopUp(page: Page) {
 
 export const hubTool = tool
 export const hubRun = run
+
+/** The page never scrolls sideways: wide tables and code scroll inside themselves, the rest wraps. */
+export const fitsWidth = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
+
+/** What makes the page wider than the window: elements past the right edge that no ancestor clips. */
+export async function sidewaysCulprits(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const W = innerWidth, out: string[] = []
+    for (const el of document.querySelectorAll<HTMLElement>('body *')) {
+      const r = el.getBoundingClientRect()
+      if (r.right <= W + 1 || !el.getClientRects().length) continue
+      let clipped = false
+      for (let p = el.parentElement; p && p !== document.body; p = p.parentElement)
+        if (getComputedStyle(p).overflowX !== 'visible') { clipped = true; break }
+      if (!clipped) out.push(`<${el.tagName.toLowerCase()} class="${el.className}"> ends at ${Math.round(r.right)}px`)
+    }
+    return out.slice(0, 8)
+  })
+}
+
+/**
+ * Text that paints over other text, or past the edge of its row, inside every element `rows` matches.
+ * Each text run is measured where it is actually painted (a Range, not its element's box, so text that
+ * refuses to wrap and spills out of a narrow cell is caught), clipped by any ancestor that clips it,
+ * so an ellipsis-truncated line counts only as far as it shows.
+ */
+export async function textCollisions(page: Page, rows: string): Promise<string[]> {
+  return page.evaluate((selector) => {
+    const clip = (r: DOMRect, node: Node, row: Element) => {
+      let { left, right, top, bottom } = r
+      for (let p = node.parentElement; p && p !== row; p = p.parentElement) {
+        const cs = getComputedStyle(p)
+        if (cs.overflowX === 'visible' && cs.overflowY === 'visible') continue
+        const c = p.getBoundingClientRect()
+        left = Math.max(left, c.left); right = Math.min(right, c.right); top = Math.max(top, c.top); bottom = Math.min(bottom, c.bottom)
+      }
+      return { left, right, top, bottom }
+    }
+    const found: string[] = []
+    for (const row of document.querySelectorAll(selector)) {
+      if (!row.getClientRects().length) continue
+      const edge = row.getBoundingClientRect()
+      const runs: { node: Node, text: string, box: { left: number, right: number, top: number, bottom: number } }[] = []
+      const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT)
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const text = node.textContent!.trim()
+        if (!text || !node.parentElement?.getClientRects().length) continue
+        const range = document.createRange(); range.selectNodeContents(node)
+        for (const r of range.getClientRects()) {
+          const box = clip(r, node, row)
+          if (box.right - box.left < 1 || box.bottom - box.top < 1) continue
+          runs.push({ node, text: text.slice(0, 48), box })
+          if (box.right > edge.right + 1 || box.left < edge.left - 1) found.push(`past its row: ${text.slice(0, 48)}`)
+        }
+      }
+      for (let i = 0; i < runs.length; i++) for (let j = i + 1; j < runs.length; j++) {
+        const a = runs[i]!, b = runs[j]!
+        if (a.node === b.node) continue
+        if (a.box.right - 1 > b.box.left && b.box.right - 1 > a.box.left && a.box.bottom - 1 > b.box.top && b.box.bottom - 1 > a.box.top)
+          found.push(`${a.text} / ${b.text}`)
+      }
+    }
+    return [...new Set(found)]
+  }, rows)
+}

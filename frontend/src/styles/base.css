@@ -20,7 +20,8 @@
   .btn.sm{padding:4px 9px;font-size:12px} .btn:disabled{opacity:.45;cursor:not-allowed}
   .btn.ico{width:34px;min-width:34px;padding:0;flex:0 0 auto} .btn.sm.ico{width:30px;min-width:30px;min-height:30px}
   .btn.danger{border-color:var(--red);color:var(--red)} .btn.danger:hover{background:color-mix(in srgb,var(--red) 15%,transparent);border-color:var(--red)}
-  .msel{background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:3px 7px;font-family:var(--mono);font-size:12px}
+  /* max-width: an option's text (an API key's owner email) sets a select's width, and a long one pushed the page past a phone's edge. */
+  .msel{max-width:100%;text-overflow:ellipsis;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:3px 7px;font-family:var(--mono);font-size:12px}
   .frow{display:flex;align-items:center;gap:10px;margin:8px 0} .frow label{width:78px;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;flex:none}
   .frow input,.frow select{flex:1;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:var(--rb);padding:7px 10px;font-family:var(--mono);font-size:12.5px}
   .frow input:disabled{opacity:.6}
@@ -284,9 +285,9 @@
   .card .host{font-size:11.5px;color:var(--muted);margin:4px 0 10px;word-break:break-all}
   .card .foot{display:flex;gap:8px;margin-top:13px}
   .kv{display:flex;gap:18px;flex-wrap:wrap;margin:9px 0} .kv div{font-size:13px} .kv b{display:block;color:var(--muted);font-weight:500;font-size:10px;text-transform:uppercase;letter-spacing:.06em}
-  table{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
-  th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line);overflow-wrap:anywhere} th{color:var(--muted);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.06em;background:var(--panel2)}
-  tr:last-child td{border-bottom:0}
+  :where(table:not(.ui-table)){width:100%;border-collapse:collapse;font-size:12.5px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  :where(table:not(.ui-table)) :is(th,td){text-align:left;padding:10px 13px;border-bottom:1px solid var(--line);overflow-wrap:anywhere} :where(table:not(.ui-table)) th{color:var(--muted);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.06em;background:var(--panel2)}
+  :where(table:not(.ui-table)) tr:last-child td{border-bottom:0}
   .statgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:18px}
   .stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px} .stat .n{font-size:26px;font-weight:700;color:var(--accent)} .stat .l{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
   .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:14px} .tabs button{background:none;border:0;color:var(--muted);padding:9px 13px;border-bottom:2px solid transparent;font-family:var(--mono)} .tabs button.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
@@ -451,7 +452,7 @@
        rather than push the page sideways. Tables and pre blocks keep their own scrollers. */
     main code{overflow-wrap:anywhere}
     .tut-head{flex-wrap:wrap} .tut-head>div:first-child{flex:1 1 100%} .tut-actions{flex:1 1 auto;justify-content:flex-start;margin-left:0}
-    table{display:block;overflow-x:auto;white-space:nowrap}td,th{word-break:break-word}
+    :where(table:not(.ui-table)){display:block;overflow-x:auto;white-space:nowrap}:where(table:not(.ui-table)) :is(td,th){word-break:break-word}
     /* header wraps instead of forcing horizontal page scroll: the search drops to its own full-width
        row and the flex spacer is removed so brand/org/theme/avatar/sign-out fit the viewport. */
     .top{flex-wrap:wrap;gap:8px;padding:10px 12px}.top .spacer{display:none}.search{flex:1 1 100%;max-width:none;order:9}.orgsel{min-width:0}
@@ -555,8 +556,8 @@ h1{font-family:var(--display);font-weight:400;font-size:23px;letter-spacing:0}
 .seg{border-radius:999px} .seg button{border-radius:999px}
 .seg button.on{background:linear-gradient(180deg,#fdfcf7,#eae7de);color:#1c1b19}
 .seg button.on span{color:rgba(28,27,25,.55)}
-th{background:rgba(0,0,0,.25)}
-.ttable-wrap,table{box-shadow:rgba(255,255,255,.07) 0 1px 0 inset}
+:where(table:not(.ui-table)) th{background:rgba(0,0,0,.25)}
+.ttable-wrap,:where(table:not(.ui-table)){box-shadow:rgba(255,255,255,.07) 0 1px 0 inset}
 .stat{background:linear-gradient(180deg,#201f1d,#181715);
   box-shadow:rgba(255,255,255,.07) 0 1px 0 inset, rgba(0,0,0,.35) 0 10px 24px -14px}
 .card{background:linear-gradient(180deg,#1e1d1b 0%,#171614 100%);
@@ -680,11 +681,11 @@ input[type=checkbox],input[type=radio]{accent-color:var(--ink)}
 .stat{background:var(--surface);border-color:transparent;box-shadow:var(--shadow-sm)}
 .card{background:var(--surface);border-color:transparent;box-shadow:var(--shadow-sm)}
 .modal,.drawer{background:var(--surface);box-shadow:var(--shadow-lg)}
-.ttable-wrap,table{box-shadow:none}
+.ttable-wrap,:where(table:not(.ui-table)){box-shadow:none}
 .ttable-wrap{background:var(--surface);border-color:var(--line)}
-table{background:var(--surface)}
+:where(table:not(.ui-table)){background:var(--surface)}
 /* rows.gg's column heads are label text over a rule, not a filled bar. */
-th{background:none;color:var(--muted2);font-weight:450;border-bottom:1px solid var(--line2)}
+:where(table:not(.ui-table)) th{background:none;color:var(--muted2);font-weight:450;border-bottom:1px solid var(--line2)}
 .frow input,.frow select,.field input,.field select,.field textarea,.search,.msel,.bindinput,.si-input{
   background:var(--surface);box-shadow:none;border:1px solid var(--line2);color:var(--ink)}
 .frow input::placeholder,.field input::placeholder,.field textarea::placeholder,.search input::placeholder{color:var(--muted2)}
@@ -718,7 +719,7 @@ h1{font-size:22px;letter-spacing:-.44px} h2{font-size:17px} h3{font-size:15px}
 .sub{font-size:12.5px;color:var(--muted);max-width:74ch}
 /* 450 "book" is a real weight in this design — it is why secondary labels sit
    between regular and medium instead of going grey-and-bold. */
-.side .grp,th,.kv b,.tgh,.stat .l{font-weight:450;text-transform:none;letter-spacing:.1px}
+.side .grp,:where(table:not(.ui-table)) th,.kv b,.tgh,.stat .l{font-weight:450;text-transform:none;letter-spacing:.1px}
 
 /* ---- 3.3 controls: 10px, not pills ----
    Chips and badges stay round; only the BUTTONS square off. */
@@ -1030,34 +1031,13 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
 .pl-btn.inv{background:var(--inverse-ink);color:var(--inverse)}
 .pl-link.inv{color:var(--inverse-ink);text-decoration-color:color-mix(in srgb,var(--inverse-ink) 35%,transparent)}
 
-/* The comparison: one surface, a real header, rows separated by air and a hover, not by rules. */
-.pl-table{border-radius:18px;background:var(--surface);box-shadow:var(--shadow-md);overflow-x:auto;padding:6px 8px}
-.pl-cmp{width:100%;border:0;border-collapse:separate;border-spacing:0;background:none;box-shadow:none;margin:0}
-.pl-cmp tr,.pl-cmp th,.pl-cmp td{border:0;background:none;overflow-wrap:normal}
-.pl-cmp th{padding:14px 14px 12px;text-align:left;font-family:var(--mono);font-size:10.5px;font-weight:500;letter-spacing:.12em;
-  text-transform:uppercase;color:var(--muted2);white-space:nowrap}
-.pl-cmp th.c-price,.pl-cmp th.c-works,.pl-cmp th.c-useful{text-align:right}
-.pl-sort{background:none;border:0;padding:0;font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit;cursor:pointer}
-.pl-sort:hover,.pl-sort.on{color:var(--ink)}
-.pl-sort.on::after{content:'↓';margin-left:5px}
-.pl-cmp td{padding:13px 14px;vertical-align:middle}
-.pl-cmp tbody tr{cursor:pointer}
-.pl-cmp tbody td:first-child{border-radius:12px 0 0 12px}
-.pl-cmp tbody td:last-child{border-radius:0 12px 12px 0}
-.pl-cmp tbody tr:hover td{background:var(--hover)}
-.pl-cmp tbody tr.on td{background:color-mix(in srgb,var(--ink) 6%,transparent)}
-.pl-cmp tbody tr:focus-visible{outline:none}
-.pl-cmp tbody tr:focus-visible td{box-shadow:inset 0 1.5px 0 var(--ink),inset 0 -1.5px 0 var(--ink)}
-.c-prov{min-width:250px}
 .c-prov-i{display:flex;align-items:center;gap:12px}
 .c-name{display:flex;flex-direction:column;gap:2px;min-width:0}
 .c-name b{font-size:14.5px;font-weight:500}
 .c-sub{font-size:12.5px;color:var(--muted)}
 .c-unv{margin-left:8px;font-size:11px;font-weight:400;color:var(--muted2)}
-.c-takes{min-width:150px}
-.pl-tag{display:inline-block;margin:2px 4px 2px 0;padding:2px 8px;border-radius:6px;background:var(--panel2);font-size:12px;color:var(--ink);white-space:nowrap}
-.c-price,.c-works,.c-useful{text-align:right;white-space:nowrap}
-.c-price{font-family:var(--mono);font-size:12.5px;color:var(--ink);font-variant-numeric:tabular-nums}
+.pl-tag{display:inline-block;max-width:100%;margin:2px 4px 2px 0;padding:2px 8px;border-radius:6px;background:var(--panel2);font-size:12px;color:var(--ink)}
+.c-price{font-family:var(--mono);font-size:12.5px;color:var(--ink);white-space:nowrap}
 .c-v{display:block;font-family:var(--mono);font-size:14px;font-weight:500;font-variant-numeric:tabular-nums}
 .c-v.low{color:var(--red)}
 .c-n{display:block;margin-top:1px;font-size:11px;color:var(--muted2)}
@@ -1128,29 +1108,69 @@ a.td-prov:hover{color:var(--ink);text-decoration:underline;text-underline-offset
   .pl-autocard{grid-template-columns:1fr;gap:22px;padding:24px 20px}
   .pl-autocard h2{font-size:22px}
   .pl-auto-f{gap:18px}
-  .pl-table{padding:4px}
-  .pl-cmp thead{display:none}
-  .pl-cmp,.pl-cmp tbody{display:block}
-  .pl-cmp tr{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px 16px;padding:14px 12px;border-radius:12px}
-  .pl-cmp td{padding:0;background:none!important;border-radius:0!important}
-  .pl-cmp tbody tr:hover,.pl-cmp tbody tr.on{background:var(--hover)}
-  .c-prov,.c-takes{grid-column:1/-1;min-width:0}
-  .c-price{text-align:left;align-self:center}
   .td-b{padding:0 18px 28px}
   .td-h{padding-left:18px}
 }
-/* Column help: a small card under the heading on hover or focus, not the browser's slow title. */
-.pl-tip{position:relative;cursor:help;text-decoration:underline dotted color-mix(in srgb,var(--muted2) 70%,transparent);text-underline-offset:4px}
-/* ::before, because a sorted heading already uses ::after for its arrow. */
-.pl-tip::before{content:attr(data-tip);position:absolute;top:calc(100% + 10px);right:0;z-index:5;width:260px;padding:10px 12px;
-  border-radius:10px;background:var(--inverse);color:var(--inverse-ink);font-family:var(--sans);font-size:12px;font-weight:400;
-  line-height:1.5;letter-spacing:0;text-transform:none;text-align:left;white-space:normal;box-shadow:var(--shadow-lg);
-  opacity:0;transform:translateY(-3px);pointer-events:none;transition:opacity .15s var(--ease),transform .15s var(--ease)}
-.c-takes .pl-tip::before{left:0;right:auto}
-.pl-tip:hover::before,.pl-tip:focus-visible::before{opacity:1;transform:none;transition-delay:.12s}
-.pl-table{overflow:visible}
-@media(max-width:760px){ .pl-note{display:block} .pl-table{overflow-x:auto} }
+@media(max-width:760px){ .pl-note{display:block} }
 .pl-hero .cat-search{margin-top:28px}
 .pl-hero .cat-find{margin-bottom:0}
 .pl-hero .cat-find-suggest{margin:10px 0 0}
 .pl-find{margin:0 0 48px}
+/* ---- ui/table: the shadcn-shaped table primitives (components/ui/table) ----
+   Every new table is built from these. The global table/th/td rules above skip .ui-table, so these
+   start from nothing: no borders, no filled header bar, no word-breaking. Numbers are tabular,
+   headings are the landing's mono eyebrow, and a cell stays on one line unless it says otherwise. */
+.ui-table-wrap{position:relative;width:100%;overflow-x:auto}
+.ui-table-surface{border-radius:18px;background:var(--surface);box-shadow:var(--shadow-md);padding:6px 8px}
+.ui-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px;color:var(--ink);font-variant-numeric:tabular-nums}
+.ui-th{height:44px;padding:0 14px;text-align:left;vertical-align:middle;white-space:nowrap;font-family:var(--mono);
+  font-size:10.5px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--muted2)}
+.ui-td{padding:13px 14px;vertical-align:middle;white-space:nowrap}
+.ui-td[data-wrap]{white-space:normal}
+.ui-right{text-align:right} .ui-center{text-align:center}
+.ui-caption{caption-side:bottom;margin-top:12px;font-size:12px;color:var(--muted2);text-align:left}
+.ui-empty{padding:28px 14px;text-align:center;color:var(--muted)}
+/* lined: shadcn's hairline under each row. plain: rows separated by air, a rounded hover. */
+.ui-table-lined .ui-thead .ui-th{border-bottom:1px solid var(--line2)}
+.ui-table-lined .ui-tbody .ui-tr:not(:last-child) .ui-td{border-bottom:1px solid var(--line)}
+.ui-table-plain .ui-tbody .ui-td:first-child{border-radius:12px 0 0 12px}
+.ui-table-plain .ui-tbody .ui-td:last-child{border-radius:0 12px 12px 0}
+.ui-tr-interactive{cursor:pointer}
+.ui-tr-interactive:hover .ui-td{background:var(--hover)}
+.ui-tr[data-state="selected"] .ui-td{background:color-mix(in srgb,var(--ink) 6%,transparent)}
+.ui-tr-interactive:focus-visible{outline:none}
+.ui-tr-interactive:focus-visible .ui-td{box-shadow:inset 0 1.5px 0 var(--ink),inset 0 -1.5px 0 var(--ink)}
+.ui-trunc{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* A sortable heading is a button; the active one carries its direction. */
+.ui-sort{background:none;border:0;padding:0;font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit;cursor:pointer;white-space:nowrap}
+.ui-sort:hover,.ui-sort.on{color:var(--ink)}
+.ui-sort[data-dir="asc"]::after{content:'↑';margin-left:5px}
+.ui-sort[data-dir="desc"]::after{content:'↓';margin-left:5px}
+/* Heading help: a card under the heading on hover or focus. ::before, because ::after is the sort arrow. */
+.ui-tip,.ui-sort[data-tip]{position:relative;cursor:help;text-decoration:underline dotted color-mix(in srgb,var(--muted2) 70%,transparent);text-underline-offset:4px}
+.ui-sort[data-tip]{cursor:pointer}
+.ui-tip::before,.ui-sort[data-tip]::before{content:attr(data-tip);position:absolute;top:calc(100% + 10px);left:0;z-index:5;width:260px;padding:10px 12px;
+  border-radius:10px;background:var(--inverse);color:var(--inverse-ink);font-family:var(--sans);font-size:12px;font-weight:400;
+  line-height:1.5;letter-spacing:0;text-transform:none;text-align:left;white-space:normal;box-shadow:var(--shadow-lg);
+  opacity:0;transform:translateY(-3px);pointer-events:none;transition:opacity .15s var(--ease),transform .15s var(--ease)}
+.ui-right .ui-tip::before,.ui-right .ui-sort[data-tip]::before{left:auto;right:0}
+.ui-tip:hover::before,.ui-tip:focus-visible::before,.ui-sort[data-tip]:hover::before,.ui-sort[data-tip]:focus-visible::before{opacity:1;transform:none;transition-delay:.12s}
+.ui-data-table{overflow:visible}
+.ui-table-wrap:has(.ui-tip,.ui-sort[data-tip]){overflow:visible}
+/* Phone width: a row is a card. `primary` spans it; a `field` names itself; `hide` drops out. */
+@media(max-width:760px){
+  .ui-table-wrap{overflow:visible}
+  .ui-data-table,.ui-data-table .ui-tbody{display:block}
+  .ui-data-table .ui-thead,.ui-data-table colgroup{display:none}
+  .ui-data-table .ui-tbody .ui-tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px;padding:14px 12px;border-radius:12px}
+  .ui-table-lined.ui-data-table .ui-tbody .ui-tr:not(:last-child){border-bottom:1px solid var(--line)}
+  .ui-data-table .ui-td{display:block;padding:0;border:0!important;border-radius:0!important;background:none!important;text-align:left;width:auto!important;max-width:none!important}
+  .ui-data-table .ui-tr-interactive:hover{background:var(--hover)}
+  .ui-data-table .ui-tr-interactive:focus-visible{outline:1.5px solid var(--ink);outline-offset:-1.5px;box-shadow:none}
+  .ui-data-table .ui-td{box-shadow:none!important}
+  .ui-data-table .ui-td[data-mobile="primary"],.ui-data-table .ui-td[data-mobile="wide"]{grid-column:1/-1}
+  .ui-data-table .ui-td[data-mobile="hide"]{display:none}
+  .ui-data-table .ui-td[data-mobile="field"]::before,.ui-data-table .ui-td[data-mobile="wide"]::before{content:attr(data-label);display:block;margin-bottom:2px;font-family:var(--mono);
+    font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2)}
+  .ui-data-table .ui-trunc{max-width:none!important}
+}

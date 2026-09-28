@@ -50,6 +50,9 @@ sources:
   - frontend/src/pages/ProviderPage.vue
   - frontend/src/components/ToolDrawer.vue
   - frontend/src/components/CatalogSearch.vue
+  - frontend/src/components/ui/table/DataTable.vue
+  - frontend/src/components/FindAnswer.vue
+  - frontend/e2e/layout.spec.ts
   - frontend/src/pages/ReferralsPage.vue
   - frontend/src/pages/SecretsPage.vue
   - frontend/src/pages/TeamPage.vue
@@ -907,6 +910,17 @@ judge) about the words as a job. On a shelf it passes `platform=<slug>`, so reca
 fallback and a bare provider name all stay on that shelf; a sentence does not filter the shelf's lists
 (no row contains a sentence), the answer appears above them instead. An answer row opens the job page
 when it is one of the shelf's jobs, the drawer otherwise.
+
+**Tables** are built from `components/ui/table`, shaped after shadcn/ui's Table: native elements, one
+class each (`.ui-table`, `.ui-tr`, `.ui-th`, `.ui-td`), and `DataTable` on top, which takes column
+definitions and a slot per cell while the page keeps the rows and the sort. The job comparison and
+the search answer use it. Two variants: `lined` (a hairline per row, shadcn's default) and `plain`
+(rows separated by air, the landing look), optionally on a `surface` card. Cells stay on one line
+unless a column says `wrap`; a `truncate` column ends in an ellipsis with its full text on hover; a
+phone turns each row into a card (`mobile`: primary, field, wide, hide). The sheet's global table rules
+are scoped with `:where(table:not(.ui-table))`, zero specificity, so older tables look as they did and
+new ones start clean. `e2e/layout.spec.ts` renders the main pages at two widths and fails on any text
+painted over other text or past its row, and names what makes a page scroll sideways.
 
 **A provider's page** (`/app/marketplace/<service>`) lists every tool it serves by platform
 (`GET /catalog/providers/<service>`), each a card opening the same drawer; a tool that is one of

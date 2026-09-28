@@ -175,11 +175,19 @@ platJobChoices(){
                 usd:e.platform_eligible===false ? null : this.costUsd(e.cost),
                 works:o && o.decided>=20 && o.ok_rate!=null ? {pct:Math.round(o.ok_rate*100), n:o.decided} : null,
                 useful:e.reviews ? {pct:Math.round(e.reviews.share.useful*100), n:e.reviews.teams} : null}; });
-      const k=this.platJobSort, val=r=>k==='price' ? r.usd : k==='works' ? (r.works&&r.works.pct) : (r.useful&&r.useful.pct);
-      const dir=k==='price' ? 1 : -1;
+      const k=this.platJobSort.key, val=r=>k==='price' ? r.usd : k==='works' ? (r.works&&r.works.pct) : (r.useful&&r.useful.pct);
+      const dir=this.platJobSort.dir==='asc' ? 1 : -1;   // unmeasured rows stay last either way
       return rows.sort((a,b)=>{ const x=val(a), y=val(b);
         if(x==null && y==null) return (a.e.provider_display||a.e.provider).localeCompare(b.e.provider_display||b.e.provider);
         if(x==null) return 1; if(y==null) return -1; return (x-y)*dir || (b.e.verified?1:0)-(a.e.verified?1:0); }); },
+// The comparison's columns (components/ui/table DataTable). Price sorts cheapest first, the two
+    // measured columns best first; every heading explains its number (`colTips`).
+    jobColumns(){ const t=this.colTips; return [
+      {key:'provider', header:'Provider', mobile:'primary', minWidth:'240px', wrap:true},
+      {key:'takes', header:'Takes', tip:t.takes, minWidth:'150px', wrap:true, mobile:'wide'},
+      {key:'price', header:'Price', tip:t.price, align:'right', sortable:true, sortFirst:'asc'},
+      {key:'works', header:'Works', tip:t.works, align:'right', sortable:true, sortFirst:'desc'},
+      {key:'useful', header:'Useful', tip:t.useful, align:'right', sortable:true, sortFirst:'desc'}]; },
 platOtherJobs(){ return this.platJobIndex.filter(j=>!this.platJobRow || j.key!==this.platJobRow.capability).slice(0,6); },
 drawerIds(){
       if(this.view==='provider') return [...this.mkToolShelves.flatMap(p=>p.tools), ...this.mkToolShelves.flatMap(p=>p.plumbing)].map(t=>t.id);

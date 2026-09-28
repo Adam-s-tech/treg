@@ -47,6 +47,20 @@ uv build
 Test behavior, not template source strings, CSS class names or component arrangement. Keep transport
 unit tests and HTTP rollout/packaging checks; use browser tests for user interactions.
 
+## Tables
+
+Every new table is built from `src/components/ui/table`: the shadcn-shaped primitives (`Table`,
+`TableHeader`, `TableBody`, `TableRow`, `TableHead`, `TableCell`, …) and `DataTable`, which takes
+column definitions (width, alignment, truncation, wrapping, sort, a heading tip, how the column shows
+on a phone) and a `cell-<key>` slot per column. The page owns the rows and the sort. Do not lay out
+rows as one CSS grid per row: each row sizes its own columns, so columns stop lining up and a long
+value paints over its neighbour. A real table grows the column instead. The sheet's global
+`table`/`th`/`td` rules skip `.ui-table`; the older tables still rely on them until they move over.
+
+`e2e/layout.spec.ts` renders the main pages at desktop and phone width and fails on text painted over
+other text, text past its row, or a page that scrolls sideways (`textCollisions`, `sidewaysCulprits`
+in `e2e/helpers.ts`). Add a page with a table or cards to it.
+
 Browser tests run against the **built** dashboard (`TREG_FRONTEND_DEV=false`), not the source: run
 `bash scripts/build-dashboard.sh` after every frontend change, or the browser tests pass or fail on the
 previous build. A regression test only counts once it has failed against a build without the fix.

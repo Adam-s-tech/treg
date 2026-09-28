@@ -90,7 +90,7 @@ export default function data(){
       drawerTool:null,       // endpoint id open in the tool drawer
       epInfo:{},         // endpoint id → {loading, data} from /catalog/endpoints/<id>
       platJobLead:null,    // the endpoint whose detail carries the open job's siblings and plan
-      platJobSort:'price', // the job table's order: 'price' | 'works' | 'useful'
+      platJobSort:{key:'price', dir:'asc'},   // the comparison's order (DataTable v-model:sort)
       // What each comparison column means, on hover or focus of its heading.
       colTips:{
         takes:'What you can send it. Each tag is one input it accepts; — means the catalog has not mapped it yet.',

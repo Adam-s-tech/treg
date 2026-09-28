@@ -41,10 +41,10 @@ test('public catalog and shared deep links remain available without a session', 
   // A job is its own URL: it survives a reload, and the breadcrumb leads back to the shelf.
   await page.locator('.pl-job').first().click()
   await expect(page).toHaveURL(/\/catalog\/google\/[^/]+$/)
-  await expect(page.locator('.pl-cmp tbody tr').first()).toBeVisible()
+  await expect(page.getByRole('table').getByRole('row').nth(1)).toBeVisible()
   await page.reload()
-  await expect(page.locator('.pl-cmp tbody tr').first()).toBeVisible()
-  await page.locator('.pl-cmp tbody tr').first().click()
+  await expect(page.getByRole('table').getByRole('row').nth(1)).toBeVisible()
+  await page.getByRole('table').getByRole('row').nth(1).click()
   await expect(page.getByRole('complementary', { name: 'Tool details' })).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('complementary', { name: 'Tool details' })).toHaveCount(0)

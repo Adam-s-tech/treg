@@ -56,7 +56,7 @@ openPlatform(slug, fromPop, job){ this.resetConfirms();
       this.epTab={}; this.platCopied='';
       if(!same){ this.platEx={}; this.platClearFilters(); this.epInfo={};
         if(this.find.scope) this.findExit(); }     // a shelf's answer belongs to that shelf
-      this.platJobSort='price';
+      this.platJobSort={key:'price', dir:'asc'};
       // A public visitor stays on the indexable /catalog/<slug> URL; a signed-in one keeps the
       // in-app hash route. Same view either way — only the address bar differs.
       if(!fromPop) history.pushState({platform:slug}, '', this.platUrl(slug, job));
@@ -111,7 +111,6 @@ closeTool(){ this.drawerTool=null; },
     stepTool(d){ const ids=this.drawerIds; const i=ids.indexOf(this.drawerTool);
       if(i<0) return; const next=ids[Math.min(ids.length-1, Math.max(0, i+d))];
       if(next && next!==this.drawerTool) this.openTool(next); },
-platSortBy(k){ this.platJobSort=k; },
 drawerKeys(ev){
       if(!this.drawerTool || this.epTry || ev.metaKey || ev.ctrlKey || ev.altKey) return;
       const t=ev.target; if(t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
