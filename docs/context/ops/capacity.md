@@ -93,6 +93,14 @@ top-up. A controlled `/usage` burst did not reproduce its documented 10-per-10-m
 rate policy remains documentation-derived. The funded account was not deliberately exhausted;
 432/433 signatures are documentation-derived rather than live-observed.
 
+Linkup's internal collector reads `GET /v1/credits/balance` with the platform Bearer key and
+accepts only finite nonnegative numeric USD balances. This free account read also probes connected
+keys and stays out of the catalog. The shared-key policy is `cash / manual / api` and smooths
+Search and Fetch at their documented organization-wide 10 requests per second. Research polling
+has separate one-per-second guidance; the provider-wide request spacer is not a claim that Research
+submissions share the Search and Fetch allowance. HTTP 429 can mean depleted credit or too much
+concurrency, so no generic 429 capacity-exhausted signature is registered.
+
 ScrapeGraphAI's internal collector calls the free `GET /api/credits` route with the platform
 `SGAI-APIKEY`. It accepts only a finite nonnegative `remaining` credit balance and retains the plan,
 used-credit count, and crawl/monitor job quotas as informational notes. The policy is

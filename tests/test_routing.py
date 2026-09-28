@@ -132,6 +132,14 @@ def test_firecrawl_web_adapters_are_verified_routed_children():
         assert child in cat.by_id[parent]["routed_children"], (parent, child)
 
 
+def test_search_adapter_does_not_treat_an_answer_without_results_as_a_miss():
+    adapter = catalog_store.load().adapters["linkup.web.search"]
+    assert adapter.verified
+    assert adapter.is_miss({"results": []})
+    assert not adapter.is_miss({"answer": "A sourced answer", "sources": []})
+    assert not adapter.is_miss({"data": {"answer": "A structured answer"}})
+
+
 @pytest.mark.parametrize(("parent", "child", "routed_input", "upstream_body", "expected_body", "expected_cost"), [
     (
         "treg.web.search", "firecrawl.web.search",

@@ -288,6 +288,7 @@ _UNRECORDED_SIGNATURE = {
     "keenable",  # funded request balance remains; documented bare 402 was not forced
     "olostep",  # funded credit balance remains; documented 402 was not forced
     "firecrawl",  # credit balance remains; documented 402 was not deliberately forced
+    "linkup",  # 429 means either exhausted credit or excess concurrency; balance was not exhausted
     "scrapegraphai",  # trial credits remain; no provider-specific empty-balance body was forced
     "scrubby",  # funded account not exhausted; no provider-specific empty-balance body recorded
     "millionverifier",  # funded-account exhaustion not observed; trial still has credits

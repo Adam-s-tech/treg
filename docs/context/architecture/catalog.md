@@ -19,6 +19,13 @@ sources:
   - src/treg/domain/provider_resources.py
   - src/treg/routers/provider_resources.py
   - src/treg/catalog/tavily.yaml
+  - src/treg/catalog/linkup.yaml
+  - src/treg/web/logos/linkup.svg
+  - src/treg/catalog/examples/linkup.web.search.json
+  - src/treg/catalog/examples/linkup.web.fetch.json
+  - src/treg/catalog/examples/linkup.web.fetch.structured.json
+  - src/treg/catalog/examples/linkup.web.answer.json
+  - src/treg/catalog/examples/linkup.web.answer.status.json
   - src/treg/catalog/keenable.yaml
   - src/treg/catalog/olostep.yaml
   - src/treg/catalog/tinyfish.yaml
@@ -305,6 +312,19 @@ provider account's grouped `usage.credits` to decide which team pays. BYOK bypas
 Each endpoint's `tavily_rates` mapping has an exact mode-key contract. Catalog validation rejects an
 incomplete, extra, non-finite or non-positive rate, and runtime repeats that check before reserve or
 relay so catalog drift cannot silently turn a platform call into a free call.
+
+Linkup's curated `web.search` and Markdown `web.extract` rows have verified routing adapters;
+Research remains a direct asynchronous `web.answer` tool. Search's `depth` and `outputType` select
+one published per-success price. The Fetch route has separate Markdown and structured catalog
+rows because supplying `schema` changes the price; both rows price `mode` and `renderJs` with
+declarative tables and enforce distinct body allowlists. Research requires an explicit
+`reasoningDepth` so callers choose its $0.25–$2.50 price; Linkup otherwise defaults to L at $1.50.
+Its published pricing varies by depth, not mode. Research reserves the requested depth price,
+releases failed tasks under Linkup's documented no-charge-on-error policy, and settles successful
+tasks after the owned
+`GET /v1/research/{id}` poll reports completion. The polling read is free and restricted to the
+team that submitted the task on the shared key. Account-wide task listing, mixed batch Tasks,
+closed-beta Extract, and the undocumented Responses route are outside the shared-key catalog.
 
 A verification stamp proves the request shape, response shape, and paid behavior that the evidence
 actually observed. A placeholder path value or a free miss does not prove a paid hit. Such rows keep

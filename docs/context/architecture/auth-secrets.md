@@ -52,6 +52,11 @@ exposing usage as a catalog tool. `TREG_PLATFORM_KEY_TAVILY` supplies the server
 existing own-key-first ladder means a team's key always wins and remains unmetered. The public
 surface is limited to Search, Extract, Map, and Crawl.
 
+Linkup uses a pasted Bearer key at `https://api.linkup.so`. Its free internal
+`GET /v1/credits/balance` probe validates a connected key and supplies capacity evidence without
+exposing the account balance as a catalog tool. `TREG_PLATFORM_KEY_LINKUP` supplies the optional
+shared binding; a team's own key wins and remains unmetered by treg.
+
 ScrapeGraphAI uses a pasted raw `SGAI-APIKEY` header at `https://v2-api.scrapegraphai.com`. Its free
 internal `GET /api/credits` probe rejects invalid credentials and validates team-owned and optional
 platform credentials while also supplying capacity data. `TREG_PLATFORM_KEY_SCRAPEGRAPHAI` supplies
