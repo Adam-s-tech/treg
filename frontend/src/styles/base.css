@@ -260,7 +260,7 @@
   .layout.solo{grid-template-columns:minmax(0,1fr)}
   .pubnav{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:22px;
     padding:11px 22px;background:color-mix(in srgb,var(--bg) 86%,transparent);
-    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+    backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
   .pubnav .brand{font-family:var(--mono);font-weight:600;font-size:16px;color:var(--ink);text-decoration:none}
   .pubnav-links{margin-left:auto;display:flex;align-items:center;gap:20px;font-size:14px}
   .pubnav-links a{color:var(--muted);font-weight:500;text-decoration:none;cursor:pointer}
