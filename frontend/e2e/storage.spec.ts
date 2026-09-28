@@ -30,6 +30,8 @@ test('the public catalog works when browser storage is blocked', async ({ page }
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/catalog/google')
+  await expect(page.locator('.pl-cmp').first()).toBeVisible()
+  await page.locator('.pl-cmp').first().click()
   await expect(page.getByRole('table').first()).toBeVisible()
   expect(errors).toEqual([])
 })

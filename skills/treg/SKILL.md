@@ -390,8 +390,9 @@ Keep private information out of the report. See [feedback instructions](https://
 If a call result invites a review, rate that one call after using it:
 `review(call_id, usefulness, reason?)` over MCP or `treg review CALL_ID USEFULNESS [--reason "..."]`.
 Choose `useful`, `partly`, `not_useful`, or `not_sure`; uncertainty is fine. One review per
-invitation; a review of an uninvited call is accepted but kept for reference only. Omit private
-data, use `feedback` for anything confusing or wrong, then continue.
+invitation; a review of an uninvited call is accepted, and a team counts once per endpoint. Reasons
+may be quoted on the endpoint's catalog page without naming your team: write about the endpoint, omit
+private data, use `feedback` for anything confusing or wrong, then continue.
 
 ## Rules
 - Secrets are **write-only** — the API never returns a stored value, to you or to anyone.

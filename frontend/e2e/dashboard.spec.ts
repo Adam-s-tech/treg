@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { signIn } from './helpers'
+import { json, signIn } from './helpers'
 
 test('sign in, create team, switch pages, refresh and navigate back', async ({ page }) => {
   const errors: string[] = []
@@ -35,9 +35,21 @@ test('public catalog and shared deep links remain available without a session', 
   await page.getByRole('button', { name: 'Start free', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Sign in' })).toBeVisible()
   await page.goto('/catalog/google')
-  await expect(page.locator('.plat-head')).toBeVisible()
+  await expect(page.locator('.pl-hero')).toBeVisible()
   await page.reload()
-  await expect(page.locator('.plat-head')).toBeVisible()
+  await expect(page.locator('.pl-hero')).toBeVisible()
+  // A comparison is its own URL: it survives a reload, and the breadcrumb leads back to the shelf.
+  await page.locator('.pl-cmp').first().click()
+  await expect(page).toHaveURL(/\/catalog\/google\/[^/]+$/)
+  await expect(page.getByRole('table').getByRole('row').nth(1)).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('table').getByRole('row').nth(1)).toBeVisible()
+  await page.getByRole('table').getByRole('row').nth(1).click()
+  await expect(page.getByRole('complementary', { name: 'Tool details' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('complementary', { name: 'Tool details' })).toHaveCount(0)
+  await page.locator('.pl-crumbs').getByRole('link', { name: /Google/ }).click()
+  await expect(page).toHaveURL(/\/catalog\/google$/)
   await page.goto('/app/tools/shared-example')
   await expect(page.getByRole('heading', { name: /shared-example/ })).toBeVisible()
   await expect(page.getByRole('dialog', { name: 'Sign in' })).toBeVisible()
@@ -88,4 +100,23 @@ test('a dialog takes its first field and hands focus back, even when its code ar
   await page.keyboard.press('Escape')
   await expect(dialog).toHaveCount(0)
   await expect(opener).toBeFocused()
+})
+
+test('a routed tool can be tried by hand, and says who serves it in one line', async ({ page }) => {
+  await signIn(page, 'routed-try')
+  // The browser-test server holds no platform keys; answer the access dry-run the way a deployment
+  // with two providers keyed would.
+  await page.route('**/catalog/endpoints/treg.companies.enrich/access', route => route.fulfill(json({
+    tier: 'routed', detail: 'routed',
+    plan: [{ endpoint_id: 'dropleads.companies.enrich', provider: 'dropleads', tier: 'platform' },
+           { endpoint_id: 'hunter.companies.enrich', provider: 'hunter', tier: 'platform' }],
+    dropped: [{ endpoint_id: 'apollo.companies.enrich', why: 'no apollo key on this deployment and no own key' }],
+  })))
+  await page.goto('/app#platform/companies/enrich')
+  await page.locator('.pl-autocard').getByRole('button', { name: 'Try it', exact: true }).click()
+  const drawer = page.getByRole('dialog', { name: /treg\.companies\.enrich/ })
+  await expect(drawer.getByText(/One call: 2 providers can serve it for this team now/)).toBeVisible()
+  await drawer.getByRole('button', { name: 'Manual', exact: true }).click()
+  await expect(drawer.getByRole('button', { name: /Run/ })).toBeVisible()
+  await expect(drawer.getByText(/needs a key/)).toHaveCount(0)
 })

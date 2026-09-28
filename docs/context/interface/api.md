@@ -406,10 +406,11 @@ validated before resolving the shared HTTP client. `/auth/logout` remains an HTT
   | Route | Contract |
   |---|---|
   | `GET /catalog/platforms` | Non-empty platforms with capability/endpoint counts and providers, ordered by endpoint count; `providers` names every browsable vendor |
-  | `GET /catalog/platforms/{slug}` | Capabilities, extended endpoints, dashboard domain rows and provider metadata; unknown slug is 404 |
+  | `GET /catalog/platforms/{slug}` | Capabilities, extended endpoints, dashboard domain rows (a row whose capability at least two providers serve there carries `compare`, its URL key) and provider metadata; an endpoint enough teams rated carries `reviews` (`architecture/feedback.md`); unknown slug is 404 |
   | `GET /catalog/search?q=&limit=` | Ranked endpoint views, count/total and hints; default 25, maximum 100. Listed hub tools merge into the same ranking by score (see [hub](../architecture/hub.md)); a hub row's run hint is its own `treg call <id> --data` line, since it has no catalog row or provider key |
-  | `GET /catalog/find?q=` | Find tools for a described job: NDJSON stream of `candidates` then `judged` (verdict + kept rows with probabilities; a bare platform or provider name gets verdict `name` and its endpoints, unjudged); rate limited per IP, 503 without a judge key |
-  | `GET /catalog/endpoints/{id}` | Endpoint, provider, capability siblings, call template, inline example and next-step hints; `overflow_price_usd` / `overflow_price_unit` / `overflow_via` on the endpoint when the deployment can relay it |
+  | `GET /catalog/find?q=` | Find tools for a described job: NDJSON stream of `candidates` then `judged` (verdict + kept rows with probabilities; a bare platform or provider name gets verdict `name` and its endpoints, unjudged); `&platform=<slug>` scopes recall and the keyword fallback (ranked among that shelf's rows, catalog-wide idf) and a bare provider name to that shelf (unknown slug is 404); rate limited per IP, 503 without a judge key |
+  | `GET /catalog/providers/{service}` | Every tool one provider serves, by platform; a tool whose capability several providers serve on its platform carries `compare` (capability, URL key, provider count); endpoints enough teams rated carry `reviews`; unknown provider is 404 |
+  | `GET /catalog/endpoints/{id}` | Endpoint, provider, capability siblings, call template, inline example and next-step hints; `observed_pending: true` when the observation cache had not read some of these endpoints yet (ask again shortly); `overflow_price_usd` / `overflow_price_unit` / `overflow_via` on the endpoint when the deployment can relay it |
   | `GET /catalog/examples/{id}` | Captured JSON, resolved through the catalog before constructing a file path |
   | `POST /tool-requests` | Open, rate-limited demand report with capped fields and optional caller attribution |
 
@@ -423,6 +424,8 @@ validated before resolving the shared HTTP client. `/auth/logout` remains an HTT
   carry `children_hidden`. Empty results include `near` matches and unmet tokens, plus a
   tool-request hint. Reliability is optional cached evidence: fresh for five minutes, stale while
   refreshing up to thirty minutes; cold or failed reads still answer 200 with no request DB checkout.
+  An endpoint the read had nothing for is remembered as such for the same window, so a never-called
+  endpoint is not a cold miss on every request.
 
   Unknown endpoint ids return `{error, hint, did_you_mean[]}`, using provider-local segment
   matching. Retired/broken entries remain inspectable with `status_note` and `superseded_by`,

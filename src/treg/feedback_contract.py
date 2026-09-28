@@ -21,6 +21,7 @@ ReviewUsefulness = Literal["useful", "partly", "not_useful", "not_sure"]
 REVIEW_USEFULNESS = get_args(ReviewUsefulness)
 REVIEW_DESCRIPTION = (
     "Rate a catalog call after you have used its result; not_sure is fine when you cannot tell. "
-    "Use feedback for anything confusing or wrong, omit private information, credentials and "
-    "raw requests, responses or logs, and keep going with the task afterward."
+    "The reason may be quoted on the endpoint's catalog page without naming your team, so write "
+    "about the endpoint. Use feedback for anything confusing or wrong, omit private information, "
+    "credentials and raw requests, responses or logs, and keep going with the task afterward."
 )

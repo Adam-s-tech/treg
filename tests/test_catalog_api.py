@@ -1084,3 +1084,26 @@ def test_generic_display_prices_match_web_and_cli():
     maximum = cat.cost_view({'type': 'per_call', 'currency': 'USD', 'value': 0.064,
                              'display': {'unit': 'call', 'maximum': True}}, 'another-provider')
     assert _price_label(maximum) == _cost_usd(maximum) == _cost_label(maximum) == 'up to $0.064/call'
+
+
+async def test_every_comparison_page_in_the_sitemap_serves(clients):
+    """A capability several providers serve on a shelf has a public comparison page
+    (/catalog/<slug>/<key>), listed in the sitemap by the same rule the shelf uses for its comparison
+    cards; each listed page answers, a made-up one is a 404,
+    and the catalog's own API segments are never read as a shelf."""
+    import re
+    xml = (await clients.get("/sitemap.xml")).text
+    pages = re.findall(r"<loc>[^<]*?(/catalog/[^/<]+/[^/<]+)</loc>", xml)
+    assert pages and all(not p.startswith(("/catalog/platforms/", "/catalog/call/")) for p in pages)
+    for path in pages:
+        r = await clients.get(path)
+        assert r.status_code == 200 and "text/html" in r.headers["content-type"], path
+    assert (await clients.get("/catalog/companies/not-a-capability")).status_code == 404
+    assert (await clients.get("/catalog/platforms/companies")).headers["content-type"].startswith("application/json")
+    # A capability only one provider serves has nothing to compare: no page of its own.
+    from treg.domain.catalog import store as catalog_store
+    cat = catalog_store.load()
+    solo = next((e["platform"], e["capability"]) for e in cat.endpoints
+                if e.get("capability") and catalog_store.browsable(e) and (e["platform"], e["capability"]) not in cat.compared())
+    assert (await clients.get(f"/catalog/{solo[0]}/{catalog_store.capability_key(*solo)}")).status_code == 404
+    assert (await clients.get("/catalog/providers/crustdata")).headers["content-type"].startswith("application/json")

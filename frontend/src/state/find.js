@@ -5,7 +5,7 @@ import { storageGet, storageSet, storageRemove } from './storage.js'
 // both pages draw the wait on the first one. State lives in `find` (data.js); the in-flight request's
 // AbortController lives in `elements` because it is a handle, not state to render.
 // The state of no search; `high` is the server's strong cut and arrives with each answer.
-export const FIND_EMPTY = {q:'', phase:'idle', candidates:[], rows:[], verdict:'', named:'', read:0, high:1, error:'', auto:false}
+export const FIND_EMPTY = {q:'', scope:'', phase:'idle', candidates:[], rows:[], verdict:'', named:'', read:0, high:1, error:'', auto:false}
 const FIND_OPEN = 'treg-find-open'
 // The Catalog box searches by itself once typing pauses this long: people did not discover Enter.
 const FIND_DEBOUNCE_MS = 700
@@ -57,14 +57,15 @@ export default {
   // Typing in the Catalog box: an answer for older text gives way at once (so a name filters the
   // shelves as you type), and the finder runs when typing pauses. `findSoon` is true while one is
   // scheduled, so the page does not call a half-typed job "no platform".
-  findSchedule(text){
+  // `scope` is a platform slug when the box is a shelf's own: the finder then reads that shelf only.
+  findSchedule(text, scope=''){
     this.findUnschedule();
     const q=String(text||'').trim();
     if(!q){ this.findExit(); return; }
-    if(this.findActive && q!==this.find.q) this.findExit();
-    if(q.length<FIND_MIN_CHARS || q===this.find.q) return;
+    if(this.findActive && (q!==this.find.q || scope!==this.find.scope)) this.findExit();
+    if(q.length<FIND_MIN_CHARS || (q===this.find.q && scope===this.find.scope)) return;
     this.findSoon=true;
-    this.elements.findTimer=setTimeout(()=>this.findRun(q, {auto:true}), FIND_DEBOUNCE_MS);
+    this.elements.findTimer=setTimeout(()=>this.findRun(q, {auto:true, scope}), FIND_DEBOUNCE_MS);
   },
 
   findUnschedule(){
@@ -73,18 +74,18 @@ export default {
     this.findSoon=false;
   },
 
-  async findRun(text, {auto=false}={}){
+  async findRun(text, {auto=false, scope=''}={}){
     this.findUnschedule();
     const q=String(text||'').trim();
     if(!q) return;
     this.elements.findAbort?.abort?.();
     const ctl=new AbortController();
     this.elements.findAbort=ctl;
-    this.find={...FIND_EMPTY, q, phase:'recall', auto};
+    this.find={...FIND_EMPTY, q, scope, phase:'recall', auto};
     this.loadPlatforms();
-    this.track('catalog_find', {surface:this.findSurface(), words:q.split(/\s+/).length, auto});
+    this.track('catalog_find', {surface:this.findSurface(), words:q.split(/\s+/).length, auto, ...(scope ? {platform:scope} : {})});
     try{
-      const res=await fetch('/catalog/find?q='+encodeURIComponent(q), {signal:ctl.signal, credentials:'include',
+      const res=await fetch('/catalog/find?q='+encodeURIComponent(q)+(scope ? '&platform='+encodeURIComponent(scope) : ''), {signal:ctl.signal, credentials:'include',
         headers:{'accept':'application/x-ndjson','ngrok-skip-browser-warning':'1'}});
       if(!res.ok){
         let detail=''; try{ detail=(await res.json()).detail||''; }catch(e){}
@@ -158,7 +159,7 @@ export default {
   findPrice(g){ return this.capCheapest(g.rows)?.label || ''; },
 
   // Analytics: which page a find ran on. /search is the public page; the Catalog box is the other.
-  findSurface(){ return this.view==='find' ? 'search' : 'catalog'; },
+  findSurface(){ return this.view==='find' ? 'search' : this.view==='platform' ? 'platform' : 'catalog'; },
 
   // One answer row, card or pile tile followed out of a find (`search_result_clicked`): what it was
   // (`from`: card | job | tile), its platform and vendor, and its place in the answer.
@@ -167,9 +168,18 @@ export default {
       signed_in:!!this.authed, ...extra});
   },
 
-  // Open the platform shelf the row lives on, with its ledger filtered to this job's capability.
+  // Open the platform shelf the row lives on, its search box filtered to this job.
+  // On a shelf's own search the answer is already on that shelf: a job several providers do opens its
+  // comparison, anything else opens in the tool drawer.
   findOpen(group, rank){
     this.findTrackClick('job', group.platform, {provider:group.rows[0]?.provider, rank});
+    if(this.view==='platform' && group.platform===this.platSlug){
+      const cap=group.rows[0]?.capability;
+      const job=cap && this.platComparisons.find(j=>j.key===cap);
+      if(job) this.openComparison(job.slug);
+      else this.openTool(group.rows[0].id);
+      return;
+    }
     this.openPlatform(group.platform);
     this.platQ=group.rows[0]?.name || group.label;
   },

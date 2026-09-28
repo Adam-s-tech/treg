@@ -13,6 +13,7 @@ import re
 from urllib.parse import quote, urlsplit
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request
+from starlette.convertors import Convertor, register_url_convertor
 from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse, PlainTextResponse,
                                RedirectResponse, Response)
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -88,8 +89,9 @@ app = catalog_pages_router
 #
 # `/catalog/<slug>` is registered after the JSON routes so /catalog/platforms, /catalog/search,
 # /catalog/endpoints/… and /catalog/examples/… keep matching first. Registration order alone is a
-# thin guarantee, so the reserved names are also refused explicitly below.
-_CATALOG_RESERVED = {"platforms", "search", "find", "endpoints", "examples"}
+# thin guarantee, so the reserved names are also refused explicitly below, and the comparison page's
+# convertor (`_ShelfSlug`) never matches them. Every `/catalog/<segment>` API prefix belongs here.
+_CATALOG_RESERVED = frozenset({"platforms", "search", "find", "endpoints", "examples", "call", "providers"})
 
 _GH = "https://github.com/superdesigndev/treg"
 
@@ -449,6 +451,7 @@ async def catalog_page(slug: str):
     # them. Asking for a different population than the view that is about to replace this would put
     # two different endpoint counts on one URL.
     detail = await catalog_platform(slug, include_hidden=1)
+    compared = catalog_store.load().compared()
     base = get_settings().public_url.rstrip("/")
     plat = detail["platform"]
     label, category = plat["label"], plat["category"]
@@ -481,9 +484,9 @@ async def catalog_page(slug: str):
                  + f'<p class="lede">{_esc_html(summary)} {len(eps)} endpoints from '
                    f"{_esc_html(provs)}"
                  + (f", from {_esc_html(cheapest)} per call" if cheapest else "")
-                 + ". Jobs that several providers do sit on one row, so you can compare price and "
-                   "coverage before you spend a call — <b>choosing is yours</b>; treg does not route "
-                   "between providers automatically.</p>"
+                 + ". A job several providers do has its own page comparing them by price, measured "
+                   "success and agents' verdicts; where treg offers a routed tool for it, treg can "
+                   "pick the provider for you.</p>"
                  + "".join(blocks))
 
     desc = (f"{len(eps)} {label.lower()} API endpoints from "
@@ -496,7 +499,8 @@ async def catalog_page(slug: str):
          "numberOfItems": len(caps),
          "itemListElement": [
              {"@type": "ListItem", "position": i, "name": cap["description"] or cap["id"],
-              "url": f"{base}/catalog/{slug}#{cap['id']}"}
+              "url": (f"{base}/catalog/{slug}/{catalog_store.capability_key(slug, cap['id'])}"
+                      if (slug, cap["id"]) in compared else f"{base}/catalog/{slug}#{cap['id']}")}
              for i, cap in enumerate(caps, 1)]},
         {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
             {"@type": "ListItem", "position": 1, "name": "treg.to", "item": base + "/"},
@@ -507,6 +511,57 @@ async def catalog_page(slug: str):
     # title leads with it; the brand is treg.to and the copy carries no em-dash.
     return _spa_catalog_page(f"{label} API pricing: {len(eps)} endpoints priced per call | treg.to",
                              desc[:300], f"/catalog/{slug}", ld, prerender)
+
+
+class _ShelfSlug(Convertor):
+    """A platform slug that is never one of the catalog's own API segments (`_CATALOG_RESERVED`).
+    `/catalog/call/<id>` and friends share the `/catalog/<a>/<b>` shape with the comparison page, and route
+    order across the app roles is not something this page should depend on: the path simply does
+    not match them."""
+    regex = rf"(?!(?:{'|'.join(sorted(_CATALOG_RESERVED))})(?:/|$))[^/]+"
+
+    def convert(self, value: str) -> str:
+        return value
+
+    def to_string(self, value: str) -> str:
+        return value
+
+
+register_url_convertor("shelf", _ShelfSlug())
+
+
+@app.get("/catalog/{slug:shelf}/{key}", include_in_schema=False)
+async def catalog_comparison_page(slug: str, key: str):
+    """One capability on a shelf, compared: the providers that do it, side by side. `key` is the
+    capability id without its platform prefix (`enrich` for `companies.enrich`), or the whole id when
+    it is filed under another prefix. Same SPA as the shelf; the head and the no-JS text name it."""
+    cat = catalog_store.load()
+    cap_id = catalog_store.compared_capability(cat, slug, key)
+    if cap_id is None:
+        raise HTTPException(status_code=404, detail=f"no comparison {key!r} on {slug!r}")
+    base = get_settings().public_url.rstrip("/")
+    label = cat.platforms.get(slug, {}).get("label", slug)
+    does = cat.capabilities.get(cap_id) or cap_id
+    eps = [catalog_store.endpoint_view(e, _provider_display(e["provider"]), cat)
+           for e in cat.for_platform(slug) if e["capability"] == cap_id and catalog_store.browsable(e)]
+    provs = sorted({e["provider_display"] for e in eps})
+    lis = "".join(
+        f'<li><b>{_esc_html(e["provider_display"])}</b> <i>{_esc_html(e.get("summary") or "")}</i>'
+        f'<span class="m">{_esc_html(_price_label(e.get("cost")) or "")} · {_esc_html(e["id"])}</span></li>'
+        for e in eps)
+    path = f"/catalog/{slug}/{key}"
+    prerender = (f'<p class="m"><a href="/catalog">Catalog</a> / <a href="/catalog/{_esc_html(slug)}">'
+                 f"{_esc_html(label)}</a></p><h1>{_esc_html(does)}</h1>"
+                 f'<p class="lede">{len(provs)} providers do this through one treg key: '
+                 f"{_esc_html(', '.join(provs))}.</p><ul>{lis}</ul>")
+    ld = [{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "Catalog", "item": base + "/catalog"},
+        {"@type": "ListItem", "position": 2, "name": label, "item": f"{base}/catalog/{slug}"},
+        {"@type": "ListItem", "position": 3, "name": does, "item": base + path}]}]
+    return _spa_catalog_page(f"{does}: {len(provs)} APIs compared | treg.to",
+                             f"{does}. Compare {', '.join(provs[:4])} and more by price, measured "
+                             "success and agents' verdicts; call any of them through one treg key."[:300],
+                             path, ld, prerender)
 
 
 # --------------------------------------------------------------------------- /agents/<agent>
@@ -3340,6 +3395,11 @@ def _iso_day(ts: float) -> str:
     return datetime.fromtimestamp(ts, tz=timezone.utc).date().isoformat() if ts else ""
 
 
+def _comparison_paths() -> list[tuple[str, str]]:
+    """Every public comparison page (`Catalog.compared`), keyed the way its URL is."""
+    return sorted((plat, catalog_store.capability_key(plat, cap)) for plat, cap in catalog_store.load().compared())
+
+
 @app.get("/sitemap.xml", include_in_schema=False)
 async def sitemap_xml():
     """Generated, not bundled: 80 of its URLs are the catalog's platform shelves, which move with the
@@ -3366,6 +3426,8 @@ async def sitemap_xml():
         add(path, day, priority)
     for row in _platform_rows():
         add(f"/catalog/{row['slug']}", cat_day, "0.6")
+    for slug, key in _comparison_paths():
+        add(f"/catalog/{slug}/{key}", cat_day, "0.6")
     for prow in _provider_rows():
         add(f"/tools/{prow['service']}", cat_day, "0.5")
     # The agent pages exist only on the hosted deployment (see `_hosted`); their lastmod follows the

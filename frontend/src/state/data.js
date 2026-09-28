@@ -81,13 +81,16 @@ export default function data(){
       find:{...FIND_EMPTY}, findCopied:'', findSoon:false,
       platSlug:null, platData:null, platErr:'', platLoading:false,
       platShelfOpen:{},    // category → its featured shelf has been expanded to the full tile list
-      // The ledger's filter bar. All three narrow the SAME row list, and a section with no
-      // surviving rows disappears rather than showing an empty heading.
-      platDomain:'', platQ:'', platVerifiedOnly:false,
-      platOpen:{},         // ledger row key → row expanded
-      platActionsOpen:false,  // the single platform-wide account/utility ("Actions") section is open
-      epOpen:{},           // endpoint id → its provider sub-row (level two, merged rows only) is open
-      epTab:{},            // endpoint id → which pane of its detail is showing ('req' | 'res')
+      platQ:'',            // the shelf's search box
+      epTab:{},            // endpoint id → which pane of its detail is showing ('req' | 'res' | 'rev')
+      verdictKinds:['useful','partly','not_useful'],   // an endpoint's agent verdicts, in bar order
+      platCap:null,        // the compared capability a platform URL names, by its key (`compare`)
+      drawerTool:null,       // endpoint id open in the tool drawer
+      catalogArm:'',         // the catalog-v2 arm this load was dealt (state/catalogExperiment.js)
+      epInfo:{},         // endpoint id → {loading, data} from /catalog/endpoints/<id>
+      platComparisonLead:null,    // the endpoint whose detail carries the open comparison's siblings and plan
+      platComparisonSort:{key:'price', dir:'asc'},   // the comparison's order (DataTable v-model:sort)
+      mkTools:null,        // {service, loading, err, data} from /catalog/providers/<service>
       platEx:{},           // endpoint id → {open, loading, err, text} for the lazily-fetched example
       platCopied:'',       // endpoint id whose `treg call` line was just copied
       capAsk:null,  // the access question, asked when a one-method provider has several scope levels

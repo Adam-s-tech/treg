@@ -43,7 +43,8 @@ EXPECTED_MAKERS: dict[str, set[str]] = {
     "application/arena_insights.py": {API},
     "application/arena_verification_insights.py": {API},  # explicit aggregate publication, no worker
 
-    "application/feedback.py": {API},  # synchronous intake; admin reads use get_admin_session
+    # Synchronous intake, and the catalog's five-minute verdict fold; admin reads use get_admin_session.
+    "application/feedback.py": {API},
     "application/media.py": {API},  # `treg host`: one short write, one short read, no upstream wait
     "application/catalog_find.py": {API},  # one rate-limit write, committed before the judge call
 

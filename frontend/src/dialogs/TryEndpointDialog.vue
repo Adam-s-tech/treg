@@ -5,13 +5,20 @@ export default { setup: useDashboard }
 
 <template>
 <div class="scrim" role="dialog" aria-labelledby="try-endpoint-dialog-title" aria-modal="true" v-dialog="closeEpTry" @click.self="closeEpTry" style="place-items:stretch;justify-items:end">
-      <div class="drawer"><div class="hd" style="padding:15px 18px;border-bottom:1px solid var(--line)"><b id="try-endpoint-dialog-title">Try “{{epTry.id}}”</b><button class="btn sm" @click="closeEpTry" aria-label="Close">✕</button></div>
+      <!-- Opened from a catalog tool drawer, it stacks on top of that one: same width, and the tool it
+           came from stays visible underneath (ToolDrawer's .behind), one Escape away. -->
+      <div class="drawer" :class="{stack:!!drawerEp}"><div class="hd" style="padding:15px 18px;border-bottom:1px solid var(--line)"><b id="try-endpoint-dialog-title">Try “{{epTry.id}}”</b><button class="btn sm" @click="closeEpTry" aria-label="Close">✕</button></div>
         <div class="bd" style="padding:16px 18px;overflow:auto">
           <p class="explain"><span class="mono">{{epTry.method||'GET'}} {{epTryDisplayPath}}</span><br>{{epTry.summary}}</p>
           <p class="sub" v-if="epTryAccess" style="margin:0 0 12px">
             <template v-if="epTryAccess.tier==='anonymous'">◎ {{epTryAccess.detail||'No provider key needed — the verified public upstream route is free.'}}</template>
             <template v-else-if="epTryAccess.tier==='platform'">⚡ {{epTryAccess.detail||'No key needed — served on treg\'s key, billed to the team balance.'}}</template>
             <template v-else-if="epTryAccess.tier==='tool'||epTryAccess.tier==='credential'">🔑 Served with your team's own {{epTry.provider_display||epTry.provider}} credential — billed by the provider, not the team balance.</template>
+            <!-- A routed tool: say who can serve it now in one line; the providers this example cannot
+                 use, and why, are there for whoever asks rather than a paragraph above the form. -->
+            <template v-else-if="epTryAccess.tier==='routed'">⚡ One call: {{(epTryAccess.plan||[]).length}} provider{{(epTryAccess.plan||[]).length===1?'':'s'}} can serve it for this team now, starting with {{provName((epTryAccess.plan||[{}])[0].provider)}}.
+              <details v-if="(epTryAccess.dropped||[]).length" style="margin-top:6px"><summary style="cursor:pointer">Not used for this example ({{epTryAccess.dropped.length}})</summary>
+                <ul style="margin:6px 0 0;padding-left:18px"><li v-for="d in epTryAccess.dropped" :key="d.endpoint_id"><span class="mono">{{d.endpoint_id}}</span>: {{d.why}}</li></ul></details></template>
             <template v-else>{{epTryAccess.detail||'Not callable from this team yet.'}}</template>
           </p>
 
@@ -62,7 +69,7 @@ treg login</pre></div>
           <template v-else>
             <!-- Not callable from here (no key connected / no treg price): don't strand the user on a
                  dead Run button — point them at the tab that DOES work. -->
-            <div v-if="epTryAccess && epTryAccess.tier!=='anonymous' && epTryAccess.tier!=='platform' && epTryAccess.tier!=='tool' && epTryAccess.tier!=='credential'"
+            <div v-if="epTryAccess && !['anonymous','platform','tool','credential','routed'].includes(epTryAccess.tier)"
                  class="banner" style="margin:0">
               {{epTryAccess.missing_message || (mkOauth(epTry.provider) ? 'Can\'t run this here yet — connect '+(epTry.provider_display||epTry.provider)+' first, then Run.' : 'This endpoint needs a key. Use the AI Agent / CLI / API tab, or bring your own.')}}
               <div style="margin-top:10px">
