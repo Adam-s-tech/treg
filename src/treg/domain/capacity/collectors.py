@@ -156,6 +156,17 @@ async def _olostep(c, key):
             "note": f"plan {plan}; usage {state}"}
 
 
+async def _firecrawl(c, key):
+    d = await _get(c, "https://api.firecrawl.dev/v2/team/credit-usage",
+                   headers={"Authorization": f"Bearer {key}"})
+    data = d.get("data") if isinstance(d, dict) else None
+    remaining = data.get("remainingCredits") if isinstance(data, dict) else None
+    if not isinstance(d, dict) or d.get("success") is not True or type(remaining) is not int or remaining < 0:
+        raise ValueError("Firecrawl returned no valid remaining-credit balance")
+    return {"value": remaining, "unit": "credits",
+            "note": f"billing period ends {data.get('billingPeriodEnd') or 'unknown'}"}
+
+
 async def _scrapegraphai(c, key):
     d = await _get(c, "https://v2-api.scrapegraphai.com/api/credits",
                    headers={"SGAI-APIKEY": key})
@@ -801,6 +812,7 @@ BALANCE_ROUTES = {
     "tavily": _tavily,
     "serper": _serper,
     "olostep": _olostep,
+    "firecrawl": _firecrawl,
     "scrapegraphai": _scrapegraphai,
     "scrapecreators": _scrapecreators,
     "serpapi": _serpapi,

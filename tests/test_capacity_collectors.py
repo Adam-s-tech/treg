@@ -417,6 +417,27 @@ async def test_olostep_balance(monkeypatch):
         collectors.get_settings.cache_clear()
 
 
+async def test_firecrawl_balance_uses_free_credit_usage_endpoint():
+    def probe(request):
+        assert str(request.url) == "https://api.firecrawl.dev/v2/team/credit-usage"
+        assert request.headers["authorization"] == "Bearer test-key"
+        return httpx.Response(200, json={"success": True, "data": {
+            "remainingCredits": 314, "billingPeriodEnd": "2026-10-28T00:00:00Z",
+        }})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(probe)) as client:
+        assert await collectors._firecrawl(client, "test-key") == {
+            "value": 314, "unit": "credits",
+            "note": "billing period ends 2026-10-28T00:00:00Z",
+        }
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(
+        lambda _: httpx.Response(200, json={"success": True, "data": {"remainingCredits": None}})
+    )) as client:
+        with pytest.raises(ValueError, match="remaining-credit"):
+            await collectors._firecrawl(client, "test-key")
+
+
 async def test_scrapegraphai_balance(monkeypatch):
     monkeypatch.setenv("TREG_PLATFORM_KEY_SCRAPEGRAPHAI", "test-key")
     collectors.get_settings.cache_clear()

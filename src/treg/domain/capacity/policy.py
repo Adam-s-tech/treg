@@ -50,6 +50,7 @@ _KNOWN: dict[str, tuple[str, str, str]] = {
     "serper": ("credits", "auto_recharge", "api"),
     "keenable": ("requests", "manual", "manual"),
     "olostep": ("credits", "manual", "api"),
+    "firecrawl": ("credits", "subscription", "api"),
     # The shared account uses subscription funding; the API supplies its exact credit balance.
     "scrapegraphai": ("credits", "subscription", "api"),
     "getleadsio": ("credits", "manual", "api"),
@@ -135,6 +136,9 @@ _RATE_LIMITS: dict[str, dict] = {
     # returned no rate-limit headers. Smooth the shared key conservatively until the vendor supplies
     # a contract value or production traffic establishes a safer bound. BYOK bypasses this policy.
     "olostep": {"limit": 5, "window_s": 1, "source": "policy"},
+    # Standard's strictest shared submission limit is 100/min for Crawl and Batch Scrape.
+    # Scrape, Search and Map allow 500/min; provider-wide smoothing uses the lower ceiling.
+    "firecrawl": {"limit": 100, "window_s": 60, "source": "docs"},
     # Deployment allowance supplied for the shared account. Live responses did not include usable
     # rate headers, so keep the configured 500/min ceiling explicit instead of inferring from them.
     "scrapegraphai": {"limit": 500, "window_s": 60, "source": "policy"},
