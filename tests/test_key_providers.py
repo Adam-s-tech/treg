@@ -60,6 +60,23 @@ async def test_perplexity_key_uses_free_model_list_probe(clients, monkeypatch):
     assert response.status_code == 200, response.text
 
 
+async def test_octen_key_uses_unbilled_validation_probe(clients, monkeypatch):
+    def probe(request):
+        assert request.method == "POST"
+        assert request.url.path == "/search"
+        assert json.loads(request.content) == {"query": ""}
+        assert request.headers["x-api-key"] == "own-key"
+        return httpx.Response(400, json={"code": 400, "msg": "Invalid params. Missing parameter query"})
+
+    async with AsyncClient(transport=httpx.MockTransport(probe)) as upstream:
+        monkeypatch.setattr(app.state, "http", upstream)
+        response = await clients.post(
+            "/connections/token", json={"provider": "octen", "token": "own-key"},
+        )
+    assert response.status_code == 200, response.text
+    assert response.json()["health"] == "unknown"
+
+
 async def test_adyntel_connect_collects_both_credentials_before_provisioning(clients, monkeypatch):
     def probe(request):
         assert request.method == "POST"

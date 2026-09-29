@@ -2529,6 +2529,35 @@ TAVILY = OAuthProvider(
     probe_path="/usage",
 )
 
+OCTEN = OAuthProvider(
+    service="octen",
+    display_name="Octen",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="your Octen API key",
+    token_header="x-api-key",
+    token_format="{secret}",
+    setup_url="https://octen.ai/platform",
+    setup_action_label="Get your Octen API key",
+    setup_steps=(
+        "Sign in to the Octen API Platform and create or copy an API key.",
+        "Paste the key here.",
+    ),
+    setup_note="Search and extraction calls spend your Octen pay-as-you-go balance.",
+    auth_uri="", token_uri="",
+    scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="SEO",
+    summary="Search the web and news, run broad searches, and extract page content.",
+    base_url="https://api.octen.ai",
+    docs_url="https://docs.octen.ai/",
+    probe_path="/search",
+    probe_method="POST",
+    probe_json={"query": ""},
+    probe_reject_statuses=(401, 403),
+    probe_deferred_statuses=(400,),
+)
+
 LINKUP = OAuthProvider(
     service="linkup",
     display_name="Linkup",
@@ -3759,7 +3788,7 @@ REGISTRY: dict[str, OAuthProvider] = {
         TIKHUB, BRIGHTDATA, SEMRUSH, JUSTONEAPI,
         SCRAPECREATORS,
         # SEO API-key providers
-        DATAFORSEO, SERANKING, MOZ, MAJESTIC, SERPSTAT, EXA, TAVILY, LINKUP, YOU, KEENABLE, OLOSTEP, FIRECRAWL, SPIDERCLOUD, PERPLEXITY,
+        DATAFORSEO, SERANKING, MOZ, MAJESTIC, SERPSTAT, EXA, TAVILY, OCTEN, LINKUP, YOU, KEENABLE, OLOSTEP, FIRECRAWL, SPIDERCLOUD, PERPLEXITY,
         SCRAPEGRAPHAI, SERPER, LITESCRAPE, CLORO,
         # more Enrichment API-key providers
         LUSHA, CORESIGNAL, DIFFBOT, THECOMPANIESAPI, LEADMAGIC, FIBER_AI, CRUSTDATA, AVIATO,
