@@ -20,8 +20,10 @@ import asyncio
 import logging
 from collections import deque
 
+from sqlalchemy import select, update
+
 from .infra.db import background_session_maker
-from .models import CallRecord, RunRecord, SearchLog, SearchMiss
+from .models import AsyncTaskRecord, CallRecord, RunRecord, SearchLog, SearchMiss
 
 _pending: set[asyncio.Task] = set()
 # ONE writer per process, and it writes in batches. Audit rows are single-row inserts that cost
@@ -53,6 +55,7 @@ def record_call(
     status_code: int, client: str = "", refused_by: str | None = None, telemetry: dict | None = None,
     api_key_id: int | None = None, api_key_name: str | None = None,
     api_key_prefix: str | None = None,
+    async_submission: bool = False,
 ) -> None:
     """`telemetry` carries the marketplace/spend columns (endpoint_id, provider, credential_tier,
     cost_*_micro, duration_ms, response_bytes, params_hash) — absent for a plain tool call, where they
@@ -64,7 +67,28 @@ def record_call(
         method=method, path=path, status_code=status_code, client=client, refused_by=refused_by,
         api_key_id=api_key_id, api_key_name=api_key_name, api_key_prefix=api_key_prefix,
         **_known_fields(CallRecord, telemetry),
+        **({"_async_submission": True} if async_submission else {}),
     ))
+
+
+async def update_async_call_hit(call_id: str, endpoint_id: str, org_id: int, hit: bool) -> None:
+    """Copy a terminal verdict to the original audit row, if it has been written.
+
+    The task row is the durable source when the audit insert has not happened yet. Its
+    row lock also orders this update against a concurrent audit writer. Share the audit
+    writer's background-pool slot rather than creating another concurrent consumer.
+    """
+    try:
+        async with _get_sem():
+            async with background_session_maker() as session:
+                await session.execute(update(CallRecord).where(
+                    CallRecord.call_ref == call_id,
+                    CallRecord.endpoint_id == endpoint_id,
+                    CallRecord.org_id == org_id,
+                ).values(hit=hit))
+                await session.commit()
+    except Exception:  # noqa: BLE001 — audit cannot undo a committed settlement
+        logging.getLogger("treg.audit").error("async hit update failed for %s", call_id, exc_info=True)
 
 
 def _known_fields(model, telemetry: dict | None) -> dict:
@@ -177,7 +201,23 @@ async def _flush() -> None:
 async def _write_batch(rows: list[tuple[type, dict]]) -> bool:
     try:
         async with background_session_maker() as session:
-            session.add_all([model(**fields) for model, fields in rows])
+            # Lock task rows before reading their verdicts. The terminal finalizer holds the
+            # same row lock while committing its verdict, so whichever side wins the race,
+            # the inserted CallRecord gets the terminal hit or the later update finds it.
+            async_ids = [fields["call_ref"] for model, fields in rows
+                         if model is CallRecord and fields.get("_async_submission")]
+            tasks = {}
+            if async_ids:
+                tasks = {row.call_id: row for row in (await session.execute(
+                    select(AsyncTaskRecord).where(AsyncTaskRecord.call_id.in_(async_ids))
+                    .with_for_update())).scalars()}
+            records = []
+            for model, fields in rows:
+                values = {k: v for k, v in fields.items() if k != "_async_submission"}
+                if fields.get("_async_submission") and (task := tasks.get(fields["call_ref"])) is not None:
+                    values["hit"] = task.hit
+                records.append(model(**values))
+            session.add_all(records)
             await session.commit()
         return True
     except Exception:  # noqa: BLE001 — audit must never surface into a call's result

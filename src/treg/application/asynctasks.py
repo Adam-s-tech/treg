@@ -12,11 +12,12 @@ import httpx
 from urllib.parse import quote
 from sqlalchemy import select, update
 
-from .. import archive, oauth_providers
+from .. import archive, audit, oauth_providers
 from ..domain.governance.access import pinned_tag_predicates
 from ..domain import asynctasks
 from ..domain import money as ledger
 from ..domain.catalog import store as catalog_store
+from ..domain.catalog.results import classify
 from ..domain.money import settlement
 from ..infra.db import session_maker
 from ..infra.upstream.relay import relay
@@ -305,7 +306,8 @@ async def _poll(row: AsyncTaskRecord, client: httpx.AsyncClient) -> tuple[int, b
 
 
 async def _finish(call_id: str, outcome: str, document: object | None, now, *,
-                  require_usage: bool = False, expected_attempt: int | None = None) -> str:
+                  require_usage: bool = False, expected_attempt: int | None = None,
+                  terminal_hit: bool | None = None) -> str:
     async with session_maker() as db:
         row = await db.get(AsyncTaskRecord, call_id, with_for_update=True)
         if row is None or row.status != asynctasks.PENDING:
@@ -351,6 +353,8 @@ async def _finish(call_id: str, outcome: str, document: object | None, now, *,
                 **({"reconcile_review": True} if unobserved else {}),
             })
             row.status = asynctasks.SETTLED
+            if outcome == "success":
+                row.hit = terminal_hit
             if outcome == "billed_failure" and not row.error:
                 row.error = "provider reported a billable terminal failure"
         elif outcome == "failure":
@@ -389,10 +393,15 @@ async def _finish_terminal(snapshot: AsyncTaskRecord, outcome: str, document: ob
                            status_code: int, body: bytes, now, *, require_usage: bool = False,
                            expected_attempt: int | None = None) -> str:
     """One settlement and evidence path for caller polling and the recovery worker."""
+    terminal_hit = (classify(snapshot.endpoint_id, status_code, body).hit
+                    if outcome == "success" else None)
     result = await _finish(snapshot.call_id, outcome, document, now, require_usage=require_usage,
-                           expected_attempt=expected_attempt)
+                           expected_attempt=expected_attempt, terminal_hit=terminal_hit)
     expected = asynctasks.SETTLED if outcome in ("success", "billed_failure") else asynctasks.RELEASED
     if result == expected:
+        if terminal_hit is not None:
+            await audit.update_async_call_hit(
+                snapshot.call_id, snapshot.endpoint_id, snapshot.org_id, terminal_hit)
         # Only the winning finalizer records evidence; a late poll cannot replace the result
         # whose usage was charged. Archive failure cannot undo the committed money transaction.
         try:

@@ -35,6 +35,7 @@ sources:
   - src/treg/maintenance.py
   - src/treg/web/sitetrack.js
   - src/treg/models.py
+  - src/treg/alembic/versions/0052_async_task_hit.py
   - src/treg/alembic/versions/0031_archive_result_admission.py
   - src/treg/alembic/versions/0032_archive_body_storage.py
   - src/treg/alembic/versions/0039_archive_own_key_and_repeat_pricing.py
@@ -85,6 +86,12 @@ indexed result id and adds `AsyncResourceRecord`: an org/provider/resource-kind/
 for legacy async pairs whose billing does not use a deferred hold. They ship with the behavior
 because old code ignores the additions while new code cannot safely retain an asynchronous hold or
 authorize a shared-provider result without them.
+
+Revision `0052` adds nullable `hit`: the terminal contact verdict for the original submission.
+The terminal finalizer commits it with settlement. The audit writer locks the task row before
+inserting a submission `CallRecord`, so a poll that finishes first still gives that row its final
+verdict; when the audit row wins the race, the finalizer updates it afterward. Both use the
+original `call_ref`, including routed children. A pending submission remains undecided.
 
 Migration `0019` adds `consecutive_failures` with a retained server default of zero, allowing old
 writers during rollout. Valid polls reset it; failures grow the retry delay to 15 minutes.

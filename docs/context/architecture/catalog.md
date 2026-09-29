@@ -1926,7 +1926,12 @@ to choose (`docs/CAPABILITY-ROUTING-PLAN.md`). Everything else in the catalog st
   and charge; the existing async worker owns eventual settlement. Only declared terminal misses and
   failures may continue under the normal bounded fallback rules.
 - **Hit rate** — `CallRecord.hit` (nullable, alembic `0009`, last column) is the adapter's verdict
-  written at settle; `stats.observed` publishes `hit_rate`/`hit_samples` (floor 20) and, for
+  for a completed result. An accepted async submission leaves it NULL; the terminal finalizer
+  classifies the finished body and updates the originating row, including a routed child. Its
+  `AsyncTaskRecord.hit` keeps the verdict if polling beats the background audit insert.
+  Async endpoints read their `CallRecord` observations live: the daily fold may consume a
+  submission before its terminal poll changes the hit, and its one-way cursor cannot revise it.
+  `stats.observed` publishes `hit_rate`/`hit_samples` (floor 20) and, for synchronous
   per-success endpoints, reads historical rows too (a 2xx with `cost_observed_micro == 0` is a miss).
   The plan, `catalog_get` and the CLI's HIT column read it; a registered tool (tier 1) or stored key
   (tier 2) for a provider ranks first at cost 0.

@@ -249,6 +249,9 @@ evidence settles the original task once under its row lock. Caller success witho
 only learns result ownership and leaves the hold for a later observation; worker fallback retains
 its reserve-based settlement with a reconciliation alert. Settlement errors leave the provider
 response unchanged and cron retries. Only the winning finalizer archives terminal evidence.
+For a successful task, the same transaction stores the terminal adapter hit verdict on the task;
+the audit path copies it to the original submission row whether that row was inserted before or
+after the terminal poll. The submission ticket itself supplies no hit verdict.
 An async status declared as `billed_failure` is still presented as failure by the CLI, but the
 worker settles its usage evidence and records the terminal outcome; this covers cancellation after
 billable work without manufacturing a successful result.
