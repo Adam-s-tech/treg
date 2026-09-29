@@ -438,3 +438,13 @@ async def test_inline_media_answer_over_the_spool_cap_fails_uncharged(gemini, mo
         assert (await db.get(Org, 1)).balance_micro == balance
         assert not (await db.execute(select(Hold))).scalars().all()
     assert state['closes'] == 1
+
+
+async def test_the_shared_key_serves_only_the_declared_models(gemini):
+    """`model` is a path parameter: on treg's key it must be one the row prices, or another
+    Gemini model would run on the image model's rates."""
+    client, state = gemini
+    response = await client.post(f'/call/{GEMINI}?model=gemini-2.5-pro', json=GEMINI_REQUEST)
+    assert response.status_code == 400
+    assert response.json()['detail']['parameter'] == 'pathParams.model'
+    assert state['hits'] == 0
