@@ -59,11 +59,19 @@ export default {
   </section>
 
   <section class="pl-sec">
-    <h2 class="pl-h"><span>{{connAccounts.length || namedKeys.length ? 'Add another' : 'Connect an account or key'}}</span><i></i><em>{{connectable.length}}</em></h2>
-    <div class="cat-find cn-find">
-      <svg class="cat-find-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input v-model="connQ" aria-label="Filter providers" placeholder="Filter providers, e.g. Apollo, Google Ads, video">
-      <button v-if="connQ" class="cat-find-x" type="button" aria-label="Clear the filter" @click="connQ=''">×</button>
+    <h2 class="pl-h"><span>Add a connection</span><i></i><em>{{connectable.length}}</em></h2>
+    <div class="cn-filters">
+      <div class="cat-find cn-find">
+        <svg class="cat-find-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input v-model="connQ" aria-label="Filter providers" placeholder="Filter providers, e.g. Apollo, Google Ads, video">
+        <button v-if="connQ" class="cat-find-x" type="button" aria-label="Clear the filter" @click="connQ=''">×</button>
+      </div>
+      <!-- Signing in with an account you already have and pasting a key are different errands:
+           someone holding a Google Ads login is not scanning for API-key vendors. -->
+      <div class="cn-kinds" role="radiogroup" aria-label="How you connect">
+        <button v-for="k in connKinds" :key="k.key" role="radio" :aria-checked="connKind===k.key"
+                :class="{on:connKind===k.key}" :title="k.hint" @click="connKind=k.key">{{k.label}} <span>{{k.n}}</span></button>
+      </div>
     </div>
     <div v-for="g in providerGroups" :key="g.category" class="cn-group">
       <h3 class="pl-h pl-h-quiet"><span>{{g.category}}</span><i></i><em>{{g.items.length}}</em></h3>

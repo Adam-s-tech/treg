@@ -69,7 +69,7 @@ export default function data(){
       providers:[], connections:[], connErr:'', connBusy:false, confirmDisc:null, resPick:null,
       mkService:null,  // the open provider page
       byokFocus:null,  // provider card to flash after a "Bring your own key" jump to Connections
-      connQ:'',  // the provider filter on Connections
+      connQ:'', connKind:'',  // the provider filter on Connections, and '' | 'signin' | 'key'
       // Catalog tab bar: 'all' + one key per catalog category.
       mkTab:'all',
       platLogoBad:{},  // platform slug (or `v:`+vendor) → no /logos/platforms/<slug>.svg (/logos/<vendor>.svg), so draw the initial tile

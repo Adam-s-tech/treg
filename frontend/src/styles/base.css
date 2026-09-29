@@ -1013,7 +1013,14 @@ a.pl-btn{text-decoration:none}
 .cn-prov .pl-tool-b{flex:1}
 .cn-prov-a{flex:0 0 auto}
 .cn-prov.focus{box-shadow:var(--shadow-sm),0 0 0 1.5px var(--ink)}
-.cn-find{max-width:560px;margin:0 0 28px}
+.cn-filters{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;margin:0 0 28px}
+.cn-find{flex:1 1 320px;max-width:560px;margin:0}
+.cn-kinds{display:inline-flex;gap:2px;padding:3px;border-radius:999px;background:var(--surface);box-shadow:var(--shadow-sm)}
+.cn-kinds button{height:32px;padding:0 14px;border:0;border-radius:999px;background:none;font:inherit;font-size:13px;color:var(--muted);cursor:pointer}
+.cn-kinds button span{margin-left:4px;font-family:var(--mono);font-size:11px;color:var(--muted2)}
+.cn-kinds button:hover{color:var(--ink)}
+.cn-kinds button.on{background:var(--inverse);color:var(--inverse-ink)}
+.cn-kinds button.on span{color:inherit;opacity:.7}
 .cn-group{margin:0 0 30px}
 .cn-foot{margin-top:56px;padding-top:22px;border-top:1px solid var(--line);font-size:13px;line-height:1.6;color:var(--muted)}
 .cn-foot p{margin:0}

@@ -34,7 +34,7 @@ go(v, fromPop){ this.resetConfirms(); this.mobileNav=false; this.drawerTool=null
     // global (it is not on the template-expression allowlist, so an inline use fails silently).
     goPublicTool(service){ location.href='/tools/'+encodeURIComponent(service); },
 goByok(service){
-      this.connQ='';
+      this.connQ=''; this.connKind='';
       this.byokFocus=service||null; this.closeEpTry();
       this.go('connections');
       if(!service) return;

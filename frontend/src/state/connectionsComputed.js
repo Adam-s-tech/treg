@@ -29,19 +29,36 @@ connAttention(){ return this.connAccounts.filter(a=>a.st.key!=='ok').length; },
 // The providers this server can connect: one it holds no client credentials for could only show a
     // button that does nothing. An account already connected to one still shows under Connected.
     connectable(){ return this.providers.filter(p=>p.configured); },
+// The connectable providers the filter box matches, before the sign-in / key choice.
+    connMatches(){
+      const q=this.connQ.trim().toLowerCase();
+      return q ? this.connectable.filter(p=>[p.display_name, p.service, p.summary, p.category].join(' ').toLowerCase().includes(q))
+        : this.connectable;
+    },
+// The sign-in / key choice, each counting what it would show under the typed filter.
+    connKinds(){
+      const signIn=this.connMatches.filter(p=>!this.pastedCredential(p)).length;
+      return [
+        {key:'', label:'All', n:this.connMatches.length, hint:'Every provider you can connect'},
+        {key:'signin', label:'Sign in', n:signIn, hint:'Approve access with an account you already have: nothing to copy'},
+        {key:'key', label:'API key', n:this.connMatches.length-signIn, hint:'Paste a key from the provider'},
+      ];
+    },
 // Every provider an account or key can be added for, by category. /oauth/providers already
     // returns them grouped then alphabetical, so this walks the list once and starts a shelf
-    // whenever the category changes; re-sorting would be a second place to keep that order.
+    // whenever the category changes. Within a shelf, the sign-in providers come first: an account
+    // the team already holds is the likelier errand than a vendor key, and the sort is stable, so
+    // each half keeps the registry's order.
     providerGroups(){
-      const q=this.connQ.trim().toLowerCase();
-      const hit=p=>!q || [p.display_name, p.service, p.summary, p.category].join(' ').toLowerCase().includes(q);
+      const kind=this.connKind, pasted=p=>this.pastedCredential(p);
       const out=[];
-      for(const p of this.connectable){
-        if(!hit(p)) continue;
+      for(const p of this.connMatches){
+        if(kind && (kind==='key')!==pasted(p)) continue;
         const cat=p.category||'Other';
         if(!out.length || out[out.length-1].category!==cat) out.push({category:cat, items:[]});
         out[out.length-1].items.push(p);
       }
+      for(const g of out) g.items.sort((a,b)=>pasted(a)-pasted(b));
       return out;
     },
 }

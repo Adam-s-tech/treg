@@ -703,10 +703,12 @@ inline-confirms. The nav's **Connections** entry carries the count of cards need
 as a secret named for the provider (`namedKeys`: `treg secret add apollo …`, or a Secrets row) is a
 card too — the credential ladder treats it as that provider's key — marked *Saved*, or *Not in use*
 when a connected credential for the same provider outranks it, with **Verify and connect** to run it
-through the connect probe. **Add another** is every provider this server can connect
+through the connect probe. **Add a connection** is every provider this server can connect
 (`connectable`: `configured` ones only — a provider it holds no client credentials for could only
 show a dead button; an account already connected to one still shows above), in `providerGroups`
-(grouped by the registry's category and filtered by `connQ`) as one-line cards: logo, name, how the credential is
+(grouped by the registry's category, filtered by `connQ` and by `connKind` — the **All · Sign in ·
+API key** switch, each counting what it would show — with the sign-in providers first in each
+group) as one-line cards: logo, name, how the credential is
 obtained (`authLabel`: *Sign in* for OAuth, else the provider's `token_label`, e.g. *API key* — only
 Slack's is a bot token) and how many are connected; the whole card opens the provider page, and an
 outlined **Connect / Add key / Add account / Replace key** button calls `startConnect(p)` in place (a
