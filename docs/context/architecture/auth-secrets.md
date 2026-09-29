@@ -57,6 +57,11 @@ Linkup uses a pasted Bearer key at `https://api.linkup.so`. Its free internal
 exposing the account balance as a catalog tool. `TREG_PLATFORM_KEY_LINKUP` supplies the optional
 shared binding; a team's own key wins and remains unmetered by treg.
 
+Spider uses a pasted Bearer key at `https://api.spider.cloud`. The free internal
+`GET /data/credits` probe validates connected keys and supplies capacity evidence.
+`TREG_PLATFORM_KEY_SPIDERCLOUD` supplies the optional shared binding; the own-key-first ladder
+keeps a team's credential unmetered. Only the priced Search listing is shared-key eligible.
+
 ScrapeGraphAI uses a pasted raw `SGAI-APIKEY` header at `https://v2-api.scrapegraphai.com`. Its free
 internal `GET /api/credits` probe rejects invalid credentials and validates team-owned and optional
 platform credentials while also supplying capacity data. `TREG_PLATFORM_KEY_SCRAPEGRAPHAI` supplies

@@ -109,6 +109,13 @@ provider-wide ceiling, including Search, Contents, Answer and Research calls who
 endpoint limits are higher. BYOK calls bypass shared-key smoothing and treg metering. The API
 balance can lag recent calls, so capacity snapshots are not a per-call charge record.
 
+Spider's internal collector calls the free `GET /data/credits` route with the platform Bearer key,
+accepts only finite nonnegative `data.credits`, and converts the API's 10,000 credits per USD to a
+cash balance. The policy is `cash / auto_recharge / api`: the account's auto-refill was confirmed
+in its billing dashboard, while treg only reads the balance. Spider documents 10,000 core API
+requests/minute by default; shared-key smoothing uses a conservative 100/minute. The balance route
+is capacity evidence and a connection probe, never a catalog tool.
+
 ScrapeGraphAI's internal collector calls the free `GET /api/credits` route with the platform
 `SGAI-APIKEY`. It accepts only a finite nonnegative `remaining` credit balance and retains the plan,
 used-credit count, and crawl/monitor job quotas as informational notes. The policy is

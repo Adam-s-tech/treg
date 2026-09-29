@@ -16,6 +16,27 @@ from treg.domain.capacity import collectors, policy, sweep
 from treg.timeutil import utcnow_naive
 
 
+async def test_spidercloud_balance_converts_api_credits_to_usd():
+    def probe(request):
+        assert request.method == "GET"
+        assert request.url.path == "/data/credits"
+        assert request.headers["authorization"] == "Bearer test"
+        return httpx.Response(200, json={"data": {"credits": "250000.000000"}})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(probe)) as client:
+        row = await collectors._spidercloud(client, "test")
+    assert row["value"] == 25.0
+    assert row["unit"] == "USD"
+
+
+@pytest.mark.parametrize("credits", [None, True, "NaN", "Infinity", "bad", -1])
+async def test_spidercloud_balance_rejects_invalid_api_credits(credits):
+    async with httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda _request: httpx.Response(200, json={"data": {"credits": credits}}))) as client:
+        with pytest.raises(ValueError, match="Spider returned no valid credit balance"):
+            await collectors._spidercloud(client, "test")
+
+
 async def test_fishaudio_balance_uses_workspace_wallet(monkeypatch):
     monkeypatch.setenv("TREG_PLATFORM_KEY_FISHAUDIO", "private-test-key")
     monkeypatch.setenv("TREG_PLATFORM_FISHAUDIO_WORKSPACE_ID", "workspace-test-id")
