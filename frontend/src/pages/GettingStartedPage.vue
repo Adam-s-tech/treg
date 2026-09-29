@@ -21,7 +21,7 @@ export default {
           <div class="rd-start">
             <div class="rd-welcome">
               <div class="rd-welcome-title"><span><img src="/media/redesign/welcome-mark.svg" alt=""></span><h1>Welcome! Getting started</h1></div>
-              <button v-if="canRegister" class="rd-search" @click="go('connections'); $nextTick(()=>elements.search?.focus())"><img src="/media/redesign/search.svg" alt="">Search tools…</button>
+              <button v-if="canRegister" class="rd-search" @click="go('catalog'); $nextTick(()=>elements.search?.focus())"><img src="/media/redesign/search.svg" alt="">Search tools…</button>
             </div>
             <div class="start-card rd-setup">
               <div class="rd-setup-side">

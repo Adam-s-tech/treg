@@ -6,7 +6,7 @@ test('sign in, create team, switch pages, refresh and navigate back', async ({ p
   page.on('pageerror', error => errors.push(error.message))
   await signIn(page)
   const navigation = page.getByRole('navigation', { name: 'Primary navigation' })
-  for (const name of ['Catalog', 'Your own tools', 'Activity', 'Team']) {
+  for (const name of ['Catalog', 'Connections', 'Your own tools', 'Activity', 'Team']) {
     await navigation.getByRole('button', { name, exact: true }).click()
     await expect(navigation.getByRole('button', { name, exact: true })).toHaveAttribute('aria-current', 'page')
   }
@@ -91,7 +91,7 @@ test('a dialog takes its first field and hands focus back, even when its code ar
     await route.continue()
   })
   await page.goto('about:blank')
-  await page.goto('/app#connections')
+  await page.goto('/app#catalog')
   const opener = page.getByRole('button', { name: 'Request a tool', exact: true })
   await opener.click()
   const dialog = page.getByRole('dialog', { name: 'Request a tool' })
@@ -134,4 +134,29 @@ test("a tool drawer's primary button is the next step to an agent using the tool
   await page.locator('.pl-tool').first().click()
   await expect(primary()).toHaveText(/^Connect /)                  // an account to connect first
   await expect(drawer.locator('.td-stats')).toContainText('your account')
+})
+
+test('a provider key saved as a secret is a connection: listed on Connections, not among Secrets', async ({ page }) => {
+  await signIn(page, 'named-key')
+  await page.goto('/app#secrets')
+  await page.getByPlaceholder('name, e.g. STRIPE_KEY').fill('apollo')
+  await page.getByPlaceholder('value (encrypted server-side)').fill('not-a-real-key')
+  await page.getByRole('button', { name: 'Add secret', exact: true }).click()
+  await expect(page.getByText('Keys for catalog providers live on')).toContainText('(1 there now)')
+  await expect(page.locator('.ttable')).toHaveCount(0)
+  await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Connections' }).click()
+  const card = page.locator('.cn-card').filter({ hasText: 'Apollo.io' })
+  await expect(card).toContainText('saved as a secret')
+  await card.getByRole('button', { name: 'Remove', exact: true }).click()
+  await card.getByRole('button', { name: 'Click again to remove', exact: true }).click()
+  await expect(page.locator('.cn-card')).toHaveCount(0)
+})
+
+test('Bring your own key lands on Connections, the provider it names in view', async ({ page }) => {
+  await signIn(page, 'byok-jump')
+  await page.goto('/catalog/companies/enrich')
+  await page.getByRole('table').getByRole('row').filter({ hasText: 'Ocean' }).first().click()
+  await page.getByRole('complementary', { name: 'Tool details' }).getByRole('button', { name: /^Add your .+ key$/ }).click()
+  await expect(page).toHaveURL(/#connections$/)
+  await expect(page.locator('.cn-prov.focus')).toBeInViewport()
 })

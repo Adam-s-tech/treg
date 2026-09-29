@@ -18,7 +18,7 @@ export default {
     catalogLegacy(){ return this.catalogArm==='control'; },
 mkProvider(){ return this.providers.find(p=>p.service===this.mkService)||null; },
 mkConns(){ return this.connections.filter(c=>c.provider===this.mkService); },
-mkNeedsCred(){ return this.mkConns.filter(c=>c.extra_credential_note); },
+mkAccounts(){ return this.connAccounts.filter(a=>a.c.provider===this.mkService); },
 // Which capabilities ANY account here already holds — a page-level "you have this" summary,
     // since the permission list describes the integration, not one account.
     mkGranted(){ const s=new Set(); for(const c of this.mkConns) for(const cap of (c.capabilities||[])) s.add(cap); return s; },
@@ -69,20 +69,15 @@ mkTabs(){
       const n=g=>q ? g.items.filter(p=>this.platNameHit(p, q)).length : g.items.length;
       const out=[{key:'all', label:'All', n:this.platCategories.reduce((a,g)=>a+n(g),0)}];
       for(const g of this.platCategories) out.push({key:g.category, label:g.category, n:n(g)});
-      out.push({key:'platform', label:'Platform', n:this.providers.length});
       return out;
     },
-// A build without /catalog has no tiles to show, so it falls back to the integration shelves
-    // rather than opening on an empty tab. Only once the shelves have answered: falling back while
-    // they load flashed the integration list on every visit before the tiles replaced it.
-    mkTabActive(){ return this.platCategories.length || !this.plats.settled ? this.mkTab : 'platform'; },
 // Shelves, with the long ones cut down to their featured tiles. A category of 14 platforms is a
     // wall you scroll past rather than read, so past PLAT_SHELF_MAX only the catalog's `featured`
     // ranks get a full tile and the tail collapses into one "See X, Y, and N more" row. Rank first,
     // then endpoint count — the tail sorts by size alone, which is the only signal it has left.
     platCatGroups(){
-      const groups = this.mkTabActive==='all' ? this.platCategories
-        : this.platCategories.filter(g=>g.category===this.mkTabActive);
+      const groups = this.mkTab==='all' ? this.platCategories
+        : this.platCategories.filter(g=>g.category===this.mkTab);
       // The top-nav search reaches here too: with a query, every match shows (no featured collapse —
       // a hit hidden behind "N more" reads as no hit) and empty shelves drop away.
       // A find answer (state/find.js) owns the box while it is showing: the sentence is not a name

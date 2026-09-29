@@ -36,7 +36,8 @@ export default { components: { BrandMark }, setup: useDashboard }
 
       </div>
       <nav class="rd-navs" aria-label="Primary navigation"><button v-if="authed" class="rd-nav" :class="{active:view==='start'}" :aria-current="(view==='start')?'page':null" @click="go('start')"><img src="/media/redesign/nav-getting-started.svg" alt="">Getting started</button>
-<button v-if="canRegister" class="rd-nav" :class="{active:view==='connections'}" :aria-current="(view==='connections')?'page':null" @click="go('connections')"><img src="/media/redesign/nav-catalog.svg" alt="">Catalog</button>
+<button v-if="canRegister" class="rd-nav" :class="{active:view==='catalog'}" :aria-current="(view==='catalog')?'page':null" @click="go('catalog')"><img src="/media/redesign/nav-catalog.svg" alt="">Catalog</button>
+<button v-if="authed" class="rd-nav" :class="{active:view==='connections'||view==='provider'}" :aria-current="(view==='connections'||view==='provider')?'page':null" @click="go('connections')"><img src="/media/redesign/nav-connections.svg" alt="">Connections<span v-if="connAttention" class="rd-nav-n" :title="connAttention+' connection'+(connAttention===1?' needs':'s need')+' you'">{{connAttention}}</span></button>
 <button v-if="authed" class="rd-nav" :class="{active:view==='tools'||view==='secrets'||view==='resources'}" :aria-current="(view==='tools'||view==='secrets'||view==='resources')?'page':null" @click="go('tools')"><img src="/media/redesign/nav-vault.svg" alt="">Your own tools</button>
 <button v-if="authed" class="rd-nav" :class="{active:view==='activity'}" :aria-current="(view==='activity')?'page':null" @click="go('activity')"><img src="/media/redesign/nav-activity.svg" alt="">Activity</button>
 <button v-if="authed && hubOn" class="rd-nav" :class="{active:view==='hub'||view==='run'}" :aria-current="(view==='hub'||view==='run')?'page':null" @click="go('hub')"><img src="/media/redesign/nav-hub.svg" alt="">Hub</button>

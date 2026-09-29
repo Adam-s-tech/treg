@@ -43,7 +43,7 @@ export default {
   catalogSurface(){
     if(this.view==='platform') return this.catalogLegacy ? 'ledger' : this.platCap ? 'comparison' : 'shelf'
     if(this.view==='provider') return 'provider'
-    if(this.view==='connections') return 'catalog'
+    if(this.view==='catalog') return 'catalog'
     return null
   },
   catalogTrack(name, props){

@@ -46,7 +46,7 @@ platUrl(slug, cap){ const tail=cap ? '/'+encodeURIComponent(cap) : '';
     // a hash is never a distinct URL to a crawler and the whole catalog was therefore unindexable.
     // Same Vue views as the signed-in marketplace — this is one UI, not a second implementation.
     catalogFromPath(p){
-      if(p==='/catalog' || p==='/catalog/') return {view:'connections', slug:null};
+      if(p==='/catalog' || p==='/catalog/') return {view:'catalog', slug:null};
       if(p==='/search' || p==='/search/') return {view:'find', slug:null};
       const m=/^\/catalog\/([^/]+)(?:\/[^/]+)?\/?$/.exec(p||'');
       return m ? {view:'platform', slug:decodeURIComponent(m[1])} : null;
@@ -56,11 +56,11 @@ platUrl(slug, cap){ const tail=cap ? '/'+encodeURIComponent(cap) : '';
     // billing lives on the Team pane's Billing tab, so it aliases there.
     viewFromHash(){ let v=(location.hash||'').replace('#','');
       if(v==='billing'){ this.orgTab='billing'; v='orgs'; }
-      return ['tools','orgs','activity','usage','admin','help','secrets','start','resources','connections','referrals','hub'].includes(v)?v:null; },
+      return ['tools','orgs','activity','usage','admin','help','secrets','start','resources','catalog','connections','referrals','hub'].includes(v)?v:null; },
 // Land on a public catalog URL (see catalogFromPath): the finder page, a platform shelf, or the index.
     openCatalogRoute(r){
       if(r.view==='find'){ this.view='find'; this.loadPlatforms(); return; }
-      if(r.slug) this.openPlatform(r.slug, true); else this.go('connections', true); },
+      if(r.slug) this.openPlatform(r.slug, true); else this.go('catalog', true); },
 openPlatform(slug, fromPop, cap){ this.resetConfirms();
       if(cap===undefined) cap = fromPop ? this.platCapFromLocation() : null;
       // The ledger has no comparison pages: the control arm reads one's address as its shelf.

@@ -40,6 +40,9 @@ sources:
   - frontend/src/pages/ActivityPage.vue
   - frontend/src/pages/AdminPage.vue
   - frontend/src/pages/CatalogPage.vue
+  - frontend/src/pages/ConnectionsPage.vue
+  - frontend/src/components/ConnectionCard.vue
+  - frontend/src/state/connectionsComputed.js
   - frontend/src/pages/DetailPage.vue
   - frontend/src/pages/GettingStartedPage.vue
   - frontend/src/pages/getting-started-art.ts
@@ -484,14 +487,15 @@ Server side (`domain.identity.access`): `require_identity` (who, from token OR s
   (Render/Vercel-style — `pasteEnv` → `parseEnvText`: comments/blanks skipped, `export ` stripped, one
   balanced quote pair removed). A single-line `NAME=value` splits only in the *name* field — a value
   containing `=` (base64 pad, connection strings) pastes untouched into the value field; multi-line
-  splits from either field. The name field carries a **`<datalist>` of pasted-secret provider services**
-  (`keyNameSuggestions` — `auth_kind` `key`/`token`, the names the marketplace ladder's tier 2 matches
-  by `Secret.name == service`), and each row gets a `secretNameHint` line: an exact service name is
-  confirmed ("Apollo.io catalog calls will use this key automatically"), a near miss (`APOLLO_API_KEY`,
-  `tikhub-key` — suffix-stripped, case-folded) gets the exact name plus a one-click **rename** link,
-  and any other name gets silence — most secrets back the org's own tools and can be called anything.
-  Providers are loaded on entering the view (`go('secrets')` also fires `loadConnections` when the
-  list is empty) so the suggestions exist on a cold deep link.
+  splits from either field. The table lists **`ownSecrets`** only: the credentials the team's own
+  tools use. A connection's secret, and a secret NAMED for a pasted-key provider (`keyNameSuggestions`
+  — `auth_kind` `key`/`token`, the names the marketplace ladder's tier 2 matches by
+  `Secret.name == service`), are provider keys, listed on **Connections**; the page's subtitle links
+  there with their count. Each form row still gets a `secretNameHint` line, because a pasted `.env`
+  carries provider keys too: an exact service name is confirmed (it will show under Connections), a
+  near miss (`APOLLO_API_KEY`, `tikhub-key` — suffix-stripped, case-folded) gets the exact name plus a
+  one-click **rename** link, and any other name gets silence. `go('secrets')` also fires
+  `loadConnections`, which both of those need on a cold deep link.
 - **Team** (`view==='orgs'`) — the active team, now split into **tabs** (`orgTab`):
   **Members · Projects · Policy · Billing · Team settings**. (The former **My teams** tab is gone — it
   duplicated the sidebar picker; its New team / Join by code / Paste token actions live in Team
@@ -664,72 +668,91 @@ Server side (`domain.identity.access`): `require_identity` (who, from token OR s
   persona chips, and four toggle panels — **Concepts · Roles · Auth shapes · Skills**). The standalone
   `/tutorial` mirrors it and opens a panel from the URL hash (`/tutorial#auth`, `#skills`). See below.
 
-## Marketplace — the in-browser OAuth-connect UI (`view==='connections'` / `'provider'`)
-The dashboard now runs the whole **hosted connect flow** in the browser, so a member can attach a
-provider account (Google Analytics, Search Console, Google Tag Manager, Google Ads, Slack, Meta/Facebook/Instagram, X,
-TikTok, LinkedIn, YouTube, …) without touching the CLI. `loadConnections` fetches **`GET /oauth/providers`**
-(server route `oauth_providers_list` → `oauth_providers.listing()`, each row carrying `service`,
-`display_name`, `category`, `summary`, `capabilities`, `scope_detail`, `auth_kind`, `supports_discovery`,
-and a **`configured`** flag = whether *this* deployment can run at least one connect flow). Each
-authorization method also has its own `configured` flag. For a multi-method provider, the registry
-sets the provider flag when any one method is available, so a configured secondary grant cannot be
-hidden by an unavailable primary grant. The payload is loaded with
-**`GET /connections`** (`list_connections` — the org's existing grants).
+## Catalog and Connections — two pages, two questions (`view==='catalog'`, `'connections'`, `'provider'`)
 
-The list view opens on a **tab bar** (`.mk-tabs`, `mkTabs` computed): `All`, then **one tab per catalog
-category derived from the data**, then `Platform`. The middle is deliberately not a hard-coded list —
-categories keep changing (`Social media` became `Social`, `China Social` is new, and the AI-search shelf
-has been called both `AI Search` and `AEO / GEO`) and a hard-coded list silently drops the tiles it does
-not name. The strip **scrolls with its scrollbar hidden** (`scrollbar-width:none` +
-`::-webkit-scrollbar{display:none}` on `.mk-tabs`); a right-edge `mask-image` fade is what hints there is
-more, and it falls on empty space when the tabs all fit. The rule under the tabs lives on the
-**`.mk-tabs-wrap`** parent, because a masked border fades out 26px short of the right edge and reads as a
-rendering fault. Every tab but the last is the **platform axis**
-(which data you want — see the catalog section below); the **last tab, `Platform`, is this integration marketplace**
-(which account you hold): providers grouped by category (`providerGroups` computed →
-`shownGroups` filtered by the `mkCat` chip row) as a **list** (`.prov-list`, one `.prov-row` per
-provider), not the old card grid — this tab is where "bring your own key" lands, and forty cards put
-every name on a different left edge; a row keeps them in one scannable column (name + truncated summary,
-auth kind, connect state, and an **inline Connect / Add key** action that calls `startConnect(p)` right
-from the row — the `tokenAsk`/`capAsk` modals are global, so the common path is one click). The whole row
-still opens the provider page (`openProvider(service)`); each row has `id="prov-<service>"` so a
-`goByok(service)` jump can scroll to it and flash it (`.prov-row.focus`, `byokFocus` state, self-clearing).
-Rows show the **provider logo** served by convention from
-**`/logos/<service>.svg`** (`.plogo-tile`/`.plogo`, `@error` hides a missing file) — the `StaticFiles`
-mount `_LOGO_DIR` (`src/treg/web/logos/`). `connCount` labels how many accounts are already connected.
-Google Tag Manager follows that same generic UI: its capability picker offers cumulative
+The **Catalog** (`view==='catalog'`, `CatalogPage.vue`, `/app#catalog` signed in and `/catalog` public)
+answers *what can an agent call*; **Connections** (`view==='connections'`, `ConnectionsPage.vue`,
+`/app#connections`, members only) answers *whose credential does it call with*. They were one page:
+a tab bar whose last tab, `Platform`, listed providers under a second, disagreeing taxonomy, and the
+page named "connections" showed no connections. Both pages, and a provider's page, use the platform
+shelf's look (`.pl` hero: mono eyebrow, display-font title, lede; `.pl-h` section rules; `.pl-card`
+surfaces in the `.pl-grid-t` grid; `.pl-btn` pills).
+
+**The Catalog** opens on a **tab bar** (`.mk-tabs`, `mkTabs` computed): `All`, then **one tab per catalog
+category derived from the data**. The list is deliberately not hard-coded — categories keep changing
+(`Social media` became `Social`, `China Social` is new, and the AI-search shelf has been called both
+`AI Search` and `AEO / GEO`) and a hard-coded list silently drops the tiles it does not name. The strip
+**scrolls with its scrollbar hidden** (`scrollbar-width:none` + `::-webkit-scrollbar{display:none}` on
+`.mk-tabs`); a right-edge `mask-image` fade hints there is more, and it falls on empty space when the
+tabs all fit. The rule under the tabs lives on the **`.mk-tabs-wrap`** parent, because a masked border
+fades out 26px short of the right edge and reads as a rendering fault. Each shelf is a `.pl-sec`; a
+platform is one `.pl-card.pl-tool.cat-card`: its mark, its name and one meta line (`N tools · from
+$x`, truncated, the rate's explanation on hover). A member sees a green **Connected** beside the name
+when a connected account serves the platform, and nothing otherwise — "not connected" on every other
+tile was noise. A server with no catalog says so and points to Connections.
+
+**Connections** has two sections. **Connected** (`connAccounts`, `namedKeys` in
+`state/connectionsComputed.js`) is one `ConnectionCard` per credential, the ones that need a person
+first. The card's status (`connState` in `state/connections.js`) is the one place the page spends
+colour: green *Working*/*Connected*, amber *Expires soon*/*Needs a second credential*/*Setup
+required*/*Choose an account*, red *Expired*/*Failing*. When a card is not callable, the step that fixes
+it is its primary button (Reconnect, Replace key, Add *developer token* — which opens `saveExtraCred`'s
+field in place — or Choose *account*); Manage opens the provider's page and Disconnect/Remove
+inline-confirms. The nav's **Connections** entry carries the count of cards needing a person
+(`connAttention`), since the banners that used to say so on the Catalog are gone. A provider key saved
+as a secret named for the provider (`namedKeys`: `treg secret add apollo …`, or a Secrets row) is a
+card too — the credential ladder treats it as that provider's key — marked *Saved*, or *Not in use*
+when a connected credential for the same provider outranks it, with **Verify and connect** to run it
+through the connect probe. **Add another** is every provider (`providerGroups`, grouped by the
+registry's category and filtered by `connQ`) as one-line cards: logo, name, how the credential is
+obtained (`authLabel`: *Sign in* for OAuth, else the provider's `token_label`, e.g. *API key* — only
+Slack's is a bot token) and how many are connected; the whole card opens the provider page, and an
+outlined **Connect / Add key / Add account / Replace key** button calls `startConnect(p)` in place (a
+pasted key is one per team per provider, so a second one replaces it). Each card has
+`id="prov-<service>"`: **`goByok(service)`** — the Catalog's *Bring your own key*, a tool drawer's *Add
+your X key*, Try-it — lands on Connections, scrolls that card into view and rings it (`.cn-prov.focus`,
+`byokFocus`, self-clearing). Logos are served by convention from **`/logos/<service>.svg`**
+(`ProviderLogo`; the `StaticFiles` mount `_LOGO_DIR`, `src/treg/web/logos/`).
+Google Tag Manager follows the same generic UI: its capability picker offers cumulative
 read/write/manage access, account discovery labels each `accounts/{id}` resource by name, and the
 selected account stamps a runnable containers-list path into the provisioned tool. Its provider and
 platform logo assets both carry the Google Tag Manager mark, so the catalog tile, platform header,
 provider page, and expanded endpoint rows resolve to the same identity.
-The tab bar itself is `v-if`'d on `plats.list.length` and `mkTabActive` collapses to `'platform'` when
-the catalog is absent, so a build that predates `/catalog` renders exactly the old marketplace. It
-collapses only once `plats.settled` (the request answered, even with a failure): falling back while
-the shelves loaded flashed the integration list on every visit.
 
 The catalog page's header carries a **Request a tool** button (`reqAsk` modal): a short form —
 what's missing, an optional note, a contact field only when signed out (`!me`) — POSTed to
 `/tool-requests` with `source: web`; the capability input pre-fills from the live search box `q`,
 because the button is most often pressed right after a search found nothing. Beside it sit a
-**Bring your own key** button (`goByok()` — the ink-fill primary; it only switches to the Platform
-tab, but naming the action is what makes the tab findable) and
+**Bring your own key** button (`goByok()`, the ink-fill primary; signed out it opens sign-in) and
 **List as vendor** (`vendorAsk` modal): a vendor pastes the
 two-sentence prompt (`vendorPromptText`, built on `proxy` = the server's public URL) into their own
 coding agent, which follows the hosted `GET /vendor-listing` instructions and raises the listing PR —
 including the vendor's contact email, which is how a test credential gets arranged.
 
-**One integration** is its own view (`view==='provider'`, `mkProvider`/`mkConns` keyed on `mkService`) at a
+**One integration** is its own view (`view==='provider'`, `mkProvider`/`mkAccounts` keyed on `mkService`) at a
 shareable path **`/app/marketplace/<service>`** (server route `dashboard_marketplace` — plain SPA, **no**
 og meta, since the page is only meaningful to a signed-in member; client route `mkFromPath`/`openProvider`
-push `/app/marketplace/<service>` into history). It lists the connected accounts (each account = its own
-tool name so an agent can call a specific one), their health/expiry chips, and a **Permissions** panel
-(`mkGranted` marks which capabilities are already granted; `scope_detail` gives the exact upstream scopes
-on hover). A method may optionally provide `capability_intros` and `capability_details`; the shared
-renderer uses them for incremental-benefit copy and falls back to `scope_detail` for every ordinary
-capability. This lets one grant explain what it uniquely adds without provider-specific template logic.
+push `/app/marketplace/<service>` into history). Its breadcrumb leads back to Connections. It shows the
+provider's connected accounts as the same `ConnectionCard`s (each account is its own tool name so an
+agent can call a specific one, with Rename, Reconnect or Replace key, and the capability a re-consent
+would add), the tools it serves by platform, and a **Permissions** section for providers with
+capabilities to grant (`mkGranted` marks which are already granted; `scope_detail` gives the exact
+upstream scopes on hover). A method may optionally provide `capability_intros` and
+`capability_details`; the shared renderer uses them for incremental-benefit copy and falls back to
+`scope_detail` for every ordinary capability. This lets one grant explain what it uniquely adds without
+provider-specific template logic.
+
+**The data.** `loadConnections` fetches **`GET /oauth/providers`** (server route `oauth_providers_list` →
+`oauth_providers.listing()`, each row carrying `service`, `display_name`, `category`, `summary`,
+`capabilities`, `scope_detail`, `auth_kind`, `token_label`, `supports_discovery`, and a **`configured`**
+flag = whether *this* deployment can run at least one connect flow) and **`GET /connections`**
+(`list_connections` — the org's existing grants). Each authorization method also has its own
+`configured` flag. For a multi-method provider, the registry sets the provider flag when any one method
+is available, so a configured secondary grant cannot be hidden by an unavailable primary grant.
+`go('connections')` also loads **`GET /secrets`**, which `namedKeys` reads.
 
 **Consent disclosure.** A provider row may carry a **`consent_notice`**, rendered as a `.mk-notice` panel
-in two places: under the summary on the integration page (beside Connect) and inside the `capAsk` modal,
+in two places: under the Connect button on the integration page and inside the `capAsk` modal,
 i.e. everywhere the popup can be triggered from. It is a plain surface, not `.banner` — `.banner` is red
 and would read as a failure rather than something to read before consenting. Today only the Meta family
 (`facebook`, `instagram`, `meta-ads`) sets one: their shared Meta app is registered as **Crewlet**, so
@@ -748,8 +771,8 @@ the resource picker. **Post-connect setup:** `openResources` (**`GET /connection
 `connection_resources` — a live upstream round-trip, so the modal opens first with a spinner) → `chooseResource`
 (**`POST /connections/{id}/resource`**) sets the default account/property; `saveExtraCred` (**`POST
 /connections/{id}/extra-credential`**, `set_extra_credential`) supplies a second credential a grant needs to
-be callable (e.g. Google Ads' developer token — surfaced by the `needSecondCred`/`mkNeedsCred` banners);
-`enableCapability`/`reconnect` re-run consent to widen scopes or refresh a `staleConns` credential; `disconnect`
+be callable (e.g. Google Ads' developer token — the card's *Needs a second credential* state);
+`enableCapability`/`reconnect` re-run consent to widen scopes or refresh an expiring credential; `disconnect`
 (inline-confirm → **`DELETE /connections/{id}`**, `revoke_connection`). Server-side, a successful connect
 **auto-provisions the tool** (`_autoprovision_provider_tool`) and records the account identity/resource labels
 (`_record_connected_identity`, `_enrich_resource_labels`). The three post-connect dialogs (`tokenAsk`, `capAsk`,
@@ -766,14 +789,12 @@ page (Connect looked dead).
 > fallback that carries the text to crawlers that run no scripts. `index.html`'s own `robots: noindex`
 > is stripped on those two URLs only.
 >
-> **The Platform tab fills for signed-out visitors too.** The public-catalog boot branch calls
-> `loadConnections()`, not just `loadPlatforms()` — `/oauth/providers` is an open endpoint, and the
-> `/connections` half fails and is caught. (It once called only `loadPlatforms()`, and an incognito
-> visitor who reached the tab saw "Platform 0" and a blank shelf.) In public mode the shelf's
-> actions swap: "Add key"/"Connect" opens the sign-in dialog, and a provider row navigates to the
-> server-rendered public page at `/tools/<service>` via `goPublicTool` — a real method, because a
-> Vue template expression cannot reach the `location` global (not on the expression allowlist; an
-> inline `location.href=` fails silently).
+> **The public boot loads providers too.** The public-catalog boot branch calls `loadConnections()`,
+> not just `loadPlatforms()` — `/oauth/providers` is an open endpoint (a platform's "Served by" line and
+> the tool drawer name providers from it), and the `/connections` half fails and is caught. A signed-out
+> visitor who opens a provider goes to the server-rendered public page at `/tools/<service>` via
+> `goPublicTool` — a real method, because a Vue template expression cannot reach the `location` global
+> (not on the expression allowlist; an inline `location.href=` fails silently).
 
 The marketplace's second browse surface answers "what data can I actually pull?" rather than "whose
 account can I attach?" — see `architecture/catalog.md` for the data behind it, and it is the marketplace's
@@ -995,7 +1016,7 @@ state (`idle | recall | reading | done | error`). `state/findComputed.js` groups
 capability: the job is the card, its providers are the lines in the server's order, and the card's
 fit is its best provider's. The page never re-ranks providers.
 
-- **Catalog search** (`CatalogPage.vue`, `view==='connections'`, signed in or on the public
+- **Catalog search** (`CatalogPage.vue`, `view==='catalog'`, signed in or on the public
   catalog). A large box under the page title, not the corner search the other views use. A short
   query is a name and keeps the instant platform filter; four words or a question mark makes it a
   job and shows **Find tools ↵** (`isJobQuery`). The finder runs by itself once typing pauses

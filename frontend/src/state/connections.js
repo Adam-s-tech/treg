@@ -158,6 +158,20 @@ async chooseCapability(cap){
       await this.connectProvider(p, cap, conn);
     },
 connProvider(c){ return (this.providers||[]).find(p=>p.service===c.provider)||null; },
+// The one thing a connection needs from a person, if anything: the card's status and its action.
+    connState(c){
+      if(c.expiry_state==='expired') return {key:'reconnect', tone:'bad', label:'Expired', title:'This credential has expired. Reconnect to keep calling.'};
+      if(c.needs_reconnect) return {key:'reconnect', tone:'warn', label:'Expires soon', title:'treg cannot renew this one. Reconnect before '+(c.expires_at||'it expires')+'.'};
+      if(c.extra_credential_note) return {key:'second', tone:'warn', label:'Needs a second credential', title:c.extra_credential_note};
+      if(c.health==='invalid') return {key:'failing', tone:'bad', label:'Failing', title:c.last_error||'The last call with this credential failed.'};
+      if(c.health==='setup_required') return {key:'setup', tone:'warn', label:'Setup required', title:c.health_detail||'The account needs setting up upstream.'};
+      if(c.supports_discovery && !c.resource_ref) return {key:'choose', tone:'warn', label:'Choose '+(c.resource_label||'an account'), title:'Nothing to call yet: pick which '+(c.resource_label||'account')+' this connection uses.'};
+      if(c.health==='ok') return {key:'ok', tone:'ok', label:'Working', title:'A real call with this credential succeeded.'};
+      return {key:'ok', tone:'ok', label:'Connected', title:'Saved. It is checked on its first call.'};
+    },
+// How a provider's credential is obtained, in the words a person uses for it.
+    authLabel(p){ return this.pastedCredential(p) ? (p.token_label || 'API key') : 'Sign in'; },
+pastedCredential(p){ return !!p && (p.auth_kind==='key' || p.auth_kind==='token'); },
 async saveExtraCred(c){
       const v=(this.extraCred[c.id]||'').trim(); if(!v) return;
       this.extraBusy=c.id; this.connErr='';

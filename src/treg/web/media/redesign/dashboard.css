@@ -46,6 +46,8 @@ body:has(.redesign)::before { display:none; }
 .rd-nav.active img { filter:brightness(0) invert(1); opacity:1; }
 [data-theme="dark"] .rd-nav img,[data-theme="dark"] .rd-social img { filter:brightness(0) invert(1); }
 [data-theme="dark"] .rd-nav.active img { filter:brightness(0); }
+/* How many connections need a person (an expired grant, a missing second credential). */
+.rd-nav-n { min-width:17px; height:17px; padding:0 5px; border-radius:999px; background:var(--amber); color:#fff; font:600 10.5px/17px var(--sans); text-align:center; }
 .rd-account { justify-content:flex-end; gap:12px; }
 .rd-social { gap:4px; }
 .rd-social a { display:grid; place-items:center; width:28px; height:32px; border-radius:8px; }

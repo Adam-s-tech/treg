@@ -67,10 +67,10 @@ export default function data(){
       // Connections: registry OAuth connects (see oauth_providers.py). `providers` is what treg
       // holds an approved app for; `connections` is what this org has actually connected.
       providers:[], connections:[], connErr:'', connBusy:false, confirmDisc:null, resPick:null,
-      mkCat:'', mkService:null,  // marketplace: active category filter, and the open integration
-      byokFocus:null,  // provider row to flash after a "Bring your own key" jump to the Platform tab
-      // Marketplace tab bar: 'all' + one key per catalog category, plus 'platform' for the
-      // original integration shelves. Data-first is the default view.
+      mkService:null,  // the open provider page
+      byokFocus:null,  // provider card to flash after a "Bring your own key" jump to Connections
+      connQ:'',  // the provider filter on Connections
+      // Catalog tab bar: 'all' + one key per catalog category.
       mkTab:'all',
       platLogoBad:{},  // platform slug (or `v:`+vendor) → no /logos/platforms/<slug>.svg (/logos/<vendor>.svg), so draw the initial tile
       // Endpoint catalog (GET /catalog/*): the platform axis of the marketplace. Everything here is

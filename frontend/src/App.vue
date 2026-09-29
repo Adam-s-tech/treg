@@ -9,11 +9,11 @@ import DashboardNavigation from './components/DashboardNavigation.vue'
 import SignInDialog from './components/SignInDialog.vue'
 // The shell (navigation, sign-in) is bundled with the entry; pages and dialogs load on demand (views.ts).
 const {
-  connections: CatalogPage, find: SearchPage, provider: ProviderPage, platform: PlatformPage, tools: ToolsPage,
+  catalog: CatalogPage, connections: ConnectionsPage, find: SearchPage, provider: ProviderPage, platform: PlatformPage, tools: ToolsPage,
   detail: DetailPage, secrets: SecretsPage, resources: TeamResourcesPage, orgs: TeamPage, activity: ActivityPage,
   admin: AdminPage, start: GettingStartedPage, referrals: ReferralsPage, hub: HubPage, run: HubRunPage, help: HelpPage,
 } = pages
-export default { ...controller, components: { ...controller.components, ...dialogs, TeamResourcesPage, CatalogPage, ProviderPage, PlatformPage, LegacyPlatformPage, ToolsPage, DetailPage, SecretsPage, TeamPage, ActivityPage, AdminPage, GettingStartedPage, ReferralsPage, HelpPage, SearchPage, HubPage, HubRunPage, SignedOutPage, BrandMark, PublicNavigation, LandingNavigation, DashboardNavigation, SignInDialog } }
+export default { ...controller, components: { ...controller.components, ...dialogs, TeamResourcesPage, CatalogPage, ConnectionsPage, ProviderPage, PlatformPage, LegacyPlatformPage, ToolsPage, DetailPage, SecretsPage, TeamPage, ActivityPage, AdminPage, GettingStartedPage, ReferralsPage, HelpPage, SearchPage, HubPage, HubRunPage, SignedOutPage, BrandMark, PublicNavigation, LandingNavigation, DashboardNavigation, SignInDialog } }
 </script>
 
 <template>
@@ -58,8 +58,11 @@ export default { ...controller, components: { ...controller.components, ...dialo
           </span>
         </div>
 
-        <!-- TOOLS -->
-        <CatalogPage v-if="view==='connections'" />
+        <!-- CATALOG: every platform, by category -->
+        <CatalogPage v-if="view==='catalog'" />
+
+        <!-- CONNECTIONS: the team's own accounts and keys, and every provider one can be added for -->
+        <ConnectionsPage v-if="view==='connections'" />
 
         <!-- FIND: /search, a described job answered over the platform pile -->
         <SearchPage v-if="view==='find'" />
@@ -125,7 +128,7 @@ export default { ...controller, components: { ...controller.components, ...dialo
 
     <!-- REGISTER SKILL (bundle) -->
     <!-- Marketplace dialogs. App-ROOT level, like every other dialog: nested inside the
-         view==='connections' template they simply did not render on an integration page, so
+         catalog view's template they simply did not render on an integration page, so
          Connect looked dead and the modal appeared on the list view once you navigated back. -->
     <ConnectTokenDialog v-if="tokenAsk" />
 

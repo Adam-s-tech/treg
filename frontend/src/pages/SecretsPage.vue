@@ -18,10 +18,11 @@ export default { setup: useDashboard }
                 <button class="active">Secrets</button>
                 <button @click="go('resources')">Team resources</button>
               </div>
-              <p class="sub" style="margin:0">The credentials your tools inject. Values are encrypted server-side and never shown.</p></div>
+              <p class="sub" style="margin:0">The credentials your own tools inject. Values are encrypted server-side and never shown.
+                Keys for catalog providers live on <a href="#connections" @click.prevent="go('connections')">Connections</a><template v-if="secrets.length>ownSecrets.length"> ({{secrets.length-ownSecrets.length}} there now)</template>.</p></div>
           </div>
-          <div class="ttable-wrap" v-if="secrets.length" style="margin-bottom:16px"><table class="ttable">
-            <tr v-for="s in secrets" :key="s.id">
+          <div class="ttable-wrap" v-if="ownSecrets.length" style="margin-bottom:16px"><table class="ttable">
+            <tr v-for="s in ownSecrets" :key="s.id">
               <td class="tn"><b>{{s.name}}</b></td>
               <td class="ta"><span class="chip" :class="s.kind">{{s.kind}}</span></td>
               <td class="th">owner: {{short(s.owner)}}</td>
@@ -30,12 +31,9 @@ export default { setup: useDashboard }
           </table></div>
           <p v-else class="sub">No secrets yet — add one below, or bulk-load everything at once (setup guide under the form).</p>
           <div class="tgh" style="margin-top:6px">Add {{secretRows.length>1?'secrets':'a secret'}}</div>
-          <p class="sub" v-if="keyNameSuggestions.length" style="max-width:660px;margin:0 0 8px;font-size:12px">
-            Name a key after its catalog provider — e.g. <span class="mono">{{keyNameSuggestions.slice(0,3).map(p=>p.service).join(', ')}}</span> —
-            and catalog calls use it automatically. The name field suggests every provider that takes a pasted key.</p>
           <p class="sub" style="margin:2px 0 8px">Tip: paste a whole <span class="mono">.env</span> into the name field — it splits into rows automatically.</p>
           <div v-for="(row,i) in secretRows" :key="i" class="field" style="max-width:660px;flex-wrap:wrap;margin-bottom:8px">
-            <input v-model="row.name" list="secret-name-suggest" placeholder="name, e.g. apollo" style="min-width:150px" @paste="pasteEnv($event,i,'name')" @keyup.enter="addSecrets"/>
+            <input v-model="row.name" placeholder="name, e.g. STRIPE_KEY" style="min-width:150px" @paste="pasteEnv($event,i,'name')" @keyup.enter="addSecrets"/>
             <input v-model="row.value" :type="row.kind==='param'?'text':'password'" :placeholder="row.kind==='param'?'value, e.g. a project id (not secret)':'value (encrypted server-side)'" style="min-width:190px" @paste="pasteEnv($event,i,'value')" @keyup.enter="addSecrets"/>
             <select v-model="row.kind" class="msel"><option>env</option><option>oauth</option><option>secret_file</option><option value="param">param (non-secret)</option></select>
             <button v-if="secretRows.length>1" class="btn sm ico" @click="secretRows.splice(i,1)" title="Remove row">✕</button>
@@ -47,17 +45,13 @@ export default { setup: useDashboard }
                 <a href="#" @click.prevent="row.name=secretNameHint(row).service">rename to “{{secretNameHint(row).service}}”</a></template>
             </span>
           </div>
-          <!-- Every provider a key can be pasted into, as native input suggestions on the name field. -->
-          <datalist id="secret-name-suggest">
-            <option v-for="p in keyNameSuggestions" :key="p.service" :value="p.service">{{p.display_name}}</option>
-          </datalist>
           <p class="sub" v-if="secretRows.some(r=>r.kind==='param')" style="margin:2px 0 8px">A param is non-secret config (project id, org id) — injected alongside a credential into CLI env or an HTTP query.</p>
           <div class="field" style="max-width:660px">
             <button class="btn primary" @click="addSecrets" :disabled="secretBusy||!secretRowsReady">{{secretBusy?'…':(secretRowsReady>1?('Add '+secretRowsReady+' secrets'):'Add secret')}}</button>
             <button class="btn" @click="secretRows.push({name:'',value:'',kind:'env'})">＋ row</button>
             <button v-if="secretRows.length>1" class="btn" @click="secretRows=[{name:'',value:'',kind:'env'}]">Clear</button>
           </div>
-          <div v-if="!secrets.length" style="margin-top:20px">
+          <div v-if="!ownSecrets.length" style="margin-top:20px">
           <div style="max-width:660px;border:1px solid var(--line);border-radius:16px;padding:20px 22px;background:var(--panel2)">
             <h3 style="margin:0 0 6px;font-size:15px">Add your own keys &amp; skills</h3>
             <p class="sub" style="margin:0 0 12px">Bulk-load your keys (and skills) from your machine — each lands here encrypted, referenced by name.</p>

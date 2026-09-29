@@ -81,7 +81,7 @@ for (const [width, height] of [[1440, 1000], [390, 844]] as const) {
 
     test('the signed-in pages with tables lay out cleanly', async ({ page }) => {
       await signIn(page, `layout-${width}`)
-      for (const hash of ['activity', 'orgs', 'tools', 'connections']) {
+      for (const hash of ['activity', 'orgs', 'tools', 'catalog', 'connections']) {
         await page.goto('/app#' + hash)
         await page.waitForLoadState('networkidle')
         await expectClean(page, '/app#' + hash)
