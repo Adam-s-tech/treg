@@ -44,9 +44,11 @@ export default {
           <a v-if="t.job" class="pl-card pl-cmp" :href="platUrl(platSlug, t.slug)" @click.prevent="openComparison(t.slug)">
             <b>{{t.title}}</b>
             <span class="pl-cmp-f">
-              <span class="pl-stack" aria-hidden="true"><ProviderLogo v-for="s in t.logos" :key="s" :service="s" /></span>
+              <span class="pl-cmp-r">
+                <span class="pl-stack" aria-hidden="true"><ProviderLogo v-for="s in t.logos" :key="s" :service="s" /></span>
+                <span v-if="t.routed" class="pl-auto" title="One call: treg picks the provider for you">Auto-route</span>
+              </span>
               <span class="pl-meta">{{t.meta}}</span>
-              <span v-if="t.routed" class="pl-auto" title="One call: treg picks the provider for you">Auto-route</span>
             </span>
           </a>
           <button v-else class="pl-card pl-tool" :class="{on:drawerTool===t.id, quiet:sec.quiet}" @click="openTool(t.id)">
