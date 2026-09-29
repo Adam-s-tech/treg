@@ -96,10 +96,9 @@ endpoints:
         preset: {type: string, required: true, enum: [fast], example: fast}
         input: {type: string, required: true, example: "What is example.com used for?"}
         max_steps: {type: integer, required: true, enum: [1], example: 1}
-        max_tool_calls: {type: integer, required: true, enum: [1], example: 1}
         max_output_tokens: {type: integer, required: true, min: 1, max: 512, example: 160}
-      note: "The $0.01 hold is an estimate, not a price cap; successful responses settle the reported usage.cost.total_cost. The curated tool limits steps, tool calls and output tokens. Use your own raw tool for other models, tools or streaming."
-    test_request: {body: {preset: fast, input: "What is example.com used for? Answer in one sentence with a citation.", max_steps: 1, max_tool_calls: 1, max_output_tokens: 160}}
+      note: "The $0.01 hold is an estimate; the reported usage.cost.total_cost can exceed it. This tool limits steps and output tokens. Use your own raw tool for other models, tools or streaming."
+    test_request: {body: {preset: fast, input: "What is example.com used for? Answer in one sentence with a citation.", max_steps: 1, max_output_tokens: 160}}
     cost:
       type: per_call
       value: 0.01
@@ -133,10 +132,9 @@ endpoints:
         preset: {type: string, required: true, enum: [low], example: low}
         input: {type: string, required: true, example: "What is example.com used for?"}
         max_steps: {type: integer, required: true, min: 1, max: 3, example: 2}
-        max_tool_calls: {type: integer, required: true, min: 1, max: 3, example: 2}
         max_output_tokens: {type: integer, required: true, min: 1, max: 1024, example: 256}
-      note: "The $0.02 hold is an estimate, not a price cap; successful responses settle the reported usage.cost.total_cost. The curated tool limits steps, tool calls and output tokens. Use your own raw tool for other models, tools or streaming."
-    test_request: {body: {preset: low, input: "What is example.com used for? Answer in one sentence with a citation.", max_steps: 2, max_tool_calls: 2, max_output_tokens: 256}}
+      note: "The $0.02 hold is an estimate; the reported usage.cost.total_cost can exceed it. This tool limits steps and output tokens. Use your own raw tool for other models, tools or streaming."
+    test_request: {body: {preset: low, input: "What is example.com used for? Answer in one sentence with a citation.", max_steps: 2, max_output_tokens: 256}}
     cost:
       type: per_call
       value: 0.02
@@ -172,10 +170,9 @@ endpoints:
         input: {type: string, required: true, example: "Compare the purposes of example.com and example.org with citations."}
         background: {type: boolean, required: true, enum: [true], example: true}
         max_steps: {type: integer, required: false, min: 1, max: 20}
-        max_tool_calls: {type: integer, required: false, min: 1, max: 40}
         max_output_tokens: {type: integer, required: false, min: 1, max: 8192}
       note: "Only your own key can run this tool. Completed and incomplete runs report usage.cost.total_cost; cancelled runs did not report cost in live tests."
-    test_request: {body: {preset: medium, input: "Compare the purposes of example.com and example.org with citations.", background: true, max_steps: 2, max_tool_calls: 2, max_output_tokens: 1200}}
+    test_request: {body: {preset: medium, input: "Compare the purposes of example.com and example.org with citations.", background: true, max_steps: 2, max_output_tokens: 1200}}
     cost:
       type: per_success
       value: null
