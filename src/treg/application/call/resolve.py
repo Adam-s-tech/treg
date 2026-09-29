@@ -748,6 +748,19 @@ def _credit_modifiers(cost: dict, query, doc: dict) -> tuple[bool, float, float,
     return free, added, settled_added, per_result
 
 
+def _octen_rates_or_fail(endpoint_id: str, cost: dict | None) -> dict[str, int]:
+    from . import octen
+    try:
+        return octen.rates_micro(endpoint_id, cost or {})
+    except ValueError as exc:
+        raise ResolutionFailed(
+            "catalog_price_invalid", status_code=503, detail={
+                "error": "catalog_price_invalid", "endpoint_id": endpoint_id,
+                "message": "Octen pricing is unavailable because its catalog rates are invalid",
+            },
+        ) from exc
+
+
 def _marketplace_pricing(
     provider: str, endpoint_id: str, cost: dict | None, query, body: bytes
 ) -> tuple[int, int]:
@@ -757,20 +770,12 @@ def _marketplace_pricing(
     scalar cannot express: provider batch shapes and request-dependent modes.
     `unit` is non-zero only when the response must decide the final charge.
     """
-    if not cost:
-        return 0, 0
     if provider == "octen" and endpoint_id in _OCTEN_ENDPOINTS:
         from . import octen
-        try:
-            rates = octen.rates_micro(endpoint_id, cost)
-        except ValueError as exc:
-            raise ResolutionFailed(
-                "catalog_price_invalid", status_code=503, detail={
-                    "error": "catalog_price_invalid", "endpoint_id": endpoint_id,
-                    "message": "Octen pricing is unavailable because its catalog rates are invalid",
-                },
-            ) from exc
+        rates = _octen_rates_or_fail(endpoint_id, cost)
         return octen.estimate_micro(endpoint_id, rates, body), 0
+    if not cost:
+        return 0, 0
     if provider == "tavily" and endpoint_id in _TAVILY_ENDPOINTS:
         return _tavily_pricing(endpoint_id, cost, body)
     if provider == "openmart" and endpoint_id in _OPENMART_METERED_ENDPOINTS:
@@ -2112,11 +2117,10 @@ async def _resolve_marketplace_call(
             "fallback_micro": info_est, "reserve_micro": info_est,
         }
     if service == "octen" and ep["id"] in _OCTEN_ENDPOINTS:
-        from . import octen
         basis = {
             "when": "response", "amount": {"kind": "observed"},
             "fallback_micro": info_est, "reserve_micro": info_est,
-            "octen_rates_micro": octen.rates_micro(ep["id"], cv),
+            "octen_rates_micro": _octen_rates_or_fail(ep["id"], cv),
         }
     common = dict(
         upstream=upstream, consumed=consumed, endpoint_id=ep["id"], provider=service,

@@ -27,6 +27,24 @@ async def test_policy_population_covers_every_platform_slot_and_both_aggregators
     assert "tomba_secret" not in pop  # the second half of a credential pair is not an account
 
 
+async def test_octen_platform_account_has_a_known_dashboard_only_capacity_policy(monkeypatch):
+    from treg.config import get_settings
+
+    monkeypatch.setenv("TREG_PLATFORM_KEY_OCTEN", "TEST-OCTEN-KEY")
+    get_settings.cache_clear()
+    try:
+        policy = default_policy("octen", has_key=True)
+        assert (policy.capacity_type, policy.funding_mode, policy.source) == (
+            "cash", "manual", "manual",
+        )
+        assert policy.rate_limit == {"limit": 5, "window_s": 1, "source": "policy"}
+        balance = await collectors.provider_balance("octen")
+        assert balance["no_api"] is True
+        assert "dashboard" in balance["note"]
+    finally:
+        get_settings.cache_clear()
+
+
 async def test_import_creates_one_policy_per_account_and_flags_unknowns_without_overwriting():
     await reset_db()
     async with session_maker() as db:

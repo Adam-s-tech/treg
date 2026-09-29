@@ -2744,6 +2744,50 @@ def test_apify_call_fee_multiplies_by_each_query_the_actor_starts(body, fee):
 
 # Octen reserves a maximum before relay and settles from this response's usage.
 
+
+@pytest.fixture
+def octen_platform_on(monkeypatch):
+    monkeypatch.setenv("TREG_PLATFORM_KEY_OCTEN", "PLATFORM-OCTEN")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "octen")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+async def test_octen_platform_key_serves_then_own_key_wins_unmetered(
+    clients, monkeypatch, octen_platform_on,
+):
+    assert get_settings().platform_key_for("octen") == "PLATFORM-OCTEN"
+    seen = []
+    document = {"code": 0, "data": {"results": []}, "meta": {"usage": {
+        "num_search_queries": 1, "full_content_extra_count": 0,
+    }}}
+
+    def serve(request):
+        assert request.method == "POST" and request.url.path == "/search"
+        seen.append(request.headers["x-api-key"])
+        return _dropleads_response(200, document)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(serve)) as upstream:
+        monkeypatch.setattr(A.app.state, "http", upstream)
+        before = await _balance(clients)
+        platform = await clients.post("/call/octen.web.search", json={"query": "x", "count": 1})
+        assert platform.status_code == 200, platform.text
+        assert platform.json() == document
+        assert platform.headers["x-treg-cost-micro"] == "5000"
+        assert before - await _balance(clients) == 5000
+
+        await clients.post("/secrets", json={"name": "octen", "value": "OWN-OCTEN"})
+        before = await _balance(clients)
+        own = await clients.post("/call/octen.web.search", json={"query": "x", "count": 1})
+        assert own.status_code == 200, own.text
+        assert own.json() == document
+        assert "x-treg-cost-micro" not in own.headers
+        assert await _balance(clients) == before
+
+    assert seen == ["PLATFORM-OCTEN", "OWN-OCTEN"]
+
+
 _OCTEN_RATES = {
     "octen.web.search": {"call": 5000, "full_content_extra": 500},
     "octen.web.search.broad": {"subquery": 5000, "full_content_extra": 500},
@@ -2819,6 +2863,11 @@ def test_octen_rate_table_is_complete_and_micro_precise():
                   {"standard": 0.0010001, "advanced": 0.0025}):
         with pytest.raises(ValueError):
             octen.rates_micro(endpoint, {"octen_rates": rates})
+
+    with pytest.raises(ResolutionFailed) as missing:
+        call_resolution._marketplace_pricing("octen", endpoint, None, {}, b'{"urls":["https://example.com"]}')
+    assert missing.value.kind == "catalog_price_invalid"
+    assert missing.value.status_code == 503
 
 
 def test_octen_runtime_uses_frozen_rates_and_checks_platform_shape():
