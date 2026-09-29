@@ -961,8 +961,11 @@ def domain_rows(pairs: list[tuple[dict, dict]], capabilities: dict[str, str]) ->
         # a provider's two takes on one job into a single row would show one route and the OTHER's
         # price. The capability id stays on every row either way; it is a join key, never a heading.
         if len({e["provider"] for e in eps}) > 1:
+            # The row files under the domain most of its providers give it, not the cheapest
+            # one's alone: one provider's odd `search` pulled a SERP job out of `serp`.
+            domains = [e["domain"] for e in eps]
             rows.append({"kind": "merged", "capability": cap, "description": title,
-                         "domain": eps[0]["domain"], "endpoints": eps})
+                         "domain": max(domains, key=domains.count), "endpoints": eps})
             continue
         rows += [{"kind": "single", "capability": cap, "description": e["name"] or e["summary"] or title,
                   "domain": e["domain"], "endpoints": [e]} for e in eps]

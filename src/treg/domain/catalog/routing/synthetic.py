@@ -45,12 +45,14 @@ def routed_endpoint(contract: Contract, children: list[dict], adapters: dict[str
         body.setdefault(k, {"type": (spec or {}).get("type", "str"), "required": False,
                             "note": f"filter — default {(spec or {}).get('default')!r}" + (f"; {spec.get('note')}" if (spec or {}).get("note") else "")})
     cap = contract.capability
+    # The section its providers file under, so the platform page shows the row beside theirs.
+    domains = [e["domain"] for e in children if e.get("domain")]
     return {
         "id": f"{ROUTED_PROVIDER}.{cap}",
         "provider": ROUTED_PROVIDER,
         "capability": cap,
         "platform": cap.split(".")[0],
-        "domain": "routed",
+        "domain": max(domains, key=domains.count) if domains else "routed",
         "scope": "",
         "kind": ROUTED_KIND,
         "method": "POST",

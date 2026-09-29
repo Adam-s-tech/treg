@@ -168,6 +168,23 @@ def test_a_curated_name_beats_the_summary_on_a_row(tmp_path):
     assert rows["dataforseo.x.unnamed"]["description"] == "Domain pages with backlink data"
 
 
+def test_a_job_files_under_the_domain_most_of_its_providers_give_it(tmp_path):
+    """The cheapest endpoint used to decide a merged row's section alone, so one provider's odd
+    `domain:` pulled a SERP job out of `serp` on the platform page."""
+    (tmp_path / "capabilities.yaml").write_text(
+        "platforms: {google: Google}\ncapabilities: {google.serp.local: Local pack}\n")
+    for prov, usd, domain in (("cheap", 0.001, "search"), ("mid", 0.002, "serp"), ("dear", 0.003, "serp")):
+        (tmp_path / f"{prov}.yaml").write_text(
+            f"provider: {prov}\nendpoints:\n  - id: {prov}.local\n    platform: google\n"
+            f"    capability: google.serp.local\n    domain: {domain}\n    method: GET\n"
+            f"    path: /local\n    summary: Local pack\n    cost: {{usd: {usd}}}\n")
+    cat = cs.load(directory=tmp_path)
+    pairs = [(e, cs.endpoint_view(e, e["provider"], cat)) for e in cat.endpoints]
+    [section] = cs.domain_rows(pairs, cat.capabilities)
+    assert section["domain"] == "serp"
+    assert section["rows"][0]["endpoints"][0]["provider"] == "cheap"
+
+
 async def test_every_endpoint_carries_a_domain_and_a_call_line(clients: AsyncClient):
     """The domain decides which section a row files under, and the `treg call` line is the reason
     the row exists — both ride on the row rather than costing a second request."""
@@ -1107,3 +1124,14 @@ async def test_every_comparison_page_in_the_sitemap_serves(clients):
                 if e.get("capability") and catalog_store.browsable(e) and (e["platform"], e["capability"]) not in cat.compared())
     assert (await clients.get(f"/catalog/{solo[0]}/{catalog_store.capability_key(*solo)}")).status_code == 404
     assert (await clients.get("/catalog/providers/crustdata")).headers["content-type"].startswith("application/json")
+
+
+def test_an_auto_route_row_files_where_its_providers_do():
+    """A routed row once carried the domain `routed`, which gave it a section of its own on the
+    platform page, apart from the providers it routes to."""
+    cat = cs.load()
+    routed = [e for e in cat.endpoints if e.get("kind") == "routed"]
+    assert routed
+    for ep in routed:
+        kids = {e["domain"] for e in cat.for_capability(ep["capability"]) if e.get("kind") != "routed"}
+        assert ep["domain"] in kids, ep["id"]
