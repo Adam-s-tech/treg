@@ -70,7 +70,7 @@ CATALOG: list[dict] = [
      "cli": {"bin": "openai", "install": "pip install openai", "auth_mechanism": "env", "beta": True,
              "inject": [{"via": "env", "name": "OPENAI_API_KEY"}], "errors": _ERR_AUTH}},
     {"provider": "Anthropic",   "tokens": ["ANTHROPIC", "CLAUDE"], "base_url": "https://api.anthropic.com/v1",                    "auth": {"shape": "api_key_header", "header": "x-api-key"}},
-    {"provider": "Google AI",   "tokens": ["GEMINI"],              "base_url": "https://generativelanguage.googleapis.com/v1beta","auth": {"shape": "api_key_header", "header": "x-goog-api-key"}},
+    {"provider": "Google AI",   "tokens": ["GEMINI"],              "base_url": "https://generativelanguage.googleapis.com/v1beta","auth": {"shape": "api_key_header", "header": "x-goog-api-key"}, "probe": "models?pageSize=1"},
     {"provider": "Mistral",     "tokens": ["MISTRAL"],             "base_url": "https://api.mistral.ai/v1",                       "auth": {"shape": "bearer"}},
     {"provider": "Cohere",      "tokens": ["COHERE"],              "base_url": "https://api.cohere.ai/v1",                        "auth": {"shape": "bearer"}},
     {"provider": "Groq",        "tokens": ["GROQ"],                "base_url": "https://api.groq.com/openai/v1",                  "auth": {"shape": "bearer"}},

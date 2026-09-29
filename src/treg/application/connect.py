@@ -622,8 +622,10 @@ async def connect_with_pasted_secret(
     )
     deferred = resp.status_code in provider.probe_deferred_statuses
     if (status_reject and not deferred) or field_bad or field_reject or equals_bad or text_error:
+        error = payload.get("error")
         why = (
-            payload.get("error")
+            # Google-style envelopes nest the reason: {"error": {"code": 400, "message": ...}}.
+            (error.get("message") if isinstance(error, dict) else error)
             or (payload.get("ErrorMessage") if equals_bad else None)
             or (f"{provider.token_verify_field}=false" if field_bad else None)
             or (resp.text.strip()[:80] if text_error else f"HTTP {resp.status_code}")

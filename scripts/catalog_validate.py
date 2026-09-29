@@ -83,7 +83,12 @@ KINDS = {"data", "action", "account", "utility"}
 ENDPOINT_STATUSES = {"retired", "broken"}
 QUERY_ARRAY_ENCODINGS = {"json", "comma", "repeated"}
 ASYNC_PARAM_LOCATIONS = {"pathParams", "queryParams"}
-JSON_PATH = re.compile(r"(?:[A-Za-z_][A-Za-z0-9_-]*|[0-9]+)(?:\.(?:[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*")
+_IDENT = r"[A-Za-z_][A-Za-z0-9_-]*"
+JSON_PATH = re.compile(rf"(?:{_IDENT}|[0-9]+)(?:\.(?:{_IDENT}|[0-9]+))*")
+# A usage term path: dotted keys, each optionally selecting a list item by `[key=value]`. The
+# value excludes "." because the runtime (`settlement.usage_term_path`) splits on dots first.
+_USAGE_SEGMENT = rf"{_IDENT}(?:\[{_IDENT}=[A-Za-z0-9_-]+\])?"
+USAGE_TERM_PATH = re.compile(rf"{_USAGE_SEGMENT}(?:\.{_USAGE_SEGMENT})*")
 # Only the unit real traffic has settled (OpenRouter's `usage.cost` in dollars). A token unit
 # returns with the first metered token-priced listing, together with its fx rule and a live test.
 USAGE_UNITS = {"usd", "credit"}  # plus provider-native meters declared in unit_rates_usd
@@ -438,10 +443,24 @@ def check_usage_block(cost: dict, settle: object, where: str, errors: list[str],
     """`settle: usage` names the dotted path and unit of the provider's own reported charge."""
     usage = cost.get("usage")
     if settle == "usage":
+        if isinstance(usage, dict) and set(usage) == {"terms", "unit"}:
+            terms = usage["terms"]
+            if not isinstance(terms, list) or not terms or not all(
+                    isinstance(term, dict) and set(term) == {"path", "rate"}
+                    and isinstance(term.get("path"), str) and USAGE_TERM_PATH.fullmatch(term["path"])
+                    and _finite_number(term.get("rate")) and float(term["rate"]) > 0
+                    for term in terms):
+                fail(errors, where, "usage.terms must be a non-empty list of {path, rate} with a "
+                                    "dotted path (segments may select name[key=value]) and a "
+                                    "positive rate")
+            elif usage.get("unit") != "usd":
+                fail(errors, where, "usage.terms rates are USD per unit; usage.unit must be 'usd'")
+            return
         if not isinstance(usage, dict) or set(usage) != {"path", "unit"} \
                 or not isinstance(usage.get("path"), str) or not JSON_PATH.fullmatch(usage["path"]) \
                 or not isinstance(usage.get("unit"), str) or not usage["unit"].strip():
-            fail(errors, where, "cost.settle 'usage' requires usage.path and usage.unit")
+            fail(errors, where, "cost.settle 'usage' requires usage.path and usage.unit, "
+                                "or usage.terms and unit 'usd'")
         elif usage.get("unit") == "credit" and not _finite_number(_credit_rate(provider)):
             fail(errors, where, f"usage.unit 'credit' needs a numeric fx.yaml credit_rates_usd entry "
                                 f"for '{provider}'")
@@ -584,6 +603,23 @@ def check_async_descriptor(descriptor: object, where: str, provider: str,
         fail(errors, where, "async.interval must be a positive finite number of seconds")
     if not isinstance(cost, dict) or cost.get("type") != "per_success":
         fail(errors, where, "an endpoint with async must have cost.type per_success")
+
+
+def check_spooled_response(ep: dict, effective_async: object, where: str,
+                           errors: list[str]) -> None:
+    """`spooled_response: true` - a synchronous metered answer too large to buffer (inline media),
+    read to disk and settled from the top-level keys its usage paths start at. So only
+    `settle: usage`, and nothing else may need the body: no async task, resource ownership or
+    managed resource."""
+    if ep["spooled_response"] is not True:
+        fail(errors, where, "spooled_response must be true when present")
+        return
+    if effective_async is not None or ep.get("resource_ownership") or ep.get("managed_resource"):
+        fail(errors, where, "spooled_response cannot be combined with async, resource_ownership "
+                            "or managed_resource: those read the whole body")
+    if (ep.get("cost") or {}).get("settle") != "usage":
+        fail(errors, where, "spooled_response settles from the answer's reported usage: it needs "
+                            "settle: usage")
 
 
 def check_resource_ownership(rule: object, where: str, input_schema: object,
@@ -1209,6 +1245,8 @@ def main(argv: list[str]) -> int:
                 check_resource_ownership(ep["resource_ownership"], where, inp, errors)
             if ep.get("managed_resource") is not None:
                 check_managed_resource(ep["managed_resource"], where, inp, errors)
+            if "spooled_response" in ep:
+                check_spooled_response(ep, effective_async, where, errors)
             if ep.get("verified"):
                 ex = ep.get("example_response")
                 if not ex:

@@ -62,7 +62,6 @@ from . import overflow as overflow_cycle
 from . import route as routed
 from .settle import _dig
 from .settle import (
-    _buffer_response,
     _finish_cancelled_call as finish_cancelled_call,
     _note_capacity_recovery,
     _note_capacity_signal,
@@ -70,6 +69,7 @@ from .settle import (
     _platform_settle,
     _read_whole_if_small,
     _record_first_call,
+    _read_evidence,
 )
 from .types import (
     AuthorizationFailed,
@@ -596,6 +596,9 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
 
     drop_params: set[str] = set()
     streaming_free_result = False
+    # Size of a metered 2xx relayed from disk (`spooled_response`); None when the body was read
+    # into memory. A spooled body is settled from its usage evidence and never retained.
+    spooled_bytes: int | None = None
     served_hit = False  # a cached hit — set where the archive answers instead of the vendor
     served_repeat = False  # …and this team had already paid for the question: the repeat price
     # The archive identities of this call's answer (question key + exact bytes), set where the
@@ -1230,8 +1233,10 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
             if (served is None and mk is not None and (mk.metered or mk.free_owned_poll)
                     and not streaming_free_result):
                 # Settlement reads the body; owned free polls also need it to learn result ownership.
-                # A failure while draining remains an upstream failure on either path.
-                response, body = await _buffer_response(response)
+                # A failure while draining remains an upstream failure on either path. An endpoint
+                # that inlines media declares `spooled_response`: its 2xx goes to disk and `body`
+                # is only the usage evidence from here on.
+                response, body, spooled_bytes = await _read_evidence(mk, response)
                 if (platform_tier and response.status == 429 and _idempotent_read(request)
                         and (retry_s := _burst_retry_after(mk.provider, response, body)) is not None):
                     # Half two: ONE bounded wait on the provider's own `retry-after`, then the identical
@@ -1242,7 +1247,7 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
                     response = await relay(
                         upstream_request, upstream_url, tool, secrets, upstream_client,
                         drop_params=drop_params or None, force_identity=True)
-                    response, body = await _buffer_response(response)
+                    response, body, spooled_bytes = await _read_evidence(mk, response)
                     smoothed.append("retry=1")
                 if mk.async_owner_call_id and 200 <= response.status < 300:
                     try:
@@ -1274,6 +1279,7 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
                 # TREG_ARCHIVE_MODE says otherwise; record() is fire-and-forget and never raises.
                 # `own_credential` here means billed OAuth: the org's token, treg's bill.
                 if (mk.metered and archive.recording() and 200 <= response.status < 300
+                        and spooled_bytes is None
                         and not (own_credential and _echoes_own_credential(tool, secrets, body))
                         and not _account_out_2xx(mk, response, body)):
                     _ct = next((v.decode("latin-1") for k, v in response.raw_headers
@@ -1500,7 +1506,9 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
         pending = _audit(response.status, observed_micro=observed,
                          charged_micro=None if deferred else charged,
                          duration_ms=duration_ms,
-                         response_bytes=None if streaming_free_result else len(body), hit=result.hit,
+                         response_bytes=(None if streaming_free_result else spooled_bytes
+                                         if spooled_bytes is not None else len(body)),
+                         hit=result.hit,
                          capacity_signal=capacity_signal, error_request=err_request, error_response=err_response,
                          defer_analytics=may_overflow)
         served_via = ""
@@ -1547,7 +1555,10 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
             try:
                 await _store_idempotent(idem_key, caller, status_code=response.status, body=body,
                                         media_type=_response_header(response, "content-type"),
-                                        charged_micro=charged, metered=not streaming_free_result,
+                                        charged_micro=charged,
+                                        # A streamed or spooled body is not kept for replay: a
+                                        # retry calls the provider again.
+                                        metered=not streaming_free_result and spooled_bytes is None,
                                         call_ref=call_ref)
             except asyncio.CancelledError:
                 await _finish_cancelled_call(request, mk, call_ref, response)

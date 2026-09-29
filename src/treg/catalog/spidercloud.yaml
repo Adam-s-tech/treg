@@ -8,7 +8,6 @@ limits: "Spider documents 10,000 core API requests/minute per account. The share
 cache: forbidden
 proposed_capabilities:
   web.unblock: Fetch a page behind bot protection
-  web.screenshot: Capture a rendered web page image
 
 endpoints:
   - id: spidercloud.web.scrape

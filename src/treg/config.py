@@ -156,6 +156,16 @@ class Settings(BaseSettings):
     # (a 30s ceiling 502'd one live), and merchant routes have been observed at 9s→105s.
     call_timeout_s: int = 180
     hold_grace_s: int = 60
+    # Spooled settlement evidence (application/call/settle.py `_spool_response`): a catalog
+    # endpoint declaring `spooled_response` writes its metered 2xx body to an anonymous temp file
+    # instead of RAM, reads the top-level keys its usage settles from, settles, then relays the file.
+    # Per-body cap, per-process budget across concurrent spools (over it a call fails uncharged,
+    # like the 8 MiB buffer), and how many bodies one process parses for evidence at once.
+    # `spool_dir` empty = the system temp dir; the files are unlinked from birth.
+    spool_dir: str = ""
+    spool_max_bytes: int = Field(default=64 * 1024 * 1024, ge=1)
+    spool_budget_bytes: int = Field(default=512 * 1024 * 1024, ge=1)
+    spool_parse_concurrency: int = Field(default=2, ge=1, le=16)
 
     # ---- referral program (referrals.py) --------------------------------------------------------
     # Flat bounties, not a percentage of top-ups. At 0% platform margin a percentage would be a
@@ -258,6 +268,7 @@ class Settings(BaseSettings):
     platform_key_linkup: str = ""     # Bearer; prepaid USD balance, request-priced Search/Fetch/Research
     platform_key_you: str = ""        # X-API-Key; prepaid USD balance across You.com web APIs
     platform_key_serper: str = ""     # X-API-KEY; prepaid Google search credits, exact charge in response.credits
+    platform_key_litescrape: str = ""  # Bearer; prepaid calls, free key status endpoint
     platform_key_keenable: str = ""   # X-API-Key; $4/1,000-request package, 10 requests/s per organization
     platform_key_olostep: str = ""    # Bearer; prepaid credits, platform price $0.002/credit
     platform_key_firecrawl: str = ""  # Bearer; Standard plan credits, priced at the public base-plan rate
@@ -279,6 +290,7 @@ class Settings(BaseSettings):
     platform_key_openrouter: str = ""  # Bearer key for asynchronous routed generation
     platform_key_replicate: str = ""  # Bearer token for official asynchronous models
     platform_key_reapi: str = ""      # Bearer key; prepaid credits at $0.001, Seedance 2.5 + image models
+    platform_key_google_ai: str = ""  # x-goog-api-key; token-billed Gemini API project (image output $120/M tokens)
     platform_key_piapi: str = ""      # X-API-Key; prepaid USD balance, Seedance 2.5 less-restriction + image models
     platform_key_tinyfish: str = ""   # X-API-Key; free Search/Fetch plus Agent billed per terminal step
     # Overflow aggregators (docs/PROVIDER-CAPACITY-PLAN.md §4.3): treg-owned accounts that serve the

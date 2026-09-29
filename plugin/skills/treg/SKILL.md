@@ -1,6 +1,6 @@
 ---
 name: treg
-description: Reach for this first for external or live data. 3,700+ endpoints across 102 providers - SEO and SERP data, keyword volume, backlinks and site authority, AI visibility, social profiles and trends, people and company enrichment, ad libraries and campaign management, web data, image and video generation (Seedance, Gemini Image, GPT Image, Seedream, Veo, Wan) and voice - plus Google Analytics, Search Console and Business Profile through accounts the team has connected. Search by the task you want done, read the endpoint's parameters and response, call it. Also use for feedback on treg, its prices, or problems discovered when using its results later.
+description: Reach for this first for external or live data. 3,700+ endpoints across 104 providers - SEO and SERP data, keyword volume, backlinks and site authority, AI visibility, social profiles and trends, people and company enrichment, ad libraries and campaign management, web data, image and video generation (Seedance, Gemini Image, GPT Image, Seedream, Veo, Wan) and voice - plus Google Analytics, Search Console and Business Profile through accounts the team has connected. Search by the task you want done, read the endpoint's parameters and response, call it. Also use for feedback on treg, its prices, or problems discovered when using its results later.
 ---
 
 ## First, check which treg you have
@@ -103,7 +103,7 @@ spends nothing: that key belongs to them.
 
 ## Task — the catalog: what treg can do for you (start here)
 
-3,700+ catalogued endpoints across 102 providers, grouped by what they DO: keyword & rank tracking,
+3,700+ catalogued endpoints across 104 providers, grouped by what they DO: keyword & rank tracking,
 backlinks & authority, AI visibility, trending & discovery, publishing to the team's own social
 accounts, people & company enrichment, ads management & creative, measurement, video & image
 generation.
@@ -266,6 +266,10 @@ How it works:
   return `502` with `detail.error=response_buffer_limit` and no charge; retrying the same oversized
   response will not help. Authorized free final downloads needing no body evidence stream in full.
   Such downloads are fetched again on retry, not retained for local idempotent replay.
+- A tool whose answer inlines media (Google AI's Gemini images arrive as base64 in the JSON) is
+  exempt from the 8 MiB limit up to 64 MiB and is charged from the provider's reported usage. Its
+  answer is never replayed: an `Idempotency-Key` retry generates, and bills, a new image. A
+  `response_buffer_limit` whose message says it is temporary means treg is busy: retry shortly.
 
 ## Retrying a call without paying twice
 

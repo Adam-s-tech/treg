@@ -1049,6 +1049,35 @@ async def test_worker_timeout_releases_the_hold_and_flags_it_for_review(
     assert report["absorbed_timeouts"][0]["reserved_micro"] == 3000
 
 
+def test_usage_terms_sum_every_reported_meter_at_its_rate():
+    """A response that reports several token meters (Gemini's usageMetadata) settles on the sum
+    of each meter times its rate; per-modality entries are selected by key, never by index."""
+    cost = {"settle": "usage", "fallback": {"value": 0.15}, "usage": {"unit": "usd", "terms": [
+        {"path": "usageMetadata.promptTokenCount", "rate": 0.000002},
+        {"path": "usageMetadata.candidatesTokenCount", "rate": 0.000012},
+        {"path": "usageMetadata.thoughtsTokenCount", "rate": 0.000012},
+        {"path": "usageMetadata.candidatesTokensDetails[modality=IMAGE].tokenCount",
+         "rate": 0.000108}]}}
+    basis = settlement.derive_basis(
+        cost, request={}, input_schema={}, unit_micro=1_000_000, terminal=False)
+    usage = {"promptTokenCount": 17, "candidatesTokenCount": 1229, "thoughtsTokenCount": 141,
+             "candidatesTokensDetails": [{"modality": "TEXT", "tokenCount": 109},
+                                         {"modality": "IMAGE", "tokenCount": 1120}]}
+    # 17*2 + (1229+141)*12 + 1120*108 = 137,434 micro-USD: the image meter at $120/M in total.
+    assert settlement.settle(basis, {"terminal": {"usageMetadata": usage}}) == 137_434
+    # proto3 JSON omits a zero meter: a blocked prompt reports only its input and pays for it.
+    assert settlement.settle(basis, {"terminal": {"usageMetadata": {"promptTokenCount": 40}}}) == 80
+    # No meter at all is unobserved, never free: the success settles at the reserve.
+    assert settlement.usage_evidence(basis, {"terminal": {"candidates": []}}) is None
+    assert settlement.settle(basis, {"terminal": None}) == basis["reserve_micro"] == 150_000
+    # A malformed meter poisons the figure rather than silently billing less.
+    bad = {"usageMetadata": {**usage, "thoughtsTokenCount": -1}}
+    assert settlement.usage_evidence(basis, {"terminal": bad}) is None
+    # A spooled answer keeps only the keys these meters start at.
+    assert settlement.usage_roots(cost) == ("usageMetadata",)
+    assert settlement.usage_roots({"usage": {"path": "usage.cost", "unit": "usd"}}) == ("usage",)
+
+
 def test_basis_derivation_and_settlement_table_vs_usage():
     table_cost = {"table": [{"when": {"body.n": 2}, "value": 0.01}],
                   "fallback": {"value": 0.04}, "settle": "table"}

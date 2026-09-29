@@ -1860,6 +1860,35 @@ REAPI = OAuthProvider(
     probe_reject_statuses=(401, 403),
 )
 
+GOOGLE_AI = OAuthProvider(
+    service="google-ai",
+    display_name="Google AI (Gemini API)",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="your Gemini API key",
+    token_header="x-goog-api-key",
+    token_format="{secret}",
+    setup_url="https://aistudio.google.com/apikey",
+    setup_action_label="Get your Gemini API key",
+    setup_steps=(
+        "Sign in to Google AI Studio and open Get API key.",
+        "Create a key in a project with billing enabled (image models are paid-tier only).",
+    ),
+    setup_note=(
+        "Calls bill the key's Google Cloud project by token. treg checks the free model list "
+        "when you connect the key."
+    ),
+    auth_uri="", token_uri="", scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="AI generation",
+    summary="Generate and edit images with Gemini 3 Pro Image on Google's own API.",
+    base_url="https://generativelanguage.googleapis.com/v1beta",
+    docs_url="https://ai.google.dev/gemini-api/docs/image-generation",
+    # A bad key answers 400 API_KEY_INVALID, 401 UNAUTHENTICATED (a malformed AQ. key) or 403
+    # (none), observed 2026-09-29; listing models is free.
+    probe_path="/models?pageSize=1",
+)
+
 PIAPI = OAuthProvider(
     service="piapi",
     display_name="PiAPI",
@@ -2583,6 +2612,30 @@ SERPER = OAuthProvider(
     ),
     docs_url="https://serper.dev/playground",
     probe_path="/account",
+)
+
+LITESCRAPE = OAuthProvider(
+    service="litescrape",
+    display_name="Litescrape",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="ls_live_…",
+    setup_url="https://litescrape.com/",
+    setup_action_label="Get your Litescrape API key",
+    setup_steps=(
+        "Open Litescrape and copy your API key.",
+        "Paste the key here; treg checks the free key status endpoint.",
+    ),
+    setup_note="Search, places, reviews, app store and web tools use one prepaid call per successful response.",
+    auth_uri="", token_uri="", scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="SEO",
+    summary="Search engines, maps, reviews, app stores, web pages and screenshots.",
+    base_url="https://api.litescrape.com",
+    docs_url="https://litescrape.com/docs/reference",
+    probe_path="/api/keys/status",
+    token_ok_field="status",
+    token_ok_value="active",
 )
 
 KEENABLE = OAuthProvider(
@@ -3702,12 +3755,12 @@ REGISTRY: dict[str, OAuthProvider] = {
         TRYKITT, CONTACTOUT, MILLIONVERIFIER, BOUNCEBAN, CRUNCHBASE, MINIMAX, FISHAUDIO,
         OPENROUTER,
         REPLICATE,
-        REAPI, PIAPI, TINYFISH,
+        REAPI, PIAPI, GOOGLE_AI, TINYFISH,
         TIKHUB, BRIGHTDATA, SEMRUSH, JUSTONEAPI,
         SCRAPECREATORS,
         # SEO API-key providers
         DATAFORSEO, SERANKING, MOZ, MAJESTIC, SERPSTAT, EXA, TAVILY, LINKUP, YOU, KEENABLE, OLOSTEP, FIRECRAWL, SPIDERCLOUD, PERPLEXITY,
-        SCRAPEGRAPHAI, SERPER, CLORO,
+        SCRAPEGRAPHAI, SERPER, LITESCRAPE, CLORO,
         # more Enrichment API-key providers
         LUSHA, CORESIGNAL, DIFFBOT, THECOMPANIESAPI, LEADMAGIC, FIBER_AI, CRUSTDATA, AVIATO,
         COMPANYENRICH, OCEANIO, ADYNTEL, TOMBA, TRESTLEIQ, PREDICTLEADS, FINDYMAIL, BRANDDEV, ICYPEAS, LEADSFORGE,

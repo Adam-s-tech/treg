@@ -878,3 +878,65 @@ def test_two_ids_of_one_platform_with_one_description_warn_across_taxonomy_and_p
     assert warnings == ["capabilities ['companies.lookalike', 'companies.similar'] share the description "
                         "'find companies similar to a seed company'; unify them on one id or tell the jobs apart"]
 
+
+
+_TERMS = [{"path": "usageMetadata.promptTokenCount", "rate": 0.000002},
+          {"path": "usageMetadata.candidatesTokensDetails[modality=IMAGE].tokenCount",
+           "rate": 0.000108}]
+
+
+def test_usage_terms_are_accepted_for_a_multi_meter_response():
+    cost = _flat_usage_cost()
+    cost["usage"] = {"terms": _TERMS, "unit": "usd"}
+    errors: list[str] = []
+    validator.check_cost(cost, "x", errors, [], provider="google-ai")
+    assert errors == []
+
+
+@pytest.mark.parametrize(("usage", "message"), [
+    ({"terms": [], "unit": "usd"}, "usage.terms must be"),
+    ({"terms": [{"path": "a.b"}], "unit": "usd"}, "usage.terms must be"),
+    ({"terms": [{"path": "a..b", "rate": 1}], "unit": "usd"}, "usage.terms must be"),
+    ({"terms": [{"path": "a[b]", "rate": 1}], "unit": "usd"}, "usage.terms must be"),
+    # The runtime splits on dots before reading a selector, so a dotted value would read as zero.
+    ({"terms": [{"path": "a[version=v1.2].b", "rate": 1}], "unit": "usd"}, "usage.terms must be"),
+    ({"terms": [{"path": "a.b", "rate": 0}], "unit": "usd"}, "usage.terms must be"),
+    ({"terms": [{"path": "a.b", "rate": float("nan")}], "unit": "usd"}, "usage.terms must be"),
+    ({"terms": [{"path": "a.b", "rate": 1}], "unit": "credit"}, "usage.unit must be 'usd'"),
+    ({"terms": [{"path": "a.b", "rate": 1}], "path": "a.b", "unit": "usd"},
+     "or usage.terms and unit 'usd'"),
+])
+def test_usage_terms_reject_bad_shapes(usage, message):
+    cost = _flat_usage_cost()
+    cost["usage"] = usage
+    errors: list[str] = []
+    validator.check_cost(cost, "x", errors, [], provider="google-ai")
+    assert any(message in e for e in errors), errors
+
+
+
+def _spooled_endpoint() -> dict:
+    cost = _flat_usage_cost()
+    cost["usage"] = {"terms": _TERMS, "unit": "usd"}
+    return {"id": "google-ai.image-gen.demo", "cost": cost, "spooled_response": True}
+
+
+def test_spooled_response_settles_from_reported_usage():
+    errors: list[str] = []
+    validator.check_spooled_response(_spooled_endpoint(), None, "x", errors)
+    assert errors == []
+
+
+@pytest.mark.parametrize(("mutate", "is_async", "message"), [
+    (lambda ep: ep.update(spooled_response={"evidence": ["usageMetadata"]}), False, "must be true"),
+    (lambda ep: ep.update(spooled_response=False), False, "must be true"),
+    (lambda ep: ep.update(resource_ownership={"requires": {}}), False, "cannot be combined"),
+    (lambda ep: None, True, "cannot be combined"),
+    (lambda ep: ep["cost"].update(settle="base"), False, "needs settle: usage"),
+])
+def test_spooled_response_rejects_bodies_something_else_must_read(mutate, is_async, message):
+    ep = _spooled_endpoint()
+    mutate(ep)
+    errors: list[str] = []
+    validator.check_spooled_response(ep, {"id_from": "id"} if is_async else None, "x", errors)
+    assert any(message in e for e in errors), errors

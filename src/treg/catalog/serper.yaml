@@ -9,7 +9,6 @@ cache: forbidden
 proposed_capabilities:
   google.serp.images: "Get Google Images results for a keyword"
   google.serp.videos: "Get Google Videos results for a keyword"
-  google.serp.shopping: "Get Google Shopping results for a keyword"
   google.serp.scholar: "Get Google Scholar publications for a query"
   google.serp.patents: "Get Google Patents results for a query"
   google.serp.autocomplete: "Get Google query autocomplete suggestions"

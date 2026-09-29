@@ -143,6 +143,18 @@ async def _serper(c, key):
     return {"value": float(balance), "unit": "credits", "note": rate_note}
 
 
+async def _litescrape(c, key):
+    d = await _get(c, "https://api.litescrape.com/api/keys/status",
+                   headers={"Authorization": f"Bearer {key}"})
+    raw = d.get("remaining_calls")
+    if type(raw) is not int or raw < 0:
+        raise ValueError("Litescrape status returned an invalid remaining_calls")
+    limit = d.get("concurrency_limit")
+    note = (f"key concurrency limit {limit}" if type(limit) is int and limit > 0
+            else "key concurrency limit unavailable")
+    return {"value": raw, "unit": "calls", "note": note}
+
+
 async def _olostep(c, key):
     # Free authenticated account read. `credits` is the authoritative sum of unexpired lots;
     # endpoint responses report their own `credits_consumed`, which settlement handles separately.
@@ -853,6 +865,7 @@ BALANCE_ROUTES = {
     "linkup": _linkup,
     "you": _you,
     "serper": _serper,
+    "litescrape": _litescrape,
     "olostep": _olostep,
     "firecrawl": _firecrawl,
     "spidercloud": _spidercloud,
@@ -911,6 +924,9 @@ NO_BALANCE_API = {
                          "prepaid Credits are visible in the vendor dashboard only",
     "justoneapi": "balance available only via MCP server (get_account_balance tool), no public REST "
                   "endpoint documented (checked docs.justoneapi.com 2026-08-31) — dashboard only",
+    "google-ai": "no balance endpoint: the Gemini API bills the key's Google Cloud project "
+                 "postpaid, and Cloud Billing reads need OAuth, not the API key (checked "
+                 "ai.google.dev 2026-09-29) — spend and budgets live in the Cloud console",
     "keenable": "no public REST balance or usage endpoint in the official OpenAPI document "
                 "(checked docs.keenable.ai 2026-09-23) — the console shows remaining credits and "
                 "authenticated MCP calls report only per-call usage",
