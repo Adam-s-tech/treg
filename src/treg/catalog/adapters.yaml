@@ -2656,6 +2656,13 @@ adapters:
     in_expr: {body.count: limit}
     out: {results: results.web, count: "len(results.web)"}
     miss: "coalesce(results.web, []) == []"
+  valyu.web.search:
+    accepts: [[q]]
+    in: {q: body.query}
+    in_expr: {body.max_num_results: limit}
+    const: {body.search_type: web, body.max_price: 50, body.response_length: short}
+    out: {results: results, count: "len(results)"}
+    miss: "coalesce(results, []) == []"
   tinyfish.web.search:
     accepts: [[q]]
     in: {q: queryParams.query}

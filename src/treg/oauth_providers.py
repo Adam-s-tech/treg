@@ -2581,6 +2581,27 @@ YOU = OAuthProvider(
     probe_path="/v1/billing/account_balance",
 )
 
+VALYU = OAuthProvider(
+    service="valyu",
+    display_name="Valyu",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="your Valyu API key",
+    token_header="X-API-Key",
+    token_format="{secret}",
+    setup_url="https://platform.valyu.ai",
+    setup_action_label="Get your Valyu API key",
+    setup_steps=("Sign in to Valyu Platform and open API Keys.", "Create or copy a key."),
+    setup_note="Search, Contents, Answer and DeepResearch use Valyu credits. Datasource discovery checks the key without a paid query.",
+    auth_uri="", token_uri="", scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="Research & public data",
+    summary="Search the web and specialist sources, extract pages, and run cited research.",
+    base_url="https://api.valyu.ai",
+    docs_url="https://docs.valyu.ai/home",
+    probe_path="/v1/datasources",
+)
+
 SERPER = OAuthProvider(
     service="serper",
     display_name="Serper",
@@ -3759,7 +3780,7 @@ REGISTRY: dict[str, OAuthProvider] = {
         TIKHUB, BRIGHTDATA, SEMRUSH, JUSTONEAPI,
         SCRAPECREATORS,
         # SEO API-key providers
-        DATAFORSEO, SERANKING, MOZ, MAJESTIC, SERPSTAT, EXA, TAVILY, LINKUP, YOU, KEENABLE, OLOSTEP, FIRECRAWL, SPIDERCLOUD, PERPLEXITY,
+        DATAFORSEO, SERANKING, MOZ, MAJESTIC, SERPSTAT, EXA, TAVILY, LINKUP, YOU, VALYU, KEENABLE, OLOSTEP, FIRECRAWL, SPIDERCLOUD, PERPLEXITY,
         SCRAPEGRAPHAI, SERPER, LITESCRAPE, CLORO,
         # more Enrichment API-key providers
         LUSHA, CORESIGNAL, DIFFBOT, THECOMPANIESAPI, LEADMAGIC, FIBER_AI, CRUSTDATA, AVIATO,
@@ -3779,7 +3800,7 @@ DEFAULT_CAPABILITY = "read"
 # Shelf order in the marketplace. Anything carrying a category not named here sorts last, so a
 # provider added without one is visible rather than lost between the shelves.
 CATEGORY_ORDER = ("AI generation", "SEO", "Advertising", "Social media", "Enrichment",
-                  "Market data", "Community", "Other")
+                  "Market data", "Research & public data", "Community", "Other")
 
 
 def get(service: str) -> OAuthProvider | None:
