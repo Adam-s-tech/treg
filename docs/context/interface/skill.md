@@ -59,6 +59,12 @@ invariants (secrets are write-only, use-without-hold, the proxy relays the upstr
 `{BASE}/llms.txt` + `{BASE}/tutorial`. It mirrors the surfaces in [api.md](api.md) + [cli.md](cli.md);
 keep the three in sync when the API/CLI change.
 
+The catalog-search guidance in `skill.md` and `llms.txt` tells agents to include required output
+facets in the query, inspect candidates with `catalog_get`, and call a provider endpoint when they
+need fields outside a routed contract. Email verification illustrates this: the routed
+`people.email.verify` contract defines `valid`, `status` and `score`, while provider responses can
+also report catch-all, disposable, role-address or SMTP details.
+
 ## Four doors, one source
 
 The same file reaches agents six ways. Only the first is hand-written; the rest are **generated or

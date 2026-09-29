@@ -142,7 +142,7 @@ endpoints:
     scope: any_account
     method: GET
     path: /v1/email-verifier
-    name: "Verify an email address is deliverable"
+    name: "Verify email — catch-all, disposable, role and SMTP"
     summary: "Deliverability status, score, MX/SMTP checks, catch-all, disposable, gibberish and role-address flags for one address"
     input:
       queryParams:

@@ -98,6 +98,11 @@ treg catalog request "<what you need>"           # searched, not there? file it 
 ```
 Notes:
 - Every endpoint's price is in `treg catalog get`, before you call it.
+- Search for the job AND any output you need: `treg catalog search "email verification catch-all"`
+  finds different tools from a broad email-verification search. Check each candidate with
+  `treg catalog get` for its fields, parameters and price before choosing. If you need a provider's
+  catch-all, disposable, role-address or SMTP field, call that provider's endpoint: the routed
+  `treg.people.email.verify` contract defines only `valid`, `status` and `score`.
 - A catalog endpoint can use a verified public route with no provider key. Such a call is free when
   the caller does not send a provider credential. The team tool or stored provider key still wins.
 - Discovery jobs usually have TWO shapes in the catalog — a structured one (filters: title, location,

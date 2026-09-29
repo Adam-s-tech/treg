@@ -91,7 +91,7 @@ endpoints:
     path: /email-verification
     resource_ownership:
       produces: [{kind: search, path: item._id}]
-    name: "Verify an email address is deliverable (async)"
+    name: "Verify email — catch-all and mail provider (async)"
     summary: "Check whether a specific email address exists and is deliverable, including catch-all detection"
     input:
       body:
