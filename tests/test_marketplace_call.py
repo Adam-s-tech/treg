@@ -26,7 +26,7 @@ from treg import api as A, audit, oauth_providers
 from treg.domain import money as ledger
 from treg.domain.money import settlement as settlement_basis
 from treg.domain.catalog import store as catalog_store
-from treg.application.call import contactout
+from treg.application.call import contactout, octen
 from treg.application.call import resolve as call_resolution
 from treg.application.call import settle as call_settle
 from treg.application.call import service as call_service
@@ -2740,3 +2740,150 @@ def test_apify_call_fee_multiplies_by_each_query_the_actor_starts(body, fee):
              unit_micro=1_000, estimate_micro=1_001_000, request_data={'body': body})
     assert call_settle._apify_call_fee_micro(mk, cost) == fee
     assert call_settle._observed_cost_micro(mk, b'[{}]') == 1_000 + fee
+
+
+# Octen reserves a maximum before relay and settles from this response's usage.
+
+
+@pytest.fixture
+def octen_platform_on(monkeypatch):
+    monkeypatch.setenv("TREG_PLATFORM_KEY_OCTEN", "PLATFORM-OCTEN")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "octen")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+async def test_octen_platform_key_serves_then_own_key_wins_unmetered(
+    clients, monkeypatch, octen_platform_on,
+):
+    assert get_settings().platform_key_for("octen") == "PLATFORM-OCTEN"
+    seen = []
+    document = {"code": 0, "data": {"results": []}, "meta": {"usage": {
+        "num_search_queries": 1, "full_content_extra_count": 0,
+    }}}
+
+    def serve(request):
+        assert request.method == "POST" and request.url.path == "/search"
+        seen.append(request.headers["x-api-key"])
+        return _dropleads_response(200, document)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(serve)) as upstream:
+        monkeypatch.setattr(A.app.state, "http", upstream)
+        before = await _balance(clients)
+        platform = await clients.post("/call/octen.web.search", json={"query": "x", "count": 1})
+        assert platform.status_code == 200, platform.text
+        assert platform.json() == document
+        assert platform.headers["x-treg-cost-micro"] == "5000"
+        assert before - await _balance(clients) == 5000
+
+        await clients.post("/secrets", json={"name": "octen", "value": "OWN-OCTEN"})
+        before = await _balance(clients)
+        own = await clients.post("/call/octen.web.search", json={"query": "x", "count": 1})
+        assert own.status_code == 200, own.text
+        assert own.json() == document
+        assert "x-treg-cost-micro" not in own.headers
+        assert await _balance(clients) == before
+
+    assert seen == ["PLATFORM-OCTEN", "OWN-OCTEN"]
+
+
+_OCTEN_RATES = {
+    "octen.web.search": {"call": 5000, "full_content_extra": 500},
+    "octen.web.search.broad": {"subquery": 5000, "full_content_extra": 500},
+    "octen.web.search.news": {"call": 3000, "full_content_extra": 500},
+    "octen.web.extract": {"standard": 1000, "advanced": 2500},
+}
+
+
+@pytest.mark.parametrize("endpoint,payload,hold,usage,settled", [
+    ("octen.web.search", {"query": "x", "count": 11}, 5000,
+     {"num_search_queries": 1, "full_content_extra_count": 0}, 5000),
+    ("octen.web.search", {"query": "x", "count": 11, "full_content": {"enable": True}}, 5500,
+     {"num_search_queries": 1, "full_content_extra_count": 1}, 5500),
+    ("octen.web.search.broad", {"query": "x", "max_queries": 4,
+                                "search_options": {"count": 12, "full_content": {"enable": True}}},
+     24000, {"num_search_queries": 2, "full_content_extra_count": 1}, 10500),
+    ("octen.web.search.news", {"query": "x", "count": 11,
+                               "subjects": {"enable": False}, "full_content": {"enable": True}},
+     3500, {"num_search_queries": 1, "num_subject_search_queries": 0,
+            "full_content_extra_count": 1}, 3500),
+    ("octen.web.extract", {"urls": ["https://example.com", "https://example.invalid"],
+                           "mode": "auto"}, 5000,
+     {"total_urls": 2, "successful_urls": 1,
+      "successful_by_mode": {"standard_urls": 1, "advanced_urls": 0}}, 1000),
+])
+def test_octen_hold_and_actual_usage(endpoint, payload, hold, usage, settled):
+    body = json.dumps(payload).encode()
+    assert octen.invalid_platform_parameter(endpoint, body) is None
+    assert octen.estimate_micro(endpoint, _OCTEN_RATES[endpoint], body) == hold
+    doc = {"code": 0, "meta": {"usage": usage}}
+    assert octen.observed_micro(endpoint, _OCTEN_RATES[endpoint], {"body": payload}, doc, hold) == settled
+
+
+def test_octen_news_hold_covers_subject_full_content():
+    request = {"query": "x", "count": 100, "subjects": {"count": 5, "max_sub_news": 20},
+               "full_content": {"enable": True}}
+    assert octen.estimate_micro("octen.web.search.news", _OCTEN_RATES["octen.web.search.news"],
+                                json.dumps(request).encode()) == 98000
+
+
+@pytest.mark.parametrize("endpoint,payload,field", [
+    ("octen.web.search", {"query": "x", "count": 101}, "body.count"),
+    ("octen.web.search", {"query": "x", "full_content": {"enable": "yes"}},
+     "body.full_content"),
+    ("octen.web.search.broad", {"query": "x", "max_queries": 31}, "body.max_queries"),
+    ("octen.web.search.broad", {"query": "x", "search_options": {"count": 101}},
+     "body.search_options.count"),
+    ("octen.web.search.news", {"query": "x", "subjects": {"max_sub_news": 21}},
+     "body.subjects.max_sub_news"),
+    ("octen.web.extract", {"urls": ["https://example.com"] * 21}, "body.urls"),
+])
+def test_octen_platform_rejects_unbounded_request(endpoint, payload, field):
+    assert octen.invalid_platform_parameter(endpoint, json.dumps(payload).encode()) == field
+
+
+def test_octen_missing_or_impossible_usage_falls_back_to_hold():
+    endpoint = "octen.web.search.broad"
+    request = {"body": {"query": "x", "max_queries": 1}}
+    rates = _OCTEN_RATES[endpoint]
+    assert octen.observed_micro(endpoint, rates, request, {"code": 0}, 5000) is None
+    assert octen.observed_micro(endpoint, rates, request, {"code": 400}, 5000) == 0
+    assert octen.observed_micro(endpoint, rates, request, {"code": 0, "meta": {"usage": {
+        "num_search_queries": 2, "full_content_extra_count": 0}}}, 5000) is None
+    assert octen.observed_micro(endpoint, rates, request, {"code": 0, "meta": {"usage": {
+        "num_search_queries": True, "full_content_extra_count": 0}}}, 5000) is None
+
+
+def test_octen_rate_table_is_complete_and_micro_precise():
+    endpoint = "octen.web.extract"
+    assert octen.rates_micro(endpoint, {"octen_rates": {
+        "standard": 0.001, "advanced": 0.0025}}) == _OCTEN_RATES[endpoint]
+    for rates in ({"standard": 0.001}, {"standard": 0, "advanced": 0.0025},
+                  {"standard": 0.0010001, "advanced": 0.0025}):
+        with pytest.raises(ValueError):
+            octen.rates_micro(endpoint, {"octen_rates": rates})
+
+    with pytest.raises(ResolutionFailed) as missing:
+        call_resolution._marketplace_pricing("octen", endpoint, None, {}, b'{"urls":["https://example.com"]}')
+    assert missing.value.kind == "catalog_price_invalid"
+    assert missing.value.status_code == 503
+
+
+def test_octen_runtime_uses_frozen_rates_and_checks_platform_shape():
+    endpoint = "octen.web.extract"
+    payload = {"urls": ["https://example.com"], "mode": "auto"}
+    body = json.dumps(payload).encode()
+    cost = {"octen_rates": {"standard": 0.001, "advanced": 0.0025}}
+    assert call_resolution._marketplace_pricing("octen", endpoint, cost, {}, body) == (2500, 0)
+    mk = _mk("octen", endpoint_id=endpoint, cost_type="per_success",
+        estimate_micro=2500, request_data={"body": payload},
+        settlement_basis={"octen_rates_micro": _OCTEN_RATES[endpoint]},
+    )
+    result = {"code": 0, "meta": {"usage": {"successful_urls": 1,
+              "successful_by_mode": {"standard_urls": 1, "advanced_urls": 0}}}}
+    assert call_settle._observed_cost_micro(mk, json.dumps(result).encode()) == 1000
+    with pytest.raises(ResolutionFailed) as caught:
+        call_resolution._enforce_platform_request({"provider": "octen", "id": endpoint},
+                                          json.dumps({"urls": ["https://example.com"] * 21}).encode())
+    assert caught.value.kind == "catalog_parameter_invalid"

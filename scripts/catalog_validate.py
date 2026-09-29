@@ -299,6 +299,36 @@ def check_tavily_rates(endpoint_id: str, cost: dict, where: str,
         fail(errors, where, "cost.tavily_rates values must be positive finite numbers")
 
 
+OCTEN_RATE_KEYS = {
+    "octen.web.search": {"call", "full_content_extra"},
+    "octen.web.search.broad": {"subquery", "full_content_extra"},
+    "octen.web.search.news": {"call", "full_content_extra"},
+    "octen.web.extract": {"standard", "advanced"},
+}
+
+
+def check_octen_rates(endpoint_id: str, cost: dict, where: str,
+                      errors: list[str]) -> None:
+    """A platform call needs every Octen component rate before it can reserve."""
+    expected = OCTEN_RATE_KEYS.get(endpoint_id)
+    if expected is None:
+        return
+    rates = cost.get("octen_rates")
+    if not isinstance(rates, dict) or set(rates) != expected:
+        fail(errors, where, "cost.octen_rates must contain exactly " + ", ".join(sorted(expected)))
+        return
+    if any(not _finite_number(value) or value <= 0 or value * 1_000_000 != round(value * 1_000_000)
+           for value in rates.values()):
+        fail(errors, where, "cost.octen_rates values must be positive whole-micro USD rates")
+        return
+    base_key = ("advanced" if endpoint_id == "octen.web.extract" else
+                "subquery" if endpoint_id == "octen.web.search.broad" else "call")
+    if (cost.get("currency") != "USD" or not _finite_number(cost.get("value"))
+            or not _finite_number(cost.get("per")) or cost["per"] <= 0
+            or abs(cost["value"] / cost["per"] - rates[base_key]) > 1e-12):
+        fail(errors, where, "cost.value/per must match the Octen base rate")
+
+
 def check_platform_auth(ep: dict, where: str, errors: list[str]) -> None:
     """Anonymous platform fallback is intentionally narrow: proven public GETs that cost zero."""
     mode = ep.get("platform_auth")
@@ -1232,6 +1262,8 @@ def main(argv: list[str]) -> int:
                     check_cost(cost, where, errors, warnings, inp, service)
                     if service == "tavily":
                         check_tavily_rates(eid, cost, where, errors)
+                    if service == "octen":
+                        check_octen_rates(eid, cost, where, errors)
             effective_async = effective_async_descriptor(data.get("async"), ep.get("async"))
             if effective_async is not None:
                 check_async_descriptor(effective_async, where, str(service), endpoint_index,

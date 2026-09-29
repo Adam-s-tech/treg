@@ -290,6 +290,12 @@ unrenewable one earns a warning (`EXPIRING_SOON_DAYS=7`). `connection_view()` is
 (no token material) the dashboard/CLI read, with a single actionable `needs_reconnect` flag.
 
 ## Curated OAuth provider registry (`oauth_providers.py`)
+Octen is an API-key provider with an `x-api-key` binding. Its connection probe sends an empty
+Search query: a valid key receives an unbilled 400 validation response, while an invalid key
+receives 401. `TREG_PLATFORM_KEY_OCTEN` supplies the optional shared binding through the
+typed setting; a team's own key remains first and unmetered. No account balance endpoint is
+documented for this credential.
+
 Connecting a provider persists its API `base_url` and indexed `host` on the team's tool. Changing
 the registry's base URL affects new connections and direct catalog calls, but an existing named
 tool or URL-passthrough call keeps using its stored host until reconnect or a scoped data migration.

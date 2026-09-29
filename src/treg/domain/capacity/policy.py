@@ -45,6 +45,7 @@ _KNOWN: dict[str, tuple[str, str, str]] = {
     # reads nor changes that setting, so the observation source remains manual.
     "trestleiq": ("cash", "auto_recharge", "manual"),
     "tavily": ("credits", "manual", "api"),
+    "octen": ("cash", "manual", "manual"),
     "linkup": ("cash", "manual", "api"),
     "you": ("cash", "auto_recharge", "api"),
     "valyu": ("credits", "subscription", "manual"),
@@ -137,6 +138,9 @@ _RATE_LIMITS: dict[str, dict] = {
     # documented tier until the shared key's environment is verified. Crawl has the same 100/minute
     # ceiling on both tiers, so this provider-wide pace is safe for all four catalog tools.
     "tavily": {"limit": 100, "window_s": 60, "source": "docs"},
+    # The free Base plan allows up to 20 QPS. Pace the shared key below that ceiling;
+    # endpoint-specific Extract URL limits remain enforced by Octen.
+    "octen": {"limit": 5, "window_s": 1, "source": "policy"},
     "linkup": {"limit": 10, "window_s": 1, "source": "docs"},
     # Finance Research is 5/s; the other You.com APIs are 10/s. Smoothing is provider-wide.
     "you": {"limit": 5, "window_s": 1, "source": "docs"},

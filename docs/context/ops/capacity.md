@@ -45,6 +45,13 @@ related:
 
 # Provider capacity
 
+Octen's PAYG balance has no account balance or usage endpoint in its published OpenAPI, so
+`NO_BALANCE_API` reports it as dashboard-only. `_KNOWN` classifies the account as manually funded
+cash. The shared-key rate policy spaces calls at five per second, below the Base plan's displayed
+20 QPS allowance; Octen's separate Extract URL/minute limits still apply upstream. BYOK calls
+bypass shared-key capacity policy. The funded account was not exhausted to capture an empty-wallet
+signature, and no overflow route is claimed.
+
 Litescrape's internal collector reads the free `GET /api/keys/status` route with the platform
 Bearer key. It accepts a nonnegative integer `remaining_calls` as the prepaid call balance and
 records the key's reported concurrency limit as an informational note. The policy is
