@@ -442,4 +442,9 @@ async def test_wiza_failed_reveal_releases_hold_and_is_a_waterfall_miss(
     async with session_maker() as db:
         task = (await db.execute(select(AsyncTaskRecord))).scalars().first()
         assert task.status == "released" and task.settled_micro == 0
+        assert task.hit is False
+        child = (await db.execute(select(CallRecord).where(
+            CallRecord.call_ref == task.call_id,
+            CallRecord.endpoint_id == "wiza.people.email.find"))).scalar_one()
+        assert child.hit is False
         assert await db.get(Hold, task.call_id) is None

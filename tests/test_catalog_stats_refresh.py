@@ -127,6 +127,21 @@ async def test_async_hits_are_read_after_the_fold_cursor_passes_submission(clien
     assert final["hit_samples"] == 20 and final["hit_rate"] == 0.6
 
 
+async def test_async_per_success_uses_terminal_hits_including_failed_attempts(clients):
+    endpoint = "wiza.people.email.find"
+    ids = [await _record(endpoint, 200, 100, ago=timedelta(hours=1), cost=0)
+           for _ in range(24)]
+    async with session_maker() as db:
+        rows = (await db.execute(select(CallRecord).where(CallRecord.id.in_(ids)))).scalars().all()
+        for n, row in enumerate(rows):
+            row.hit = True if n < 12 else False if n < 20 else None
+            db.add(row)
+        await db.commit()
+    observation = (await PostgresEndpointObservationReader(session_maker).get_many([endpoint]))[endpoint]
+    assert observation["hit_samples"] == 20
+    assert observation["hit_rate"] == 0.6
+
+
 async def test_the_reader_stays_live_until_the_worker_has_caught_up(clients):
     """No cron, no change: a deployment that never schedules the worker keeps the live aggregate."""
     for _ in range(6):

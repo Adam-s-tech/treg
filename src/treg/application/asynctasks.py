@@ -17,7 +17,7 @@ from ..domain.governance.access import pinned_tag_predicates
 from ..domain import asynctasks
 from ..domain import money as ledger
 from ..domain.catalog import store as catalog_store
-from ..domain.catalog.results import classify
+from ..domain.catalog.results import classify, has_result_rules
 from ..domain.money import settlement
 from ..infra.db import session_maker
 from ..infra.upstream.relay import relay
@@ -326,7 +326,7 @@ async def _finish(call_id: str, outcome: str, document: object | None, now, *,
             row.completed_at = now
             await db.commit()
             log.warning("async task %s reached %s but its hold was already closed", call_id, outcome)
-            return row.status
+            return "closed_hold"
         if outcome in ("success", "billed_failure"):
             evidence = {"terminal": document}
             if outcome == "success":
@@ -353,8 +353,7 @@ async def _finish(call_id: str, outcome: str, document: object | None, now, *,
                 **({"reconcile_review": True} if unobserved else {}),
             })
             row.status = asynctasks.SETTLED
-            if outcome == "success":
-                row.hit = terminal_hit
+            row.hit = terminal_hit
             if outcome == "billed_failure" and not row.error:
                 row.error = "provider reported a billable terminal failure"
         elif outcome == "failure":
@@ -362,6 +361,7 @@ async def _finish(call_id: str, outcome: str, document: object | None, now, *,
                                                 meta={"provider": row.provider, "async_task": True})
             row.settled_micro = 0
             row.status = asynctasks.RELEASED
+            row.hit = terminal_hit
         elif outcome == "timed_out":
             # No terminal state in 24 hours means treg does not know whether the caller got
             # anything. The platform absorbs that uncertainty: the hold goes back to the team in
@@ -393,8 +393,11 @@ async def _finish_terminal(snapshot: AsyncTaskRecord, outcome: str, document: ob
                            status_code: int, body: bytes, now, *, require_usage: bool = False,
                            expected_attempt: int | None = None) -> str:
     """One settlement and evidence path for caller polling and the recovery worker."""
+    # A confirmed terminal failure produced no contact for this attempt. Count it in
+    # routing's P(hit); pending and timed-out jobs still have no known verdict.
     terminal_hit = (classify(snapshot.endpoint_id, status_code, body).hit
-                    if outcome == "success" else None)
+                    if outcome == "success" else
+                    False if has_result_rules(snapshot.endpoint_id) else None)
     result = await _finish(snapshot.call_id, outcome, document, now, require_usage=require_usage,
                            expected_attempt=expected_attempt, terminal_hit=terminal_hit)
     expected = asynctasks.SETTLED if outcome in ("success", "billed_failure") else asynctasks.RELEASED

@@ -91,7 +91,9 @@ Revision `0052` adds nullable `hit`: the terminal contact verdict for the origin
 The terminal finalizer commits it with settlement. The audit writer locks the task row before
 inserting a submission `CallRecord`, so a poll that finishes first still gives that row its final
 verdict; when the audit row wins the race, the finalizer updates it afterward. Both use the
-original `call_ref`, including routed children. A pending submission remains undecided.
+original `call_ref`, including routed children. A confirmed terminal failure stores `false`
+for endpoints with verified result rules, since that attempt produced no hit. A pending or
+timed-out submission remains undecided.
 
 Migration `0019` adds `consecutive_failures` with a retained server default of zero, allowing old
 writers during rollout. Valid polls reset it; failures grow the retry delay to 15 minutes.

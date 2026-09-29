@@ -77,6 +77,8 @@ class PostgresEndpointObservationReader:
         folded_ids = [i for i in ids if i not in async_ids]
         # An async submission can finish after the fold cursor has consumed its audit row.
         # Read those endpoints live so the terminal correction is visible to routing.
+        # Async per-success endpoints use the terminal verdict exclusively. A completed
+        # hit can report zero credits, so charge-based miss inference would skew routing.
         per_success = {i for i in folded_ids
                        if ((cat.by_id.get(i) or {}).get("cost") or {}).get("type") == "per_success"}
         async with self._session_factory() as db:
