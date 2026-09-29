@@ -46,6 +46,7 @@ _KNOWN: dict[str, tuple[str, str, str]] = {
     "trestleiq": ("cash", "auto_recharge", "manual"),
     "tavily": ("credits", "manual", "api"),
     "linkup": ("cash", "manual", "api"),
+    "you": ("cash", "auto_recharge", "api"),
     # The API supplies the exact credit balance; vendor auto recharge was manually enabled and
     # verified in the Serper dashboard.
     "serper": ("credits", "auto_recharge", "api"),
@@ -130,6 +131,8 @@ _RATE_LIMITS: dict[str, dict] = {
     # ceiling on both tiers, so this provider-wide pace is safe for all four catalog tools.
     "tavily": {"limit": 100, "window_s": 60, "source": "docs"},
     "linkup": {"limit": 10, "window_s": 1, "source": "docs"},
+    # Finance Research is 5/s; the other You.com APIs are 10/s. Smoothing is provider-wide.
+    "you": {"limit": 5, "window_s": 1, "source": "docs"},
     # GET /account reports 50 queries/s for the current shared account. Pace the platform key to
     # that live account allowance; BYOK bypasses this limiter.
     "serper": {"limit": 50, "window_s": 1, "source": "api"},

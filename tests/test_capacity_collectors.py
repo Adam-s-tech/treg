@@ -122,6 +122,26 @@ async def test_serper_capacity_uses_free_account_balance():
     }
 
 
+async def test_you_balance_converts_cents_to_usd():
+    def probe(request):
+        assert request.method == "GET"
+        assert request.url == "https://api.you.com/v1/billing/account_balance"
+        assert request.headers["x-api-key"] == "test-key"
+        return httpx.Response(200, json={"data": {"attributes": {"balance": "9986"}}})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(probe)) as client:
+        row = await collectors._you(client, "test-key")
+    assert row == {"value": 99.86, "unit": "USD", "note": "prepaid account balance"}
+
+
+@pytest.mark.parametrize("balance", [None, True, "bad", "NaN", "Infinity", -1])
+async def test_you_balance_rejects_uncertain_values(balance):
+    async with httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda _request: httpx.Response(200, json={"data": {"attributes": {"balance": balance}}}))) as client:
+        with pytest.raises(ValueError, match="valid account balance"):
+            await collectors._you(client, "test-key")
+
+
 @pytest.mark.parametrize("balance", [None, True, "bad", "NaN", "Infinity", -1])
 async def test_serper_capacity_rejects_invalid_balance(balance):
     async with httpx.AsyncClient(transport=httpx.MockTransport(

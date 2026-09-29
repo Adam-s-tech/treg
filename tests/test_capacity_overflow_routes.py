@@ -306,6 +306,7 @@ _UNRECORDED_SIGNATURE = {
     "serper",  # funded credits remain; no provider-specific empty-balance response was forced
     "tinyfish",  # funded wallet remains; no provider-specific empty-wallet response was forced
     "trestleiq",  # funded wallet remains; documented 403/429 shapes do not identify empty balance
+    "you",  # funded wallet remains; no provider-specific empty-balance response was forced
 
     "serpapi", "serpstat", "spyfu", "tiingo", "tikhub", "tomba", "twelvedata",
 }

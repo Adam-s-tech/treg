@@ -481,6 +481,10 @@ def _observed_cost_micro(mk: MarketplaceCall, body: bytes, headers=None) -> int 
         doc = json.loads(body)
     except (ValueError, UnicodeDecodeError):
         return 0 if provider == "contactout" else None
+    if provider == "you" and mk.endpoint_id == "you.web.contents" and mk.cost_type == "per_result":
+        # Contents returns one object per fetched page as a bare array. The request's URL count
+        # bounds the hold; count only pages the provider actually returned.
+        return _rows_billed_micro(mk, ep, len(doc) if isinstance(doc, list) else None)
     if provider == "apify" and mk.cost_type == "per_result" and mk.unit_micro > 0:
         # DERIVED: run-sync-get-dataset-items answers the bare dataset array, one billed event per
         # row, and the run's start or compute charge is the catalog's flat `call_fee`. Apify's own

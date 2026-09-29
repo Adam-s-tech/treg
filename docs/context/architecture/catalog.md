@@ -20,6 +20,10 @@ sources:
   - src/treg/routers/provider_resources.py
   - src/treg/catalog/tavily.yaml
   - src/treg/catalog/linkup.yaml
+  - src/treg/catalog/you.yaml
+  - src/treg/catalog/examples/you.web.search.json
+  - src/treg/catalog/examples/you.web.contents.json
+  - src/treg/web/logos/you.svg
   - src/treg/web/logos/linkup.svg
   - src/treg/catalog/examples/linkup.web.search.json
   - src/treg/catalog/examples/linkup.web.fetch.json
@@ -58,6 +62,7 @@ sources:
   - src/treg/catalog/contracts.yaml
   - src/treg/catalog/millionverifier.yaml
   - src/treg/catalog/adapters.yaml
+  - src/treg/catalog/capabilities.yaml
   - src/treg/catalog/prospeo.yaml
   - tests/test_route_cost_ceiling.py
   - src/treg/catalog/tomba.yaml

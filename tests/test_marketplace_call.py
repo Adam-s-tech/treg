@@ -24,6 +24,7 @@ from httpx import AsyncClient
 
 from treg import api as A, audit, oauth_providers
 from treg.domain import money as ledger
+from treg.domain.money import settlement as settlement_basis
 from treg.domain.catalog import store as catalog_store
 from treg.application.call import contactout
 from treg.application.call import resolve as call_resolution
@@ -425,6 +426,92 @@ async def test_diffbot_shared_key_uses_each_catalog_endpoint_host(
     assert response.status_code == 200, response.text
     assert outbound == [target]
     assert await _balance(clients) == before - charge_micro
+
+
+async def test_you_shared_key_reaches_both_api_hosts_and_settles_returned_pages(
+    clients: AsyncClient, monkeypatch,
+):
+    monkeypatch.setenv("TREG_PLATFORM_KEY_YOU", "PLATFORM-YOU-KEY")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "you")
+    get_settings.cache_clear()
+    outbound = []
+
+    def upstream(request: httpx.Request) -> httpx.Response:
+        assert request.headers["x-api-key"] == "PLATFORM-YOU-KEY"
+        outbound.append((request.url.host, request.url.path))
+        if request.url.path == "/v1/contents":
+            # The second requested page was not returned, so only one page is metered.
+            body = b'[{"url":"https://example.com/a","markdown":"A"}]'
+        elif request.url.path == "/v1/research":
+            body = b'{"output":"Example","sources":[]}'
+        else:
+            body = b'{"answer":"Example","citations":[]}'
+        return httpx.Response(200, stream=httpx.ByteStream(body),
+                              headers={"content-type": "application/json"})
+
+    await A.app.state.http.aclose()
+    A.app.state.http = AsyncClient(transport=httpx.MockTransport(upstream))
+    try:
+        before = await _balance(clients)
+        pages = await clients.post("/call/you.web.contents", json={
+            "urls": ["https://example.com/a", "https://example.com/b"], "formats": ["markdown"],
+        })
+        answer = await clients.post("/call/you.web.answer", json={"query": "What is example.com?"})
+        research = await clients.post("/call/you.web.research", json={
+            "input": "What is example.com?", "research_effort": "lite",
+        })
+        assert pages.status_code == 200, pages.text
+        assert answer.status_code == 200, answer.text
+        assert research.status_code == 200, research.text
+        assert outbound == [("ydc-index.io", "/v1/contents"),
+                            ("api.you.com", "/v1/answer"),
+                            ("api.you.com", "/v1/research")]
+        assert await _balance(clients) == before - 1_000 - 5_000 - 12_000
+    finally:
+        get_settings.cache_clear()
+
+
+@pytest.mark.parametrize(("endpoint", "body"), [
+    ("you.finance.research.exhaustive", {"input": "Explain Apple Inc.", "research_effort": "exhaustive"}),
+    ("you.finance.research", {"input": "Explain Apple Inc.", "research_effort": "exhaustive"}),
+])
+async def test_you_finance_exhaustive_never_reaches_the_shared_key(clients: AsyncClient, monkeypatch, endpoint, body):
+    monkeypatch.setenv("TREG_PLATFORM_KEY_YOU", "PLATFORM-YOU-KEY")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "you")
+    get_settings.cache_clear()
+    outbound = []
+
+    def upstream(request: httpx.Request) -> httpx.Response:
+        outbound.append(request.url.path)
+        return httpx.Response(200)
+
+    await A.app.state.http.aclose()
+    A.app.state.http = AsyncClient(transport=httpx.MockTransport(upstream))
+    try:
+        before = await _balance(clients)
+        response = await clients.post(f"/call/{endpoint}", json=body)
+        assert response.status_code >= 400, response.text
+        assert outbound == []
+        assert await _balance(clients) == before
+    finally:
+        get_settings.cache_clear()
+
+
+@pytest.mark.parametrize(("effort", "expected_micro"), [
+    ("deep", 100_000), ("exhaustive", 450_000), ("frontier", 1_200_000),
+])
+def test_you_background_research_reserves_its_documented_tier(effort, expected_micro):
+    cat = catalog_store.load()
+    endpoint = cat.by_id["you.web.research.background"]
+    assert cat.platform_eligible(endpoint)
+    body = json.dumps({"input": "Explain example.com", "research_effort": effort, "background": True}).encode()
+    basis = settlement_basis.derive_basis(
+        endpoint["cost"],
+        request=settlement_basis.request_evidence([], body),
+        input_schema=endpoint["input"], unit_micro=1_000_000, terminal=True,
+    )
+    assert basis["when"] == "terminal"
+    assert basis["reserve_micro"] == expected_micro
 
 
 async def test_diffbot_unapproved_catalog_host_fails_before_relay_or_reserve(

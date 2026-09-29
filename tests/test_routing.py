@@ -135,6 +135,18 @@ def test_firecrawl_web_adapters_are_verified_routed_children():
         assert child in cat.by_id[parent]["routed_children"], (parent, child)
 
 
+def test_you_web_adapters_are_verified_routed_children():
+    cat = catalog_store.load()
+    for parent, child in (
+        ("treg.web.search", "you.web.search"),
+        ("treg.web.extract", "you.web.contents"),
+    ):
+        adapter = cat.adapters[child]
+        assert adapter.verified, (child, adapter.verify_note)
+        assert not adapter.verify_note, child
+        assert child in cat.by_id[parent]["routed_children"], (parent, child)
+
+
 def test_search_adapter_does_not_treat_an_answer_without_results_as_a_miss():
     adapter = catalog_store.load().adapters["linkup.web.search"]
     assert adapter.verified

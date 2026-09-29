@@ -2526,6 +2526,32 @@ LINKUP = OAuthProvider(
     probe_path="/v1/credits/balance",
 )
 
+YOU = OAuthProvider(
+    service="you",
+    display_name="You.com",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="your You.com API key",
+    token_header="X-API-Key",
+    token_format="{secret}",
+    setup_url="https://you.com/platform",
+    setup_action_label="Get your You.com API key",
+    setup_steps=(
+        "Sign in to You.com Platform and create an API key.",
+        "Copy the key and connect it here.",
+    ),
+    setup_note="Search, Contents, Answer and Research use prepaid USD credit. treg checks the account balance when you connect the key.",
+    auth_uri="", token_uri="",
+    scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="SEO",
+    summary="Search the web, extract pages, and get cited answers or research.",
+    base_url="https://api.you.com",
+    catalog_targets=(CatalogTarget(host="ydc-index.io", base_url="https://ydc-index.io"),),
+    docs_url="https://you.com/docs/welcome",
+    probe_path="/v1/billing/account_balance",
+)
+
 SERPER = OAuthProvider(
     service="serper",
     display_name="Serper",
@@ -3630,7 +3656,7 @@ REGISTRY: dict[str, OAuthProvider] = {
         TIKHUB, BRIGHTDATA, SEMRUSH, JUSTONEAPI,
         SCRAPECREATORS,
         # SEO API-key providers
-        DATAFORSEO, SERANKING, MOZ, MAJESTIC, SERPSTAT, EXA, TAVILY, LINKUP, KEENABLE, OLOSTEP, FIRECRAWL,
+        DATAFORSEO, SERANKING, MOZ, MAJESTIC, SERPSTAT, EXA, TAVILY, LINKUP, YOU, KEENABLE, OLOSTEP, FIRECRAWL,
         SCRAPEGRAPHAI, SERPER, CLORO,
         # more Enrichment API-key providers
         LUSHA, CORESIGNAL, DIFFBOT, THECOMPANIESAPI, LEADMAGIC, FIBER_AI, CRUSTDATA, AVIATO,
