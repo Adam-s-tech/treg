@@ -290,6 +290,7 @@ class Settings(BaseSettings):
     platform_key_openrouter: str = ""  # Bearer key for asynchronous routed generation
     platform_key_replicate: str = ""  # Bearer token for official asynchronous models
     platform_key_reapi: str = ""      # Bearer key; prepaid credits at $0.001, Seedance 2.5 + image models
+    platform_key_google_ai: str = ""  # x-goog-api-key; token-billed Gemini API project (image output $120/M tokens)
     platform_key_piapi: str = ""      # X-API-Key; prepaid USD balance, Seedance 2.5 less-restriction + image models
     platform_key_tinyfish: str = ""   # X-API-Key; free Search/Fetch plus Agent billed per terminal step
     # Overflow aggregators (docs/PROVIDER-CAPACITY-PLAN.md §4.3): treg-owned accounts that serve the

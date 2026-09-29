@@ -302,6 +302,7 @@ _UNRECORDED_SIGNATURE = {
     "fetchinio",  # funded credits remain; documented generic 402 was not deliberately forced
     "fishaudio",  # shared-key serving stays disabled until the funded-account signatures are verified
     "minimax", "oceanio", "openrouter", "replicate", "scrapecreators", "seranking",
+    "google-ai",  # postpaid Cloud project: 429 RESOURCE_EXHAUSTED is a tier rate/spend cap, not a wallet
     "piapi",  # prepaid wallet exhaustion not observed ($50 funded 2026-09-14); no overflow route
     "serper",  # funded credits remain; no provider-specific empty-balance response was forced
     "litescrape",  # funded call balance remains; no empty-balance response was forced
