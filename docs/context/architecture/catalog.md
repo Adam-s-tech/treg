@@ -1037,6 +1037,10 @@ the 8 MiB settlement buffer (Gemini returns images as base64 in its JSON: ~9 MB 
 validator requires `settle: usage` and refuses the field beside `async`, `resource_ownership` or
 `managed_resource`, which need the whole body.
 
+A `pathParams` field that declares an `enum` is enforced on treg's key: the value names what the
+shared credential is spent on (Google AI's `model`), so any other value is a 400 before reserve.
+Own-key calls still relay whatever path the caller asks for.
+
 `platform_request` fixes exact body, header or query values needed only on the shared credential.
 A `queryParams.*` pin must appear exactly once and is read as the pinned value's type, so a run
 option such as a spend cap or memory size can bound what one call costs. An Apify `per_result` price may add
