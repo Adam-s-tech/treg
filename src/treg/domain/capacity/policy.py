@@ -47,6 +47,7 @@ _KNOWN: dict[str, tuple[str, str, str]] = {
     "tavily": ("credits", "manual", "api"),
     "linkup": ("cash", "manual", "api"),
     "you": ("cash", "auto_recharge", "api"),
+    "valyu": ("credits", "subscription", "manual"),
     # The API supplies the exact credit balance; vendor auto recharge was manually enabled and
     # verified in the Serper dashboard.
     "serper": ("credits", "auto_recharge", "api"),
@@ -147,6 +148,9 @@ _RATE_LIMITS: dict[str, dict] = {
     # returned no rate-limit headers. Smooth the shared key conservatively until the vendor supplies
     # a contract value or production traffic establishes a safer bound. BYOK bypasses this policy.
     "olostep": {"limit": 5, "window_s": 1, "source": "policy"},
+    # Valyu publishes no numeric self-serve limit and successful calls returned no rate headers.
+    # This is a shared-key pacing policy, not a claim about the provider's allowance.
+    "valyu": {"limit": 5, "window_s": 1, "source": "policy"},
     # Standard's strictest shared submission limit is 100/min for Crawl and Batch Scrape.
     # Scrape, Search and Map allow 500/min; provider-wide smoothing uses the lower ceiling.
     "firecrawl": {"limit": 100, "window_s": 60, "source": "docs"},
