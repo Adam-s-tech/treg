@@ -30,7 +30,7 @@ endpoints:
   body_allowlist: true
   platform_request:
     body.search_type: web
-    body.max_price: 50
+    body.max_price: 1.5
     body.response_length: short
   name: Search the open web
   summary: Return ranked live web results.
@@ -56,7 +56,7 @@ endpoints:
         type: number
         required: true
         enum:
-        - 50
+        - 1.5
       response_length:
         type: string
         required: true
@@ -68,7 +68,7 @@ endpoints:
       query: What is example.com?
       max_num_results: 1
       search_type: web
-      max_price: 50
+      max_price: 1.5
       response_length: short
   example_response: examples/valyu.web.search.json
   cost:
@@ -103,7 +103,7 @@ endpoints:
   body_allowlist: true
   platform_request:
     body.search_type: proprietary
-    body.max_price: 50
+    body.max_price: 5
     body.response_length: short
   name: Search academic papers
   summary: Search arXiv, PubMed and subscribed preprint sources.
@@ -129,7 +129,7 @@ endpoints:
         type: number
         required: true
         enum:
-        - 50
+        - 5
       response_length:
         type: string
         required: true
@@ -153,7 +153,7 @@ endpoints:
       query: quantum error correction research
       max_num_results: 1
       search_type: proprietary
-      max_price: 50
+      max_price: 5
       response_length: short
       included_sources: *id001
   cost:
@@ -188,7 +188,7 @@ endpoints:
   body_allowlist: true
   platform_request:
     body.search_type: proprietary
-    body.max_price: 50
+    body.max_price: 6
     body.response_length: short
   name: Search stock market data
   summary: Find stock-price data across global exchanges.
@@ -214,7 +214,7 @@ endpoints:
         type: number
         required: true
         enum:
-        - 50
+        - 6
       response_length:
         type: string
         required: true
@@ -234,7 +234,7 @@ endpoints:
       query: Apple AAPL stock price
       max_num_results: 1
       search_type: proprietary
-      max_price: 50
+      max_price: 6
       response_length: short
       included_sources: *id002
   cost:
@@ -269,7 +269,7 @@ endpoints:
   body_allowlist: true
   platform_request:
     body.search_type: proprietary
-    body.max_price: 50
+    body.max_price: 6
     body.response_length: short
   name: Search cryptocurrency prices
   summary: Find cryptocurrency price and market data.
@@ -295,7 +295,7 @@ endpoints:
         type: number
         required: true
         enum:
-        - 50
+        - 6
       response_length:
         type: string
         required: true
@@ -315,7 +315,7 @@ endpoints:
       query: Bitcoin BTC price
       max_num_results: 1
       search_type: proprietary
-      max_price: 50
+      max_price: 6
       response_length: short
       included_sources: *id003
   cost:
@@ -350,7 +350,7 @@ endpoints:
   body_allowlist: true
   platform_request:
     body.search_type: proprietary
-    body.max_price: 50
+    body.max_price: 6
     body.response_length: short
   name: Search foreign exchange data
   summary: Find currency-pair rates and history.
@@ -376,7 +376,7 @@ endpoints:
         type: number
         required: true
         enum:
-        - 50
+        - 6
       response_length:
         type: string
         required: true
@@ -396,7 +396,7 @@ endpoints:
       query: USD EUR exchange rate
       max_num_results: 1
       search_type: proprietary
-      max_price: 50
+      max_price: 6
       response_length: short
       included_sources: *id004
   cost:
@@ -431,7 +431,7 @@ endpoints:
   body_allowlist: true
   platform_request:
     body.search_type: proprietary
-    body.max_price: 50
+    body.max_price: 12
     body.response_length: short
   name: Search SEC filings
   summary: Find company filings in Valyu’s SEC index.
@@ -457,7 +457,7 @@ endpoints:
         type: number
         required: true
         enum:
-        - 50
+        - 12
       response_length:
         type: string
         required: true
@@ -477,7 +477,7 @@ endpoints:
       query: Apple 2024 annual 10-K filing
       max_num_results: 1
       search_type: proprietary
-      max_price: 50
+      max_price: 12
       response_length: short
       included_sources: *id005
   cost:
@@ -512,7 +512,7 @@ endpoints:
   body_allowlist: true
   platform_request:
     body.search_type: proprietary
-    body.max_price: 50
+    body.max_price: 12
     body.response_length: short
   name: Search insider trades
   summary: Find reported US company insider transactions.
@@ -538,7 +538,7 @@ endpoints:
         type: number
         required: true
         enum:
-        - 50
+        - 12
       response_length:
         type: string
         required: true
@@ -558,7 +558,7 @@ endpoints:
       query: Apple insider transactions
       max_num_results: 1
       search_type: proprietary
-      max_price: 50
+      max_price: 12
       response_length: short
       included_sources: *id006
   cost:
@@ -593,7 +593,7 @@ endpoints:
   body_allowlist: true
   platform_request:
     body.search_type: proprietary
-    body.max_price: 50
+    body.max_price: 12
     body.response_length: short
   name: Search commodities and market movers
   summary: Find commodity prices and US market movers.
@@ -619,7 +619,7 @@ endpoints:
         type: number
         required: true
         enum:
-        - 50
+        - 12
       response_length:
         type: string
         required: true
@@ -640,7 +640,7 @@ endpoints:
       query: US stocks top gainers today
       max_num_results: 1
       search_type: proprietary
-      max_price: 50
+      max_price: 12
       response_length: short
       included_sources: *id007
   cost:
@@ -675,7 +675,7 @@ endpoints:
   body_allowlist: true
   platform_request:
     body.search_type: proprietary
-    body.max_price: 50
+    body.max_price: 5
     body.response_length: short
   name: Search prediction markets
   summary: Find Polymarket and Kalshi events and prices.
@@ -701,7 +701,7 @@ endpoints:
         type: number
         required: true
         enum:
-        - 50
+        - 5
       response_length:
         type: string
         required: true
@@ -722,7 +722,7 @@ endpoints:
       query: 2028 presidential election winner
       max_num_results: 1
       search_type: proprietary
-      max_price: 50
+      max_price: 5
       response_length: short
       included_sources: *id008
   cost:
@@ -757,7 +757,7 @@ endpoints:
   body_allowlist: true
   platform_request:
     body.search_type: proprietary
-    body.max_price: 50
+    body.max_price: 5
     body.response_length: short
   name: Search clinical trials
   summary: Find clinical study protocols and outcomes.
@@ -783,7 +783,7 @@ endpoints:
         type: number
         required: true
         enum:
-        - 50
+        - 5
       response_length:
         type: string
         required: true
@@ -803,7 +803,7 @@ endpoints:
       query: Clinical trials for semaglutide in type 2 diabetes
       max_num_results: 1
       search_type: proprietary
-      max_price: 50
+      max_price: 5
       response_length: short
       included_sources: *id009
   cost:
@@ -838,7 +838,7 @@ endpoints:
   body_allowlist: true
   platform_request:
     body.search_type: proprietary
-    body.max_price: 50
+    body.max_price: 3
     body.response_length: short
   name: Search drug labels and WHO health data
   summary: Find FDA drug labels and WHO Global Health Observatory data.
@@ -864,7 +864,7 @@ endpoints:
         type: number
         required: true
         enum:
-        - 50
+        - 3
       response_length:
         type: string
         required: true
@@ -885,7 +885,7 @@ endpoints:
       query: Ozempic FDA drug label
       max_num_results: 1
       search_type: proprietary
-      max_price: 50
+      max_price: 3
       response_length: short
       included_sources: *id010
   cost:
@@ -920,7 +920,7 @@ endpoints:
   body_allowlist: true
   platform_request:
     body.search_type: proprietary
-    body.max_price: 50
+    body.max_price: 5
     body.response_length: short
   name: Search economic indicators
   summary: Find BLS and World Bank statistics.
@@ -946,7 +946,7 @@ endpoints:
         type: number
         required: true
         enum:
-        - 50
+        - 5
       response_length:
         type: string
         required: true
@@ -967,7 +967,7 @@ endpoints:
       query: United States unemployment rate
       max_num_results: 1
       search_type: proprietary
-      max_price: 50
+      max_price: 5
       response_length: short
       included_sources: *id011
   cost:

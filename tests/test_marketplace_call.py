@@ -998,6 +998,12 @@ def test_valyu_empty_search_releases_the_result_reserve():
         mk, b'{"results": [], "total_deduction_dollars": null}'
     ) == 0
     assert call_settle._observed_cost_micro(
+        mk, b'{"total_deduction_dollars": null}'
+    ) == 0
+    assert call_settle._observed_cost_micro(
+        mk, b'{"results": null, "total_deduction_dollars": null}'
+    ) is None  # malformed results are not proof of an empty search
+    assert call_settle._observed_cost_micro(
         mk, b'{"results": [{"id": "event"}], "total_deduction_dollars": 0.005}'
     ) is None  # the declarative usage basis reads the reported amount
 
