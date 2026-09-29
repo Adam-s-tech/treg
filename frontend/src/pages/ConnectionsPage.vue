@@ -26,7 +26,7 @@ export default {
 <template>
 <div class="pl cn">
   <header class="pl-hero">
-    <p class="pl-eyebrow">{{connAccounts.length + namedKeys.length}} connected<template v-if="connAttention"> · {{connAttention}} need{{connAttention===1?'s':''}} you</template> · {{providers.length}} providers</p>
+    <p class="pl-eyebrow">{{connAccounts.length + namedKeys.length}} connected<template v-if="connAttention"> · {{connAttention}} need{{connAttention===1?'s':''}} you</template> · {{connectable.length}} providers</p>
     <h1>Connections</h1>
     <p class="pl-lede">Your own accounts and API keys. treg keeps each one server-side and adds it to every call your
       agents make to that provider. Your key always wins over treg's, and those calls are never metered.</p>
@@ -59,7 +59,7 @@ export default {
   </section>
 
   <section class="pl-sec">
-    <h2 class="pl-h"><span>{{connAccounts.length || namedKeys.length ? 'Add another' : 'Connect an account or key'}}</span><i></i><em>{{providers.length}}</em></h2>
+    <h2 class="pl-h"><span>{{connAccounts.length || namedKeys.length ? 'Add another' : 'Connect an account or key'}}</span><i></i><em>{{connectable.length}}</em></h2>
     <div class="cat-find cn-find">
       <svg class="cat-find-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       <input v-model="connQ" aria-label="Filter providers" placeholder="Filter providers, e.g. Apollo, Google Ads, video">
@@ -77,10 +77,9 @@ export default {
           <span class="pl-tool-b"><b>{{p.display_name}}</b>
             <span class="pl-meta">{{authLabel(p)}}<template v-if="connCount[p.service]"> · {{connCount[p.service]}} connected</template></span></span>
           <span class="cn-prov-a" @click.stop>
-            <button v-if="p.configured" class="pl-btn sm ghost" :disabled="connBusy"
+            <button class="pl-btn sm ghost" :disabled="connBusy"
                     @click="startConnect(p)" :title="pastedCredential(p) ? 'Paste your own '+p.display_name+' key; treg keeps it server-side' : 'Sign in to '+p.display_name+' and approve access'">
               {{pastedCredential(p) ? (connCount[p.service] ? 'Replace key' : 'Add key') : (connCount[p.service] ? 'Add account' : 'Connect')}}</button>
-            <span v-else class="cn-na" title="This server holds no client credentials for the provider">Unavailable here</span>
           </span>
         </div>
       </div>

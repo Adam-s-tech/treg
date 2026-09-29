@@ -26,6 +26,9 @@ connAccounts(){
         .sort((a,b)=>RANK[a.st.key]-RANK[b.st.key] || byName.compare(a.name, b.name));
     },
 connAttention(){ return this.connAccounts.filter(a=>a.st.key!=='ok').length; },
+// The providers this server can connect: one it holds no client credentials for could only show a
+    // button that does nothing. An account already connected to one still shows under Connected.
+    connectable(){ return this.providers.filter(p=>p.configured); },
 // Every provider an account or key can be added for, by category. /oauth/providers already
     // returns them grouped then alphabetical, so this walks the list once and starts a shelf
     // whenever the category changes; re-sorting would be a second place to keep that order.
@@ -33,7 +36,7 @@ connAttention(){ return this.connAccounts.filter(a=>a.st.key!=='ok').length; },
       const q=this.connQ.trim().toLowerCase();
       const hit=p=>!q || [p.display_name, p.service, p.summary, p.category].join(' ').toLowerCase().includes(q);
       const out=[];
-      for(const p of this.providers){
+      for(const p of this.connectable){
         if(!hit(p)) continue;
         const cat=p.category||'Other';
         if(!out.length || out[out.length-1].category!==cat) out.push({category:cat, items:[]});
