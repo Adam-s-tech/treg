@@ -24,7 +24,7 @@ export default {
   <template v-else-if="platData && !platCap">
     <header class="pl-hero">
       <nav class="pl-crumbs" aria-label="Breadcrumb"><a href="/catalog" @click.prevent="go('connections')">Catalog</a><span>/</span>{{platLabel}}</nav>
-      <p class="pl-eyebrow">{{platShelfIndex.length}} tools · {{platComparisons.length}} compared across providers · {{platProvLine.length}} providers</p>
+      <p class="pl-eyebrow">{{platShelfIndex.length}} {{platShelfIndex.length === 1 ? 'tool' : 'tools'}} · {{platComparisons.length}} compared across providers · {{platProvLine.length}} {{platProvLine.length === 1 ? 'provider' : 'providers'}}</p>
       <h1>{{platLabel}}</h1>
       <p v-if="platRow && platRow.summary" class="pl-lede">{{platRow.summary}}</p>
       <CatalogSearch v-model="platQ" :scope="platSlug" :scope-label="platLabel"

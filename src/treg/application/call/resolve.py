@@ -340,8 +340,8 @@ class MarketplaceCall:
     resource_ownership: dict | None = None
     managed_resource: dict | None = None
     public_resource_ids: tuple[str, ...] = ()
-    # On an endpoint declaring `spooled_response`: the top-level response keys its usage
-    # settlement reads. A metered 2xx goes to disk and only these keys are kept as evidence.
+    # On an endpoint declaring `spooled_response`: the response paths its settlement reads (the
+    # usage meters, the `expect` success rule). A metered 2xx goes to disk; only these are kept.
     spooled_evidence: tuple[str, ...] = ()
     # A platform-key utility poll was authorized against this org-owned submission. The buffered
     # response may teach the same row its provider result/file id before the background worker runs.
@@ -1511,6 +1511,15 @@ def _enforce_apify_run_options(ep: dict, query) -> None:
         )
 
 
+def _spool_evidence_paths(ep: dict, cost: dict) -> tuple[str, ...]:
+    """What a spooled answer must keep for settlement: the top-level objects its usage terms read,
+    and the leaf its `expect` success rule compares. Everything else stays on disk."""
+    if not ep.get("spooled_response"):
+        return ()
+    rule = (ep.get("expect") or {}).get("json_path")
+    return settlement_basis.usage_roots(cost) + ((str(rule),) if rule else ())
+
+
 def _enforce_platform_request(ep: dict, body: bytes, headers=None, query=None) -> None:
     """Check explicit platform constraints and fixed pricing selectors before reserve/relay.
 
@@ -2085,8 +2094,7 @@ async def _resolve_marketplace_call(
         settlement_basis=basis, request_data=request_data,
         async_descriptor=ep.get("async"), resource_ownership=ep.get("resource_ownership"),
         managed_resource=ep.get("managed_resource"),
-        spooled_evidence=(settlement_basis.usage_roots(raw_cost)
-                          if ep.get("spooled_response") else ()),
+        spooled_evidence=_spool_evidence_paths(ep, raw_cost),
     )
     if chosen_tool is not None:
         return MarketplaceCall(tool=chosen_tool, tier="tool", **common)

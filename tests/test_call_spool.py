@@ -199,3 +199,26 @@ async def test_a_temp_file_that_cannot_be_created_still_closes_the_upstream(monk
     with pytest.raises(OSError):
         await _spool_response(upstream, ("usageMetadata",))
     assert state["closes"] == 1
+
+
+async def test_evidence_keeps_a_success_leaf_without_its_siblings():
+    """A fixed-price answer settles on its `expect` leaf: `candidates.0.finishReason` survives, the
+    inline media beside it does not."""
+    upstream, _ = _upstream(BODY, declared=len(BODY))
+    response, evidence, _ = await _spool_response(
+        upstream, ("usageMetadata", "candidates.0.finishReason"))
+    assert json.loads(evidence) == {"usageMetadata": USAGE,
+                                    "candidates": [{"finishReason": "STOP"}]}
+    await response.close()
+
+
+def test_spool_evidence_paths_come_from_usage_and_the_success_rule():
+    from treg.application.call.resolve import _spool_evidence_paths
+    usage = {"settle": "usage", "usage": {"unit": "usd", "terms": [
+        {"path": "usageMetadata.promptTokenCount", "rate": 1}]}}
+    assert _spool_evidence_paths({"spooled_response": True}, usage) == ("usageMetadata",)
+    rule = {"spooled_response": True,
+            "expect": {"json_path": "candidates.0.finishReason", "equals": "STOP"}}
+    assert _spool_evidence_paths(rule, {"type": "per_success", "value": 0.08}) == (
+        "candidates.0.finishReason",)
+    assert _spool_evidence_paths({}, usage) == ()
