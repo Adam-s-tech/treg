@@ -2643,6 +2643,12 @@ adapters:
     miss: "coalesce(output.data.suggestions, []) == []"
 
   # ---- open web -----------------------------------------------------------------------------
+  you.web.search:
+    accepts: [[q]]
+    in: {q: body.query}
+    in_expr: {body.count: limit}
+    out: {results: results.web, count: "len(results.web)"}
+    miss: "coalesce(results.web, []) == []"
   tinyfish.web.search:
     accepts: [[q]]
     in: {q: queryParams.query}
@@ -2710,6 +2716,13 @@ adapters:
     out: {results: results, count: "len(results)"}
     miss: "coalesce(results, []) == []"
 
+  you.web.contents:
+    accepts: [[url]]
+    in_expr: {body.urls: "list(url)"}
+    test_identity: {url: "https://example.com"}
+    const: {body.formats: [markdown]}
+    out: {pages: ".", count: "len(.)"}
+    miss: ". == []"
   tinyfish.web.fetch:
     accepts: [[url]]
     in_expr: {body.urls: "list(url)"}

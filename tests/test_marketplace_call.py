@@ -427,6 +427,49 @@ async def test_diffbot_shared_key_uses_each_catalog_endpoint_host(
     assert await _balance(clients) == before - charge_micro
 
 
+async def test_you_shared_key_reaches_both_api_hosts_and_settles_returned_pages(
+    clients: AsyncClient, monkeypatch,
+):
+    monkeypatch.setenv("TREG_PLATFORM_KEY_YOU", "PLATFORM-YOU-KEY")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "you")
+    get_settings.cache_clear()
+    outbound = []
+
+    def upstream(request: httpx.Request) -> httpx.Response:
+        assert request.headers["x-api-key"] == "PLATFORM-YOU-KEY"
+        outbound.append((request.url.host, request.url.path))
+        if request.url.path == "/v1/contents":
+            # The second requested page was not returned, so only one page is metered.
+            body = b'[{"url":"https://example.com/a","markdown":"A"}]'
+        elif request.url.path == "/v1/research":
+            body = b'{"output":"Example","sources":[]}'
+        else:
+            body = b'{"answer":"Example","citations":[]}'
+        return httpx.Response(200, stream=httpx.ByteStream(body),
+                              headers={"content-type": "application/json"})
+
+    await A.app.state.http.aclose()
+    A.app.state.http = AsyncClient(transport=httpx.MockTransport(upstream))
+    try:
+        before = await _balance(clients)
+        pages = await clients.post("/call/you.web.contents", json={
+            "urls": ["https://example.com/a", "https://example.com/b"], "formats": ["markdown"],
+        })
+        answer = await clients.post("/call/you.web.answer", json={"query": "What is example.com?"})
+        research = await clients.post("/call/you.web.research", json={
+            "input": "What is example.com?", "research_effort": "lite",
+        })
+        assert pages.status_code == 200, pages.text
+        assert answer.status_code == 200, answer.text
+        assert research.status_code == 200, research.text
+        assert outbound == [("ydc-index.io", "/v1/contents"),
+                            ("api.you.com", "/v1/answer"),
+                            ("api.you.com", "/v1/research")]
+        assert await _balance(clients) == before - 1_000 - 5_000 - 12_000
+    finally:
+        get_settings.cache_clear()
+
+
 async def test_diffbot_unapproved_catalog_host_fails_before_relay_or_reserve(
     clients: AsyncClient, diffbot_platform_on, monkeypatch,
 ):

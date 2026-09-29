@@ -183,6 +183,7 @@ capabilities:
   web.search.news: "Search recent news articles by topic"
   web.search.publications: "Search research papers and publications"
   web.answer: "Answer a question from live web research, with cited sources"
+  web.answer.status: "Check a web research task"
 
   # --- Social -----------------------------------------------------------------------------------
   tiktok.user.profile: "Get a user's public profile"

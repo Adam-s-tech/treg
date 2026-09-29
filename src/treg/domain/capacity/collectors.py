@@ -177,6 +177,21 @@ async def _linkup(c, key):
     return {"value": float(raw), "unit": "USD", "note": "prepaid credit balance"}
 
 
+async def _you(c, key):
+    d = await _get(c, "https://api.you.com/v1/billing/account_balance",
+                   headers={"X-API-Key": key})
+    data = d.get("data") if isinstance(d, dict) else None
+    attributes = data.get("attributes") if isinstance(data, dict) else None
+    raw = attributes.get("balance") if isinstance(attributes, dict) else None
+    try:
+        cents = Decimal(str(raw)) if raw is not None and not isinstance(raw, bool) else None
+    except (InvalidOperation, ValueError):
+        cents = None
+    if cents is None or not cents.is_finite() or cents < 0:
+        raise ValueError("You.com returned no valid account balance")
+    return {"value": float(cents / 100), "unit": "USD", "note": "prepaid account balance"}
+
+
 async def _scrapegraphai(c, key):
     d = await _get(c, "https://v2-api.scrapegraphai.com/api/credits",
                    headers={"SGAI-APIKEY": key})
@@ -821,6 +836,7 @@ BALANCE_ROUTES = {
     "fishaudio": _fishaudio,
     "tavily": _tavily,
     "linkup": _linkup,
+    "you": _you,
     "serper": _serper,
     "olostep": _olostep,
     "firecrawl": _firecrawl,
