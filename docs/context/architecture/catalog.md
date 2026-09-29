@@ -961,7 +961,12 @@ terminal document on an async row, the buffered body on a synchronous one), whic
 reserve (OpenRouter's unpublished minimums). A flat `value` may also declare `settle: usage` with
 no table: its explicit `fallback` is the reserve. Either form requires exactly a dotted
 `usage.path` and a supported `usage.unit` (`usd`; `credit` when fx.yaml prices that provider's
-credit; or a provider-native meter with a numeric `unit_rates_usd[provider][unit]` entry), and any
+credit; or a provider-native meter with a numeric `unit_rates_usd[provider][unit]` entry), or
+`usage.terms` with `unit: usd` for a provider that reports several meters and no charge: a list of
+`{path, rate}` whose figure is the sum of each meter times its positive USD rate. A term path may
+select a list item by key (`candidatesTokensDetails[modality=IMAGE].tokenCount`), because per-
+modality entries have no guaranteed order. An absent meter counts as zero (proto3 JSON omits zero
+fields); a response with none of them is unobserved and settles at the reserve. Any
 other settle rejects a stray usage block. A `times`
 value is never non-positive, whatever minimum the field declares, so a field that admits a sentinel
 such as `-1` cannot multiply a rate by it; the sentinel is priced by a flat row that pins it, and
@@ -1024,6 +1029,13 @@ credit rate. The catalog estimate still reserves a safe
 ceiling. A finite nonnegative response value settles the call at that amount; missing, invalid, or
 non-finite evidence falls back to the normal estimate/miss rules. `reported_charge` is generic
 catalog metadata, not a provider-specific billing branch, and cannot be combined with `cost.settle`.
+
+`spooled_response: true` marks a synchronous endpoint whose answer inlines media too large for
+the 8 MiB settlement buffer (Gemini returns images as base64 in its JSON: ~9 MB at 2K, ~23 MB at
+4K). Its metered 2xx is read to disk and settled from the top-level keys its usage paths start at
+(`settlement.usage_roots`; proxy-model.md), so the evidence cannot drift from the price. The
+validator requires `settle: usage` and refuses the field beside `async`, `resource_ownership` or
+`managed_resource`, which need the whole body.
 
 `platform_request` fixes exact body, header or query values needed only on the shared credential.
 A `queryParams.*` pin must appear exactly once and is read as the pinned value's type, so a run

@@ -208,7 +208,12 @@ response. The response remains `Cache-Control: no-store` and precedes any login 
 
 `response_buffer_limit` is a treg-attributed 502 with a structured `detail.error` of the same
 name. It means response evidence exceeded the 8 MiB settlement buffer before delivery; the new
-call is not charged and its hold/idempotency claim is released. Authorized free final GET fetches
+call is not charged and its hold/idempotency claim is released. On an endpoint declaring
+`spooled_response` the same error means the body passed `spool_max_bytes` (64 MiB) or the
+process's concurrent spool budget; the latter is temporary (its message says so) and clears as other
+calls finish, so unlike an oversized answer it is worth retrying. A successful spooled
+answer carries the usual exact `X-Treg-Cost-Micro`, but it is not stored for idempotent replay: a
+retry with the same key calls the provider again and is charged again. Authorized free final GET fetches
 needing no body evidence stream without that limit and return zero cost; their retries read the
 provider again. See `proxy-model.md` for the eligibility and close-once lifecycle.
 

@@ -86,6 +86,10 @@ resolves the tool by host and injects the credential:
   return `502` with `detail.error=response_buffer_limit` and no charge; retrying the same oversized
   response will not help. Authorized free final downloads needing no body evidence stream in full.
   Such downloads are fetched again on retry, not retained for local idempotent replay.
+- A tool whose answer inlines media (Google AI's Gemini images arrive as base64 in the JSON) is
+  exempt from the 8 MiB limit up to 64 MiB and is charged from the provider's reported usage. Its
+  answer is never replayed: an `Idempotency-Key` retry generates, and bills, a new image. A
+  `response_buffer_limit` whose message says it is temporary means treg is busy: retry shortly.
 
 ### Retrying a call: `Idempotency-Key`
 

@@ -5970,8 +5970,10 @@ def _print_price_table(cost, inp: dict) -> None:
         print(f"  {'fallback (ceiling)':<58} {money(float(fb['value']))}")
     if settle == "usage":
         usage = cost.get("usage") or {}
+        reported = (", ".join(str(t.get("path")) for t in usage["terms"]) + " at their rates"
+                    if usage.get("terms") else usage.get("path", "usage"))
         _dim(f"  settle: usage - the matched row is reserved; the provider's reported "
-             f"{usage.get('path', 'usage')} is what you pay")
+             f"{reported} is what you pay")
         _dim("  (it can exceed the reserve when the provider applies a minimum charge).")
     else:
         _dim("  settle: table - the matched row is reserved at submission and charged when the task succeeds.")

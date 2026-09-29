@@ -380,7 +380,9 @@ No `.env` is needed for local dev — every setting has a working default (ephem
 decrypt its secret(s) → apply each binding's injector → stream to the upstream → fire-and-forget
 audit record. The infra relay streams bytes without business logic. The call application buffers
 responses needing settlement or ownership evidence up to 8 MiB; larger responses return a 502
-without charging instead of a truncated success. Authorized free final downloads needing no body
+without charging instead of a truncated success. Endpoints that inline media (Gemini images)
+declare `spooled_response`: their metered answer is read to a temp file instead, settled from its
+reported usage, and relayed whole. Authorized free final downloads needing no body
 evidence stream in full, as do own-key and own-tool responses.
 
 **Module map** (`src/treg/`):

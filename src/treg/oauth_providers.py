@@ -1860,6 +1860,35 @@ REAPI = OAuthProvider(
     probe_reject_statuses=(401, 403),
 )
 
+GOOGLE_AI = OAuthProvider(
+    service="google-ai",
+    display_name="Google AI (Gemini API)",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="your Gemini API key",
+    token_header="x-goog-api-key",
+    token_format="{secret}",
+    setup_url="https://aistudio.google.com/apikey",
+    setup_action_label="Get your Gemini API key",
+    setup_steps=(
+        "Sign in to Google AI Studio and open Get API key.",
+        "Create a key in a project with billing enabled (image models are paid-tier only).",
+    ),
+    setup_note=(
+        "Calls bill the key's Google Cloud project by token. treg checks the free model list "
+        "when you connect the key."
+    ),
+    auth_uri="", token_uri="", scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="AI generation",
+    summary="Generate and edit images with Gemini 3 Pro Image on Google's own API.",
+    base_url="https://generativelanguage.googleapis.com/v1beta",
+    docs_url="https://ai.google.dev/gemini-api/docs/image-generation",
+    # A bad key answers 400 API_KEY_INVALID, 401 UNAUTHENTICATED (a malformed AQ. key) or 403
+    # (none), observed 2026-09-29; listing models is free.
+    probe_path="/models?pageSize=1",
+)
+
 PIAPI = OAuthProvider(
     service="piapi",
     display_name="PiAPI",
@@ -3726,7 +3755,7 @@ REGISTRY: dict[str, OAuthProvider] = {
         TRYKITT, CONTACTOUT, MILLIONVERIFIER, BOUNCEBAN, CRUNCHBASE, MINIMAX, FISHAUDIO,
         OPENROUTER,
         REPLICATE,
-        REAPI, PIAPI, TINYFISH,
+        REAPI, PIAPI, GOOGLE_AI, TINYFISH,
         TIKHUB, BRIGHTDATA, SEMRUSH, JUSTONEAPI,
         SCRAPECREATORS,
         # SEO API-key providers
