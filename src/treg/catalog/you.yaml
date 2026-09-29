@@ -5,7 +5,6 @@ source:
 pricing_url: https://you.com/docs/administration/billing
 limits: "Self-serve Search, Contents, Answer and Research allow 10 requests/s each; Finance Research allows 5 requests/s. Enterprise limits may differ. Successful live responses did not include the documented rate-limit headers."
 proposed_capabilities:
-  web.answer.research: "Research a question across multiple web sources"
   stocks.research: "Research a financial question with cited sources"
 
 endpoints:

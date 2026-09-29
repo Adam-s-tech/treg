@@ -2693,6 +2693,31 @@ SPIDERCLOUD = OAuthProvider(
     probe_path="/data/credits",
 )
 
+PERPLEXITY = OAuthProvider(
+    service="perplexity",
+    display_name="Perplexity",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="pplx-…",
+    setup_url="https://console.perplexity.ai/",
+    setup_action_label="Get your Perplexity API key",
+    setup_steps=(
+        "Sign in to the Perplexity API console and open API keys.",
+        "Generate or copy an API key.",
+    ),
+    setup_note=(
+        "Search and Agent calls spend prepaid API credits. The credit balance is shown in the "
+        "console; connecting checks the free Agent model-list endpoint."
+    ),
+    auth_uri="", token_uri="", scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="SEO",
+    summary="Search the web and get cited answers or background research.",
+    base_url="https://api.perplexity.ai",
+    docs_url="https://docs.perplexity.ai/docs/getting-started/overview",
+    probe_path="/v1/models",
+)
+
 SCRAPEGRAPHAI = OAuthProvider(
     service="scrapegraphai",
     display_name="ScrapeGraphAI",
@@ -3681,7 +3706,7 @@ REGISTRY: dict[str, OAuthProvider] = {
         TIKHUB, BRIGHTDATA, SEMRUSH, JUSTONEAPI,
         SCRAPECREATORS,
         # SEO API-key providers
-        DATAFORSEO, SERANKING, MOZ, MAJESTIC, SERPSTAT, EXA, TAVILY, LINKUP, YOU, KEENABLE, OLOSTEP, FIRECRAWL, SPIDERCLOUD,
+        DATAFORSEO, SERANKING, MOZ, MAJESTIC, SERPSTAT, EXA, TAVILY, LINKUP, YOU, KEENABLE, OLOSTEP, FIRECRAWL, SPIDERCLOUD, PERPLEXITY,
         SCRAPEGRAPHAI, SERPER, CLORO,
         # more Enrichment API-key providers
         LUSHA, CORESIGNAL, DIFFBOT, THECOMPANIESAPI, LEADMAGIC, FIBER_AI, CRUSTDATA, AVIATO,
