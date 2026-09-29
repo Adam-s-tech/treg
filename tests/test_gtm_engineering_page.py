@@ -22,6 +22,11 @@ async def test_hub_is_served_canonical_and_measurable(clients: AsyncClient):
     assert '<link rel="canonical" href="' in html and f'{PATH}"/>' in html
     assert "{BASE}" not in html and "{ENDPOINTS}" not in html and "{PROVIDERS}" not in html
     # Hand-written pages are the ones PostHog sees; the hub exists partly to be measured.
+    # The agent name in the H1 rotates in the browser; what a crawler reads must already be whole.
+    assert '<span id="agName">Claude Code</span>' in html
+    assert re.search(r"<h1>.*GTM engineering with.*Claude Code.*</h1>", html, re.S)
+    title = re.search(r"<title>(.*?)</title>", html).group(1)
+    assert len(title.replace("&amp;", "&")) <= 62, title
     assert '<script src="/sitetrack.js"></script>' in html
     assert '<script src="/adtrack.js"></script>' in html
     kinds = []
