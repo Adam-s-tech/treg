@@ -305,6 +305,7 @@ _UNRECORDED_SIGNATURE = {
     "piapi",  # prepaid wallet exhaustion not observed ($50 funded 2026-09-14); no overflow route
     "serper",  # funded credits remain; no provider-specific empty-balance response was forced
     "tinyfish",  # funded wallet remains; no provider-specific empty-wallet response was forced
+    "spidercloud",  # funded dollar balance remains; no empty-balance response was forced
     "trestleiq",  # funded wallet remains; documented 403/429 shapes do not identify empty balance
     "you",  # funded wallet remains; no provider-specific empty-balance response was forced
 

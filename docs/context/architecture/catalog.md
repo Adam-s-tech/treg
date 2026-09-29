@@ -32,6 +32,13 @@ sources:
   - src/treg/catalog/examples/linkup.web.answer.status.json
   - src/treg/catalog/keenable.yaml
   - src/treg/catalog/olostep.yaml
+  - src/treg/catalog/spidercloud.yaml
+  - src/treg/catalog/examples/spidercloud.web.scrape.json
+  - src/treg/catalog/examples/spidercloud.web.crawl.json
+  - src/treg/catalog/examples/spidercloud.web.search.json
+  - src/treg/catalog/examples/spidercloud.web.links.json
+  - src/treg/catalog/examples/spidercloud.web.unblock.json
+  - src/treg/catalog/examples/spidercloud.web.screenshot.json
   - src/treg/catalog/tinyfish.yaml
   - src/treg/catalog/examples/tinyfish.web.search.json
   - src/treg/catalog/examples/tinyfish.web.search.news.json
@@ -330,6 +337,16 @@ tasks after the owned
 `GET /v1/research/{id}` poll reports completion. The polling read is free and restricted to the
 team that submitted the task on the shared key. Account-wide task listing, mixed batch Tasks,
 closed-beta Extract, and the undocumented Responses route are outside the shared-key catalog.
+
+Spider's `spidercloud.yaml` curates Scrape, Crawl, Search, Links, Unblocker and Screenshot. The
+standard routes are live-verified with public targets. Only the bounded Search listing is offered
+on the shared key: with `fetch_page_content=false`, a two-result limit and the default listing each debited ten
+Spider API credits ($0.001). Search's response has no per-call cost object. A fetched-page Search
+probe produced a very large response and a variable charge, so the catalog exposes only the
+listing form. The other five routes remain BYOK-only because bandwidth, compute, browser and
+Unblocker charges depend on the target. `max_credits_allowed=1` did not stop Search or Unblocker
+from debiting more than one credit, so it is not used as a shared-key reserve ceiling. A team's own
+credential remains unmetered by treg.
 
 A verification stamp proves the request shape, response shape, and paid behavior that the evidence
 actually observed. A placeholder path value or a free miss does not prove a paid hit. Such rows keep

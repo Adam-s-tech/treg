@@ -2668,6 +2668,31 @@ FIRECRAWL = OAuthProvider(
     probe_path="/v2/team/credit-usage",
 )
 
+SPIDERCLOUD = OAuthProvider(
+    service="spidercloud",
+    display_name="Spider",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="sk-…",
+    setup_url="https://spider.cloud/account/keys/",
+    setup_action_label="Get your Spider API key",
+    setup_steps=(
+        "Sign in to Spider and open API Keys.",
+        "Create or copy an API key.",
+    ),
+    setup_note=(
+        "Spider bills pay-as-you-go usage from your dollar balance. treg checks the free "
+        "balance endpoint when you connect the key."
+    ),
+    auth_uri="", token_uri="", scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="SEO",
+    summary="Scrape and crawl pages, search, discover links, unblock pages, and capture screenshots.",
+    base_url="https://api.spider.cloud",
+    docs_url="https://spider.cloud/docs/api/",
+    probe_path="/data/credits",
+)
+
 SCRAPEGRAPHAI = OAuthProvider(
     service="scrapegraphai",
     display_name="ScrapeGraphAI",
@@ -3656,7 +3681,7 @@ REGISTRY: dict[str, OAuthProvider] = {
         TIKHUB, BRIGHTDATA, SEMRUSH, JUSTONEAPI,
         SCRAPECREATORS,
         # SEO API-key providers
-        DATAFORSEO, SERANKING, MOZ, MAJESTIC, SERPSTAT, EXA, TAVILY, LINKUP, YOU, KEENABLE, OLOSTEP, FIRECRAWL,
+        DATAFORSEO, SERANKING, MOZ, MAJESTIC, SERPSTAT, EXA, TAVILY, LINKUP, YOU, KEENABLE, OLOSTEP, FIRECRAWL, SPIDERCLOUD,
         SCRAPEGRAPHAI, SERPER, CLORO,
         # more Enrichment API-key providers
         LUSHA, CORESIGNAL, DIFFBOT, THECOMPANIESAPI, LEADMAGIC, FIBER_AI, CRUSTDATA, AVIATO,

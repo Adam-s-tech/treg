@@ -167,6 +167,21 @@ async def _firecrawl(c, key):
             "note": f"billing period ends {data.get('billingPeriodEnd') or 'unknown'}"}
 
 
+async def _spidercloud(c, key):
+    d = await _get(c, "https://api.spider.cloud/data/credits",
+                   headers={"Authorization": f"Bearer {key}"})
+    data = d.get("data") if isinstance(d, dict) else None
+    raw = data.get("credits") if isinstance(data, dict) else None
+    try:
+        credits = Decimal(raw) if isinstance(raw, (str, int, float)) and not isinstance(raw, bool) else None
+    except (InvalidOperation, ValueError):
+        credits = None
+    if credits is None or not credits.is_finite() or credits < 0:
+        raise ValueError("Spider returned no valid credit balance")
+    return {"value": float(credits / Decimal(10_000)), "unit": "USD",
+            "note": "Pay-as-you-go balance; Spider reports 10,000 API credits per USD"}
+
+
 async def _linkup(c, key):
     d = await _get(c, "https://api.linkup.so/v1/credits/balance",
                    headers={"Authorization": f"Bearer {key}"})
@@ -840,6 +855,7 @@ BALANCE_ROUTES = {
     "serper": _serper,
     "olostep": _olostep,
     "firecrawl": _firecrawl,
+    "spidercloud": _spidercloud,
     "scrapegraphai": _scrapegraphai,
     "scrapecreators": _scrapecreators,
     "serpapi": _serpapi,

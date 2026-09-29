@@ -262,6 +262,7 @@ class Settings(BaseSettings):
     platform_key_olostep: str = ""    # Bearer; prepaid credits, platform price $0.002/credit
     platform_key_firecrawl: str = ""  # Bearer; Standard plan credits, priced at the public base-plan rate
     platform_key_scrapegraphai: str = ""  # SGAI-APIKEY; credit balance and bounded v2 web tools
+    platform_key_spidercloud: str = ""   # Bearer; PAYG USD balance, only priced routes may use shared key
     platform_key_cloro: str = ""      # Bearer key (sk_live_…); Hobby metered rate $0.0004/credit; settles from X-Credits-Charged
     platform_key_minimax: str = ""    # Bearer key for MiniMax voice, image and video generation
     platform_key_fishaudio: str = ""  # Bearer key for Fish Audio speech and private voices
