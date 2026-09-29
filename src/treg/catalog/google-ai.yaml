@@ -7,6 +7,10 @@ pricing_url: https://ai.google.dev/gemini-api/docs/pricing
 proposed_capabilities:
   image-gen.gemini-3-1-flash-image.generate: "Gemini 3.1 Flash Image (Nano Banana 2)"
   image-gen.gemini-3-1-flash-lite-image.generate: "Gemini 3.1 Flash Lite Image (Nano Banana 2 Lite)"
+  voice-gen.gemini-3-8-flash-tts.generate: "Gemini 3.8 Flash TTS"
+  voice-gen.gemini-3-8-flash-lite-tts.generate: "Gemini 3.8 Flash-Lite TTS"
+  music-gen.lyria-3-5.generate: "Lyria 3.5 (full song)"
+  music-gen.lyria-3-clip.generate: "Lyria 3 Clip (30-second clip)"
 limits: "Synchronous: one generateContent call takes about 25-70 seconds and answers with the image inline as base64 (`candidates[0].content.parts[].inlineData.data`), not a URL. A 2K answer is about 9 MB and a 4K one about 23 MB, most of it a `thoughtSignature` that only multi-turn editing needs; add `fields=candidates(content(parts(text,inlineData)),finishReason),usageMetadata,modelVersion,responseId,promptFeedback` to receive about 4 MB (2K) instead. Rate limits and a spend cap per 10 minutes follow the Google Cloud billing account's tier; 429 RESOURCE_EXHAUSTED is that limit, 503 UNAVAILABLE is Google-side demand and is worth a later retry."
 endpoints:
   - id: google-ai.image-gen.gemini-3-pro-image
@@ -194,3 +198,195 @@ endpoints:
     verified: 2026-09-30
     example_response: examples/google-ai.image-gen.gemini-3-1-flash-lite-image.json
     docs_url: https://ai.google.dev/gemini-api/docs/image-generation
+
+  - id: google-ai.voice-gen.gemini-3-8-flash-tts
+    capability: voice-gen.gemini-3-8-flash-tts.generate
+    platform: voice-gen
+    domain: models
+    scope: any_account
+    method: POST
+    path: /models/{model}:generateContent
+    name: "Google: Gemini 3.8 Flash TTS"
+    summary: "Speak a text in one of 30 prebuilt voices, or a two-speaker dialogue, with Gemini 3.8 Flash TTS on Google's own API; the audio returns inline as base64 WAV (24 kHz mono)."
+    spooled_response: true
+    input:
+      pathParams:
+        model: {type: string, required: true, enum: [gemini-3.8-flash-tts], example: gemini-3.8-flash-tts}
+      body:
+        contents:
+          type: array
+          required: true
+          example: [{parts: [{text: "Say cheerfully: Welcome to treg."}]}]
+          note: "One user turn: {parts: [{text: script}]}. Style is steered in the text itself (\"Say cheerfully: ...\"). For two speakers, give each line its own part with its speaker: [{text: \"Did it finish?\", speechMetadata: {speaker: Joe}}, {text: \"Yes.\", speechMetadata: {speaker: Jane}}], and name both in multiSpeakerVoiceConfig; a single \"Joe: ... Jane: ...\" text answers 400."
+        generationConfig:
+          type: object
+          required: true
+          properties:
+            responseModalities: {type: array, required: true, example: [AUDIO], note: "Must be [AUDIO]."}
+            speechConfig:
+              type: object
+              required: true
+              note: "Either {voiceConfig: {prebuiltVoiceConfig: {voiceName}}} for one voice, or {multiSpeakerVoiceConfig: {speakerVoiceConfigs: [{speaker, voiceConfig: {prebuiltVoiceConfig: {voiceName}}}]}} for exactly two named speakers. Voices: Zephyr, Puck, Charon, Kore, Fenrir, Leda, Orus, Aoede, Callirrhoe, Autonoe, Enceladus, Iapetus, Umbriel, Algieba, Despina, Erinome, Algenib, Rasalgethi, Laomedeia, Achernar, Alnilam, Schedar, Gacrux, Pulcherrima, Achird, Zubenelgenubi, Vindemiatrix, Sadachbia, Sadaltager, Sulafat."
+              example: {voiceConfig: {prebuiltVoiceConfig: {voiceName: Kore}}}
+      bodyType: json
+    test_request:
+      pathParams: {model: gemini-3.8-flash-tts}
+      body: {contents: [{parts: [{text: "Say cheerfully: Welcome to treg, the tool catalog for your agents."}]}], generationConfig: {responseModalities: [AUDIO], speechConfig: {voiceConfig: {prebuiltVoiceConfig: {voiceName: Kore}}}}}
+    cost:
+      type: per_success
+      value: 0.05
+      per: 1
+      unit: call
+      fallback: {value: 0.05, note: "About 5,500 audio tokens (3.7 minutes); the reported token meters settle, and a long script may settle above it."}
+      currency: USD
+      settle: usage
+      usage:
+        unit: usd
+        terms:
+          - {path: usageMetadata.promptTokenCount, rate: 0.0000005}
+          - {path: usageMetadata.candidatesTokenCount, rate: 0.000009}
+          - {path: usageMetadata.thoughtsTokenCount, rate: 0.000009}
+      source: docs
+      source_url: https://ai.google.dev/gemini-api/docs/pricing
+      checked: 2026-09-30
+      confidence: documented
+      note: "Token-metered at Google's paid-tier rates (through 2026-12-31): input $0.50/M, audio output $9/M, about 25 audio tokens a second ($0.00225 per 10 s). Live 2026-09-30 a 7.1 s line read 22 prompt and 228 audio tokens ($0.002063). A five-minute WAV is about 19 MB of base64 and is spooled."
+    verified: 2026-09-30
+    example_response: examples/google-ai.voice-gen.gemini-3-8-flash-tts.json
+    docs_url: https://ai.google.dev/gemini-api/docs/speech-generation
+
+  - id: google-ai.voice-gen.gemini-3-8-flash-lite-tts
+    capability: voice-gen.gemini-3-8-flash-lite-tts.generate
+    platform: voice-gen
+    domain: models
+    scope: any_account
+    method: POST
+    path: /models/{model}:generateContent
+    name: "Google: Gemini 3.8 Flash-Lite TTS"
+    summary: "Speak a text in one of 30 prebuilt voices, or a two-speaker dialogue, with Gemini 3.8 Flash-Lite TTS on Google's own API; the audio returns inline as base64 WAV (24 kHz mono)."
+    spooled_response: true
+    input:
+      pathParams:
+        model: {type: string, required: true, enum: [gemini-3.8-flash-lite-tts], example: gemini-3.8-flash-lite-tts}
+      body:
+        contents:
+          type: array
+          required: true
+          example: [{parts: [{text: "Say cheerfully: Welcome to treg."}]}]
+          note: "One user turn: {parts: [{text: script}]}. Style is steered in the text itself (\"Say cheerfully: ...\"). For two speakers, give each line its own part with its speaker: [{text: \"Did it finish?\", speechMetadata: {speaker: Joe}}, {text: \"Yes.\", speechMetadata: {speaker: Jane}}], and name both in multiSpeakerVoiceConfig; a single \"Joe: ... Jane: ...\" text answers 400."
+        generationConfig:
+          type: object
+          required: true
+          properties:
+            responseModalities: {type: array, required: true, example: [AUDIO], note: "Must be [AUDIO]."}
+            speechConfig:
+              type: object
+              required: true
+              note: "Either {voiceConfig: {prebuiltVoiceConfig: {voiceName}}} for one voice, or {multiSpeakerVoiceConfig: {speakerVoiceConfigs: [{speaker, voiceConfig: {prebuiltVoiceConfig: {voiceName}}}]}} for exactly two named speakers. Voices: Zephyr, Puck, Charon, Kore, Fenrir, Leda, Orus, Aoede, Callirrhoe, Autonoe, Enceladus, Iapetus, Umbriel, Algieba, Despina, Erinome, Algenib, Rasalgethi, Laomedeia, Achernar, Alnilam, Schedar, Gacrux, Pulcherrima, Achird, Zubenelgenubi, Vindemiatrix, Sadachbia, Sadaltager, Sulafat."
+              example: {voiceConfig: {prebuiltVoiceConfig: {voiceName: Kore}}}
+      bodyType: json
+    test_request:
+      pathParams: {model: gemini-3.8-flash-lite-tts}
+      body: {contents: [{parts: [{text: "Say cheerfully: Welcome to treg, the tool catalog for your agents."}]}], generationConfig: {responseModalities: [AUDIO], speechConfig: {voiceConfig: {prebuiltVoiceConfig: {voiceName: Kore}}}}}
+    cost:
+      type: per_success
+      value: 0.035
+      per: 1
+      unit: call
+      fallback: {value: 0.035, note: "About 5,800 audio tokens (3.9 minutes); the reported token meters settle, and a long script may settle above it."}
+      currency: USD
+      settle: usage
+      usage:
+        unit: usd
+        terms:
+          - {path: usageMetadata.promptTokenCount, rate: 0.0000005}
+          - {path: usageMetadata.candidatesTokenCount, rate: 0.000006}
+          - {path: usageMetadata.thoughtsTokenCount, rate: 0.000006}
+      source: docs
+      source_url: https://ai.google.dev/gemini-api/docs/pricing
+      checked: 2026-09-30
+      confidence: documented
+      note: "Token-metered at Google's paid-tier rates: input $0.50/M, audio output $6/M ($0.0015 per 10 s). Live 2026-09-30 a 7.5 s line read 22 prompt and 240 audio tokens ($0.001451). A five-minute WAV is about 19 MB of base64 and is spooled."
+    verified: 2026-09-30
+    example_response: examples/google-ai.voice-gen.gemini-3-8-flash-lite-tts.json
+    docs_url: https://ai.google.dev/gemini-api/docs/speech-generation
+
+  - id: google-ai.music-gen.lyria-3-5
+    capability: music-gen.lyria-3-5.generate
+    platform: music-gen
+    domain: models
+    scope: any_account
+    method: POST
+    path: /models/{model}:generateContent
+    name: "Google: Lyria 3.5"
+    summary: "Compose a full song (about three minutes) from a text prompt with Lyria 3.5 on Google's own API; the MP3 returns inline as base64 with its lyrics or section markers."
+    spooled_response: true
+    # A generation Google refuses answers 200 without STOP; only a finished song is billed.
+    expect: {json_path: candidates.0.finishReason, equals: STOP}
+    input:
+      pathParams:
+        model: {type: string, required: true, enum: [lyria-3.5], example: lyria-3.5}
+      body:
+        contents:
+          type: array
+          required: true
+          example: [{parts: [{text: "An upbeat lo-fi hip hop instrumental with warm piano chords."}]}]
+          note: "One user turn: {parts: [{text: prompt}]}. Describe genre, mood, instruments and tempo; ask for an instrumental or supply lyrics in the prompt. The answer carries an MP3 part (inlineData, audio/mpeg) and a text part with the lyrics or section markers."
+      bodyType: json
+    test_request:
+      pathParams: {model: lyria-3.5}
+      body: {contents: [{parts: [{text: "An upbeat lo-fi hip hop instrumental with warm piano chords and soft vinyl crackle."}]}]}
+    cost:
+      type: per_success
+      value: 0.08
+      per: 1
+      unit: call
+      currency: USD
+      source: docs
+      source_url: https://ai.google.dev/gemini-api/docs/pricing
+      checked: 2026-09-30
+      confidence: documented
+      note: "$0.08 per song, flat. usageMetadata reports tokens but no audio meter and is not the bill. Live 2026-09-30 a prompt returned a 179 s, 192 kbps MP3 (4.3 MB, 5.7 MB as base64) in 36 s; longer songs approach the 8 MiB buffer, so the answer is spooled. Only a STOP answer is billed."
+    verified: 2026-09-30
+    example_response: examples/google-ai.music-gen.lyria-3-5.json
+    docs_url: https://ai.google.dev/gemini-api/docs/music-generation
+
+  - id: google-ai.music-gen.lyria-3-clip
+    capability: music-gen.lyria-3-clip.generate
+    platform: music-gen
+    domain: models
+    scope: any_account
+    method: POST
+    path: /models/{model}:generateContent
+    name: "Google: Lyria 3 Clip"
+    summary: "Compose a 30-second music clip from a text prompt with Lyria 3 Clip on Google's own API; the MP3 returns inline as base64."
+    spooled_response: true
+    # A generation Google refuses answers 200 without STOP; only a finished song is billed.
+    expect: {json_path: candidates.0.finishReason, equals: STOP}
+    input:
+      pathParams:
+        model: {type: string, required: true, enum: [lyria-3-clip-preview], example: lyria-3-clip-preview}
+      body:
+        contents:
+          type: array
+          required: true
+          example: [{parts: [{text: "An upbeat lo-fi hip hop instrumental with warm piano chords."}]}]
+          note: "One user turn: {parts: [{text: prompt}]}. Describe genre, mood, instruments and tempo; ask for an instrumental or supply lyrics in the prompt. The answer carries an MP3 part (inlineData, audio/mpeg) and a text part with the lyrics or section markers."
+      bodyType: json
+    test_request:
+      pathParams: {model: lyria-3-clip-preview}
+      body: {contents: [{parts: [{text: "An upbeat lo-fi hip hop instrumental with warm piano chords and soft vinyl crackle."}]}]}
+    cost:
+      type: per_success
+      value: 0.04
+      per: 1
+      unit: call
+      currency: USD
+      source: docs
+      source_url: https://ai.google.dev/gemini-api/docs/pricing
+      checked: 2026-09-30
+      confidence: documented
+      note: "$0.04 per 30-second clip, flat. Live 2026-09-30 a prompt returned a 30 s, 192 kbps MP3 (0.73 MB) in 14 s. Only a STOP answer is billed."
+    verified: 2026-09-30
+    example_response: examples/google-ai.music-gen.lyria-3-clip.json
+    docs_url: https://ai.google.dev/gemini-api/docs/music-generation

@@ -204,9 +204,9 @@ Notes:
     verify call each would have caught.
 - An endpoint with no published price is refused rather than served free; connect your own key.
 
-## Task - generate video, images, or voice
+## Task - generate video, images, voice, or music
 
-Generation models live in the catalog under the `video-gen`, `image-gen`, and `voice-gen` platforms,
+Generation models live in the catalog under the `video-gen`, `image-gen`, `voice-gen`, and `music-gen` platforms,
 one row per model per route, so the same model on two routes sits next to itself with both prices.
 Models are not interchangeable - you pick one; treg does not choose.
 
@@ -266,7 +266,7 @@ How it works:
   return `502` with `detail.error=response_buffer_limit` and no charge; retrying the same oversized
   response will not help. Authorized free final downloads needing no body evidence stream in full.
   Such downloads are fetched again on retry, not retained for local idempotent replay.
-- A tool whose answer inlines media (Google AI's Gemini images arrive as base64 in the JSON) is
+- A tool whose answer inlines media (Google AI's images, speech and Lyria music arrive as base64 in the JSON) is
   exempt from the 8 MiB limit up to 64 MiB and is charged from the provider's reported usage. Its
   answer is never replayed: an `Idempotency-Key` retry generates, and bills, a new image. A
   `response_buffer_limit` whose message says it is temporary means treg is busy: retry shortly.
