@@ -324,20 +324,47 @@ endpoints:
     path: /v1/finance_research
     body_allowlist: true
     name: Research a financial question
-    summary: Return a cited answer from You.com's finance-focused index.
+    summary: Return a cited deep answer from You.com's finance-focused index.
     input:
       bodyType: json
       body:
         input: {type: string, required: true, maxLength: 40000, example: "What is Apple Inc.?"}
-        research_effort: {type: string, required: true, enum: [deep, exhaustive], example: deep}
-      note: "Finance Research has no background mode. Exhaustive work may exceed treg's default upstream timeout."
+        research_effort: {type: string, required: true, enum: [deep], example: deep}
+      note: "Finance Research has no background mode."
     test_request: {body: {input: "What is Apple Inc.?", research_effort: deep}}
     cost:
       type: per_call
       table:
         - {when: {body.research_effort: deep}, value: 0.11}
-        - {when: {body.research_effort: exhaustive}, value: 0.50}
-      fallback: {value: 0.50, note: "Maximum documented Finance Research tier."}
+      fallback: {value: 0.11, note: "Only deep effort is accepted on this shared-key tool."}
+      currency: USD
+      unit: call
+      source: docs
+      source_url: https://you.com/docs/administration/billing
+      checked: '2026-09-29'
+      confidence: documented
+    docs_url: https://you.com/docs/api-reference/finance-research/v1-finance_research
+
+  - id: you.finance.research.exhaustive
+    capability: stocks.research
+    platform: stocks
+    domain: stocks
+    scope: any_account
+    method: POST
+    path: /v1/finance_research
+    body_allowlist: true
+    platform_blocked: "Exhaustive Finance has no background mode and may exceed treg's upstream timeout after You.com has charged the shared key. Connect your own key."
+    name: Research a financial question exhaustively
+    summary: Return an exhaustive cited finance answer with your own You.com key.
+    input:
+      bodyType: json
+      body:
+        input: {type: string, required: true, maxLength: 40000, example: "What is Apple Inc.?"}
+        research_effort: {type: string, required: true, enum: [exhaustive], example: exhaustive}
+      note: "Finance Research has no background mode. Long requests may exceed treg's upstream timeout."
+    cost:
+      type: per_call
+      value: 0.50
       currency: USD
       unit: call
       source: docs
