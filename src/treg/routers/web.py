@@ -197,6 +197,7 @@ def _page(title: str, description: str, path: str, body: str, ld: list[dict],
     # The job, workflow and agent pages exist on the hosted deployment only (`_hosted`): a
     # self-hosted registry must not put three 404s in its own footer.
     hub_links = ('<a href="/use-cases">Use cases</a><a href="/workflows">Workflows</a>'
+                 '<a href="/gtm-engineering">GTM engineering</a>'
                  '<a href="/agents">Agents</a><a href="/blog">Blog</a>' if _hosted() else "")
     return HTMLResponse(f"""<!doctype html>
 <html lang="en">
@@ -3445,6 +3446,8 @@ async def sitemap_xml():
         add("/workflows", copy_day, "0.8")
         for w in agent_pages.WORKFLOWS:
             add(f"/workflows/{w}", copy_day, "0.7")
+        hub = _WEB_DIR / "gtm-engineering.html"
+        add("/gtm-engineering", _iso_day(hub.stat().st_mtime) if hub.exists() else "", "0.8")
     out.append("</urlset>")
     return Response("\n".join(out), media_type="application/xml; charset=utf-8",
                     headers={"Cache-Control": "max-age=3600"})
@@ -3804,6 +3807,18 @@ async def leads_signals_page(request: Request):
     """Landing page for the buyer-signals launch ("Claude for Monitor Leads Signal"). Built from the
     /people-search page and served the same way: canonical, in the sitemap, relative asset paths."""
     return _static_page("leads-signals.html", request)
+
+
+@app.get("/gtm-engineering", include_in_schema=False)
+async def gtm_engineering_page(request: Request):
+    """The GTM-engineering hub: the seven jobs a GTM engineer runs, each linked to its existing
+    page, the workflows as playbooks with their receipts, and the GitHub skills people install
+    next to the catalog job that covers their data step. Hand-written like the launch pages, so it
+    loads sitetrack.js and its reading is measurable; the facts on it are dated in the copy.
+    Hosted only, like the workflows it links to: its runs and credit describe treg.to itself."""
+    if not _hosted():
+        raise HTTPException(status_code=404, detail="not found")
+    return _static_page("gtm-engineering.html", request)
 
 
 @app.get("/jev", include_in_schema=False)

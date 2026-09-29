@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>GTM Engineering with Claude Code: the 2026 Playbook | treg.to</title>
+<meta name="description" content="What a GTM engineer builds, and how to run each job from Claude Code: real runs with receipts, measured provider costs, the GitHub skills people install, and seven playbooks."/>
+<link rel="canonical" href="{BASE}/gtm-engineering"/>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+<meta property="og:type" content="article"/>
+<meta property="og:site_name" content="treg"/>
+<meta property="og:url" content="{BASE}/gtm-engineering"/>
+<meta property="og:title" content="GTM Engineering with Claude Code: the 2026 Playbook"/>
+<meta property="og:description" content="Real runs with receipts, measured provider costs, the GitHub skills people install, and seven playbooks for running GTM from an agent."/>
+<meta property="og:image" content="{BASE}/media/og.png"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="GTM Engineering with Claude Code: the 2026 Playbook"/>
+<meta name="twitter:image" content="{BASE}/media/og.png"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Pixel&family=Inter:wght@400;450;500;600;650;700&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/usecase.css"/>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"treg.to","item":"{BASE}/"},{"@type":"ListItem","position":2,"name":"GTM Engineering","item":"{BASE}/gtm-engineering"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Article","headline":"GTM Engineering with Claude Code: the 2026 Playbook","description":"What a GTM engineer builds, and how to run each job from Claude Code: real runs with receipts, measured provider costs, the GitHub skills people install, and seven playbooks.","datePublished":"2026-09-29","dateModified":"2026-09-29","mainEntityOfPage":"{BASE}/gtm-engineering","author":{"@type":"Person","name":"Jason Zhou","url":"https://github.com/JayZeeDesign"},"publisher":{"@type":"Organization","name":"treg.to","url":"{BASE}/"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is a GTM engineer?","acceptedAnswer":{"@type":"Answer","text":"A GTM engineer builds the systems that find, qualify and reach buyers: the lists, the enrichment, the signals that say who to contact now, and the automation that runs it every week. The job sits between RevOps, sales and engineering. In 2026 more of it runs from an agent such as Claude Code or Codex instead of a spreadsheet tool."}},{"@type":"Question","name":"Do I need to write code to do GTM engineering with Claude Code?","acceptedAnswer":{"@type":"Answer","text":"No. You describe the job in a prompt, the agent chooses the calls, and it shows the price before it spends. Reading the result and deciding what to drop is the skill; the code is the agent's."}},{"@type":"Question","name":"Should I use Clay or Claude Code?","acceptedAnswer":{"@type":"Answer","text":"Clay if your team wants a shared visual table and already pays for it. Claude Code with treg.to if you work in prompts and want to pay per call. On a 292-person work-email test, match quality was a tie (90.4% vs 89.7% exact) and the cost per correct email was $0.0056 through treg.to against $0.0395 in Clay."}},{"@type":"Question","name":"Does treg.to choose the data provider for me?","acceptedAnswer":{"@type":"Answer","text":"The catalog lists every provider of a job side by side with measured success rates and prices, and your agent picks. Some jobs also have a routed endpoint (treg.<capability>) that chooses among providers when you call it; the result names the provider that answered."}},{"@type":"Question","name":"What does a miss cost?","acceptedAnswer":{"@type":"Answer","text":"It depends on the provider. Some bill per successful result and some bill per call, found or not. Each catalog entry says which, and every run's receipt shows what was actually charged."}},{"@type":"Question","name":"Can I use the provider keys my team already pays for?","acceptedAnswer":{"@type":"Answer","text":"Yes. Register the key once and calls to that provider go through it. A team's own key always wins over treg.to's, and those calls are never metered."}}]}</script>
+</head>
+<body data-page="gtm">
+
+<div class="navwrap"><nav class="nav">
+  <a class="brand" href="/"><span class="glyph">&#9626;</span> treg.to</a>
+  <div class="links">
+    <a class="hidem" href="/tutorial">docs</a>
+    <a class="hidem" href="https://github.com/superdesigndev/treg" target="_blank" rel="noopener">repo</a>
+    <a class="candy sm" href="/app?ref=gtm" data-ev="gtm_cta_nav">Start free</a>
+  </div>
+</nav></div>
+
+<header class="hero"><div class="wrap">
+  <div class="kicker">GTM engineering &middot; updated 29 Sep 2026</div>
+  <h1>GTM engineering with Claude Code</h1>
+  <div class="lede"><p>A GTM engineer builds the machine that finds, qualifies and reaches buyers. More of
+  that machine now runs from an agent: you describe the job, the agent makes the calls, and you judge
+  the result. This page is the playbook, written from real runs. Every number on it is what a run
+  actually cost, and each section links to the full receipt.</p></div>
+</div></header>
+
+<section id="proof"><div class="wrap">
+  <div class="seclab">A real run first</div>
+  <h2>One prompt, 50 companies, 20 verified leads, $2.33</h2>
+  <p>On 23 Sep 2026 we asked an agent for a lead list: 50 US software companies with 51 to 200 staff that
+  raised a Series A, the marketing lead at each, a verified work email, and a reason to write. The
+  ledger settled it like this.</p>
+  <div class="tablewrap"><table class="data">
+    <thead><tr><th>Step</th><th>What came back</th></tr></thead>
+    <tbody>
+      <tr><td>Companies matched</td><td data-label="What came back">958 on Apollo; the first page of 50 taken, one charge of $0.026</td></tr>
+      <tr><td>Qualified before paying</td><td data-label="What came back">48 had a usable domain; 27 passed an ICP check by jev on the free list fields; <b>21 dropped before any paid step</b></td></tr>
+      <tr><td>Marketing lead named</td><td data-label="What came back">27 of 27</td></tr>
+      <tr><td>Work email found</td><td data-label="What came back">21 of 27: 18 by Hunter, 3 more by Kitt on Hunter&rsquo;s misses. A third finder, Tomba, was out of capacity that day</td></tr>
+      <tr><td>Verified deliverable</td><td data-label="What came back">20 of 21; 1 unknown, kept separate; 0 invalid</td></tr>
+      <tr><td>Total metered</td><td data-label="What came back"><b>$2.33</b>, or $0.12 per deliverable lead. The 21 dropped rows would have cost about $1.79 more</td></tr>
+    </tbody>
+  </table></div>
+  <p>The lesson is the second row, not the tool. Qualifying on data you already have kept 21 companies
+  away from every paid lookup; at this run&rsquo;s own rates that is about $1.79 not spent, an estimate,
+  since those rows were never enriched. <a href="/workflows/find-and-verify-a-lead-list">The full run, prompt and CSV</a>.</p>
+</div></section>
+
+<section><div class="wrap">
+  <div class="seclab">What it costs</div>
+  <h2>The one number that decides the stack: cost per correct result</h2>
+  <p>Per-row prices hide the misses. On 16 Sep 2026 we ran the same 292 people (88 companies, name and
+  domain only) through five aggregators and checked each returned email against the company's own
+  published address.</p>
+  <div class="tablewrap"><table class="data">
+    <thead><tr><th></th><th>treg.to</th><th>Clay</th><th>Monid</th><th>Freckle</th><th>Deepline</th></tr></thead>
+    <tbody>
+      <tr><td>Exact match</td><td data-label="treg.to"><b>90.4%</b></td><td data-label="Clay">89.7%</td><td data-label="Monid">79.8%</td><td data-label="Freckle">90.1%</td><td data-label="Deepline">86.6%</td></tr>
+      <tr><td>Cost for 292 people</td><td data-label="treg.to"><b>$1.49</b></td><td data-label="Clay">$10.34</td><td data-label="Monid">$5.98</td><td data-label="Freckle">$11.22</td><td data-label="Deepline">$23.38</td></tr>
+      <tr><td>Per correct email</td><td data-label="treg.to"><b>$0.0056</b></td><td data-label="Clay">$0.0395</td><td data-label="Monid">$0.0257</td><td data-label="Freckle">$0.0427</td><td data-label="Deepline">$0.0924</td></tr>
+    </tbody>
+  </table></div>
+  <p>Quality was close to a tie. Cost was not. Every person in this test had a public team-page email,
+  so the find rates are higher than a cold list will give you; the cost columns are the clean comparison.
+  <a href="/blog/work-email-finding-bench">The method and the full table</a>. For finding the people
+  in the first place, treg.to scored 80.0% on recruiting and 78.2% on B2B prospecting across 119 tasks
+  on LessieAI's <a href="/blog/people-search-bench">People Search Bench</a>.</p>
+</div></section>
+
+<section id="start"><div class="wrap">
+  <div class="seclab">Set up once</div>
+  <h2>Give your agent the data layer</h2>
+  <div class="steplabel"><span class="n">1</span><b>Paste this into Claude Code, Codex or Cursor</b><span class="once">first time only</span></div>
+  <div class="promptbox"><div class="ph"><span>setup</span><button class="copybtn" data-copy="#setup" data-ev="gtm_copy_setup">copy</button></div><pre id="setup">set up treg &mdash; https://treg.to/llms.txt</pre></div>
+  <div class="steplabel"><span class="n">2</span><b>Or install the GTM skills from our repo</b></div>
+  <div class="promptbox"><div class="ph"><span>skills</span><button class="copybtn" data-copy="#skills" data-ev="gtm_copy_skills">copy</button></div><pre id="skills">npx skills add superdesigndev/treg</pre></div>
+  <p style="margin-top:14px;font-size:14px;color:var(--muted)">One key for {ENDPOINTS} tools across {PROVIDERS} providers. $1.00 of free credit once per new verified account, and your own provider keys always win over ours and are never metered.</p>
+</div></section>
+
+<section><div class="wrap">
+  <div class="seclab">The seven jobs</div>
+  <h2>What a GTM engineer actually runs</h2>
+  <p>Each card is one job, the judgement call that makes it work, and the page with the prompt, the
+  providers and a real run.</p>
+  <div class="cards">
+    <a class="card" href="/people-search"><h4>1. List building and people search</h4><p>Search first, reveal second: some people searches are free and only the contact details cost. Cap every result set, because several providers bill per row.</p></a>
+    <a class="card" href="/use-cases/lead-enrichment-for-ai-agents"><h4>2. Waterfall enrichment and work emails</h4><p>Measure cost per correct email, not per row. Verify before you send and keep unknowns apart from invalids.</p></a>
+    <a class="card" href="/leads-signals"><h4>3. Buying signals and intent</h4><p>A signal list is not a lead list. Most runs discard more than half before anyone looks up an email.</p></a>
+    <a class="card" href="/use-cases/company-research-for-ai-agents"><h4>4. Account research and TAM</h4><p>Resolve every company by its domain, not its name. A domain resolves cleanly; a name is ambiguous and can return the wrong company.</p></a>
+    <a class="card" href="/use-cases/seo-data-for-ai-agents"><h4>5. SEO and AI visibility</h4><p>Price demand before you write: volume, CPC and the live results page, then decide which query is worth a page.</p></a>
+    <a class="card" href="/use-cases/competitor-ad-research-for-ai-agents"><h4>6. Competitor ads</h4><p>Read the calls to action, not just the creative. In our run on one brand, 13 of its 20 live Meta ads asked for a sign-up.</p></a>
+    <a class="card" href="/use-cases/social-trend-research-for-ai-agents"><h4>7. Social listening and creators</h4><p>Screen creators on engagement, not follower count. Our screening run computed it per account from recent posts before any outreach.</p></a>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="seclab">Playbooks</div>
+  <h2>Multi-step runs, each with its receipt</h2>
+  <p>A playbook is the sequence a person actually runs, as one prompt. Each of these was run end to end
+  and the page shows what came back and what it cost.</p>
+  <div class="tablewrap"><table class="data">
+    <thead><tr><th>Playbook</th><th>Last run</th><th>What came back</th><th>Metered</th></tr></thead>
+    <tbody>
+      <tr><td><a href="/workflows/find-and-verify-a-lead-list">Build a verified lead list</a></td><td data-label="Last run">23 Sep</td><td data-label="What came back">20 deliverable leads from 50 companies</td><td data-label="Metered">$2.33</td></tr>
+      <tr><td><a href="/workflows/discover-creators-in-a-niche">Find creators in a niche</a></td><td data-label="Last run">14 Sep</td><td data-label="What came back">25 creators from 153 matches, profiles and posts pulled</td><td data-label="Metered">$0.20</td></tr>
+      <tr><td><a href="/workflows/screen-instagram-creators-before-outreach">Screen creators before outreach</a></td><td data-label="Last run">14 Sep</td><td data-label="What came back">18 of 20 profiles resolved, median engagement 5.3%</td><td data-label="Metered">$0.036</td></tr>
+      <tr><td><a href="/workflows/keyword-demand-to-ad-budget">Price keyword demand</a></td><td data-label="Last run">14 Sep</td><td data-label="What came back">50 keywords, 742,970 monthly searches, top-5 trend</td><td data-label="Metered">$0.11</td></tr>
+      <tr><td><a href="/workflows/mine-competitor-meta-ads-as-creative-pack">Mine a competitor's ads</a></td><td data-label="Last run">14 Sep</td><td data-label="What came back">20 Meta ads and 17 Google creatives for one brand</td><td data-label="Metered">$0.015</td></tr>
+      <tr><td><a href="/workflows/category-content-intel-tiktok-xiaohongshu">Read a category on TikTok and Xiaohongshu</a></td><td data-label="Last run">14 Sep</td><td data-label="What came back">40 posts and 10 creator profiles</td><td data-label="Metered">$0.032</td></tr>
+    </tbody>
+  </table></div>
+  <p>The competitor-ads run made two of its calls on the team's own Apify key, which treg.to never
+  meters; only the Google call is in the $0.015. Buyer signals have their own open-source skill:
+  <a href="/leads-signals">the signals page</a> and <a href="/skills/lead-signals/SKILL.md">its SKILL.md</a>.</p>
+</div></section>
+
+<section><div class="wrap">
+  <div class="seclab">Skills people install</div>
+  <h2>The GitHub skills GTM engineers use, and the data step each leaves to you</h2>
+  <p>A skill is the method: how to write the email, how to audit a site. Most skills either ask you
+  for a vendor API key or leave the live data to the agent. The right column is the catalog job that
+  covers that step. We have not yet run these skills with treg.to end to end; the playbooks above
+  will add them one at a time, with receipts.</p>
+  <div class="tablewrap"><table class="data">
+    <thead><tr><th>Skill</th><th>Stars</th><th>The GTM job</th><th>The data step</th><th>Catalog job that covers it</th></tr></thead>
+    <tbody>
+      <tr><td><a href="https://github.com/coreyhaines31/marketingskills" rel="noopener">coreyhaines31/marketingskills</a></td><td data-label="Stars">51.8k</td><td data-label="The GTM job">Cold email, competitor profiling</td><td data-label="The data step">Signals you supply for personalisation; keyword and backlink data via DataForSEO</td><td data-label="Catalog job that covers it">Buying signals; ranked keywords, backlinks</td></tr>
+      <tr><td><a href="https://github.com/mvanhorn/last30days-skill" rel="noopener">mvanhorn/last30days-skill</a></td><td data-label="Stars">63.1k</td><td data-label="The GTM job">Research what people say about a topic</td><td data-label="The data step">Social posts and engagement; optional ScrapeCreators or Apify keys</td><td data-label="Catalog job that covers it">X, Reddit, TikTok, YouTube search and comments</td></tr>
+      <tr><td><a href="https://github.com/AgriciDaniel/claude-seo" rel="noopener">AgriciDaniel/claude-seo</a></td><td data-label="Stars">17.9k</td><td data-label="The GTM job">SEO audits and research</td><td data-label="The data step">DataForSEO; Google OAuth for Search Console</td><td data-label="Catalog job that covers it">SERP, keyword volume, backlinks; your own Search Console</td></tr>
+      <tr><td><a href="https://github.com/zubair-trabzada/geo-seo-claude" rel="noopener">zubair-trabzada/geo-seo-claude</a></td><td data-label="Stars">10.9k</td><td data-label="The GTM job">AI visibility and brand mentions</td><td data-label="The data step">Page fetches and heuristic scoring</td><td data-label="Catalog job that covers it">ChatGPT, Perplexity and AI Mode answers with citations</td></tr>
+      <tr><td><a href="https://github.com/phuryn/pm-skills" rel="noopener">phuryn/pm-skills</a></td><td data-label="Stars">26.6k</td><td data-label="The GTM job">Competitive battlecards</td><td data-label="The data step">Web search plus your win/loss notes</td><td data-label="Catalog job that covers it">Company enrichment, news, pricing pages, ads</td></tr>
+      <tr><td><a href="https://github.com/swan-gtm/gtm-skills" rel="noopener">swan-gtm/gtm-skills</a></td><td data-label="Stars">161</td><td data-label="The GTM job">Account research briefs</td><td data-label="The data step">Tool-agnostic company, people and search evidence</td><td data-label="Catalog job that covers it">Firmographics, decision makers, hiring</td></tr>
+      <tr><td><a href="https://github.com/superdesigndev/treg/tree/main/skills" rel="noopener">superdesigndev/treg</a></td><td data-label="Stars">ours</td><td data-label="The GTM job">Buyer signals, UGC videos</td><td data-label="The data step">Runs on treg.to directly</td><td data-label="Catalog job that covers it">All of the above</td></tr>
+    </tbody>
+  </table></div>
+  <p style="font-size:13px;color:var(--muted2)">Stars read from GitHub on 29 Sep 2026. The six third-party repositories are MIT-licensed.</p>
+</div></section>
+
+<section><div class="wrap">
+  <div class="seclab">Questions</div>
+  <h2>GTM engineering, answered plainly</h2>
+  <details data-ev="gtm_faq" data-q="what-is" open><summary>What is a GTM engineer?</summary><div class="body"><p>Someone who builds the systems that find, qualify and reach buyers: the lists, the enrichment, the signals that say who to contact now, and the automation that runs it every week. The job sits between RevOps, sales and engineering. In 2026 more of it runs from an agent such as Claude Code or Codex instead of a spreadsheet tool.</p></div></details>
+  <details data-ev="gtm_faq" data-q="code"><summary>Do I need to write code?</summary><div class="body"><p>No. You describe the job in a prompt, the agent chooses the calls, and it shows the price before it spends. Reading the result and deciding what to drop is the skill; the code is the agent's.</p></div></details>
+  <details data-ev="gtm_faq" data-q="clay"><summary>Should I use Clay or Claude Code?</summary><div class="body"><p>Clay if your team wants a shared visual table and already pays for it. Claude Code with treg.to if you work in prompts and want to pay per call. On the 292-person test above, match quality was a tie (90.4% vs 89.7% exact) and the cost per correct email was $0.0056 against $0.0395.</p></div></details>
+  <details data-ev="gtm_faq" data-q="routing"><summary>Does treg.to choose the data provider for me?</summary><div class="body"><p>The catalog lists every provider of a job side by side with measured success rates and prices, and your agent picks. Some jobs also have a routed endpoint (<code>treg.&lt;capability&gt;</code>) that chooses among providers when you call it; the result names the provider that answered.</p></div></details>
+  <details data-ev="gtm_faq" data-q="misses"><summary>What does a miss cost?</summary><div class="body"><p>It depends on the provider. Some bill per successful result and some bill per call, found or not. Each catalog entry says which, and every run's receipt shows what was actually charged.</p></div></details>
+  <details data-ev="gtm_faq" data-q="own-keys"><summary>Can I use the provider keys my team already pays for?</summary><div class="body"><p>Yes. Register the key once and calls to that provider go through it. A team's own key always wins over treg.to's, and those calls are never metered.</p></div></details>
+</div></section>
+
+<section class="final"><div class="wrap">
+  <h2>Start with $1.00 of free credit</h2>
+  <div class="ctas"><a class="candy" href="/app?ref=gtm" data-ev="gtm_cta_primary">Start free</a></div>
+  <div class="trust"><p>Once per new verified account. No credit card, no provider signup. Or browse <a href="/workflows" data-ev="gtm_cta_workflows">all playbooks</a> first.</p></div>
+</div></section>
+
+<footer>
+  <div class="foot-in">
+    <a class="brand" href="/"><span class="glyph">&#9626;</span> treg.to</a>
+    <span class="note">100% open source</span>
+    <span class="sp"></span>
+    <a href="/resources">resources</a><a href="/blog">blog</a><a href="/tutorial">docs</a><a href="/llms.txt">llms.txt</a>
+    <a href="https://github.com/superdesigndev/treg" target="_blank" rel="noopener">github &#8599;</a>
+    <a href="/terms">terms</a><a href="/privacy">privacy</a>
+  </div>
+</footer>
+
+<script>
+/* Value instrumentation. Page views and scroll depth come from PostHog's own $pageview/$pageleave
+   (loaded by sitetrack.js); these events say which part of the page a reader actually used:
+   a copied setup line or skill install, an opened question, the proof table read. Forwarded to
+   window.posthog when it is loaded, queued on window.tregEvents otherwise. */
+(function(){
+  /* Events fired before sitetrack.js has initialised PostHog would otherwise sit in the queue for
+     good, so flush the queue whenever PostHog becomes available, for the first half-minute. */
+  window.tregEvents = window.tregEvents || [];
+  var pending = [];
+  function flush(){
+    if (!(window.posthog && window.posthog.capture)) return false;
+    while (pending.length) { var e = pending.shift(); window.posthog.capture(e[0], e[1]); }
+    return true;
+  }
+  var tries = 0, timer = setInterval(function(){ if (flush() || ++tries > 30) clearInterval(timer); }, 1000);
+  function ev(name, props){
+    var p = Object.assign({page: document.body.dataset.page}, props || {});
+    window.tregEvents.push([name, p, Date.now()]);
+    pending.push([name, p]);
+    flush();
+  }
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('[data-copy]');
+    if (b) {
+      var src = document.querySelector(b.dataset.copy);
+      if (!src) return;
+      var old = b.textContent;
+      /* Only a write that succeeded says "copied" and counts; otherwise ask for a manual copy. */
+      (navigator.clipboard ? navigator.clipboard.writeText(src.textContent.trim()) : Promise.reject())
+        .then(function(){
+          b.textContent = 'copied'; b.classList.add('done');
+          ev(b.dataset.ev || 'gtm_copy', {what: b.dataset.copy});
+        }, function(){
+          b.textContent = 'select and copy';
+          ev('gtm_copy_failed', {what: b.dataset.copy});
+        })
+        .then(function(){ setTimeout(function(){ b.textContent = old; b.classList.remove('done'); }, 1800); });
+      return;
+    }
+    var a = e.target.closest('a[data-ev]');
+    if (a) ev(a.dataset.ev);
+  });
+  /* Only user-driven opens count: the first question ships open and Chrome fires `toggle` for it. */
+  document.querySelectorAll('details[data-ev]').forEach(function(d){
+    var initial = d.open;
+    d.addEventListener('toggle', function(){
+      if (d.open && !initial) ev('gtm_faq_open', {q: d.dataset.q});
+      initial = false;
+    });
+  });
+  var proof = document.getElementById('proof');
+  if (proof && 'IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function(es){
+      es.forEach(function(en){ if (en.isIntersecting) { ev('gtm_scroll_proof'); io.disconnect(); } });
+    }, {threshold: 0.3});
+    io.observe(proof);
+  }
+})();
+</script>
+<script src="/sitetrack.js"></script>
+<script src="/adtrack.js"></script>
+<script src="/gtag.js"></script>
+</body>
+</html>
