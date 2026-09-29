@@ -1209,8 +1209,10 @@ them.
 
 `ReferralsPage.vue` renders the referrals view. The maintained Dashboard's entry is a pill in the
 top bar that names the offer ("Give $5, get $5") from `/meta.referral`, falling back to
-`Refer a friend` when either amount is zero or `/meta` has not loaded. Narrow screens show only
-its gift icon.
+`Refer a friend` when either amount is zero or `/meta` has not loaded. Below 1600px it shows only
+its gift icon (the offer is its hover title and accessible name), and the nav drops its icons: the
+bar's sides never shrink below their content, so without those the nav and the account strip would
+not fit on one row. One row holds down to 1080px; `layout.spec.ts` checks no item paints over another.
 
 **`'referrals'` must appear in BOTH view whitelists** — `viewFromHash()` and the `popstate` handler.
 `go('referrals')` works on click regardless of them; those two lists are what make the view survive
