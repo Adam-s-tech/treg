@@ -188,7 +188,7 @@ endpoints:
   scope: any_account
   method: GET
   path: /v1/email/verify
-  name: Verify email deliverability
+  name: Verify email address — catch-all (accept-all) status
   summary: Verify email deliverability
   input:
     queryParams:

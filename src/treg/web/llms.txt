@@ -174,6 +174,12 @@ Start from the job, not the vendor:
     treg call tikhub.tiktok.user.profile --query uniqueId=tiktok
     # raw HTTP: GET {BASE}/call/tikhub.tiktok.user.profile?uniqueId=tiktok  + X-Treg-Token
 
+Search for the job AND any required output, such as `treg catalog search "email verification
+catch-all"`. Use `treg catalog get` to check each candidate's fields, parameters and price. When
+you need a provider-specific field (catch-all, disposable, role-address or SMTP), call that
+provider's endpoint: the routed `treg.people.email.verify` contract defines only `valid`,
+`status` and `score`.
+
 Searched and the catalog genuinely lacks it? File it — requests steer which provider gets added
 next: `treg catalog request "<what you need>"`, or raw HTTP
 `POST {BASE}/tool-requests {"capability": "<what you need>"}` (no token required).
