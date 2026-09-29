@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+from copy import deepcopy
 import json
 from types import SimpleNamespace
 
@@ -15,9 +16,10 @@ from sqlmodel import select
 from treg import audit
 from treg.domain import money as ledger
 from treg.application.call import overflow as call_overflow
+from treg.application.call import resolve as call_resolve
 from treg.application.call import route as call_route
 from treg.application.call import service as call_service
-from treg.application.call.types import UpstreamResponse
+from treg.application.call.types import ResolutionFailed, UpstreamResponse
 from treg.config import get_settings
 from treg.infra.db import session_maker
 from treg.domain.catalog import store as catalog_store
@@ -120,6 +122,27 @@ def test_every_shipped_adapter_round_trips_its_fixture():
     assert b == {"firstName": "Patrick", "lastName": "Collison", "companyDomain": "stripe.com"} and q == {}
     assert ad.from_upstream({"email": "p@stripe.com", "status": "succeeded"}) == {"email": "p@stripe.com"}
     assert ad.is_miss({"email": None}) and not ad.is_miss({"email": "x"})
+
+
+def test_every_adapter_const_passes_its_child_body_allowlist():
+    cat = catalog_store.load()
+    failures = {}
+    for endpoint_id, adapter in cat.adapters.items():
+        ep = cat.by_id[endpoint_id]
+        body_consts = {path: value for path, value in adapter.const.items()
+                       if path.startswith("body.")}
+        if not body_consts or not (ep.get("body_allowlist") or ep.get("strict_body")):
+            continue
+        body = deepcopy((ep.get("test_request") or {}).get("body"))
+        assert isinstance(body, dict), endpoint_id
+        request = {"body": body}
+        for path, value in body_consts.items():
+            P.set_path(request, path, value)
+        try:
+            call_resolve._enforce_catalog_body(ep, json.dumps(body).encode())
+        except ResolutionFailed as exc:
+            failures[endpoint_id] = exc.detail
+    assert failures == {}, failures
 
 
 def test_firecrawl_web_adapters_are_verified_routed_children():

@@ -177,6 +177,7 @@ CATALOG: list[dict] = [
     {"provider": "Octen",       "tokens": ["OCTEN"],               "base_url": "https://api.octen.ai",                           "auth": {"shape": "api_key_header", "header": "x-api-key"}},
     {"provider": "Linkup",      "tokens": ["LINKUP"],              "base_url": "https://api.linkup.so/v1",                       "auth": {"shape": "bearer"}, "probe": "credits/balance"},
     {"provider": "You.com",     "tokens": ["YDC_API_KEY", "YOU_API_KEY"], "base_url": "https://api.you.com", "auth": {"shape": "api_key_header", "header": "X-API-Key"}, "probe": "v1/billing/account_balance"},
+    {"provider": "Valyu",       "tokens": ["VALYU_API_KEY", "VALYU"], "base_url": "https://api.valyu.ai", "auth": {"shape": "api_key_header", "header": "X-API-Key"}, "probe": "v1/datasources"},
     {"provider": "Keenable",    "tokens": ["KEENABLE"],            "base_url": "https://api.keenable.ai",                         "auth": {"shape": "api_key_header", "header": "X-API-Key"}},
     {"provider": "Olostep",     "tokens": ["OLOSTEP"],             "base_url": "https://api.olostep.com",                         "auth": {"shape": "bearer"}, "probe": "user/credits/info"},
     {"provider": "ScrapeGraphAI", "tokens": ["SCRAPEGRAPHAI", "SGAI"],
