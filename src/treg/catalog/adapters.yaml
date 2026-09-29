@@ -2660,7 +2660,7 @@ adapters:
     accepts: [[q]]
     in: {q: body.query}
     in_expr: {body.max_num_results: limit}
-    const: {body.search_type: web, body.max_price: 50, body.response_length: short}
+    const: {body.search_type: web, body.max_price: 1.5, body.response_length: short}
     out: {results: results, count: "len(results)"}
     miss: "coalesce(results, []) == []"
   tinyfish.web.search:
