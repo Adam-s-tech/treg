@@ -97,6 +97,9 @@ def test_expression_language():
     assert P.evaluate("none == []", doc) is True and P.evaluate("emails == []", doc) is False
     assert P.evaluate("emails[0].email", doc) == "e" and P.evaluate("emails[3].email", doc) is None
     assert P.evaluate("coalesce(data.missing, data.email)", doc) == "a@x.io"
+    assert P.evaluate("coalesce(none, [])", doc) == [] and P.evaluate("coalesce(data.missing, [])", doc) == []
+    assert P.evaluate("coalesce(none, []) == []", doc) is True and P.evaluate("coalesce(emails, []) == []", doc) is False
+    assert P.evaluate("coalesce(data.missing, none)", doc) == []
     assert P.evaluate("split_first(data.name)", {"data": {"name": "Patrick Collison"}}) == "Patrick"
     assert P.evaluate("split_last(data.name)", {"data": {"name": "Patrick"}}) is None
     assert P.evaluate("join(a, b)", {"a": "Patrick", "b": "Collison"}) == "Patrick Collison"

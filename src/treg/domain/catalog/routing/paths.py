@@ -268,7 +268,9 @@ def evaluate(expr: str, doc: Any) -> Any:
         name, args = m.group(1), _split_args(m.group(2))
         vals = [evaluate(a, doc) for a in args]
         if name == "coalesce":
-            return next((v for v in vals if v not in (None, "", [])), None)
+            # First non-empty value, else the LAST argument: `coalesce(x, []) == []` must hold
+            # when x is missing or empty, or the miss rule written that way never fires.
+            return next((v for v in vals if v not in (None, "", [])), vals[-1] if vals else None)
         fn = TRANSFORMS.get(name)
         if fn is None:
             raise ValueError(f"unknown transform {name!r}")
