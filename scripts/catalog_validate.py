@@ -608,18 +608,18 @@ def check_async_descriptor(descriptor: object, where: str, provider: str,
 def check_spooled_response(ep: dict, effective_async: object, where: str,
                            errors: list[str]) -> None:
     """`spooled_response: true` - a synchronous metered answer too large to buffer (inline media),
-    read to disk and settled from the top-level keys its usage paths start at. So only
-    `settle: usage`, and nothing else may need the body: no async task, resource ownership or
-    managed resource."""
+    read to disk and settled from what the row declares it reads: its usage meters (`settle:
+    usage`) or, for a fixed price, its `expect` success rule. Nothing else may need the body: no
+    async task, resource ownership or managed resource."""
     if ep["spooled_response"] is not True:
         fail(errors, where, "spooled_response must be true when present")
         return
     if effective_async is not None or ep.get("resource_ownership") or ep.get("managed_resource"):
         fail(errors, where, "spooled_response cannot be combined with async, resource_ownership "
                             "or managed_resource: those read the whole body")
-    if (ep.get("cost") or {}).get("settle") != "usage":
-        fail(errors, where, "spooled_response settles from the answer's reported usage: it needs "
-                            "settle: usage")
+    if (ep.get("cost") or {}).get("settle") != "usage" and not (ep.get("expect") or {}).get("json_path"):
+        fail(errors, where, "spooled_response keeps only the evidence the row declares: it needs "
+                            "settle: usage or an expect success rule")
 
 
 def check_resource_ownership(rule: object, where: str, input_schema: object,

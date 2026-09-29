@@ -932,7 +932,7 @@ def test_spooled_response_settles_from_reported_usage():
     (lambda ep: ep.update(spooled_response=False), False, "must be true"),
     (lambda ep: ep.update(resource_ownership={"requires": {}}), False, "cannot be combined"),
     (lambda ep: None, True, "cannot be combined"),
-    (lambda ep: ep["cost"].update(settle="base"), False, "needs settle: usage"),
+    (lambda ep: ep["cost"].update(settle="base"), False, "settle: usage or an expect success rule"),
 ])
 def test_spooled_response_rejects_bodies_something_else_must_read(mutate, is_async, message):
     ep = _spooled_endpoint()
@@ -940,3 +940,14 @@ def test_spooled_response_rejects_bodies_something_else_must_read(mutate, is_asy
     errors: list[str] = []
     validator.check_spooled_response(ep, {"id_from": "id"} if is_async else None, "x", errors)
     assert any(message in e for e in errors), errors
+
+
+def test_a_fixed_price_spools_when_its_success_rule_is_declared():
+    """A per-song price has no meters: the `expect` leaf is the evidence a spooled answer keeps."""
+    ep = _spooled_endpoint()
+    ep["cost"].update(settle="base")
+    ep["cost"].pop("usage")
+    ep["expect"] = {"json_path": "candidates.0.finishReason", "equals": "STOP"}
+    errors: list[str] = []
+    validator.check_spooled_response(ep, None, "x", errors)
+    assert errors == []
