@@ -873,24 +873,25 @@ without its platform prefix (`companies.enrich` → `enrich`), as the server put
 comparisons keeps the loaded payload; only the view state changes.
 
 There is no separate "job" concept in the code: a comparison is a capability at least two providers
-serve on the shelf (`Catalog.compared`). "Jobs several providers do" is only the page's wording.
+serve on the shelf (`Catalog.compared`).
 The look is the landing page's (`usecase.css` rules): cards are surfaces lifted by shadow, never boxes
 with borders; no rules between rows; Geist Pixel on the h1 only; mono only for ids, prices and counts.
 
 **The shelf** answers "what can I do here". A left-aligned hero (breadcrumb, a mono count line, the
 h1, the platform summary, the search box), then three zones, nothing behind "show more":
-- **Jobs several providers do** (`platComparisons`): a row the server marks `compare`, as a card
+- **Tools** (`platShelf`): comparisons and single-provider tools in one list, most used first
+  (`observed.samples` over the last 30 days, which the platform response carries per endpoint; a
+  comparison sums its providers', whose rows already include auto-routed calls), then more providers,
+  then title. A visitor comes for a job, not for how many providers serve it. A comparison is a card
   with a stack of provider logos, the provider count, the price spread (`priceRange`: "free – $0.38",
-  never a "from" that reads as one price) and an **Autopilot** badge when a routed tool exists.
-  A card links to the comparison page.
-- **More tools** (`platTools`): every other browse endpoint, one card each, alphabetical, opening the
-  drawer.
+  never a "from" that reads as one price) and an **Auto-route** badge when a routed tool exists; it
+  links to the comparison page. A single tool is a card that opens the drawer.
 - **Account and setup**: the account/utility plumbing, the same cards in a quieter weight.
 - **Served by**: every provider as a logo chip, linking to its page (`goProvider`: `/tools/<service>`
   signed out, `/app/marketplace/<service>` signed in).
 
-**The comparison page** answers "which provider". Its h1 is the capability's description; a dark
-**Autopilot** card leads when the capability has a routed tool ("29 providers, one call.", the starting price, the $1 cap, the call line, "Copy for your agent" as
+**The comparison page** answers "which provider". Its h1 is the capability's description; an
+**Auto-route** card leads when the capability has a routed tool ("29 providers, one call.", the starting price, the $1 cap, the call line, "Copy for your agent" as
 the page's primary action with Try it beside it, and "How it picks" opening the routed tool in the
 drawer). The card is a light surface under the /search page's soft green light and a fading dot
 field; a call line is a quiet inset, never a dark block, so the primary button leads; then **the comparison** as one surface:

@@ -90,6 +90,10 @@ def _platforms_payload() -> dict:
     return {"platforms": rows, "providers": names, "generated_from": "catalog"}
 
 
+def _endpoint_observation_reader(request: Request) -> endpoint_stats.EndpointObservationReader:
+    return request.app.state.endpoint_observation_reader
+
+
 @app.get("/catalog/platforms")
 async def catalog_platforms() -> dict:
     """Open: the platform shelves of the endpoint catalog, busiest first, and the display name of
@@ -98,14 +102,18 @@ async def catalog_platforms() -> dict:
 
 
 @app.get("/catalog/platforms/{slug}")
-async def catalog_platform(slug: str, include_hidden: int = 0) -> dict:
+async def catalog_platform(slug: str, include_hidden: int = 0,
+                           observations: endpoint_stats.EndpointObservationReader | None = Depends(
+                               _endpoint_observation_reader)) -> dict:
     """Open: one platform's operations, grouped by capability so the same job across providers sits
     on one row — that grouping is what makes comparison (and a future failover router) possible.
 
     By default the account/utility ("management") endpoints are dropped from every shape below — the
     browse view is data + action. `?include_hidden=1` returns the whole surface (each endpoint still
     carries `kind`, so a client can file the plumbing behind an expander); `hidden_count` always
-    reports how many were set aside so a caller can label that expander without a second request."""
+    reports how many were set aside so a caller can label that expander without a second request.
+    Each endpoint carries `observed`, what its served calls say, so the shelf can lead with what
+    agents actually use; `observations=None` (the server-rendered page) leaves it out."""
     cat = catalog_store.load()
     eps = cat.for_platform(slug)
     if not eps:
@@ -122,8 +130,11 @@ async def catalog_platform(slug: str, include_hidden: int = 0) -> dict:
     extended: list[dict] = []
     pairs: list[tuple[dict, dict]] = []
     verdicts = await _verdicts_or_empty()
+    stats = await _observed_or_empty(observations, [ep["id"] for ep in eps]) if observations else {}
     for ep in eps:
         view = _with_reviews(catalog_store.endpoint_view(ep, _provider_display(ep["provider"]), cat), verdicts)
+        if ep["id"] in stats:
+            view["observed"] = stats[ep["id"]]
         pairs.append((ep, view))
         if ep["capability"]:
             grouped.setdefault(ep["capability"], []).append(view)
@@ -219,10 +230,6 @@ def _plan_row(c) -> dict:
         row["exhausted"] = True
     return row
 
-
-
-def _endpoint_observation_reader(request: Request) -> endpoint_stats.EndpointObservationReader:
-    return request.app.state.endpoint_observation_reader
 
 
 async def _overflow_disclosure(ep: dict, cat) -> dict:

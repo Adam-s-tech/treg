@@ -1,5 +1,10 @@
 import { isJobQuery } from './find.js'
 
+// The shelf's order: the last 30 days' calls, most first; then the jobs more providers do; then by
+// title, so an unused shelf still reads in a stable order.
+const byTitle = new Intl.Collator()
+const byUse = (a, b) => (b.usage - a.usage) || (b.provN - a.provN) || byTitle.compare(a.title, b.title)
+
 // What each comparison column means, on hover or focus of its heading (comparisonColumns).
 const COL_TIPS = {
   takes:'What you can send it. Each tag is one input it accepts; — means the catalog has not mapped it yet.',
@@ -143,24 +148,25 @@ platProviders(){  // providers with endpoints here, in catalog order
       return out; },
 // ---- the shelf, read as comparisons and tools ----
     // A capability at least two providers serve on the shelf is the one place a comparison means
-    // something, so it gets a card and a page of its own (the page calls them "jobs several
-    // providers do"). The server marks those rows (`compare`, the key its URL uses;
-    // `Catalog.compared`). Everything else is a TOOL, listed once, opened in the drawer. Plumbing
-    // (account/utility) stays folded at the foot.
+    // something, so it gets a card and a page of its own. The server marks those rows (`compare`,
+    // the key its URL uses; `Catalog.compared`). Everything else is a TOOL, opened in the drawer.
+    // Plumbing (account/utility) stays folded at the foot.
     platComparisons(){
       return this.platRowsAll.filter(r=>r.compare).map(r=>{
         const direct=r.endpoints.filter(e=>e.kind!=='routed'), provs=[...new Set(direct.map(e=>e.provider))];
         const range=this.priceRange(direct);
-        return {key:r.capability, slug:r.compare, row:r, title:r.description, hay:r.hay, logos:provs.slice(0,5),
+        return {job:true, key:r.capability, slug:r.compare, row:r, title:r.description, hay:r.hay, logos:provs.slice(0,5),
                 routed:r.endpoints.find(e=>e.kind==='routed')||null, provN:provs.length,
-                meta:provs.length+' providers'+(range ? ' · '+range : '')}; }); },
+                // An auto-routed call is also recorded on every provider it tries, so the providers'
+                // own calls already count it; adding the routed row too would count it twice.
+                usage:direct.reduce((n,e)=>n+this.callsOf(e), 0),
+                meta:provs.length+' providers'+(range ? ' · '+range : '')}; })
+        .sort(byUse); },
 // What the shelf's lists filter by as you type: a name or a word. A described job is not a filter
     // (no row contains a sentence); the finder answers it above the lists, which stay whole.
     platFilterQ(){ return isJobQuery(this.platQ) ? '' : this.platQ.trim().toLowerCase(); },
-platComparisonsShown(){ const q=this.platFilterQ;
-      return this.platComparisons.filter(j=>!q || j.hay.includes(q)); },
-// Every endpoint on the shelf that is not part of a comparison card, one line each, alphabetical, built
-    // once per shelf; the search box only filters it.
+// Every endpoint on the shelf that is not part of a comparison card, one line each, built once per
+    // shelf; the search box only filters it.
     platToolIndex(){
       const out=[];
       for(const r of this.platRowsAll){
@@ -168,11 +174,15 @@ platComparisonsShown(){ const q=this.platFilterQ;
         for(const e of r.endpoints){
           if(e.kind==='routed') continue;
           const title=r.endpoints.length===1 ? r.title : this.clip(e.name||e.summary||r.description, 90);
-          out.push({id:e.id, title, e, mgmt:r.mgmt,
+          out.push({id:e.id, title, e, mgmt:r.mgmt, usage:this.callsOf(e), provN:1,
                     hay:(title+' '+e.provider+' '+(e.provider_display||'')+' '+(e.summary||'')+' '+e.id).toLowerCase()}); } }
-      const by=new Intl.Collator(); return out.sort((a,b)=>by.compare(a.title, b.title)); },
-platTools(){ const q=this.platFilterQ; return this.platToolIndex.filter(t=>!t.mgmt && (!q || t.hay.includes(q))); },
-platToolTotal(){ return this.platToolIndex.filter(t=>!t.mgmt).length; },
+      return out.sort(byUse); },
+// The shelf itself: comparisons and single-provider tools in ONE list, most used first. A visitor
+    // comes for a job, not for whether one provider or several serve it; a comparison still reads as
+    // one (its logo stack, and Auto-route where treg can pick).
+    // Sorted once per shelf; the search box only filters it.
+    platShelfIndex(){ return [...this.platComparisons, ...this.platToolIndex.filter(t=>!t.mgmt)].sort(byUse); },
+platShelf(){ const q=this.platFilterQ; return q ? this.platShelfIndex.filter(t=>t.hay.includes(q)) : this.platShelfIndex; },
 platPlumbing(){ const q=this.platFilterQ; return this.platToolIndex.filter(t=>t.mgmt && (!q || t.hay.includes(q))); },
 platEpById(){ const m={}; for(const r of this.platRowsAll) for(const e of r.endpoints) m[e.id]=e; return m; },
 // The drawer reads from the list of the view it was opened on.
@@ -216,7 +226,7 @@ platOtherComparisons(){ return this.platComparisons.filter(j=>j!==this.platCompa
 drawerIds(){
       if(this.view==='provider') return [...this.mkToolShelves.flatMap(p=>p.tools), ...this.mkToolShelves.flatMap(p=>p.plumbing)].map(t=>t.id);
       if(this.platCapRow) return [...(this.platComparison&&this.platComparison.routed ? [this.platComparison.routed.id] : []), ...this.platComparisonRows.map(r=>r.id)];
-      return [...this.platTools, ...this.platPlumbing].map(t=>t.id); },
+      return [...this.platShelf, ...this.platPlumbing].filter(t=>!t.job).map(t=>t.id); },
 // The drawer's three numbers: measured success (the tool's own detail, else the comparison's), agents' verdict.
     drawerStats(){ const e=this.drawerEp; if(!e) return {};
       const d=this.drawerInfo;
