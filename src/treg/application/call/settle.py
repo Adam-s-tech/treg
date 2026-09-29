@@ -507,6 +507,13 @@ def _observed_cost_micro(mk: MarketplaceCall, body: bytes, headers=None) -> int 
         # Extract, Map and Crawl intentionally ignore account-grouped usage.credits. Their unit
         # was frozen from the caller's request mode and only this response's valid results count.
         return _tavily_cost_micro(mk, doc)
+    if provider == "octen":
+        from . import octen
+        rates = mk.settlement_basis.get("octen_rates_micro")
+        if not isinstance(rates, dict):
+            return None
+        return octen.observed_micro(
+            mk.endpoint_id, rates, mk.request_data, doc, mk.estimate_micro)
     if provider == "aviato" and mk.endpoint_id == "aviato.people.enrich.bulk":
         if isinstance(doc, list) and mk.unit_micro > 0:
             return sum(item is not None for item in doc) * mk.unit_micro

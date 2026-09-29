@@ -19,6 +19,7 @@ sources:
   - src/treg/domain/provider_resources.py
   - src/treg/routers/provider_resources.py
   - src/treg/catalog/tavily.yaml
+  - src/treg/application/call/octen.py
   - src/treg/catalog/linkup.yaml
   - src/treg/catalog/you.yaml
   - src/treg/catalog/examples/you.web.search.json
@@ -324,6 +325,14 @@ provider account's grouped `usage.credits` to decide which team pays. BYOK bypas
 Each endpoint's `tavily_rates` mapping has an exact mode-key contract. Catalog validation rejects an
 incomplete, extra, non-finite or non-positive rate, and runtime repeats that check before reserve or
 relay so catalog drift cannot silently turn a platform call into a free call.
+
+Octen's `octen_rates` mapping likewise keeps the original published USD unit prices in catalog data.
+`octen.rates_micro` rejects incomplete or non-micro-USD rates before a shared-key call. The platform
+request check bounds search result counts, Broad subqueries, News subject results, and Extract URL
+count without rewriting the caller's body. A team's own key bypasses that check. The call runtime
+uses the bounded maximum for the hold and this response's `meta.usage` for settlement; the relay
+does not parse or reshape Octen's answer. Catalog validation requires each route's exact rate keys
+and checks that the displayed base price matches its rate table.
 
 Linkup's curated `web.search` and Markdown `web.extract` rows have verified routing adapters;
 Research remains a direct asynchronous `web.answer` tool. Search's `depth` and `outputType` select

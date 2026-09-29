@@ -684,6 +684,20 @@ def test_tavily_rates_require_complete_positive_finite_endpoint_tables():
         assert errors
 
 
+def test_octen_rate_table_matches_displayed_base_and_requires_every_meter():
+    base = {"currency": "USD", "value": 5, "per": 1000,
+            "octen_rates": {"call": 0.005, "full_content_extra": 0.0005}}
+    errors = []
+    validator.check_octen_rates("octen.web.search", base, "test", errors)
+    assert errors == []
+    for cost in (base | {"octen_rates": {"call": 0.005}},
+                 base | {"octen_rates": {"call": 0.005, "full_content_extra": -0.0005}},
+                 base | {"value": 1}):
+        errors = []
+        validator.check_octen_rates("octen.web.search", cost, "test", errors)
+        assert errors
+
+
 # ---- ContactOut ----
 
 

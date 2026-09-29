@@ -580,6 +580,9 @@ _TAVILY_ENDPOINTS = frozenset({
     "tavily.web.map",
     "tavily.web.crawl",
 })
+_OCTEN_ENDPOINTS = frozenset({
+    "octen.web.search", "octen.web.search.broad", "octen.web.search.news", "octen.web.extract",
+})
 _TAVILY_BOUNDED_SITE_ENDPOINTS = frozenset({"tavily.web.map", "tavily.web.crawl"})
 _TAVILY_PLATFORM_MAX_RESULTS = 20
 _TAVILY_RATE_KEYS = {
@@ -756,6 +759,18 @@ def _marketplace_pricing(
     """
     if not cost:
         return 0, 0
+    if provider == "octen" and endpoint_id in _OCTEN_ENDPOINTS:
+        from . import octen
+        try:
+            rates = octen.rates_micro(endpoint_id, cost)
+        except ValueError as exc:
+            raise ResolutionFailed(
+                "catalog_price_invalid", status_code=503, detail={
+                    "error": "catalog_price_invalid", "endpoint_id": endpoint_id,
+                    "message": "Octen pricing is unavailable because its catalog rates are invalid",
+                },
+            ) from exc
+        return octen.estimate_micro(endpoint_id, rates, body), 0
     if provider == "tavily" and endpoint_id in _TAVILY_ENDPOINTS:
         return _tavily_pricing(endpoint_id, cost, body)
     if provider == "openmart" and endpoint_id in _OPENMART_METERED_ENDPOINTS:
@@ -1527,6 +1542,19 @@ def _enforce_platform_request(ep: dict, body: bytes, headers=None, query=None) -
     has a singleton enum is the row identity, not caller choice: accepting another value lets a cheap
     row reserve for an expensive model. Full schema validation remains out of the faithful BYOK path.
     """
+    if ep.get("provider") == "octen" and ep.get("id") in _OCTEN_ENDPOINTS:
+        from . import octen
+        invalid = octen.invalid_platform_parameter(ep["id"], body)
+        if invalid:
+            raise ResolutionFailed(
+                "catalog_parameter_invalid", status_code=400, detail={
+                    "error": "catalog_parameter_invalid", "endpoint_id": ep["id"],
+                    "parameter": invalid,
+                    "message": "Octen platform calls require a bounded request; connect your own key "
+                               "for the upstream range",
+                },
+            )
+
     if ep.get("provider") == "openmart" and ep.get("id") in _OPENMART_METERED_ENDPOINTS:
         requested = _openmart_requested_records(ep["id"], body)
         parameter = (
@@ -2082,6 +2110,13 @@ async def _resolve_marketplace_call(
         basis = {
             "when": "response", "amount": {"kind": "observed"},
             "fallback_micro": info_est, "reserve_micro": info_est,
+        }
+    if service == "octen" and ep["id"] in _OCTEN_ENDPOINTS:
+        from . import octen
+        basis = {
+            "when": "response", "amount": {"kind": "observed"},
+            "fallback_micro": info_est, "reserve_micro": info_est,
+            "octen_rates_micro": octen.rates_micro(ep["id"], cv),
         }
     common = dict(
         upstream=upstream, consumed=consumed, endpoint_id=ep["id"], provider=service,
