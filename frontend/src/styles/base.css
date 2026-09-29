@@ -975,7 +975,10 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
 .pl-card:focus-visible{outline:none;box-shadow:var(--shadow-md),0 0 0 1.5px var(--ink)}
 .pl-card.on{box-shadow:var(--shadow-md),0 0 0 1.5px var(--ink)}
 .pl-cmp b{font-size:15.5px;font-weight:500;line-height:1.4}
-.pl-cmp-f{display:flex;align-items:center;gap:10px;margin-top:auto;flex-wrap:wrap}
+/* A comparison's foot is two fixed lines, logos (and Auto-route) over the provider count and price,
+   so no card wraps them differently from its neighbour. */
+.pl-cmp-f{display:flex;flex-direction:column;gap:8px;margin-top:auto}
+.pl-cmp-r{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .pl-cmp.sm{gap:6px;padding:15px 18px}
 .pl-cmp.sm b{font-size:14px}
 .pl-meta{font-family:var(--mono);font-size:11.5px;color:var(--muted2);font-variant-numeric:tabular-nums}

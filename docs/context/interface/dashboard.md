@@ -884,7 +884,7 @@ h1, the platform summary, the search box), then three zones, nothing behind "sho
   comparison sums its providers', whose rows already include auto-routed calls), then more providers,
   then title. A visitor comes for a job, not for how many providers serve it. A comparison is a card
   with a stack of provider logos, the provider count, the price spread (`priceRange`: "free – $0.38",
-  never a "from" that reads as one price) and an **Auto-route** badge when a routed tool exists; it
+  never a "from" that reads as one price) and an **Auto-route** badge beside the logos when a routed tool exists; it
   links to the comparison page. A single tool is a card that opens the drawer.
 - **Account and setup**: the account/utility plumbing, the same cards in a quieter weight.
 - **Served by**: every provider as a logo chip, linking to its page (`goProvider`: `/tools/<service>`
