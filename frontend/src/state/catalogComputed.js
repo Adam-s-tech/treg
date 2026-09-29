@@ -36,7 +36,7 @@ mkNeedsCred(){ return this.mkConns.filter(c=>c.extra_credential_note); },
       // catalog invents tomorrow still gets a shelf, sorted to the end.
       const order=['Enrichment','SEO/AEO','Social','Advertising','E-commerce','Reviews & Apps','AI generation','Community'];
       const hints={
-        'AI generation':'video, image and voice models, the same model over several routes priced side by side',
+        'AI generation':'video, image, voice and music models, the same model over several routes priced side by side',
         'SEO/AEO':'rankings, keywords and backlinks — what search engines know, and what the answer engines say',
         'Social':'posts, profiles and comments, straight from the feeds',
         'Enrichment':'people and company records, resolved from an email or a domain',

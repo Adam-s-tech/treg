@@ -1032,10 +1032,12 @@ catalog metadata, not a provider-specific billing branch, and cannot be combined
 
 `spooled_response: true` marks a synchronous endpoint whose answer inlines media too large for
 the 8 MiB settlement buffer (Gemini returns images as base64 in its JSON: ~9 MB at 2K, ~23 MB at
-4K). Its metered 2xx is read to disk and settled from the top-level keys its usage paths start at
-(`settlement.usage_roots`; proxy-model.md), so the evidence cannot drift from the price. The
-validator requires `settle: usage` and refuses the field beside `async`, `resource_ownership` or
-`managed_resource`, which need the whole body.
+4K; Lyria songs arrive as base64 MP3). Its metered 2xx is read to disk and settled from exactly
+the paths its row reads: the top-level objects its usage terms start at, and its `expect` success
+leaf (`resolve._spool_evidence_paths`; proxy-model.md), so the evidence cannot drift from the
+price. A token-metered row settles on `usage`; a fixed price (Lyria's per song) needs an `expect`
+rule so a refused generation is not billed. The validator requires one of the two and refuses the
+field beside `async`, `resource_ownership` or `managed_resource`, which need the whole body.
 
 A `pathParams` field that declares an `enum` is enforced on treg's key: the value names what the
 shared credential is spent on (Google AI's `model`), so any other value is a 400 before reserve.

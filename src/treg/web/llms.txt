@@ -86,7 +86,7 @@ resolves the tool by host and injects the credential:
   return `502` with `detail.error=response_buffer_limit` and no charge; retrying the same oversized
   response will not help. Authorized free final downloads needing no body evidence stream in full.
   Such downloads are fetched again on retry, not retained for local idempotent replay.
-- A tool whose answer inlines media (Google AI's Gemini images arrive as base64 in the JSON) is
+- A tool whose answer inlines media (Google AI's images, speech and Lyria music arrive as base64 in the JSON) is
   exempt from the 8 MiB limit up to 64 MiB and is charged from the provider's reported usage. Its
   answer is never replayed: an `Idempotency-Key` retry generates, and bills, a new image. A
   `response_buffer_limit` whose message says it is temporary means treg is busy: retry shortly.
@@ -284,7 +284,7 @@ unverified rows and guesses that one $0.006 verify call each would have caught.)
 Call a specific provider's endpoint when you need a particular one.
 
 <!--/routed-->
-**Video, image and voice generation.** The `video-gen`, `image-gen`, and `voice-gen` platforms list
+**Video, image, voice and music generation.** The `video-gen`, `image-gen`, `voice-gen`, and `music-gen` platforms list
 one row per model per route; the same model on two routes sits side by side with both prices. Models
 are not interchangeable - you pick one; treg does not choose. MiniMax voice generation is
 synchronous: call `minimax.voice-gen.speech-2-8-hd` or

@@ -859,12 +859,38 @@ def _release_spool(file, claimed: int) -> None:
         file.close()
 
 
-def _spool_evidence(file, keys: tuple[str, ...]) -> bytes:
-    """The named top-level keys of a spooled JSON object, re-serialized; b"" when the body is not
-    a JSON object. Parsing the whole document is deliberate: a correct parser must scan every byte
-    anyway, and the stdlib one does it at C speed (a 23 MB answer in ~30 ms). Peak memory is about
-    three times the body (bytes, decoded text, parsed strings), bounded by `spool_max_bytes` and
-    `spool_parse_concurrency`."""
+def _project(document, paths: tuple[str, ...]) -> dict:
+    """A document holding only the values at `paths`, each at its original place: `usageMetadata`
+    keeps that whole object, `candidates.0.finishReason` keeps one leaf inside a one-item list.
+    A path the document does not carry is simply absent, as it was in the original."""
+    projection: dict = {}
+    for path in paths:
+        value = json_path(document, path)
+        if value is None:
+            continue
+        parts = path.split(".")
+        node: dict | list = projection
+        for depth, part in enumerate(parts):
+            key: int | str = int(part) if isinstance(node, list) else part
+            if isinstance(node, list):
+                node.extend({} for _ in range(key + 1 - len(node)))
+            if depth == len(parts) - 1:
+                node[key] = value
+                break
+            want = list if parts[depth + 1].isdigit() else dict
+            current = node[key] if isinstance(node, list) else node.get(key)
+            if not isinstance(current, want):
+                node[key] = want()
+            node = node[key]
+    return projection
+
+
+def _spool_evidence(file, paths: tuple[str, ...]) -> bytes:
+    """The values at `paths` in a spooled JSON object, re-serialized in place; b"" when the body
+    is not a JSON object. Parsing the whole document is deliberate: a correct parser must scan every
+    byte anyway, and the stdlib one does it at C speed (a 23 MB answer in ~30 ms). Peak memory is
+    about three times the body (bytes, decoded text, parsed strings), bounded by `spool_max_bytes`
+    and `spool_parse_concurrency`."""
     file.seek(0)
     try:
         document = json.load(file)
@@ -872,7 +898,7 @@ def _spool_evidence(file, keys: tuple[str, ...]) -> bytes:
         return b""
     if not isinstance(document, dict):
         return b""
-    return json.dumps({key: document[key] for key in keys if key in document}).encode()
+    return json.dumps(_project(document, paths)).encode()
 
 
 async def _spool_response(

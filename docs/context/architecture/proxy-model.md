@@ -610,8 +610,10 @@ a web process. The endpoint instead declares `spooled_response: true` and
   the upstream closes in `finally` as in `_buffer_response`, temp-file creation included.
 - The file is parsed once with the stdlib `json` (measured on a 23 MB Gemini answer: ~30 ms and
   ~45 MB peak; about three times the body at worst) in a worker thread, at most
-  `spool_parse_concurrency` (2) per process. Only the top-level keys the endpoint's usage paths
-  start at (`settlement.usage_roots`) survive, re-serialized as the `body` every later consumer sees: usage
+  `spool_parse_concurrency` (2) per process. Only the paths the row's settlement reads survive
+  (`_spool_evidence_paths`: each usage term's top-level object and the `expect` leaf, kept at its
+  original place, e.g. `{"candidates": [{"finishReason": "STOP"}]}`), re-serialized as the `body`
+  every later consumer sees: usage
   settlement, result classification and capacity signatures. A body that is not a JSON object
   yields empty evidence; a `usage` basis then settles at its reserve.
 - Settlement then runs exactly as for a buffered body, before the response starts, and the router
