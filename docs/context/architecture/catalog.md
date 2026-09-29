@@ -961,7 +961,12 @@ terminal document on an async row, the buffered body on a synchronous one), whic
 reserve (OpenRouter's unpublished minimums). A flat `value` may also declare `settle: usage` with
 no table: its explicit `fallback` is the reserve. Either form requires exactly a dotted
 `usage.path` and a supported `usage.unit` (`usd`; `credit` when fx.yaml prices that provider's
-credit; or a provider-native meter with a numeric `unit_rates_usd[provider][unit]` entry), and any
+credit; or a provider-native meter with a numeric `unit_rates_usd[provider][unit]` entry), or
+`usage.terms` with `unit: usd` for a provider that reports several meters and no charge: a list of
+`{path, rate}` whose figure is the sum of each meter times its positive USD rate. A term path may
+select a list item by key (`candidatesTokensDetails[modality=IMAGE].tokenCount`), because per-
+modality entries have no guaranteed order. An absent meter counts as zero (proto3 JSON omits zero
+fields); a response with none of them is unobserved and settles at the reserve. Any
 other settle rejects a stray usage block. A `times`
 value is never non-positive, whatever minimum the field declares, so a field that admits a sentinel
 such as `-1` cannot multiply a rate by it; the sentinel is priced by a flat row that pins it, and

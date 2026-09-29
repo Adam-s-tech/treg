@@ -161,15 +161,56 @@ def derive_basis(
     }
 
 
-def usage_evidence(basis: dict, evidence: dict[str, Any]) -> float | None:
-    """The provider-reported usage figure a `usage` basis settles on, or None when the terminal
-    response does not carry a usable one."""
-    amount = basis.get("amount") or {}
-    value = _path(evidence.get("terminal"), str(amount.get("path") or ""))
+def _usage_number(value: object) -> float | None:
     if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) \
             and value >= 0:
         return float(value)
     return None
+
+
+def usage_term_path(document: object, dotted: str) -> object:
+    """`json_path` plus one selector: `details[modality=IMAGE]` is the first list item whose
+    `modality` equals `IMAGE`. A provider that reports usage per modality (Gemini's
+    `candidatesTokensDetails`) lists the entries in no guaranteed order, so an index would bill
+    the wrong meter."""
+    current = document
+    for part in dotted.split("."):
+        name, _, selector = part.partition("[")
+        if name:
+            current = _path(current, name)
+        if selector:
+            key, _, expected = selector.rstrip("]").partition("=")
+            current = next((item for item in current if isinstance(item, dict)
+                            and str(item.get(key)) == expected), None) \
+                if isinstance(current, list) else None
+        if current is None:
+            return None
+    return current
+
+
+def usage_evidence(basis: dict, evidence: dict[str, Any]) -> float | None:
+    """The provider-reported usage figure a `usage` basis settles on, or None when the terminal
+    response does not carry a usable one.
+
+    `terms` prices a response that reports several meters instead of one charge: the figure is
+    the sum of each meter times its rate. An absent meter counts as zero (proto3 JSON omits zero
+    fields), but a response carrying none of them is unobserved, never a free call."""
+    amount = basis.get("amount") or {}
+    terminal = evidence.get("terminal")
+    terms = amount.get("terms")
+    if not terms:
+        return _usage_number(_path(terminal, str(amount.get("path") or "")))
+    total, seen = 0.0, False
+    for term in terms:
+        value = usage_term_path(terminal, str(term.get("path") or ""))
+        if value is None:
+            continue
+        number = _usage_number(value)
+        if number is None:
+            return None
+        total += number * float(term["rate"])
+        seen = True
+    return total if seen else None
 
 
 def settle(basis: dict, evidence: dict[str, Any]) -> int:
