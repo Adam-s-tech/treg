@@ -483,6 +483,12 @@ def _observed_cost_micro(mk: MarketplaceCall, body: bytes, headers=None) -> int 
         doc = json.loads(body)
     except (ValueError, UnicodeDecodeError):
         return 0 if provider == "contactout" else None
+    if (provider == "valyu" and mk.endpoint_id.endswith(".search")
+            and isinstance(doc, dict) and doc.get("results") == []
+            and doc.get("total_deduction_dollars") is None):
+        # Search can answer 206 with no results and a null deduction (observed live).
+        # A usage basis would otherwise settle at the reserved result count.
+        return 0
     if provider == "you" and mk.endpoint_id == "you.web.contents" and mk.cost_type == "per_result":
         # Contents returns one object per fetched page as a bare array. The request's URL count
         # bounds the hold; count only pages the provider actually returned.

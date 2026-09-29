@@ -992,6 +992,16 @@ def test_observed_cost_only_trusts_a_real_number():
     assert call_settle._observed_cost_micro(_mk("akta"), b'{"credits_charged": 2}') is None, "wrong field name means we never learned it"
 
 
+def test_valyu_empty_search_releases_the_result_reserve():
+    mk = _mk("valyu", endpoint_id="valyu.markets.predictions.search", cost_type="per_call")
+    assert call_settle._observed_cost_micro(
+        mk, b'{"results": [], "total_deduction_dollars": null}'
+    ) == 0
+    assert call_settle._observed_cost_micro(
+        mk, b'{"results": [{"id": "event"}], "total_deduction_dollars": 0.005}'
+    ) is None  # the declarative usage basis reads the reported amount
+
+
 # Providers whose body carries no billing field report the call's charge in a response header.
 _CRUSTDATA = ("crustdata", {"endpoint_id": "crustdata.companies.search"}, b'{"rows": []}')
 # AI Ark reports a debit as a NEGATIVE X-Credit value; the sign rule is provider-specific.
