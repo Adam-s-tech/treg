@@ -406,7 +406,7 @@ validated before resolving the shared HTTP client. `/auth/logout` remains an HTT
   | Route | Contract |
   |---|---|
   | `GET /catalog/platforms` | Non-empty platforms with capability/endpoint counts and providers, ordered by endpoint count; `providers` names every browsable vendor |
-  | `GET /catalog/platforms/{slug}` | Capabilities, extended endpoints, dashboard domain rows (a row whose capability at least two providers serve there carries `compare`, its URL key) and provider metadata; an endpoint teams' agents have reviewed carries `reviews` (`architecture/feedback.md`: scored past five teams, quoted as early before); unknown slug is 404 |
+  | `GET /catalog/platforms/{slug}` | Capabilities, extended endpoints, dashboard domain rows (a row whose capability at least two providers serve there carries `compare`, its URL key) and provider metadata; an endpoint teams' agents have reviewed carries `reviews` (`architecture/feedback.md`: scored past five teams, quoted as early before), and every endpoint its `observed` calls (the same snapshot search ranks on); unknown slug is 404 |
   | `GET /catalog/search?q=&limit=` | Ranked endpoint views, count/total and hints; default 25, maximum 100. Listed hub tools merge into the same ranking by score (see [hub](../architecture/hub.md)); a hub row's run hint is its own `treg call <id> --data` line, since it has no catalog row or provider key |
   | `GET /catalog/find?q=` | Find tools for a described job: NDJSON stream of `candidates` then `judged` (verdict + kept rows with probabilities; a bare platform or provider name gets verdict `name` and its endpoints, unjudged); `&platform=<slug>` scopes recall and the keyword fallback (ranked among that shelf's rows, catalog-wide idf) and a bare provider name to that shelf (unknown slug is 404); rate limited per IP, 503 without a judge key |
   | `GET /catalog/providers/{service}` | Every tool one provider serves, by platform; a tool whose capability several providers serve on its platform carries `compare` (capability, URL key, provider count); reviewed endpoints carry `reviews`; unknown provider is 404 |
@@ -414,8 +414,10 @@ validated before resolving the shared HTTP client. `/auth/logout` remains an HTT
   | `GET /catalog/examples/{id}` | Captured JSON, resolved through the catalog before constructing a file path |
   | `POST /tool-requests` | Open, rate-limited demand report with capped fields and optional caller attribution |
 
-  Domain grouping is server-side (`domain_rows`), so CLI and dashboard share ordering and
-  comparison semantics. `call_template` uses the verified test request, then documented examples.
+  Domain grouping is server-side (`domain_rows`), so CLI and dashboard share grouping and
+  comparison semantics; a merged row, and a routed row, file under the domain most of their
+  providers give them. The dashboard's platform shelf reorders those rows by 30-day calls
+  (`interface/dashboard.md`). `call_template` uses the verified test request, then documented examples.
   Dotted body keys (`params.domain`) are expanded into nested JSON by `unflatten_dotted()` so
   the paste-ready `--data` matches the wire body.
 

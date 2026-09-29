@@ -24,7 +24,7 @@ export default {
   <template v-else-if="platData && !platCap">
     <header class="pl-hero">
       <nav class="pl-crumbs" aria-label="Breadcrumb"><a href="/catalog" @click.prevent="go('connections')">Catalog</a><span>/</span>{{platLabel}}</nav>
-      <p class="pl-eyebrow">{{platComparisons.length}} jobs compared · {{platToolTotal}} more tools · {{platProvLine.length}} providers</p>
+      <p class="pl-eyebrow">{{platShelfIndex.length}} tools · {{platComparisons.length}} compared across providers · {{platProvLine.length}} providers</p>
       <h1>{{platLabel}}</h1>
       <p v-if="platRow && platRow.summary" class="pl-lede">{{platRow.summary}}</p>
       <CatalogSearch v-model="platQ" :scope="platSlug" :scope-label="platLabel"
@@ -33,33 +33,31 @@ export default {
 
     <FindAnswer v-if="findActive && find.scope===platSlug" class="pl-find" />
 
-    <section v-if="platComparisonsShown.length" class="pl-sec">
-      <h2 class="pl-h"><span>Jobs several providers do</span><i></i><em>{{platComparisonsShown.length}}</em></h2>
-      <div class="pl-grid">
-        <a v-for="j in platComparisonsShown" :key="j.key" class="pl-card pl-cmp" :href="platUrl(platSlug, j.slug)" @click.prevent="openComparison(j.slug)">
-          <span class="pl-cmp-h"><b>{{j.title}}</b><span v-if="j.routed" class="pl-auto" title="One call: treg picks the provider for you">Autopilot</span></span>
-          <span class="pl-cmp-f">
-            <span class="pl-stack" aria-hidden="true"><ProviderLogo v-for="s in j.logos" :key="s" :service="s" /></span>
-            <span class="pl-meta">{{j.meta}}</span>
-          </span>
-        </a>
-      </div>
-    </section>
-
-    <!-- Every other tool, then the account and setup plumbing: one card each, the same card. -->
-    <section v-for="sec in [{key:'tools', label:platComparisonsShown.length ? 'More tools' : 'Tools', items:platTools},
+    <!-- The shelf: comparisons and single-provider tools in one list, most used first; then the
+         account and setup plumbing, the same cards in a quieter weight. -->
+    <section v-for="sec in [{key:'tools', label:'Tools', items:platShelf},
                             {key:'setup', label:'Account and setup', items:platPlumbing, quiet:true}].filter(s=>s.items.length)"
              :key="sec.key" class="pl-sec">
       <h2 class="pl-h" :class="{'pl-h-quiet':sec.quiet}"><span>{{sec.label}}</span><i></i><em>{{sec.items.length}}</em></h2>
       <div class="pl-grid pl-grid-t">
-        <button v-for="t in sec.items" :key="t.id" class="pl-card pl-tool" :class="{on:drawerTool===t.id, quiet:sec.quiet}" @click="openTool(t.id)">
-          <ProviderLogo :service="t.e.provider" large />
-          <span class="pl-tool-b"><b>{{t.title}}</b><span class="pl-meta">{{t.e.provider_display||t.e.provider}} · {{toolPrice(t.e)}}</span></span>
-        </button>
+        <template v-for="t in sec.items" :key="t.job ? 'job:'+t.key : t.id">
+          <a v-if="t.job" class="pl-card pl-cmp" :href="platUrl(platSlug, t.slug)" @click.prevent="openComparison(t.slug)">
+            <b>{{t.title}}</b>
+            <span class="pl-cmp-f">
+              <span class="pl-stack" aria-hidden="true"><ProviderLogo v-for="s in t.logos" :key="s" :service="s" /></span>
+              <span class="pl-meta">{{t.meta}}</span>
+              <span v-if="t.routed" class="pl-auto" title="One call: treg picks the provider for you">Auto-route</span>
+            </span>
+          </a>
+          <button v-else class="pl-card pl-tool" :class="{on:drawerTool===t.id, quiet:sec.quiet}" @click="openTool(t.id)">
+            <ProviderLogo :service="t.e.provider" large />
+            <span class="pl-tool-b"><b>{{t.title}}</b><span class="pl-meta">{{t.e.provider_display||t.e.provider}} · {{toolPrice(t.e)}}</span></span>
+          </button>
+        </template>
       </div>
     </section>
 
-    <p v-if="platFilterQ && !platComparisonsShown.length && !platTools.length && !platPlumbing.length && !findActive && !findSoon" class="pl-empty">
+    <p v-if="platFilterQ && !platShelf.length && !platPlumbing.length && !findActive && !findSoon" class="pl-empty">
       Nothing in {{platLabel}} matches “{{platQ.trim()}}”. <button class="pl-link" @click="platQ=''">Clear the search</button></p>
 
     <footer v-if="platProvLine.length" class="pl-provs">
@@ -86,7 +84,7 @@ export default {
       <!-- treg's own answer first when there is one: one call, and nobody has to choose. -->
       <section v-if="platComparison.routed" class="pl-autocard">
         <div class="pl-auto-t">
-          <p class="pl-eyebrow">Autopilot</p>
+          <p class="pl-eyebrow">Auto-route</p>
           <h2>{{platComparison.provN}} providers, one call.</h2>
           <p>treg picks the best match for what you send and tries the next if one comes back empty.
             Your own keys always go first.</p>

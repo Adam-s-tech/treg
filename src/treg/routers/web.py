@@ -450,7 +450,7 @@ async def catalog_page(slug: str):
     # endpoints are real inventory and the page files them in their own section rather than hiding
     # them. Asking for a different population than the view that is about to replace this would put
     # two different endpoint counts on one URL.
-    detail = await catalog_platform(slug, include_hidden=1)
+    detail = await catalog_platform(slug, include_hidden=1, observations=None)
     compared = catalog_store.load().compared()
     base = get_settings().public_url.rstrip("/")
     plat = detail["platform"]

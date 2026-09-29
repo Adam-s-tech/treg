@@ -334,6 +334,8 @@ capCheapest(eps){
       const n={domain:'domain', website:'website', name:'name', email:'email', linkedin_url:'LinkedIn URL',
                linkedin_handle:'LinkedIn handle', query:'query'};
       return acc.map(a=>a.map(x=>n[x]||x.replace(/_/g,' ')).join(' + ')); },
+// Calls an endpoint served in the last 30 days (`observed.samples` on the platform response).
+    callsOf(e){ return (e && e.observed && e.observed.samples) || 0; },
 // 141059 → "141k": a count beside a percentage is its denominator, not a figure to read digit by digit.
     // Volumes are shown by band, never exact: how much traffic one provider gets through treg, or how
     // many teams rated it, is not something a comparison needs to the unit.
