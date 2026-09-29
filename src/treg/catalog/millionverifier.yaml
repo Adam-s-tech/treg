@@ -23,7 +23,7 @@ endpoints:
     scope: any_account
     method: GET
     path: /api/v3/
-    name: "Verify an email address is deliverable"
+    name: "Verify an email address — catch-all result"
     summary: "Verify an email address in real time"
     input:
       queryParams:

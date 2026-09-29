@@ -326,7 +326,7 @@ endpoints:
     domain: contacts
     method: POST
     path: /api/v1/find/email_verify
-    name: Verify an email
+    name: Verify an email address — catch-all and risk status
     summary: Check an email address for deliverability, risk, and mailbox evidence.
     input:
       bodyType: json

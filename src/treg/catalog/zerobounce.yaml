@@ -23,7 +23,7 @@ endpoints:
     scope: any_account
     method: GET
     path: /v2/validate
-    name: Verify an email address
+    name: Verify an email address — catch-all and risk status
     summary: Check mailbox deliverability and risk status in real time
     input:
       queryParams:
