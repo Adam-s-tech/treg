@@ -50,6 +50,7 @@ _KNOWN: dict[str, tuple[str, str, str]] = {
     # The API supplies the exact credit balance; vendor auto recharge was manually enabled and
     # verified in the Serper dashboard.
     "serper": ("credits", "auto_recharge", "api"),
+    "litescrape": ("requests", "manual", "api"),
     "keenable": ("requests", "manual", "manual"),
     "olostep": ("credits", "manual", "api"),
     "firecrawl": ("credits", "subscription", "api"),

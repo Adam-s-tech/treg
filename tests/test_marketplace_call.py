@@ -182,6 +182,62 @@ async def _balance(clients: AsyncClient) -> int:
     return (await clients.get(f"/orgs/{org_id}/balance")).json()["balance_micro"]
 
 
+async def test_litescrape_platform_and_own_key_ladder(clients, monkeypatch):
+    monkeypatch.setenv("TREG_PLATFORM_KEY_LITESCRAPE", "PLATFORM-LITESCRAPE")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "litescrape")
+    get_settings.cache_clear()
+    seen = []
+
+    def upstream(request):
+        seen.append(request.headers["authorization"])
+        if request.url.path == "/api/google/search":
+            assert request.url.params["q"] == "example"
+            return _dropleads_response(200, {"organic_results": [{"title": "Example"}]})
+        if request.url.path == "/api/artifacts/web/screenshot":
+            assert request.url.params["id"] == "sample"
+            assert request.url.params["bucket"] == "20260929"
+            return httpx.Response(200, stream=httpx.ByteStream(b"\x89PNG\r\n\x1a\n"),
+                                  headers={"content-type": "image/png"})
+        assert request.url.path == "/api/web/screenshot"
+        assert request.url.params["url"] == "https://example.com"
+        return _dropleads_response(200, {"screenshot_url": "https://api.litescrape.com/api/artifacts/web/screenshot?id=sample&bucket=20260929"})
+
+    try:
+        async with AsyncClient(transport=httpx.MockTransport(upstream)) as vendor:
+            monkeypatch.setattr(A.app.state, "http", vendor)
+            before = await _balance(clients)
+            platform = await clients.get("/call/litescrape.google.serp.organic", params={"q": "example"})
+            assert platform.status_code == 200, platform.text
+            assert platform.headers["X-Treg-Cost-Micro"] == "150"
+            assert await _balance(clients) == before - 150
+            assert seen == ["Bearer PLATFORM-LITESCRAPE"]
+
+            screenshot = await clients.get("/call/litescrape.web.screenshot", params={"url": "https://example.com"})
+            assert screenshot.status_code == 404
+            assert seen == ["Bearer PLATFORM-LITESCRAPE"]
+
+            secret = await clients.post("/secrets", json={"name": "litescrape", "value": "OWN-LITESCRAPE"})
+            assert secret.status_code == 200, secret.text
+            own_before = await _balance(clients)
+            own = await clients.get("/call/litescrape.google.serp.organic", params={"q": "example"})
+            assert own.status_code == 200, own.text
+            assert "X-Treg-Cost-Micro" not in own.headers
+            assert await _balance(clients) == own_before
+            assert seen[-1] == "Bearer OWN-LITESCRAPE"
+            own_screenshot = await clients.get("/call/litescrape.web.screenshot", params={"url": "https://example.com"})
+            assert own_screenshot.status_code == 200, own_screenshot.text
+            assert own_screenshot.json()["screenshot_url"].endswith("id=sample&bucket=20260929")
+            assert "X-Treg-Cost-Micro" not in own_screenshot.headers
+            own_image = await clients.get("/call/litescrape.web.screenshot.download", params={
+                "id": "sample", "bucket": "20260929",
+            })
+            assert own_image.status_code == 200, own_image.text
+            assert own_image.content == b"\x89PNG\r\n\x1a\n"
+            assert await _balance(clients) == own_before
+    finally:
+        get_settings.cache_clear()
+
+
 async def test_firecrawl_platform_scrape_bills_a_returned_404_and_byok_wins(
     clients: AsyncClient, monkeypatch, firecrawl_platform_on,
 ):
@@ -747,6 +803,16 @@ def _mk(provider: str, **kw) -> call_resolution.MarketplaceCall:
     kw.setdefault("tier", "platform")
     kw.setdefault("endpoint_id", "ep")  # hunter's derived cost is keyed on the endpoint, not just the provider
     return call_resolution.MarketplaceCall(tool=None, upstream="", consumed=set(), provider=provider, **kw)
+
+
+def test_litescrape_ai_overview_unserved_is_free():
+    mk = _mk("litescrape", endpoint_id="litescrape.google.serp.ai_overview",
+             cost_type="per_success", estimate_micro=150)
+    assert call_settle._observed_cost_micro(
+        mk, b'{"ai_overview":null,"search_metadata":{"ai_overview_state":"not_served"}}') == 0
+    assert call_settle._observed_cost_micro(
+        mk, b'{"ai_overview":{"text":"answer"},"search_metadata":{"ai_overview_state":"served"}}') is None
+    assert call_settle._observed_cost_micro(mk, b'{"ai_overview":null}') is None
 
 
 @pytest.mark.parametrize(("endpoint", "body", "credits"), [

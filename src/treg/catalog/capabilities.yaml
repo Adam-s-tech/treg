@@ -88,6 +88,7 @@ platforms:
   # --- Reviews & Apps: app stores and review sites ---------------------------------------------
   app-store: {label: "Apple App Store", category: "Reviews & Apps", featured: 1, summary: "App listings, rankings and reviews from the Apple App Store."}
   google-play: {label: "Google Play", category: "Reviews & Apps", featured: 2, summary: "App listings, rankings and reviews from Google Play."}
+  apple-maps: {label: "Apple Maps", category: "Reviews & Apps", summary: "Public Apple Maps places, ratings and reviews."}
   trustpilot: {label: "Trustpilot", category: "Reviews & Apps", featured: 3, summary: "Company profiles and reviews from Trustpilot."}
   imdb: {label: "IMDb", category: "Reviews & Apps", featured: 4, summary: "Titles, ratings, cast, box office and reviews from IMDb."}
   tripadvisor: {label: "Tripadvisor", category: "Reviews & Apps", summary: "Hotels, restaurants and reviews from Tripadvisor."}
@@ -153,7 +154,10 @@ capabilities:
   creators.search: "Find influencers & creators by niche, country, followers & engagement on Instagram, TikTok, YouTube"
   # --- SEO / search -----------------------------------------------------------------------------
   google.serp.organic: "Get organic search results for a keyword"
+  google.serp.ai_overview: "Get the AI Overview panel Google shows above a search result"
+  google.serp.shopping: "Get Google Shopping results for a keyword"
   google.serp.maps: "Get Google Maps results for a keyword and location"
+  google.maps.reviews: "List the Google Maps reviews of a place"
   google.serp.local: "Get Google Local Finder (local pack) results for a keyword"
   google.serp.news: "Get Google News results for a keyword"
   google.serp.ai_mode: "Get Google AI Mode results for a keyword"
@@ -176,6 +180,7 @@ capabilities:
   web.page.audit: "Run an on-page audit of a URL"
   web.search: "Search the open web by meaning or keyword"
   web.extract: "Extract clean content from web pages"
+  web.screenshot: "Capture a rendered web page image"
   web.map: "Discover the URLs on a website"
   web.crawl: "Crawl a website and extract its pages"
   web.crawl.status: "Check a website crawl's progress and final state"
