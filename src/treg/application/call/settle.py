@@ -542,6 +542,10 @@ def _observed_cost_micro(mk: MarketplaceCall, body: bytes, headers=None) -> int 
         return None
     if not isinstance(doc, dict):
         return 0 if provider == "contactout" else None
+    if mk.endpoint_id == "litescrape.google.serp.ai_overview" and doc.get("ai_overview") is None:
+        metadata = doc.get("search_metadata")
+        if isinstance(metadata, dict) and metadata.get("ai_overview_state") == "not_served":
+            return 0
     reported = (ep.get("cost") or {}).get("reported_charge") if ep else None
     if reported:
         amount = _dig(doc, reported["path"])

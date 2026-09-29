@@ -143,6 +143,28 @@ async def test_serper_capacity_uses_free_account_balance():
     }
 
 
+async def test_litescrape_capacity_uses_free_key_status():
+    def probe(request):
+        assert request.method == "GET"
+        assert request.url == "https://api.litescrape.com/api/keys/status"
+        assert request.headers["authorization"] == "Bearer test"
+        return httpx.Response(200, json={
+            "status": "active", "remaining_calls": 75765, "concurrency_limit": 25,
+        })
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(probe)) as client:
+        row = await collectors._litescrape(client, "test")
+    assert row == {"value": 75765, "unit": "calls", "note": "key concurrency limit 25"}
+
+
+@pytest.mark.parametrize("balance", [None, True, "100", -1])
+async def test_litescrape_capacity_rejects_invalid_remaining_calls(balance):
+    async with httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda _request: httpx.Response(200, json={"remaining_calls": balance}))) as client:
+        with pytest.raises(ValueError, match="invalid remaining_calls"):
+            await collectors._litescrape(client, "test")
+
+
 async def test_you_balance_converts_cents_to_usd():
     def probe(request):
         assert request.method == "GET"

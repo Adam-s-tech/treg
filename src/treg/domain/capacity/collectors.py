@@ -143,6 +143,18 @@ async def _serper(c, key):
     return {"value": float(balance), "unit": "credits", "note": rate_note}
 
 
+async def _litescrape(c, key):
+    d = await _get(c, "https://api.litescrape.com/api/keys/status",
+                   headers={"Authorization": f"Bearer {key}"})
+    raw = d.get("remaining_calls")
+    if type(raw) is not int or raw < 0:
+        raise ValueError("Litescrape status returned an invalid remaining_calls")
+    limit = d.get("concurrency_limit")
+    note = (f"key concurrency limit {limit}" if type(limit) is int and limit > 0
+            else "key concurrency limit unavailable")
+    return {"value": raw, "unit": "calls", "note": note}
+
+
 async def _olostep(c, key):
     # Free authenticated account read. `credits` is the authoritative sum of unexpired lots;
     # endpoint responses report their own `credits_consumed`, which settlement handles separately.
@@ -853,6 +865,7 @@ BALANCE_ROUTES = {
     "linkup": _linkup,
     "you": _you,
     "serper": _serper,
+    "litescrape": _litescrape,
     "olostep": _olostep,
     "firecrawl": _firecrawl,
     "spidercloud": _spidercloud,

@@ -2585,6 +2585,30 @@ SERPER = OAuthProvider(
     probe_path="/account",
 )
 
+LITESCRAPE = OAuthProvider(
+    service="litescrape",
+    display_name="Litescrape",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="ls_live_…",
+    setup_url="https://litescrape.com/",
+    setup_action_label="Get your Litescrape API key",
+    setup_steps=(
+        "Open Litescrape and copy your API key.",
+        "Paste the key here; treg checks the free key status endpoint.",
+    ),
+    setup_note="Search, places, reviews, app store and web tools use one prepaid call per successful response.",
+    auth_uri="", token_uri="", scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="SEO",
+    summary="Search engines, maps, reviews, app stores, web pages and screenshots.",
+    base_url="https://api.litescrape.com",
+    docs_url="https://litescrape.com/docs/reference",
+    probe_path="/api/keys/status",
+    token_ok_field="status",
+    token_ok_value="active",
+)
+
 KEENABLE = OAuthProvider(
     service="keenable",
     display_name="Keenable",
@@ -3707,7 +3731,7 @@ REGISTRY: dict[str, OAuthProvider] = {
         SCRAPECREATORS,
         # SEO API-key providers
         DATAFORSEO, SERANKING, MOZ, MAJESTIC, SERPSTAT, EXA, TAVILY, LINKUP, YOU, KEENABLE, OLOSTEP, FIRECRAWL, SPIDERCLOUD, PERPLEXITY,
-        SCRAPEGRAPHAI, SERPER, CLORO,
+        SCRAPEGRAPHAI, SERPER, LITESCRAPE, CLORO,
         # more Enrichment API-key providers
         LUSHA, CORESIGNAL, DIFFBOT, THECOMPANIESAPI, LEADMAGIC, FIBER_AI, CRUSTDATA, AVIATO,
         COMPANYENRICH, OCEANIO, ADYNTEL, TOMBA, TRESTLEIQ, PREDICTLEADS, FINDYMAIL, BRANDDEV, ICYPEAS, LEADSFORGE,

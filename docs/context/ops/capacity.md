@@ -45,6 +45,12 @@ related:
 
 # Provider capacity
 
+Litescrape's internal collector reads the free `GET /api/keys/status` route with the platform
+Bearer key. It accepts a nonnegative integer `remaining_calls` as the prepaid call balance and
+records the key's reported concurrency limit as an informational note. The policy is
+`requests / manual / api`; the 25 concurrent requests observed on the configured key are not
+a per-second rate, so no token-bucket rate is inferred. The status route stays out of the catalog.
+
 Fetchin capacity is `credits / manual / api`. `collectors._fetchinio` calls the free internal
 `GET /api/v1/subscription` route with the platform `X-API-Key`, accepts only a finite nonnegative
 `creditsRemaining`, and retains plan status, PAYG remainder, renewal date and the account's reported
