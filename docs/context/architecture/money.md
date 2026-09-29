@@ -1019,6 +1019,13 @@ reserve/settle gates and settles with an explicit zero override before returning
 does not observe the original generation task or persist a response for idempotent replay; the
 label is released and retrying performs another free read. MIME type never decides billability.
 
+A metered 2xx on an endpoint declaring `spooled_response` keeps the same completeness rule with
+the body on disk: `_spool_response` settles from the top-level keys its usage paths read before headers go
+out, so `X-Treg-Cost-Micro` stays exact and the hold closes once on the normal path. An answer the
+provider completed but whose evidence is missing or unparseable settles at the reserve (the image
+exists); an oversized or budget-refused body is a `response_buffer_limit` release. The label is
+released rather than stored, so an idempotent retry is a new, separately billed generation.
+
 
 ## HarvestAPI integration
 

@@ -311,7 +311,14 @@ whole record.
 Archive recording has independent task-count and byte limits. `_MAX_PENDING_BYTES` bounds bodies
 retained for database writes, and `archive_r2_max_pending_bytes` separately bounds object-store work.
 These are admission budgets, not an RSS ceiling: SDK buffers, compression and mandatory terminal
-evidence require additional memory headroom. Production observations and incident history live in
+evidence require additional memory headroom.
+
+Spooled settlement evidence (`spooled_response`, proxy-model.md) writes large metered answers to
+the process temp directory, not RAM. `TREG_SPOOL_BUDGET_BYTES` (default 512 MiB per process) bounds
+that disk use, `TREG_SPOOL_MAX_BYTES` (64 MiB) one answer, `TREG_SPOOL_PARSE_CONCURRENCY` (2) the
+transient parse memory (up to about three times the body each), and `TREG_SPOOL_DIR` overrides the directory.
+Size the budget against the host's ephemeral disk: a platform that evicts an instance over its
+local-storage allowance turns an oversized budget into a restart. Production observations and incident history live in
 the private [database-capacity runbook](https://github.com/superdesigndev/treg-internal/blob/main/docs/production/database-capacity.md).
 
 ## Hosted feature switches

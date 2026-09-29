@@ -340,6 +340,9 @@ class MarketplaceCall:
     resource_ownership: dict | None = None
     managed_resource: dict | None = None
     public_resource_ids: tuple[str, ...] = ()
+    # On an endpoint declaring `spooled_response`: the top-level response keys its usage
+    # settlement reads. A metered 2xx goes to disk and only these keys are kept as evidence.
+    spooled_evidence: tuple[str, ...] = ()
     # A platform-key utility poll was authorized against this org-owned submission. The buffered
     # response may teach the same row its provider result/file id before the background worker runs.
     async_owner_call_id: str | None = None
@@ -2069,6 +2072,8 @@ async def _resolve_marketplace_call(
         settlement_basis=basis, request_data=request_data,
         async_descriptor=ep.get("async"), resource_ownership=ep.get("resource_ownership"),
         managed_resource=ep.get("managed_resource"),
+        spooled_evidence=(settlement_basis.usage_roots(raw_cost)
+                          if ep.get("spooled_response") else ()),
     )
     if chosen_tool is not None:
         return MarketplaceCall(tool=chosen_tool, tier="tool", **common)

@@ -188,6 +188,14 @@ def usage_term_path(document: object, dotted: str) -> object:
     return current
 
 
+def usage_roots(cost: dict) -> tuple[str, ...]:
+    """The top-level response keys a `usage` settlement reads - all a spooled answer keeps."""
+    usage = cost.get("usage") or {}
+    paths = [term.get("path") for term in usage.get("terms") or []] or [usage.get("path")]
+    roots = (str(path).split(".", 1)[0].split("[", 1)[0] for path in paths if path)
+    return tuple(dict.fromkeys(roots))
+
+
 def usage_evidence(basis: dict, evidence: dict[str, Any]) -> float | None:
     """The provider-reported usage figure a `usage` basis settles on, or None when the terminal
     response does not carry a usable one.

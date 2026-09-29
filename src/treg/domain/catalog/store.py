@@ -708,6 +708,9 @@ def _normalize(raw: dict, provider: str, directory: Path) -> dict:
         "resource_ownership": raw.get("resource_ownership") or None,
         # User-visible long-lived objects created on a shared provider account.
         "managed_resource": raw.get("managed_resource") or None,
+        # A metered 2xx too large to buffer (inline media): read to disk and settled from the
+        # keys its usage terms read (application/call/settle.py `_spool_response`).
+        "spooled_response": raw.get("spooled_response") is True,
         "platform_request": raw.get("platform_request") or None,
         # How treg serves the catalog fallback after the team's own tool/credential ladder misses.
         # Absent means the provider credential is required. `anonymous` means the verified public

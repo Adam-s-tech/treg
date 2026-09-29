@@ -6,6 +6,8 @@ import asyncio
 import json
 import logging
 import math
+import tempfile
+import weakref
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -786,6 +788,24 @@ def _dig(doc, dotted: str):
     return json_path(doc, dotted)
 
 
+def _buffer_limit(message: str) -> GatewayFailed:
+    """The uncharged refusal for evidence treg will not hold: raised before any header is sent."""
+    return GatewayFailed("response_buffer_limit", status_code=502, detail={
+        "error": "response_buffer_limit",
+        "message": f"{message}; no response was delivered and this call was not charged"})
+
+
+def _with_length(raw_headers, size: int) -> tuple[tuple[bytes, bytes], ...]:
+    """The upstream's headers verbatim (the relay already dropped hop-by-hop + our own), with a
+    content-length that matches what we are actually about to send."""
+    return tuple([(k, v) for k, v in raw_headers if k.lower() != b"content-length"]
+                 + [(b"content-length", str(size).encode())])
+
+
+def _as_bytes(chunk) -> bytes:
+    return chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8", "replace")
+
+
 async def _buffer_response(response: UpstreamResponse) -> tuple[UpstreamResponse, bytes]:
     """Read complete settlement evidence before sending headers; never return a prefix.
 
@@ -795,14 +815,10 @@ async def _buffer_response(response: UpstreamResponse) -> tuple[UpstreamResponse
     chunks, size = [], 0
     try:
         async for chunk in response.body_stream:
-            raw = chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8", "replace")
+            raw = _as_bytes(chunk)
             size += len(raw)
             if size > _PLATFORM_BODY_MAX:
-                raise GatewayFailed(
-                    "response_buffer_limit", status_code=502,
-                    detail={"error": "response_buffer_limit",
-                            "message": "upstream response exceeds treg's 8 MiB settlement buffer; "
-                                       "no response was delivered and this call was not charged"})
+                raise _buffer_limit("upstream response exceeds treg's 8 MiB settlement buffer")
             chunks.append(raw)
         body = b"".join(chunks)
     finally:
@@ -814,14 +830,135 @@ async def _buffer_response(response: UpstreamResponse) -> tuple[UpstreamResponse
     async def closed() -> None:
         return None
 
-    # Carry the upstream's headers verbatim (the relay already dropped hop-by-hop + our own), with a
-    # content-length that matches what we are actually about to send.
-    raw_headers = tuple(
-        [(k, v) for k, v in response.raw_headers if k.lower() != b"content-length"]
-        + [(b"content-length", str(len(body)).encode())]
-    )
-    out = UpstreamResponse(response.status, raw_headers, buffered_body(), closed)
+    out = UpstreamResponse(response.status, _with_length(response.raw_headers, len(body)),
+                           buffered_body(), closed)
     return out, body
+
+
+_SPOOL_CHUNK = 256 * 1024
+_spool_in_use = 0  # bytes held by this process's live spools, against `spool_budget_bytes`
+_spool_gate: asyncio.Semaphore | None = None
+_spool_gate_loop: asyncio.AbstractEventLoop | None = None
+
+
+def _spool_parse_gate() -> asyncio.Semaphore:
+    """`spool_parse_concurrency` parses per process, on the CURRENT loop (recreated if the loop
+    changed, like `audit._get_sem`)."""
+    global _spool_gate, _spool_gate_loop
+    loop = asyncio.get_running_loop()
+    if _spool_gate is None or _spool_gate_loop is not loop:
+        _spool_gate = asyncio.Semaphore(get_settings().spool_parse_concurrency)
+        _spool_gate_loop = loop
+    return _spool_gate
+
+
+def _release_spool(file, claimed: int) -> None:
+    global _spool_in_use
+    _spool_in_use -= claimed
+    if file is not None:
+        file.close()
+
+
+def _spool_evidence(file, keys: tuple[str, ...]) -> bytes:
+    """The named top-level keys of a spooled JSON object, re-serialized; b"" when the body is not
+    a JSON object. Parsing the whole document is deliberate: a correct parser must scan every byte
+    anyway, and the stdlib one does it at C speed (a 23 MB answer in ~30 ms). Peak memory is about
+    three times the body (bytes, decoded text, parsed strings), bounded by `spool_max_bytes` and
+    `spool_parse_concurrency`."""
+    file.seek(0)
+    try:
+        document = json.load(file)
+    except (ValueError, RecursionError):
+        return b""
+    if not isinstance(document, dict):
+        return b""
+    return json.dumps({key: document[key] for key in keys if key in document}).encode()
+
+
+async def _spool_response(
+    response: UpstreamResponse, keys: tuple[str, ...],
+) -> tuple[UpstreamResponse, bytes, int]:
+    """Read a large metered 2xx to disk, settle from its evidence keys, relay it verbatim.
+
+    The `_buffer_response` contract - complete evidence before headers, never a prefix, an
+    oversized body fails uncharged - with the body in an anonymous temp file instead of RAM, so a
+    provider that inlines media in its JSON (Gemini's base64 images) can be metered. Returns the
+    replay response, the evidence (a small JSON object of `keys`, b"" when the body is not a JSON
+    object) and the body's size. The file is unlinked from creation, so a crash leaks nothing on
+    disk; the replay's close (or its garbage collection) closes it and returns its budget, once."""
+    global _spool_in_use
+    settings = get_settings()
+    file = None
+    size = claimed = 0
+
+    def claim(total: int) -> None:
+        """Hold budget for `total` bytes of this body; refuse (uncharged) when the process has no
+        room. Admission is all at once when the provider declares a length, so concurrent large
+        answers are admitted or refused whole instead of all stalling half-read."""
+        nonlocal claimed
+        global _spool_in_use
+        if total > settings.spool_max_bytes:
+            raise _buffer_limit(
+                f"upstream response exceeds treg's {settings.spool_max_bytes // (1024 * 1024)} "
+                "MiB settlement limit")
+        if total > claimed:
+            if _spool_in_use + total - claimed > settings.spool_budget_bytes:
+                raise _buffer_limit("treg is settling too many large responses right now; this "
+                                    "is temporary, retry shortly")
+            _spool_in_use += total - claimed
+            claimed = total
+
+    try:
+        try:
+            declared = next((v for k, v in response.raw_headers
+                             if k.lower() == b"content-length"), b"")
+            if declared.isdigit():
+                claim(int(declared))
+            file = tempfile.TemporaryFile(dir=settings.spool_dir or None)
+            pending = bytearray()
+            async for chunk in response.body_stream:
+                raw = _as_bytes(chunk)
+                claim(size + len(raw))
+                size += len(raw)
+                pending += raw
+                if len(pending) >= _SPOOL_CHUNK:
+                    await asyncio.to_thread(file.write, pending)
+                    pending.clear()
+            if pending:
+                await asyncio.to_thread(file.write, pending)
+        finally:
+            await response.close()
+        async with _spool_parse_gate():
+            evidence = await asyncio.to_thread(_spool_evidence, file, keys)
+    except BaseException:
+        _release_spool(file, claimed)
+        raise
+
+    async def replay():
+        file.seek(0)
+        while chunk := await asyncio.to_thread(file.read, _SPOOL_CHUNK):
+            yield chunk
+
+    async def close() -> None:
+        release()
+
+    out = UpstreamResponse(response.status, _with_length(response.raw_headers, size), replay(), close)
+    release = weakref.finalize(out, _release_spool, file, claimed)
+    return out, evidence, size
+
+
+async def _read_evidence(
+    mk: MarketplaceCall, response: UpstreamResponse,
+) -> tuple[UpstreamResponse, bytes, int | None]:
+    """Complete settlement evidence for a metered or owned-poll answer: the whole body in memory,
+    or, for a metered 2xx on an endpoint declaring `spooled_response`, the body on disk and the
+    keys its usage settlement reads. The third value is the spooled size, None when the body is in memory.
+    A routed child always reads into memory: its parent builds the answer from the child's body."""
+    if (mk.spooled_evidence and mk.metered and mk.deferred is None
+            and 200 <= response.status < 300):
+        return await _spool_response(response, mk.spooled_evidence)
+    response, body = await _buffer_response(response)
+    return response, body, None
 
 
 async def _peek_stream_head(response: UpstreamResponse, limit: int) -> tuple[UpstreamResponse, bytes]:

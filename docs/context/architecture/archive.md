@@ -586,6 +586,8 @@ Successful free final fetches that qualify for `MarketplaceCall.streamable_free_
 lookup and recording even though their zero-amount money lifecycle remains metered. They have no
 buffered body, so no empty or partial body/hash is recorded. Other calls exceeding the settlement
 buffer's 8 MiB limit fail before recording and cannot populate a cache or idempotent success.
+A spooled answer (`spooled_response`, inline media) is settled from evidence on disk and is never
+recorded: its body is not in memory, and multi-megabyte generated media is not a reusable answer.
 
 ## The cache key
 

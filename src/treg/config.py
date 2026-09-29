@@ -156,6 +156,16 @@ class Settings(BaseSettings):
     # (a 30s ceiling 502'd one live), and merchant routes have been observed at 9s→105s.
     call_timeout_s: int = 180
     hold_grace_s: int = 60
+    # Spooled settlement evidence (application/call/settle.py `_spool_response`): a catalog
+    # endpoint declaring `spooled_response` writes its metered 2xx body to an anonymous temp file
+    # instead of RAM, reads the top-level keys its usage settles from, settles, then relays the file.
+    # Per-body cap, per-process budget across concurrent spools (over it a call fails uncharged,
+    # like the 8 MiB buffer), and how many bodies one process parses for evidence at once.
+    # `spool_dir` empty = the system temp dir; the files are unlinked from birth.
+    spool_dir: str = ""
+    spool_max_bytes: int = Field(default=64 * 1024 * 1024, ge=1)
+    spool_budget_bytes: int = Field(default=512 * 1024 * 1024, ge=1)
+    spool_parse_concurrency: int = Field(default=2, ge=1, le=16)
 
     # ---- referral program (referrals.py) --------------------------------------------------------
     # Flat bounties, not a percentage of top-ups. At 0% platform margin a percentage would be a

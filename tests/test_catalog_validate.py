@@ -912,3 +912,31 @@ def test_usage_terms_reject_bad_shapes(usage, message):
     errors: list[str] = []
     validator.check_cost(cost, "x", errors, [], provider="google-ai")
     assert any(message in e for e in errors), errors
+
+
+
+def _spooled_endpoint() -> dict:
+    cost = _flat_usage_cost()
+    cost["usage"] = {"terms": _TERMS, "unit": "usd"}
+    return {"id": "google-ai.image-gen.demo", "cost": cost, "spooled_response": True}
+
+
+def test_spooled_response_settles_from_reported_usage():
+    errors: list[str] = []
+    validator.check_spooled_response(_spooled_endpoint(), None, "x", errors)
+    assert errors == []
+
+
+@pytest.mark.parametrize(("mutate", "is_async", "message"), [
+    (lambda ep: ep.update(spooled_response={"evidence": ["usageMetadata"]}), False, "must be true"),
+    (lambda ep: ep.update(spooled_response=False), False, "must be true"),
+    (lambda ep: ep.update(resource_ownership={"requires": {}}), False, "cannot be combined"),
+    (lambda ep: None, True, "cannot be combined"),
+    (lambda ep: ep["cost"].update(settle="base"), False, "needs settle: usage"),
+])
+def test_spooled_response_rejects_bodies_something_else_must_read(mutate, is_async, message):
+    ep = _spooled_endpoint()
+    mutate(ep)
+    errors: list[str] = []
+    validator.check_spooled_response(ep, {"id_from": "id"} if is_async else None, "x", errors)
+    assert any(message in e for e in errors), errors

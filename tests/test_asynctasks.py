@@ -1073,6 +1073,9 @@ def test_usage_terms_sum_every_reported_meter_at_its_rate():
     # A malformed meter poisons the figure rather than silently billing less.
     bad = {"usageMetadata": {**usage, "thoughtsTokenCount": -1}}
     assert settlement.usage_evidence(basis, {"terminal": bad}) is None
+    # A spooled answer keeps only the keys these meters start at.
+    assert settlement.usage_roots(cost) == ("usageMetadata",)
+    assert settlement.usage_roots({"usage": {"path": "usage.cost", "unit": "usd"}}) == ("usage",)
 
 
 def test_basis_derivation_and_settlement_table_vs_usage():

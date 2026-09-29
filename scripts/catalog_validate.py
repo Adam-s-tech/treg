@@ -443,8 +443,8 @@ def check_usage_block(cost: dict, settle: object, where: str, errors: list[str],
     """`settle: usage` names the dotted path and unit of the provider's own reported charge."""
     usage = cost.get("usage")
     if settle == "usage":
-        terms = usage.get("terms") if isinstance(usage, dict) else None
         if isinstance(usage, dict) and set(usage) == {"terms", "unit"}:
+            terms = usage["terms"]
             if not isinstance(terms, list) or not terms or not all(
                     isinstance(term, dict) and set(term) == {"path", "rate"}
                     and isinstance(term.get("path"), str) and USAGE_TERM_PATH.fullmatch(term["path"])
@@ -603,6 +603,23 @@ def check_async_descriptor(descriptor: object, where: str, provider: str,
         fail(errors, where, "async.interval must be a positive finite number of seconds")
     if not isinstance(cost, dict) or cost.get("type") != "per_success":
         fail(errors, where, "an endpoint with async must have cost.type per_success")
+
+
+def check_spooled_response(ep: dict, effective_async: object, where: str,
+                           errors: list[str]) -> None:
+    """`spooled_response: true` - a synchronous metered answer too large to buffer (inline media),
+    read to disk and settled from the top-level keys its usage paths start at. So only
+    `settle: usage`, and nothing else may need the body: no async task, resource ownership or
+    managed resource."""
+    if ep["spooled_response"] is not True:
+        fail(errors, where, "spooled_response must be true when present")
+        return
+    if effective_async is not None or ep.get("resource_ownership") or ep.get("managed_resource"):
+        fail(errors, where, "spooled_response cannot be combined with async, resource_ownership "
+                            "or managed_resource: those read the whole body")
+    if (ep.get("cost") or {}).get("settle") != "usage":
+        fail(errors, where, "spooled_response settles from the answer's reported usage: it needs "
+                            "settle: usage")
 
 
 def check_resource_ownership(rule: object, where: str, input_schema: object,
@@ -1228,6 +1245,8 @@ def main(argv: list[str]) -> int:
                 check_resource_ownership(ep["resource_ownership"], where, inp, errors)
             if ep.get("managed_resource") is not None:
                 check_managed_resource(ep["managed_resource"], where, inp, errors)
+            if "spooled_response" in ep:
+                check_spooled_response(ep, effective_async, where, errors)
             if ep.get("verified"):
                 ex = ep.get("example_response")
                 if not ex:

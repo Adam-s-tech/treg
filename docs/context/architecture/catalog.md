@@ -1030,6 +1030,13 @@ ceiling. A finite nonnegative response value settles the call at that amount; mi
 non-finite evidence falls back to the normal estimate/miss rules. `reported_charge` is generic
 catalog metadata, not a provider-specific billing branch, and cannot be combined with `cost.settle`.
 
+`spooled_response: true` marks a synchronous endpoint whose answer inlines media too large for
+the 8 MiB settlement buffer (Gemini returns images as base64 in its JSON: ~9 MB at 2K, ~23 MB at
+4K). Its metered 2xx is read to disk and settled from the top-level keys its usage paths start at
+(`settlement.usage_roots`; proxy-model.md), so the evidence cannot drift from the price. The
+validator requires `settle: usage` and refuses the field beside `async`, `resource_ownership` or
+`managed_resource`, which need the whole body.
+
 `platform_request` fixes exact body, header or query values needed only on the shared credential.
 A `queryParams.*` pin must appear exactly once and is read as the pinned value's type, so a run
 option such as a spend cap or memory size can bound what one call costs. An Apify `per_result` price may add
