@@ -2643,6 +2643,13 @@ adapters:
     miss: "coalesce(output.data.suggestions, []) == []"
 
   # ---- open web -----------------------------------------------------------------------------
+  perplexity.web.search.fast:
+    accepts: [[q]]
+    in: {q: body.query}
+    in_expr: {body.max_results: limit}
+    const: {body.search_type: fast}
+    out: {results: results, count: "len(results)"}
+    miss: "coalesce(results, []) == []"
   you.web.search:
     accepts: [[q]]
     in: {q: body.query}

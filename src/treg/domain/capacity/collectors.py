@@ -891,6 +891,8 @@ BALANCE_ROUTES = {
 # obtain. Kept explicit so the report names them instead of silently skipping, and so a future probe
 # has a list of what to re-check.
 NO_BALANCE_API = {
+    "perplexity": "no API credit-balance endpoint in the published API reference; "
+                  "the prepaid USD balance is visible in the Perplexity API console",
     "adyntel": "no public balance or usage endpoint in the official API reference "
                 "(checked docs.adyntel.com 2026-09-22) — PAYG credits are visible in the "
                 "provider dashboard only",

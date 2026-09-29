@@ -54,6 +54,7 @@ _KNOWN: dict[str, tuple[str, str, str]] = {
     "olostep": ("credits", "manual", "api"),
     "firecrawl": ("credits", "subscription", "api"),
     "spidercloud": ("cash", "auto_recharge", "api"),
+    "perplexity": ("cash", "auto_recharge", "manual"),
     # The shared account uses subscription funding; the API supplies its exact credit balance.
     "scrapegraphai": ("credits", "subscription", "api"),
     "getleadsio": ("credits", "manual", "api"),
@@ -100,6 +101,9 @@ _QUOTAS: dict[str, dict] = {
     "aiark": {"limit": 15000, "period": "billing", "resets_at_rule": "monthly subscription; date not reported by API"},
 }
 _RATE_LIMITS: dict[str, dict] = {
+    # Agent's entry-tier limit is one request per second. Shared-key smoothing is provider-wide,
+    # so Search also uses this conservative pace even though its own allowance is higher.
+    "perplexity": {"limit": 1, "window_s": 1, "source": "docs"},
     # The account reports 5 requests/s, but /post/engagement consumes two rate-limit units. The
     # provider-wide limiter cannot weight one endpoint, so two calls/s is the safe shared-key pace.
     "fetchinio": {"limit": 2, "window_s": 1, "source": "policy"},

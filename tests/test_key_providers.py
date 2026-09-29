@@ -45,6 +45,21 @@ async def test_spidercloud_key_uses_free_balance_probe(clients, monkeypatch):
     assert response.status_code == 200, response.text
 
 
+async def test_perplexity_key_uses_free_model_list_probe(clients, monkeypatch):
+    def probe(request):
+        assert request.method == "GET"
+        assert request.url.path == "/v1/models"
+        assert request.headers["authorization"] == "Bearer own-key"
+        return httpx.Response(200, json={"object": "list", "data": []})
+
+    async with AsyncClient(transport=httpx.MockTransport(probe)) as upstream:
+        monkeypatch.setattr(app.state, "http", upstream)
+        response = await clients.post(
+            "/connections/token", json={"provider": "perplexity", "token": "own-key"},
+        )
+    assert response.status_code == 200, response.text
+
+
 async def test_adyntel_connect_collects_both_credentials_before_provisioning(clients, monkeypatch):
     def probe(request):
         assert request.method == "POST"
