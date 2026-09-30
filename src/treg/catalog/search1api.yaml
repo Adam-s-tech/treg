@@ -186,13 +186,13 @@ endpoints:
     path: /extract
     body_allowlist: true
     name: Extract structured page data
-    summary: Extract fields from a public page using a prompt and optional JSON Schema.
+    summary: Extract fields from a public page using a prompt and JSON Schema.
     input:
       bodyType: json
       body:
         url: {type: string, required: true, format: uri, example: "https://example.com"}
         prompt: {type: string, required: false, example: "Extract the page title."}
-        response_format: {type: object, required: false, note: "Use {type: json_schema, json_schema: <JSON Schema>}."}
+        response_format: {type: object, required: true, note: "Use {type: json_schema, json_schema: <JSON Schema>}; the live API rejects omission despite its docs."}
     test_request: {body: {url: "https://example.com", prompt: "Extract the page title.", response_format: {type: json_schema, json_schema: {type: object, properties: {title: {type: string}}, required: [title]}}}}
     cost: {type: per_success, value: 10, currency: credit, unit: call, source: docs, source_url: https://s1.dev/docs/essentials/credits-and-limits, checked: '2026-09-30', confidence: documented, note: "Ten credits on success; rejected and failed requests are unbilled."}
     verified: '2026-09-30'
@@ -251,6 +251,9 @@ endpoints:
     verified: '2026-09-30'
     example_response: examples/search1api.web.deepcrawl.json
     docs_url: https://s1.dev/docs/advanced/deepcrawl
+    resource_ownership:
+      produces:
+        - {kind: "poll:search1api.web.deepcrawl.status", path: taskId}
     async:
       id_from: taskId
       poll:
