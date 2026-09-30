@@ -3,7 +3,7 @@ source:
   docs: https://enrichlayer.com/docs
   openapi: https://enrichlayer.com/docs/api/v2/openapi.json
   curated: '2026-10-01'
-pricing_url: https://enrichlayer.com/
+pricing_url: https://enrichlayer.com/pricing
 limits: Paid APIs allow 300 requests/minute averaged over 5 minutes; free APIs on a PAYG key allow 2 requests/minute.
   The provider can also return 429 for capacity.
 endpoints:
@@ -29,16 +29,19 @@ endpoints:
       live_fetch:
         type: string
         required: false
+  test_request: {queryParams: {"url": "https://www.linkedin.com/school/mit/"}}
   cost:
     type: per_success
     value: 1
     currency: credit
     per: 1
     unit: call
-    source: docs
+    source: observed
     source_url: https://enrichlayer.com/docs
     checked: '2026-10-01'
     confidence: verified
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.school.profile.json
   docs_url: https://enrichlayer.com/docs
 - id: enrichlayer.company.profile
   capability: companies.enrich
@@ -82,16 +85,19 @@ endpoints:
         required: false
     note: Shared-key calls require use_cache=if-present for the documented base price. A team key can use the upstream
       freshness and enrichment options.
+  test_request: {queryParams: {"url": "https://www.linkedin.com/company/microsoft", "use_cache": "if-present"}}
   cost:
     type: per_success
     value: 1
     currency: credit
     per: 1
     unit: call
-    source: docs
+    source: observed
     source_url: https://enrichlayer.com/docs
     checked: '2026-10-01'
     confidence: verified
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.company.profile.json
   docs_url: https://enrichlayer.com/docs
 - id: enrichlayer.person.profile
   capability: people.enrich
@@ -150,16 +156,19 @@ endpoints:
         required: false
     note: Shared-key calls require use_cache=if-present for the documented base price. A team key can use the upstream
       freshness and enrichment options.
+  test_request: {queryParams: {"url": "https://www.linkedin.com/in/satyanadella", "use_cache": "if-present"}}
   cost:
     type: per_success
     value: 1
     currency: credit
     per: 1
     unit: call
-    source: docs
+    source: observed
     source_url: https://enrichlayer.com/docs
     checked: '2026-10-01'
     confidence: verified
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.person.profile.json
   docs_url: https://enrichlayer.com/docs
 - id: enrichlayer.company.employees.list
   capability: companies.employees.list
@@ -197,8 +206,7 @@ endpoints:
       page_size:
         type: string
         required: false
-        note: Explicit positive page size is required on shared-key calls so the credit hold is finite; BYOK raw
-          calls retain the upstream default.
+        note: Platform calls require a decimal string from 1 to 10; BYOK calls retain the upstream default.
       employment_status:
         type: string
         required: false
@@ -212,21 +220,24 @@ endpoints:
         type: string
         required: false
         note: Pass the upstream pagination token unchanged.
-    note: Shared-key calls serve the base listing at 3 credits per returned employee. Supply page_size 1–9999 and
+    note: Shared-key calls serve the base listing at 3 credits per returned employee. Supply page_size 1–10 and
       follow after for more employees; request premium filters through a team key.
+  test_request: {queryParams: {"url": "https://www.linkedin.com/company/microsoft", "page_size": "1"}}
   cost:
     type: per_result
     value: 3
     currency: credit
     per: 1
     unit: employee
-    source: docs
+    source: observed
     source_url: https://enrichlayer.com/docs
     checked: '2026-10-01'
     confidence: verified
     enrichlayer:
       field: employees
-      max_page: 9999
+      max_page: 10
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.company.employees.list.json
   docs_url: https://enrichlayer.com/docs
 - id: enrichlayer.company.employees.count
   capability: companies.employees.count
@@ -258,16 +269,19 @@ endpoints:
       employment_status:
         type: string
         required: false
+  test_request: {queryParams: {"url": "https://www.linkedin.com/company/apple/", "coy_name_match": "include", "use_cache": "if-present"}}
   cost:
     type: per_success
     value: 1
     currency: credit
     per: 1
     unit: call
-    source: docs
+    source: observed
     source_url: https://enrichlayer.com/docs
     checked: '2026-10-01'
     confidence: verified
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.company.employees.count.json
   docs_url: https://enrichlayer.com/docs
 - id: enrichlayer.person.profile-picture
   capability: linkedin.profile.picture
@@ -284,16 +298,19 @@ endpoints:
       person_profile_url:
         type: string
         required: true
+  test_request: {queryParams: {"person_profile_url": "https://www.linkedin.com/in/satyanadella"}}
   cost:
     type: free
     value: 0
     currency: USD
     per: 1
     unit: call
-    source: docs
+    source: observed
     source_url: https://enrichlayer.com/docs
     checked: '2026-10-01'
     confidence: verified
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.person.profile-picture.json
   docs_url: https://enrichlayer.com/docs
 - id: enrichlayer.company.profile-picture
   capability: linkedin.company.picture
@@ -310,16 +327,19 @@ endpoints:
       company_profile_url:
         type: string
         required: true
+  test_request: {queryParams: {"company_profile_url": "https://www.linkedin.com/company/microsoft"}}
   cost:
     type: free
     value: 0
     currency: USD
     per: 1
     unit: call
-    source: docs
+    source: observed
     source_url: https://enrichlayer.com/docs
     checked: '2026-10-01'
     confidence: verified
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.company.profile-picture.json
   docs_url: https://enrichlayer.com/docs
 - id: enrichlayer.person.lookup
   capability: people.profile.lookup
@@ -328,7 +348,7 @@ endpoints:
   scope: any_account
   method: GET
   path: /api/v2/profile/resolve
-  name: Person lookup
+  name: Find person by name and company
   summary: Resolve a person profile from name and company.
   strict_query: true
   input:
@@ -354,16 +374,19 @@ endpoints:
       last_name:
         type: string
         required: false
+  test_request: {queryParams: {"company_domain": "microsoft.com", "first_name": "Satya", "last_name": "Nadella"}}
   cost:
     type: per_success
     value: 2
     currency: credit
     per: 1
     unit: call
-    source: docs
+    source: observed
     source_url: https://enrichlayer.com/docs
     checked: '2026-10-01'
     confidence: verified
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.person.lookup.json
   docs_url: https://enrichlayer.com/docs
 - id: enrichlayer.company.role.lookup
   capability: people.role.lookup
@@ -372,7 +395,7 @@ endpoints:
   scope: any_account
   method: GET
   path: /api/v2/find/company/role/
-  name: Company role lookup
+  name: Find person in company role
   summary: Find a person in a role at a company.
   strict_query: true
   input:
@@ -386,16 +409,19 @@ endpoints:
       enrich_profile:
         type: string
         required: false
+  test_request: {queryParams: {"role": "CEO", "company_name": "Microsoft"}}
   cost:
     type: per_success
     value: 3
     currency: credit
     per: 1
     unit: call
-    source: docs
+    source: observed
     source_url: https://enrichlayer.com/docs
     checked: '2026-10-01'
     confidence: verified
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.company.role.lookup.json
   docs_url: https://enrichlayer.com/docs
 - id: enrichlayer.company.lookup
   capability: companies.enrich
@@ -421,16 +447,19 @@ endpoints:
       enrich_profile:
         type: string
         required: false
+  test_request: {queryParams: {"company_domain": "microsoft.com"}}
   cost:
     type: per_success
     value: 2
     currency: credit
     per: 1
     unit: call
-    source: docs
+    source: observed
     source_url: https://enrichlayer.com/docs
     checked: '2026-10-01'
     confidence: verified
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.company.lookup.json
   docs_url: https://enrichlayer.com/docs
 - id: enrichlayer.company.lookup-id
   capability: companies.id.resolve
@@ -447,16 +476,19 @@ endpoints:
       id:
         type: string
         required: true
+  test_request: {queryParams: {"id": "1441"}}
   cost:
     type: free
     value: 0
     currency: USD
     per: 1
     unit: call
-    source: docs
+    source: observed
     source_url: https://enrichlayer.com/docs
     checked: '2026-10-01'
     confidence: verified
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.company.lookup-id.json
   docs_url: https://enrichlayer.com/docs
 - id: enrichlayer.company.employees.search
   capability: companies.employees.search
@@ -482,8 +514,7 @@ endpoints:
       page_size:
         type: string
         required: false
-        note: Explicit positive page size is required on shared-key calls so the credit hold is finite; BYOK raw
-          calls retain the upstream default.
+        note: BYOK calls retain Enrichlayer's default page size. Platform calls are unavailable for this tool.
       country:
         type: string
         required: false
@@ -493,19 +524,24 @@ endpoints:
       resolve_numeric_id:
         type: string
         required: false
+  test_request: {queryParams: {"company_profile_url": "https://www.linkedin.com/company/microsoft", "keyword_boolean": "CEO", "page_size": "1"}}
   cost:
     type: per_success
-    value: 10
+    value: null
     currency: credit
     per: 1
     unit: call
-    source: docs
-    source_url: https://enrichlayer.com/docs
+    source: observed
+    source_url: https://enrichlayer.com/docs/api/v2/company-api/employee-search
     checked: '2026-10-01'
-    confidence: documented
-  docs_url: https://enrichlayer.com/docs
-  platform_blocked: A one-result live call used 16 credits versus the documented 10-credit base; connect your own
-    key until the additional charge is explained.
+    confidence: unknown
+    note: Enrichlayer documents 10 credits per successful request, but a one-result base call spent 16 credits.
+      The full charge rule has not been established.
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.company.employees.search.json
+  docs_url: https://enrichlayer.com/docs/api/v2/company-api/employee-search
+  platform_blocked: A one-result live call used 16 credits versus the documented 10 credits per successful request;
+    the request's total price is not reliably known. Connect your own key for this tool.
 - id: enrichlayer.person.reverse-email
   capability: linkedin.profile.from_email
   platform: linkedin
@@ -527,16 +563,19 @@ endpoints:
       enrich_profile:
         type: string
         required: false
+  test_request: {queryParams: {"email": "satyan@microsoft.com"}}
   cost:
     type: per_success
     value: 3
     currency: credit
     per: 1
     unit: call
-    source: docs
+    source: observed
     source_url: https://enrichlayer.com/docs
     checked: '2026-10-01'
     confidence: verified
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.person.reverse-email.json
   docs_url: https://enrichlayer.com/docs
 - id: enrichlayer.contacts.reverse-phone
   capability: people.profile.from_phone
@@ -553,6 +592,7 @@ endpoints:
       phone_number:
         type: string
         required: true
+  test_request: {queryParams: {"phone_number": "+12025550123"}}
   cost:
     type: per_success
     value: 3
@@ -562,7 +602,9 @@ endpoints:
     source: docs
     source_url: https://enrichlayer.com/docs
     checked: '2026-10-01'
-    confidence: verified
+    confidence: documented
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.contacts.reverse-phone.json
   docs_url: https://enrichlayer.com/docs/api/v2/contact-api/reverse-contact-number-lookup
 - id: enrichlayer.person.work-email
   capability: people.email.find
@@ -582,6 +624,7 @@ endpoints:
       callback_url:
         type: string
         required: false
+  test_request: {queryParams: {"profile_url": "https://www.linkedin.com/in/satyanadella"}}
   cost:
     type: per_success
     value: 3
@@ -589,10 +632,14 @@ endpoints:
     per: 1
     unit: call
     source: docs
-    source_url: https://enrichlayer.com/docs
+    source_url: https://enrichlayer.com/docs/api/v2/contact-api/work-email-lookup
     checked: '2026-10-01'
     confidence: documented
-  docs_url: https://enrichlayer.com/docs
+    note: Enrichlayer documents 3 credits for a successful lookup. A live request returned a queued 202 with no
+      final email or charge observed.
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.person.work-email.json
+  docs_url: https://enrichlayer.com/docs/api/v2/contact-api/work-email-lookup
   platform_blocked: The live call returned a queued 202 without delivery or final charge evidence; connect your
     own key for this asynchronous lookup.
 - id: enrichlayer.jobs.profile
@@ -611,16 +658,19 @@ endpoints:
         type: string
         required: true
         example: https://www.linkedin.com/jobs/view/4222036951/
+  test_request: {queryParams: {"url": "https://www.linkedin.com/jobs/view/4222036951/"}}
   cost:
     type: per_success
     value: 2
     currency: credit
     per: 1
     unit: call
-    source: docs
+    source: observed
     source_url: https://enrichlayer.com/docs
     checked: '2026-10-01'
     confidence: verified
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.jobs.profile.json
   docs_url: https://enrichlayer.com/docs
 - id: enrichlayer.jobs.search
   capability: linkedin.jobs.search
@@ -658,16 +708,19 @@ endpoints:
       pagination:
         type: string
         required: false
+  test_request: {queryParams: {"keyword": "software engineer"}}
   cost:
     type: per_success
     value: 2
     currency: credit
     per: 1
     unit: call
-    source: docs
+    source: observed
     source_url: https://enrichlayer.com/docs
     checked: '2026-10-01'
     confidence: verified
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.jobs.search.json
   docs_url: https://enrichlayer.com/docs
 - id: enrichlayer.companies.search
   capability: companies.search
@@ -753,8 +806,7 @@ endpoints:
       page_size:
         type: string
         required: false
-        note: Explicit positive page size is required on shared-key calls so the credit hold is finite; BYOK raw
-          calls retain the upstream default.
+        note: Platform calls require a decimal string from 1 to 10; BYOK calls retain the upstream default.
       enrich_profiles:
         type: string
         required: false
@@ -771,27 +823,30 @@ endpoints:
         type: string
         required: false
         note: Pass the upstream pagination token unchanged.
-    note: All documented search filters are available. Supply page_size 1–100, or 1–10 with enrich_profiles=enrich
-      or use_cache=if-recent; continue with next_token for more results. Shared-key rate is 3 credits per result,
+    note: All documented search filters are available. Shared-key calls require page_size 1–10; continue with
+      next_token for more results. Shared-key rate is 3 credits per result,
       plus 1 for enrichment and 2 for recent data on this PAYG key.
+  test_request: {queryParams: {"name": "Microsoft", "page_size": "1"}}
   cost:
     type: per_result
     value: 3
     currency: credit
     per: 1
     unit: result
-    source: docs
+    source: observed
     source_url: https://enrichlayer.com/docs
     checked: '2026-10-01'
     confidence: verified
     enrichlayer:
       field: results
-      max_page: 100
+      max_page: 10
       extra_per_result:
         enrich_profiles:
           enrich: 1
         use_cache:
           if-recent: 2
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.companies.search.json
   docs_url: https://enrichlayer.com/docs
 - id: enrichlayer.people.search
   capability: people.search
@@ -955,8 +1010,7 @@ endpoints:
       page_size:
         type: string
         required: false
-        note: Explicit positive page size is required on shared-key calls so the credit hold is finite; BYOK raw
-          calls retain the upstream default.
+        note: Platform calls require a decimal string from 1 to 10; BYOK calls retain the upstream default.
       follower_count_min:
         type: string
         required: false
@@ -979,27 +1033,30 @@ endpoints:
         type: string
         required: false
         note: Pass the upstream pagination token unchanged.
-    note: All documented search filters are available. Supply page_size 1–100, or 1–10 with enrich_profiles=enrich
-      or use_cache=if-recent; continue with next_token for more results. Shared-key rate is 3 credits per result,
+    note: All documented search filters are available. Shared-key calls require page_size 1–10; continue with
+      next_token for more results. Shared-key rate is 3 credits per result,
       plus 1 for enrichment and 2 for recent data on this PAYG key.
+  test_request: {queryParams: {"first_name": "Satya", "last_name": "Nadella", "page_size": "1"}}
   cost:
     type: per_result
     value: 3
     currency: credit
     per: 1
     unit: result
-    source: docs
+    source: observed
     source_url: https://enrichlayer.com/docs
     checked: '2026-10-01'
     confidence: verified
     enrichlayer:
       field: results
-      max_page: 100
+      max_page: 10
       extra_per_result:
         enrich_profiles:
           enrich: 1
         use_cache:
           if-recent: 2
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.people.search.json
   docs_url: https://enrichlayer.com/docs/api/v2/search-api/person-search
 - id: enrichlayer.email.disposable-check
   capability: people.email.disposable
@@ -1016,16 +1073,19 @@ endpoints:
       email:
         type: string
         required: true
+  test_request: {queryParams: {"email": "person@mailinator.com"}}
   cost:
     type: free
     value: 0
     currency: USD
     per: 1
     unit: call
-    source: docs
+    source: observed
     source_url: https://enrichlayer.com/docs
     checked: '2026-10-01'
     confidence: verified
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.email.disposable-check.json
   docs_url: https://enrichlayer.com/docs
 - id: enrichlayer.contacts.personal-phone
   capability: people.phone.find.personal
@@ -1051,10 +1111,11 @@ endpoints:
       page_size:
         type: string
         required: false
-        note: Explicit positive page size is required on shared-key calls so the credit hold is finite; BYOK raw
-          calls retain the upstream default.
-    note: Shared-key calls require an explicit page_size 1–9999 to bound the credit hold. A team key may use the
-      upstream unbounded default.
+        note: Platform calls require a decimal string from 1 to 10; BYOK calls retain the upstream default.
+    note: Shared-key calls require page_size 1–10 and can omit numbers beyond that limit; this endpoint provides
+      no cursor to fetch them. Results are not ranked by mobile likelihood. A team key may use the upstream
+      unbounded default.
+  test_request: {queryParams: {"profile_url": "https://www.linkedin.com/in/satyanadella", "page_size": "1"}}
   cost:
     type: per_result
     value: 1
@@ -1062,13 +1123,15 @@ endpoints:
     per: 1
     unit: record
     source: docs
-    source_url: https://enrichlayer.com/docs
+    source_url: https://enrichlayer.com/docs/api/v2/contact-api/personal-contact-number-lookup
     checked: '2026-10-01'
-    confidence: verified
+    confidence: documented
     enrichlayer:
       field: numbers
-      max_page: 9999
-  docs_url: https://enrichlayer.com/docs
+      max_page: 10
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.contacts.personal-phone.json
+  docs_url: https://enrichlayer.com/docs/api/v2/contact-api/personal-contact-number-lookup
 - id: enrichlayer.contacts.personal-email
   capability: people.email.find.personal
   platform: people
@@ -1100,10 +1163,10 @@ endpoints:
       page_size:
         type: string
         required: false
-        note: Explicit positive page size is required on shared-key calls so the credit hold is finite; BYOK raw
-          calls retain the upstream default.
-    note: Shared-key calls require an explicit page_size 1–9999 to bound the credit hold. A team key may use the
-      upstream unbounded default.
+        note: Platform calls require a decimal string from 1 to 10; BYOK calls retain the upstream default.
+    note: Shared-key calls require page_size 1–10 and can omit emails beyond that limit; this endpoint provides
+      no cursor to fetch them. A team key may use the upstream unbounded default.
+  test_request: {queryParams: {"profile_url": "https://www.linkedin.com/in/satyanadella", "page_size": "1", "email_validation": "precise"}}
   cost:
     type: per_result
     value: 1
@@ -1111,18 +1174,20 @@ endpoints:
     per: 1
     unit: record
     source: docs
-    source_url: https://enrichlayer.com/docs
+    source_url: https://enrichlayer.com/docs/api/v2/contact-api/personal-email-lookup
     checked: '2026-10-01'
-    confidence: verified
+    confidence: documented
     enrichlayer:
       field: emails
-      max_page: 9999
+      max_page: 10
       extra_per_result:
         email_validation:
           precise: 1
     note: One credit per returned email; precise validation adds one credit per found email. Fast validation adds
       no charge.
-  docs_url: https://enrichlayer.com/docs
+  verified: '2026-10-01'
+  example_response: examples/enrichlayer.contacts.personal-email.json
+  docs_url: https://enrichlayer.com/docs/api/v2/contact-api/personal-email-lookup
 proposed_capabilities:
   linkedin.school.profile: Get a school profile.
   companies.employees.list: List employees of a company with cursor pagination.

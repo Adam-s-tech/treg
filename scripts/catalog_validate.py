@@ -340,7 +340,7 @@ def check_enrichlayer_rule(cost: dict, input_schema: dict, where: str,
     if (not isinstance(rule, dict) or set(rule) - {"field", "max_page", "extra_per_result"}
             or set(rule) & {"field", "max_page"} != {"field", "max_page"}
             or rule.get("field") not in {"results", "employees", "numbers", "emails"}
-            or type(rule.get("max_page")) is not int or not 1 <= rule["max_page"] <= 9999
+            or type(rule.get("max_page")) is not int or not 1 <= rule["max_page"] <= 10
             or cost.get("currency") != "credit" or cost.get("per") != 1
             or type(cost.get("value")) is not int or cost["value"] <= 0):
         fail(errors, where, "cost.enrichlayer needs a result field, bounded page, and positive credit rate")

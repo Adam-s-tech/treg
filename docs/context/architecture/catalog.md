@@ -22,6 +22,28 @@ sources:
   - src/treg/application/call/octen.py
   - src/treg/application/call/enrichlayer.py
   - src/treg/catalog/enrichlayer.yaml
+  - src/treg/catalog/examples/enrichlayer.companies.search.json
+  - src/treg/catalog/examples/enrichlayer.company.employees.count.json
+  - src/treg/catalog/examples/enrichlayer.company.employees.list.json
+  - src/treg/catalog/examples/enrichlayer.company.employees.search.json
+  - src/treg/catalog/examples/enrichlayer.company.lookup-id.json
+  - src/treg/catalog/examples/enrichlayer.company.lookup.json
+  - src/treg/catalog/examples/enrichlayer.company.profile-picture.json
+  - src/treg/catalog/examples/enrichlayer.company.profile.json
+  - src/treg/catalog/examples/enrichlayer.company.role.lookup.json
+  - src/treg/catalog/examples/enrichlayer.contacts.personal-email.json
+  - src/treg/catalog/examples/enrichlayer.contacts.personal-phone.json
+  - src/treg/catalog/examples/enrichlayer.contacts.reverse-phone.json
+  - src/treg/catalog/examples/enrichlayer.email.disposable-check.json
+  - src/treg/catalog/examples/enrichlayer.jobs.profile.json
+  - src/treg/catalog/examples/enrichlayer.jobs.search.json
+  - src/treg/catalog/examples/enrichlayer.people.search.json
+  - src/treg/catalog/examples/enrichlayer.person.lookup.json
+  - src/treg/catalog/examples/enrichlayer.person.profile-picture.json
+  - src/treg/catalog/examples/enrichlayer.person.profile.json
+  - src/treg/catalog/examples/enrichlayer.person.reverse-email.json
+  - src/treg/catalog/examples/enrichlayer.person.work-email.json
+  - src/treg/catalog/examples/enrichlayer.school.profile.json
   - src/treg/web/logos/enrichlayer.svg
   - src/treg/catalog/linkup.yaml
   - src/treg/catalog/you.yaml
