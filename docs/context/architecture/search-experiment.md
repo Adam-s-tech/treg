@@ -10,6 +10,8 @@ sources:
   - tests/test_search_experiment.py
   - src/treg/application/catalog_find.py
   - tests/test_catalog_find.py
+  - scripts/find_bench.py
+  - tests/test_find_bench.py
 ---
 
 # Discovery experiment
@@ -146,6 +148,17 @@ audience differs:
   identity (so no outcome join yet), and a `SearchMiss` when nothing fit.
 
 Agents are unaffected: `/catalog/search` and MCP `catalog_search` answer exactly as before.
+
+**Measured by `scripts/find_bench.py`** against labeled queries: a gold regex over unit and
+capability ids, the acceptable verdicts, and for a name the platform or provider it must name. The
+`recall` tier calls nothing (is a gold unit among the judge's candidates); the `judge` tier runs the
+whole answer and reports verdict accuracy by stratum, false-strong, false-none, top-1 and MRR,
+tokens, latency and **job coverage** - of a gold job with two or more vendors, how many the page
+shows - which is the first number, because it measures what a person gets. Judge answers are cached
+on disk by (model, query, unit ids, questions), with the latency and tokens they cost live, and
+`--baseline` diffs two runs case by case. CI runs the recall tier on the synthetic
+`tests/fixtures/find_bench.yaml`; a label that no longer matches the catalog stops the run. The
+labeled real queries live outside this repository.
 
 ## Guardrails and what is deliberately not here
 
