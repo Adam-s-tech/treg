@@ -83,14 +83,19 @@ capability's id, so the index keeps jobs (`job_pos`) and endpoints (`pos`) apart
 **Channels.** A lexical channel scores each unit with the idf of every query word its card holds as
 a whole word: folded (NFKD, diacritics off, CJK kept), stopwords and single letters dropped, lightly
 stemmed (the forms of one verb agree, "scraping" and "scrape"), `aliases.yaml` phrases matching when
-all their words do, a platform's slug counting double. A word of five letters or more may also be
+all their words do, the words that name a platform counting double. A platform is named by its
+whole name as a token sequence, from its slug's words and its label's short form, longest first
+("tiktok ads library" names TikTok Ads, not TikTok; "search console clicks" names Search Console). A word of five letters or more may also be
 the prefix of a word in a unit's id, platform or provider names, at half weight ("scrap" starts
 every Scrapecreators row). A semantic channel scores each unit by the cosine of its card's vector
-and the query's (below), and is off for a query whose vector is not there. Each channel max-pools a job over its members and remembers which member
+and the query's (below), and is off for a query whose vector is not there. Each channel max-pools a
+job over its members and remembers which member
 won; ties go to the unit whose own card scored higher, so a common word does not seat the jobs that
 merely have one member mentioning it.
 
-**Fusion and seats.** Each channel's top 300 fuse by reciprocal rank (k=60). Seats: the jobs on a
+**Fusion and seats.** Each channel's top 300 fuse by reciprocal rank (k=60): the lexical channel
+admits only units with a hit, the semantic one its 300 most similar whatever the sign, so a query
+with no word on any card still fills its seats by meaning. Seats: the jobs on a
 platform the query names first (`find_platform_seats`), then the best jobs to `find_jobs`, then the
 representatives of those jobs in fused order (`find_delta`), then uncatalogued endpoints
 (`find_raw`). `?platform=` keeps one shelf's units.
@@ -102,10 +107,12 @@ the v1 name Noul, and off a shelf a Choice over the platforms plus `none` (`plat
 second model request, ever; the Choice only classifies and records.
 
 **The name table** (`find_recall.name_of`) is string lookup, because a name is a lookup, not a
-judgement: a platform (every query word is, or starts, a word of its label or slug; exact first,
-then one whose name starts with the query, then the shelves' featured order, then most jobs), else
-a provider (its name exactly at any length, "exa"; a prefix from four letters), else a product or
-model name. Product names come from endpoint names on the `AI generation` platforms: words two or
+judgement: a platform (exactly its name or slug, listed with the others the name matches: exact
+first, then one whose name starts with the query, then the shelves' featured order, then most jobs;
+or, from four letters, a prefix of exactly one platform's name), else a provider (its name exactly
+at any length, "exa"; or, from four letters, a prefix of exactly one provider's), else a product or
+model name. A word several platforms or providers share ("video", "search", "ads", "goog") names
+none of them, and the judged answer reads it. Product names come from endpoint names on the `AI generation` platforms: words two or
 more of those names share and names elsewhere rarely use ("gemini", "seedance", "flux"; not
 "image"), minus the keys of `aliases.yaml` ("tts" is a way of saying a job, not a product), and
 adjacent pairs of them ("nano banana"), matched with spaces and hyphens folded away.

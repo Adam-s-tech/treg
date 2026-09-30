@@ -128,7 +128,9 @@ class Index:
     postings: dict[str, list[int]]           # card word (stemmed) -> units
     name_postings: dict[str, list[int]]      # name word (unstemmed) -> units, for prefix hits
     idf: dict[str, float]
-    platform_stems: dict[str, str]           # stem of a platform slug -> slug
+    # a platform's name as query tokens -> the platforms it names, longest phrase first:
+    # ("tiktok", "ad") -> tiktok-ads, from the slug's words and the label's short form
+    platform_phrases: list[tuple[tuple[str, ...], tuple[str, ...]]]
     platforms: dict[str, dict] = field(default_factory=dict)
     # per platform with endpoints: (slug, short label words, label and slug words, featured, jobs)
     platform_names: list[tuple[str, str, list[str], int | None, int]] = field(default_factory=list)
@@ -212,13 +214,42 @@ def build(cat: store.Catalog) -> Index:
     products, product_labels = _products(eps, cat)
     return Index(
         units=units, pos=pos, job_pos=job_pos, members=members, postings=dict(postings), name_postings=dict(name_postings),
-        idf=idf, platform_stems={stem(slug): slug for slug in cat.platforms}, platforms=platforms,
+        idf=idf, platform_phrases=_platform_phrases(platforms), platforms=platforms,
         platform_names=[(slug, " ".join(words(short_label(p.get("label", slug)))),
                          words(f"{p.get('label', '')} {slug} {slug.replace('-', ' ')}"), p.get("featured"), jobs[slug])
                         for slug, p in platforms.items()],
         providers=tuple(sorted({e["provider"] for e in eps})),
         providers_on={k: frozenset(v) for k, v in providers_on.items()},
         products=products, product_labels=product_labels)
+
+
+def _platform_phrases(platforms: dict[str, dict]) -> list[tuple[tuple[str, ...], tuple[str, ...]]]:
+    by_phrase: dict[tuple[str, ...], set[str]] = defaultdict(set)
+    for slug, p in platforms.items():
+        for name in (slug.replace("-", " "), short_label(p.get("label", slug))):
+            phrase = tuple(query_tokens(name))
+            if phrase:
+                by_phrase[phrase].add(slug)
+    return sorted(((ph, tuple(sorted(slugs))) for ph, slugs in by_phrase.items()), key=lambda t: (-len(t[0]), t[0]))
+
+
+def named_platforms(tokens: Sequence[str], ix: Index) -> tuple[set[str], set[int]]:
+    """The platforms a query names, and which of its token positions name them. Names are token
+    sequences, matched longest first and left to right, so "tiktok ads library" names TikTok Ads (not
+    TikTok) and "search console clicks" names Search Console."""
+    named: set[str] = set()
+    covered: set[int] = set()
+    i = 0
+    while i < len(tokens):
+        for phrase, slugs in ix.platform_phrases:
+            if tuple(tokens[i:i + len(phrase)]) == phrase:
+                named.update(slugs)
+                covered.update(range(i, i + len(phrase)))
+                i += len(phrase)
+                break
+        else:
+            i += 1
+    return named, covered
 
 
 def _products(eps: list[dict], cat: store.Catalog) -> tuple[dict[str, tuple[str, ...]], dict[str, str]]:
@@ -262,7 +293,9 @@ def lexical(query: str, ix: Index, aliases: dict[str, list[str]]) -> list[float]
     half weight, for a word of five letters or more, as the prefix of a word of its id, platform or
     provider), a platform's name counting double."""
     scores = [0.0] * len(ix.units)
-    for w, t in query_words(query):
+    qwords = query_words(query)
+    _, platform_positions = named_platforms([t for _, t in qwords], ix)
+    for pos, (w, t) in enumerate(qwords):
         hit: set[int] = set(ix.postings.get(t, ()))
         for a in aliases.get(w) or aliases.get(t) or ():
             parts = [stem(x) for x in words(a)]
@@ -277,7 +310,7 @@ def lexical(query: str, ix: Index, aliases: dict[str, list[str]]) -> list[float]
         if not hit and not prefix:
             continue
         weight = ix.idf.get(t) or math.log(1 + (len(ix.units) + 0.5) / 1.5)
-        weight *= 2 if t in ix.platform_stems else 1
+        weight *= 2 if pos in platform_positions else 1
         for i in hit:
             scores[i] += weight
         for i in prefix:
@@ -300,13 +333,15 @@ def pooled(scores: Sequence[float], ix: Index) -> tuple[list[float], dict[int, i
     return out, src
 
 
-def fuse(*channels: tuple[Sequence[float], Sequence[float]]) -> list[int]:
-    """Reciprocal rank fusion over each channel's top units with a positive score. A channel is
-    (pooled, own): equal pooled scores - one common word hits many jobs through one member each -
-    rank the unit whose own card scored higher first."""
+def fuse(*channels: tuple[Sequence[float], Sequence[float], bool]) -> list[int]:
+    """Reciprocal rank fusion over each channel's top units. A channel is (pooled, own, ranked):
+    equal pooled scores - one common word hits many jobs through one member each - rank the unit
+    whose own card scored higher first. A lexical score of 0 is no hit and admits nothing; a ranked
+    channel (similarity) admits its top units whatever their sign, so it can fill the seats alone."""
     acc: dict[int, float] = defaultdict(float)
-    for ch, own in channels:
-        order = sorted((i for i, v in enumerate(ch) if v > 0), key=lambda i: (-ch[i], -own[i], i))[:CHANNEL_DEPTH]
+    for ch, own, ranked in channels:
+        order = sorted((i for i, v in enumerate(ch) if ranked or v > 0),
+                       key=lambda i: (-ch[i], -own[i], i))[:CHANNEL_DEPTH]
         for rank, i in enumerate(order):
             acc[i] += 1 / (RRF_K + rank)
     return sorted(acc, key=lambda i: (-acc[i], i))
@@ -320,16 +355,16 @@ def recall(query: str, ix: Index, aliases: dict[str, list[str]], *,
     one shelf's units only."""
     raw_lex = lexical(query, ix, aliases)
     lex, lsrc = pooled(raw_lex, ix)
-    channels = [(lex, raw_lex)]
+    channels = [(lex, raw_lex, False)]
     srcs = [lsrc]
     if semantic is not None:
         sem, ssrc = pooled(semantic, ix)
-        channels.append((sem, semantic))
+        channels.append((sem, semantic, True))
         srcs.append(ssrc)
     order = [i for i in fuse(*channels) if not platform or ix.units[i].platform == platform]
     rank = {i: r for r, i in enumerate(order)}
 
-    named = {ix.platform_stems[t] for t in query_tokens(query) if t in ix.platform_stems}
+    named, _ = named_platforms(query_tokens(query), ix)
     jobs: list[int] = []
     if named:
         for i in order:
@@ -362,38 +397,45 @@ def recall(query: str, ix: Index, aliases: dict[str, list[str]], *,
 # ---- names ---------------------------------------------------------------------------------------
 def name_of(query: str, ix: Index, platform: str | None = None,
             provider_display: Callable[[str], str] = lambda s: s) -> NameHit | None:
-    """What a query names, if it is a name: a platform (every query word is, or starts, a word of
-    its label or slug), else a provider (exactly its name or its display name at any length, or a
-    prefix of one from four letters), else a product or model name (exactly). On a shelf only a
+    """What a query names, if it is a name: a platform (exactly its name or slug; or, from four
+    letters, every query word is or starts a word of exactly one platform's label or slug), else a provider (exactly its name or its display name at any length, or, from
+    four letters, a prefix of exactly one provider's), else a product or model name (exactly). On a shelf only a
     provider there counts."""
     q = " ".join(words(re.sub(r"[^\w\s-]", "", query)))
     if not q:
         return None
     forms = {q, q.replace(" ", ""), q.replace(" ", "-")}
     if platform is None:
-        hits: list[tuple] = []
+        exact_hits: list[tuple] = []
+        loose: list[tuple] = []
         qwords = q.split()
+        long_enough = len(q.replace(" ", "")) >= NAME_PREFIX_MIN
         for slug, short, hay, featured, jobs in ix.platform_names:
-            exact = slug in forms or short in forms or slug.replace("-", " ") in forms
-            if exact or all(any(h == w or h.startswith(w) for h in hay) for w in qwords) \
-                    or any(len(f) >= NAME_PREFIX_MIN and slug.startswith(f) for f in forms):
-                # exactly named first, then one whose name starts with the query, then the
-                # shelves' own featured order, then the most jobs (as the platform name page)
-                starts = slug.startswith(q) or short.startswith(q)
-                hits.append((not exact, not starts, featured is None, featured or 0, -jobs, slug))
-        if hits:
-            hits.sort()
-            return NameHit("platform", tuple(h[-1] for h in hits), exact=not hits[0][0])
+            # exactly named first, then one whose name starts with the query, then the shelves' own
+            # featured order, then the most jobs (as the platform name page)
+            rank = (not (slug.startswith(q) or short.startswith(q)), featured is None, featured or 0, -jobs, slug)
+            if slug in forms or short in forms or slug.replace("-", " ") in forms:
+                exact_hits.append(rank)
+            elif long_enough and (all(any(h == w or h.startswith(w) for h in hay) for w in qwords)
+                                  or any(slug.startswith(f) for f in forms)):
+                loose.append(rank)
+        # A name, or a typed prefix of exactly one platform's. A word several platforms share
+        # ("video", "search", "ads") names none of them: the judged answer reads it.
+        if exact_hits:
+            return NameHit("platform", tuple(h[-1] for h in sorted(exact_hits) + sorted(loose)), exact=True)
+        if len(loose) == 1:
+            return NameHit("platform", (loose[0][-1],), exact=False)
     providers = ix.providers if platform is None else sorted(ix.providers_on.get(platform, ()))
-    for exact_pass in (True, False):
-        for prov in providers:
-            d = " ".join(words(provider_display(prov)))
-            names = {prov, d, d.replace(" ", ""), d.replace(" ", "-")}
-            if exact_pass and forms & names:
-                return NameHit("provider", (prov,), exact=True)
-            if not exact_pass and any(len(f) >= NAME_PREFIX_MIN and any(x.startswith(f) for x in names)
-                                      for f in forms):
-                return NameHit("provider", (prov,), exact=False)
+    prefixed: list[str] = []
+    for prov in providers:
+        d = " ".join(words(provider_display(prov)))
+        names = {prov, d, d.replace(" ", ""), d.replace(" ", "-")}
+        if forms & names:
+            return NameHit("provider", (prov,), exact=True)
+        if any(len(f) >= NAME_PREFIX_MIN and any(x.startswith(f) for x in names) for f in forms):
+            prefixed.append(prov)
+    if len(prefixed) == 1:   # a typed prefix names a provider only when it names one
+        return NameHit("provider", (prefixed[0],), exact=False)
     if platform is None:
         key = q.replace(" ", "").replace("-", "")
         if key in ix.products:

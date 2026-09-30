@@ -144,8 +144,10 @@ def test_names_platform_then_provider_then_product():
     hit = fr.name_of("TikTok", ix)
     assert hit.kind == "platform" and hit.keys[0] == "tiktok" and hit.exact and "tiktok-ads" in hit.keys
     assert fr.name_of("tiktok a", ix).keys == ("tiktok-ads",)                 # a typed prefix of a label
-    prefix = fr.name_of("tikt", ix)
-    assert prefix.kind == "platform" and not prefix.exact
+    assert fr.name_of("tikt", ix) is None                   # a prefix of two platforms names neither
+    prefix = fr.name_of("imag", ix)
+    assert prefix == fr.NameHit("platform", ("image-gen",), exact=False)       # a prefix of exactly one
+    assert fr.name_of("ima", ix) is None                                       # under four letters: no prefix
     assert fr.name_of("pdl", ix) == fr.NameHit("provider", ("pdl",), exact=True)   # any length when exact
     assert fr.name_of("scrapecr", ix).keys == ("scrapecreators",)
     assert fr.name_of("scr", ix) is None                                       # a prefix needs four letters
@@ -162,3 +164,44 @@ def test_the_index_is_built_once_per_catalog():
     cat = _cat()
     assert fr.index(cat) is fr.index(cat)
     assert fr.index(_cat()) is not fr.index(cat)
+
+
+def _platforms_cat() -> store.Catalog:
+    plats = {"tiktok": "TikTok", "tiktok-ads": "TikTok Ads", "meta-ads": "Meta Ads (Facebook & Instagram)",
+             "search-console": "Google Search Console", "google-analytics": "Google Analytics (GA4)",
+             "google": "Google Keyword Data"}
+    eps = [_ep(f"p.{slug}.report", f"{slug}.report", slug, "p", "Report", "A report") for slug in plats]
+    return store.Catalog(platforms={s: {"label": label, "category": "Other"} for s, label in plats.items()},
+                         capabilities={f"{s}.report": "Get a report" for s in plats},
+                         endpoints=eps, by_id={e["id"]: e for e in eps})
+
+
+def test_a_platform_is_named_by_its_whole_name_longest_first():
+    ix = fr.build(_platforms_cat())
+
+    def named(q):
+        return fr.named_platforms(fr.query_tokens(q), ix)[0]
+    assert named("tiktok ads library") == {"tiktok-ads"}          # not TikTok: the longer name wins
+    assert named("tiktok comments") == {"tiktok"}
+    assert named("meta ads library") == {"meta-ads"}
+    assert named("search console clicks") == {"search-console"}
+    assert named("google analytics sessions") == {"google-analytics"}
+    assert named("google keyword data") == {"google"}             # the label's short form
+    assert named("ads library") == set()
+    # a named platform's words count double, and its jobs take the reserved seats
+    cat = _platforms_cat()
+    lex = fr.lexical("tiktok ads report", ix, cat.aliases)
+    assert lex[ix.job_pos["tiktok-ads.report"]] > lex[ix.job_pos["tiktok.report"]]
+    seated = [c.unit.id for c in fr.recall("tiktok ads report", ix, cat.aliases, n_jobs=1, n_plat=1)
+              if c.unit.kind == fr.JOB]
+    assert seated == ["tiktok-ads.report"]
+
+
+def test_the_semantic_channel_ranks_by_similarity_whatever_its_sign():
+    cat = _cat()
+    ix = fr.build(cat)
+    sem = [-0.5] * len(ix.units)
+    sem[ix.pos["falco.flux.pro"]] = -0.1                     # the least dissimilar card
+    cands = fr.recall("zzqx", ix, cat.aliases, semantic=sem, n_jobs=2)
+    assert [c.unit.id for c in cands if c.unit.kind == fr.JOB][0] == "image-gen.flux.generate"
+    assert len([c for c in cands if c.unit.kind == fr.JOB]) == 2   # the channel alone fills the seats

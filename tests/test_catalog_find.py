@@ -237,8 +237,10 @@ def test_v2_rules_in_order():
     assert found.verdict == F.NAME and found.name.keys == ("pdl",)
     # a prefix is a name when the judge reads one, or when the query is short and nothing is strong
     assert _decide("scrapecr", {}, name=0.9)[0].verdict == F.NAME
-    assert _decide("tikt", {"tiktok.video.comments": 0.5})[0].verdict == F.NAME
-    assert _decide("tiktok vid", {"tiktok.video.comments": 0.8})[0].verdict == F.STRONG
+    assert _decide("imag", {"image-gen.flux.generate": 0.5})[0].verdict == F.NAME
+    assert _decide("imag", {"image-gen.flux.generate": 0.8})[0].verdict == F.STRONG
+    # a word several platforms share names none: the judged answer stands
+    assert _decide("tikt", {"tiktok.video.comments": 0.5})[0].verdict != F.NAME
     # a name the catalog does not carry, and nothing kept: a gap
     gap = _decide("zzqx widgets", {}, name=0.95)[0]
     assert (gap.verdict, gap.reason, gap.kept) == (F.NONE, F.GAP, [])
