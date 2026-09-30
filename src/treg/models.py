@@ -342,6 +342,12 @@ class CallRecord(SQLModel, table=True):
                       # a member with 287k rows. Revision 0023 builds it concurrently.
                       Index("ix_callrecord_org_id_user_email_created_at", "org_id", "user_email", "created_at"),
                       Index("ix_callrecord_org_id_created_at", "org_id", "created_at"),
+                      # "This team's newest N" (0054): `/calls` pages by id; local runs are too
+                      # sparse for any org-wide index to find quickly, and page by time.
+                      Index("ix_callrecord_org_id_id", "org_id", "id"),
+                      Index("ix_callrecord_org_local_run", "org_id", "created_at", "id",
+                            postgresql_where=text("kind = 'local_run'"),
+                            sqlite_where=text("kind = 'local_run'")),
                       Index("ix_callrecord_org_key_id", "org_id", "api_key_id", "id",
                             postgresql_where=text("api_key_id IS NOT NULL"),
                             sqlite_where=text("api_key_id IS NOT NULL")),)

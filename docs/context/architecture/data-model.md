@@ -29,6 +29,7 @@ sources:
   - src/treg/alembic/versions/0011_callrecord_archive_link.py
   - src/treg/alembic/versions/0015_idempotentcall_membership_cascade.py
   - src/treg/alembic/versions/0053_idempotentcall_membership_expires_index.py
+  - src/treg/alembic/versions/0054_callrecord_org_id_id.py
   - src/treg/alembic/versions/0034_managed_api_keys.py
   - src/treg/alembic/versions/0035_default_key_generation.py
   - src/treg/alembic/versions/0036_activity_key_indexes.py
@@ -45,7 +46,7 @@ sources:
   - src/treg/routers/provider_resources.py
   - src/treg/alembic/versions/0033_signup_promo_eligibility.py
   - src/treg/alembic/versions/0041_searchlog.py
-  - src/treg/alembic/versions/0054_find_v2_log.py
+  - src/treg/alembic/versions/0055_find_v2_log.py
   - src/treg/timeutil.py
   - src/treg/infra/db.py
   - src/treg/domain/referrals.py
@@ -283,7 +284,11 @@ uses this metadata, never the encrypted token's shape.
   `(org_id, user_email, created_at)` in revision 0023, and then the same answer as the ledger: the
   index-only scan still fetched the heap for today's not-yet-vacuumed pages (110k heap fetches,
   2.8 s), so revision 0024 moves the gate to `Membership.calls_today` and the journal count is
-  left to the roster and `/usage/me`.
+  left to the roster and `/usage/me`. A team's newest rows: `/calls` pages by id on
+  `(org_id, id)`, and local runs, a sliver of a team's rows, read a partial
+  `(org_id, created_at, id) WHERE kind = 'local_run'` (revision 0054); without them the first
+  walked the primary key testing `org_id` and the second read the team's whole history. The
+  Activity feed's calls page by time on `(org_id, created_at)`.
 
   `refused_by` distinguishes a treg refusal (`auth`, `policy`, `balance`, `cap`, `resolution`,
   `request`, and other mechanism-specific values) from an upstream answer, where it is null.
@@ -344,7 +349,7 @@ uses this metadata, never the encrypted token's shape.
 - **`SearchMiss`** - a catalog search that returned **nothing**: `query` (capped to 300 chars),
   `source` (`api` for the HTTP route that serves web + CLI + raw API; `mcp` for the team MCP; or
   `claude-connector` for V2; `web-find` for `/catalog/find`), `created_at`, and on a find `reason`
-  (0054: `gap` | `not_task` | `judge_off` | `scope`, see [find](find.md)) and `engine` (the find
+  (0055: `gap` | `not_task` | `judge_off` | `scope`, see [find](find.md)) and `engine` (the find
   engine served; a shadow answer files none). The demand
   signal one step before a `ToolRequest`: most agents that miss never file, so the query text is all
   they leave. Written fire-and-forget through `audit.record_search_miss` (dropped rows cost
@@ -359,7 +364,7 @@ uses this metadata, never the encrypted token's shape.
   judge's `judge_ms` / tokens / `judge_error`. Written fire-and-forget through
   `audit.record_search`; read by `scripts/search_experiment_report.sql` joined to `CallRecord`.
   Nothing is written while `search_experiment` is `off`.
-  `/catalog/find` writes the same row with `mode=find`, `source=web-find` and no identity; 0054 adds
+  `/catalog/find` writes the same row with `mode=find`, `source=web-find` and no identity; 0055 adds
   `engine` (v1 | v2) and v2's readings: `platform_choice`, `platform_conf`, `name_p`, `recall_ms`,
   `embed_ms`, `embed_error`, and `units` as `[kind, id, p]` rows ([find](find.md)).
 - **`RunRecord`** - the **server-side run** audit row (a `treg run --server` CLI execution - the "kind"

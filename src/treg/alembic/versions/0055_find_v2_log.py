@@ -1,7 +1,7 @@
 """searchlog + searchmiss: what the job-first find (find_engine v2) records
 
-Revision ID: 0054
-Revises: 0053
+Revision ID: 0055
+Revises: 0054
 Create Date: 2026-09-30
 
 `searchlog` gains the engine that answered a web find (v1 | v2; shadow mode writes one row for
@@ -16,8 +16,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0054"
-down_revision: str | Sequence[str] | None = "0053"
+revision: str = "0055"
+down_revision: str | Sequence[str] | None = "0054"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

@@ -270,19 +270,19 @@ sortedInvites(){  // the clicked email link's team first, then newest-first (the
 selectedInvites(){ return this.sortedInvites.filter(i=>this.inviteSel[i.id]); },
 inviteFirstRun(){ return !this.myOrgs.some(o=>!this.isPersonal(o)); },
 // no real team yet → decline offers create-team
-    activityRows(){  // proxy calls + server CLI runs, one time-sorted feed (ISO strings compare fine)
-      // Local runs now arrive via /runs (where:'local'); drop them from the calls feed so they aren't double-counted.
+    activityRows(){  // calls + runs from `/activity`, one time-sorted feed (ISO strings compare fine)
       // Cost precedence: what was CHARGED (settle amount; 0 on a release — the estimate alone would
       // over-report a refunded call as spend), else observed, else the estimate (old rows / own-key).
       // A metered async task (video/image generation) is the one row whose charge is decided AFTER
       // the call returned: the server nulls the charge while the task is pending, so show the hold.
-      const calls=(this.calls||[]).filter(c=>c.kind!=='local_run').map(c=>({kind:'call', id:c.id, created_at:c.created_at, user_email:c.user_email, client:c.client, tool:c.tool_name, action:c.method, status:c.status_code, ok:c.status_code<400,
+      const calls=(this.calls||[]).map(c=>({kind:'call', id:c.id, created_at:c.created_at, user_email:c.user_email, client:c.client, tool:c.tool_name, action:c.method, status:c.status_code, ok:c.status_code<400,
         task:c.async_task||null, held:!!(c.async_task&&c.async_task.status==='pending'),
         cost:(c.async_task&&c.async_task.status==='pending')?c.async_task.reserved_micro:(c.cost_charged_micro!=null?c.cost_charged_micro:(c.cost_observed_micro!=null?c.cost_observed_micro:c.cost_estimated_micro)), tier:c.credential_tier, tags:c.tags,
         has_result:!!c.has_result, endpoint_id:c.endpoint_id, call_ref:c.call_ref, path:c.path, cached:c.cached, api_key_id:c.api_key_id, api_key_name:c.api_key_name, api_key_prefix:c.api_key_prefix}));
       const runs=(this.runs||[]).map(r=>({kind:'run', where:r.where, id:r.id, created_at:r.created_at, user_email:r.user_email, client:r.client, tool:r.tool, action:(r.argv||[]).join(' ').slice(0,48)||'-', status:(r.where==='local'?'local run':'exit '+r.exit_code), ok:(r.where==='local'?true:r.exit_code===0), api_key_id:r.api_key_id, api_key_name:r.api_key_name, api_key_prefix:r.api_key_prefix}));
       return calls.concat(runs).sort((a,b)=>a.created_at<b.created_at?1:-1);
     },
+activityHasOlder(){ return !!this.activityNext; },
 activityCallCount(){ return this.activityRows.filter(a=>a.kind==='call').length; },
 activityCachedCount(){ return this.activityRows.filter(a=>a.kind==='call' && a.cached).length; },
 apiKeyGroups(){

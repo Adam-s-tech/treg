@@ -301,6 +301,7 @@ _CONTROL_ROUTE_KEYS: frozenset[RouteKey] = frozenset({
     ('/calls/{call_id}/result', ('GET',), 'get_call_result'),
     ('/calls/{call_ref}', ('GET',), 'get_call'),
     ('/runs', ('GET',), 'list_runs'),
+    ('/activity', ('GET',), 'activity_feed'),
     ('/oauth/providers', ('GET',), 'oauth_providers_list'),
     ('/oauth/start', ('POST',), 'oauth_start'),
     ('/oauth/callback', ('GET',), 'oauth_callback'),

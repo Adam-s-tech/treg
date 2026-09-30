@@ -2521,6 +2521,15 @@
       "GET",
       "HEAD"
     ],
+    "name": "activity_feed",
+    "path": "/activity"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
     "name": "enrich_arena_page",
     "path": "/enrich-arena"
   },
