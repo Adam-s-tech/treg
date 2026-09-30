@@ -1612,6 +1612,13 @@ directory_mcp = MCPServer(
     middleware=[_StaticSurfaceCapabilities()],
 )
 
+# `MCPServer(...)` calls `logging.basicConfig(level="INFO")` (the library's default), so the HTTP
+# clients' INFO line, "HTTP Request: GET <full url>", reached the production log for every provider
+# call. A provider that takes its key in the query string (SerpAPI, Datagma, Twelve Data, ...) had
+# that key written there, next to the caller's search values. treg's own lines keep INFO.
+for _name in ("httpx", "httpx2", "httpcore", "httpcore2"):
+    logging.getLogger(_name).setLevel(logging.WARNING)
+
 
 @directory_mcp.tool(
     name="catalog_search",
