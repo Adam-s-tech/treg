@@ -2643,6 +2643,12 @@ adapters:
     miss: "coalesce(output.data.suggestions, []) == []"
 
   # ---- open web -----------------------------------------------------------------------------
+  search1api.web.search:
+    accepts: [[q]]
+    in: {q: body.query}
+    in_expr: {body.max_results: limit}
+    out: {results: results, count: "len(results)"}
+    miss: "coalesce(results, []) == []"
   perplexity.web.search.fast:
     accepts: [[q]]
     in: {q: body.query}
@@ -2730,6 +2736,11 @@ adapters:
     out: {results: results, count: "len(results)"}
     miss: "coalesce(results, []) == []"
 
+  search1api.web.crawl:
+    accepts: [[url]]
+    in: {url: body.url}
+    out: {pages: "list(results)", count: "len(list(results))"}
+    miss: "results == null"
   you.web.contents:
     accepts: [[url]]
     in_expr: {body.urls: "list(url)"}
@@ -2803,6 +2814,12 @@ adapters:
     out: {pages: "list(.)", count: "len(list(.))"}
     miss: "markdown.success == false"
 
+  search1api.web.sitemap:
+    accepts: [[url]]
+    in: {url: body.url}
+    const: {body.type: sitemap}
+    out: {results: links, count: "len(links)"}
+    miss: "coalesce(links, []) == []"
   anyapi.web.map:
     accepts: [[url], [url, q]]
     in: {url: body.url, q: body.search}

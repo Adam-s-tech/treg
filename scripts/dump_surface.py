@@ -51,6 +51,7 @@ def _configure_test_environment() -> None:
         "PLATFORM_KEY_TIKHUB",
         "PLATFORM_KEY_DATAFORSEO",
         "PLATFORM_KEY_SCRAPECREATORS",
+        "PLATFORM_KEY_SEARCH1API",
     ):
         os.environ[f"TREG_{key}"] = ""
 

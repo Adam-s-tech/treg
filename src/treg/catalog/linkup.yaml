@@ -5,9 +5,6 @@ source:
   curated: '2026-09-29'
 pricing_url: https://docs.linkup.so/pages/documentation/platform/pricing
 limits: "Search and Fetch allow 10 requests/second per organization. Research polling should not exceed one request/second. HTTP 429 can mean insufficient credit or excess concurrency."
-proposed_capabilities:
-  web.extract.structured: Extract typed JSON from one web page
-
 endpoints:
   - id: linkup.web.search
     capability: web.search
