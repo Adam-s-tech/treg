@@ -671,8 +671,16 @@ def llm_prompt(names: list[str]) -> tuple[str, str]:
 
 def llm_parse(text: str) -> list[dict]:
     """Parse the LLM's JSON reply into resolution dicts, tolerating prose around the JSON. Keeps only
-    entries with a var + base_url + a known auth shape."""
+    entries with a var + base_url + a known auth shape.
+
+    Self-hosted reasoning models (vLLM/llama-server without --reasoning-parser) may return thinking
+    inline in `content` as `<think>…</think>JSON` — strip everything before the last `</think>` first
+    so JSON drafts inside the thinking block don't corrupt the brace-slice fallback."""
     import json
+    # Strip inline thinking: take only content after the last </think> if present.
+    think_end = text.rfind("</think>")
+    if think_end >= 0:
+        text = text[think_end + len("</think>"):]
     try:
         data = json.loads(text)
     except Exception:
