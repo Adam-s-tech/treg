@@ -151,7 +151,7 @@ export default {
                wraps the title into a three-line ribbon ("People & / contact / data"). Full-width
                title, then the intro at a readable measure, then the providers as their own row. -->
           <div class="plat-head">
-            <button class="btn sm" style="margin-bottom:12px" @click="go('connections')">← Catalog</button>
+            <button class="btn sm" style="margin-bottom:12px" @click="go('catalog')">← Catalog</button>
             <div class="plat-title">
               <span class="pt-logo" style="width:44px;height:44px;flex:0 0 44px"
                     :class="{gen:platLogoBad[platSlug]}"

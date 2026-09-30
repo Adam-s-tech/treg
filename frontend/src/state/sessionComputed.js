@@ -20,10 +20,6 @@ skillTools(){ const q=this.q.toLowerCase(); return this.tools.filter(t=>t.bundle
 recipes(){ const q=this.q.toLowerCase(); const withTool=new Set(this.tools.filter(t=>t.bundle_id!=null).map(t=>t.bundle_id));
       return this.bundles.filter(b=>!withTool.has(b.id) && (!q||b.name.toLowerCase().includes(q))); },
 hasAnyTools(){ return this.endpoints.length||this.skillTools.length||this.recipes.length; },
-staleConns(){ return (this.connections||[]).filter(c=>c.needs_reconnect); },
-// dying credentials treg can't renew itself
-    needSecondCred(){ return (this.connections||[]).filter(c=>c.extra_credential_note); },
-// connected, but not yet callable (Google Ads' developer token)
     toolGroups(){ return [
       {key:'endpoints', label:'Endpoints/CLI', hint:'APIs and CLIs you registered directly', rows:this.endpoints},
       {key:'skills', label:'Integration Skills', hint:'tools from a skill package (carry a recipe)', rows:this.skillTools},
@@ -50,8 +46,8 @@ canRegister(){ return this.activeRole!=='viewer'; },
     // NAMED exactly for the provider (Secret.name == service), so these are the names worth
     // suggesting — a key called APOLLO_API_KEY works as a plain secret but the catalog never sees it.
     keyNameSuggestions(){ return (this.providers||[])
-      .filter(p=>p.auth_kind==='key'||p.auth_kind==='token')
-      .slice().sort((a,b)=>a.service.localeCompare(b.service)); },
+      .filter(p=>this.pastedCredential(p))
+      .sort((a,b)=>a.service.localeCompare(b.service)); },
 // ---- detail pages ----
     accessNames(){  // the grantable universe: tool names + recipe-only skill names (an integration
       // skill is reachable through its tool's name; recipe-only bundles need their own entry)
