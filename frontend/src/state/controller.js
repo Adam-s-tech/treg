@@ -35,6 +35,7 @@ import lifecycle from './lifecycle.js'
 import hub from './hub.js'
 import tickets from './tickets.js'
 import billingComputed from './billingComputed.js'
+import connectionsComputed from './connectionsComputed.js'
 import catalogComputed from './catalogComputed.js'
 import sessionComputed from './sessionComputed.js'
 import agentsComputed from './agentsComputed.js'
@@ -42,7 +43,7 @@ import onboardingComputed from './onboardingComputed.js'
 import detailsComputed from './detailsComputed.js'
 export default {
  data,
- computed: {...resourcesComputed, ...billingComputed, ...catalogComputed, ...sessionComputed, ...agentsComputed, ...onboardingComputed, ...detailsComputed, ...findComputed},
+ computed: {...resourcesComputed, ...billingComputed, ...connectionsComputed, ...catalogComputed, ...sessionComputed, ...agentsComputed, ...onboardingComputed, ...detailsComputed, ...findComputed},
  methods: {...resources, setElement(name, element) { this.elements[name] = element }, ...session, ...team, ...keys, ...agents, ...projects, ...governance, ...activity, ...billing, ...referrals, ...secrets, ...tools, ...skills, ...format, ...onboarding, ...analytics, ...help, ...connections, ...sharing, ...navigation, ...catalog, ...catalogExperiment, ...details, ...admin, ...snippets, ...tryTool, ...find, ...lifecycle, ...hub, ...tickets},
  watch:{
     // Dialog focus (in on open, trapped, back to the trigger on close) and Escape: v-dialog (dialogs/dialog.ts)
@@ -50,7 +51,7 @@ export default {
     activeOrgId(){ this.resetRenameForm(); },  // team switch or first load: prefill the rename form
     // Editing the box after a find starts a new question: the answer to the old one goes away
     // and the shelves go back to filtering by name.
-    q(v){ if(this.findActive && this.view==='connections' && v.trim()!==this.find.q) this.findExit(); },
+    q(v){ if(this.findActive && this.view==='catalog' && v.trim()!==this.find.q) this.findExit(); },
   },
  provide() { return provideDashboard(this) },
  async mounted() {

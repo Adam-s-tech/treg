@@ -46,7 +46,7 @@ platUrl(slug, cap){ const tail=cap ? '/'+encodeURIComponent(cap) : '';
     // a hash is never a distinct URL to a crawler and the whole catalog was therefore unindexable.
     // Same Vue views as the signed-in marketplace — this is one UI, not a second implementation.
     catalogFromPath(p){
-      if(p==='/catalog' || p==='/catalog/') return {view:'connections', slug:null};
+      if(p==='/catalog' || p==='/catalog/') return {view:'catalog', slug:null};
       if(p==='/search' || p==='/search/') return {view:'find', slug:null};
       const m=/^\/catalog\/([^/]+)(?:\/[^/]+)?\/?$/.exec(p||'');
       return m ? {view:'platform', slug:decodeURIComponent(m[1])} : null;
@@ -56,11 +56,11 @@ platUrl(slug, cap){ const tail=cap ? '/'+encodeURIComponent(cap) : '';
     // billing lives on the Team pane's Billing tab, so it aliases there.
     viewFromHash(){ let v=(location.hash||'').replace('#','');
       if(v==='billing'){ this.orgTab='billing'; v='orgs'; }
-      return ['tools','orgs','activity','usage','admin','help','secrets','start','resources','connections','referrals','hub'].includes(v)?v:null; },
+      return ['tools','orgs','activity','usage','admin','help','secrets','start','resources','catalog','connections','referrals','hub'].includes(v)?v:null; },
 // Land on a public catalog URL (see catalogFromPath): the finder page, a platform shelf, or the index.
     openCatalogRoute(r){
       if(r.view==='find'){ this.view='find'; this.loadPlatforms(); return; }
-      if(r.slug) this.openPlatform(r.slug, true); else this.go('connections', true); },
+      if(r.slug) this.openPlatform(r.slug, true); else this.go('catalog', true); },
 openPlatform(slug, fromPop, cap){ this.resetConfirms();
       if(cap===undefined) cap = fromPop ? this.platCapFromLocation() : null;
       // The ledger has no comparison pages: the control arm reads one's address as its shelf.
@@ -271,8 +271,13 @@ endpointConnectLabel(e){
       const p=this.providers.find(x=>x.service===service); return !!(p && p.metered); },
 // A platform is callable today if ANY provider serving it is connected — the card is browsing,
     // not routing, so which one it is stays a question for the platform page.
-    platConnected(pl){ return ((pl&&pl.providers)||[]).some(s=>this.catConnected(s)); },
-platConnNames(pl){ return ((pl&&pl.providers)||[]).filter(s=>this.catConnected(s)).map(s=>this.provName(s)).join(', '); },
+    // The platform's providers the team holds its own credential for.
+    platOwn(pl){ return ((pl&&pl.providers)||[]).filter(s=>this.catConnected(s)); },
+// What a platform's personal mark means when the team holds a credential for one of its providers:
+    // not that the platform works (every platform works, on treg's key) but that calls there use yours.
+    platConnTitle(pl){ const own=this.platOwn(pl);
+      const what=own.some(s=>!this.pastedCredential(this.providerIndex.get(s))) ? 'your account' : 'your key';
+      return 'Calls to '+own.map(s=>this.provName(s)).join(', ')+' use '+what+', unmetered. The rest run on treg\'s key.'; },
 // The endpoint's inputs, grouped by where they go. Query first, then path, then body: the order
     // you fill them in for the common GET, and the order the provider's own docs tend to use.
     paramSections(e){
@@ -375,7 +380,7 @@ mkOauth(service){ const p=this.providers.find(x=>x.service===service); return !!
 // `providers` comes from /connections, which needs a session. On a public catalog URL there is
     // none, so fall back to the display name the OPEN catalog response already carries — otherwise
     // every provider on a public shelf would render as its bare slug.
-    provName(service){ const p=this.providers.find(x=>x.service===service); if(p) return p.display_name;
+    provName(service){ const p=this.providerIndex.get(service); if(p) return p.display_name;
       const c=(this.platData&&this.platData.providers||{})[service];
       return (c&&c.display_name) || this.plats.providers[service] || service; },
 // Provider-wide facts, served once per provider on the platform response rather than copied

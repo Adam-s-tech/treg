@@ -20,7 +20,7 @@ export default {
       const provs=this.keyNameSuggestions;
       const exact=provs.find(p=>p.service===raw);  // the ladder compares exactly — "Apollo" is a near miss, not a hit
       if(exact) return {ok:true, service:exact.service,
-        text:(exact.display_name||exact.service)+' catalog calls will use this key automatically'};
+        text:(exact.display_name||exact.service)+' catalog calls will use this key, and it will show under Connections'};
       const norm=raw.toLowerCase().replace(/[^a-z0-9]+/g,'');
       const near=provs.find(p=>{ const s=p.service.replace(/[^a-z0-9]+/g,'');
         return norm===s+'apikey'||norm===s+'key'||norm===s+'token'||norm===s+'api'||norm===s; });

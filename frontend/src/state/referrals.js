@@ -24,10 +24,12 @@ export default {
 // The top-bar entry names the offer: legacy's "get $5" line out-drew a bare "Refer a friend" by a
     // wide margin. Amounts come from /meta (config only), never from GET /referrals, which has side
     // effects. Falls back to the plain label while /meta loads or when either side earns nothing.
-    refEntryLabel(){ const r=this.meta&&this.meta.referral;
-      if(!r || !(r.referrer_micro>0) || !(r.referred_micro>0)) return 'Refer a friend';
+    // The top bar's entry says Referral: it leads to two programs, and the friend credit is a small
+    // pull for an affiliate with an audience. The credit offer rides along on hover and for screen readers.
+    refEntryTitle(){ const r=this.meta&&this.meta.referral;
+      if(!r || !(r.referrer_micro>0) || !(r.referred_micro>0)) return 'Refer a friend, or become an affiliate partner';
       const usd=m=>m%1000000===0 ? '$'+m/1000000 : this.money(m);
-      return 'Give '+usd(r.referred_micro)+', get '+usd(r.referrer_micro); },
+      return 'Give '+usd(r.referred_micro)+', get '+usd(r.referrer_micro)+', or become an affiliate partner'; },
 async copyRefLink(){ try{ await navigator.clipboard.writeText(this.ref.link); }catch(e){}
       this.refCopied=true; this.track('referral_link_copied');
       setTimeout(()=>{ this.refCopied=false; }, 1600); },

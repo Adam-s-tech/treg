@@ -23,8 +23,7 @@ export default {
   <!-- THE SHELF -->
   <template v-else-if="platData && !platCap">
     <header class="pl-hero">
-      <nav class="pl-crumbs" aria-label="Breadcrumb"><a href="/catalog" @click.prevent="go('connections')">Catalog</a><span>/</span>{{platLabel}}</nav>
-      <p class="pl-eyebrow">{{platShelfIndex.length}} {{platShelfIndex.length === 1 ? 'tool' : 'tools'}} · {{platComparisons.length}} compared across providers · {{platProvLine.length}} {{platProvLine.length === 1 ? 'provider' : 'providers'}}</p>
+      <nav class="pl-crumbs" aria-label="Breadcrumb"><a href="/catalog" @click.prevent="go('catalog')">Catalog</a><span>/</span>{{platLabel}}</nav>
       <h1>{{platLabel}}</h1>
       <p v-if="platRow && platRow.summary" class="pl-lede">{{platRow.summary}}</p>
       <CatalogSearch v-model="platQ" :scope="platSlug" :scope-label="platLabel"
@@ -38,7 +37,7 @@ export default {
     <section v-for="sec in [{key:'tools', label:'Tools', items:platShelf},
                             {key:'setup', label:'Account and setup', items:platPlumbing, quiet:true}].filter(s=>s.items.length)"
              :key="sec.key" class="pl-sec">
-      <h2 class="pl-h" :class="{'pl-h-quiet':sec.quiet}"><span>{{sec.label}}</span><i></i><em>{{sec.items.length}}</em></h2>
+      <h2 class="pl-h" :class="{'pl-h-quiet':sec.quiet}"><span>{{sec.label}}</span><i v-if="!sec.quiet"></i><em>{{sec.items.length}}</em></h2>
       <div class="pl-grid pl-grid-t">
         <template v-for="t in sec.items" :key="t.job ? 'job:'+t.key : t.id">
           <a v-if="t.job" class="pl-card pl-cmp" :href="platUrl(platSlug, t.slug)" @click.prevent="openComparison(t.slug)">
@@ -77,9 +76,8 @@ export default {
       <button class="pl-link" @click="closeComparison">See every job on {{platLabel}}</button></div>
     <template v-else>
       <header class="pl-hero">
-        <nav class="pl-crumbs" aria-label="Breadcrumb"><a href="/catalog" @click.prevent="go('connections')">Catalog</a><span>/</span><a
+        <nav class="pl-crumbs" aria-label="Breadcrumb"><a href="/catalog" @click.prevent="go('catalog')">Catalog</a><span>/</span><a
           :href="platUrl(platSlug)" @click.prevent="closeComparison">{{platLabel}}</a></nav>
-        <p class="pl-eyebrow">{{platComparison.meta}}</p>
         <h1 class="pl-h1-cmp">{{platCapRow.description}}</h1>
       </header>
 

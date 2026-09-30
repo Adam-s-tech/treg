@@ -11,7 +11,7 @@ export default async function boot(){
       if(e.key==='Escape'){ const orgWasOpen=this.orgMenu; this.closeOverlays(); if(orgWasOpen) this.elements.orgmain?.focus(); if(this.startAgentOpen){ this.startAgentOpen=false; this.elements.startAgentTrigger?.focus(); } else if(this.elements.accountMenu?.open){ this.elements.accountMenu.open=false; this.elements.accountMenu.querySelector('summary').focus(); } return; }
       // "/" focuses the search box (the "/" glyph in the box advertised a shortcut that didn't exist)
       const t=e.target, typing = t && (t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable);
-      if(e.key==='/' && !typing && this.authed && (this.view==='tools'||this.view==='resources'||this.view==='connections')){ e.preventDefault(); this.elements.search && this.elements.search.focus(); }
+      if(e.key==='/' && !typing && this.authed && (this.view==='tools'||this.view==='resources'||this.view==='catalog')){ e.preventDefault(); this.elements.search && this.elements.search.focus(); }
     });
     listen(document, 'click', e=>{  // the org dropdown didn't close on an outside click
       if(this.elements.accountMenu && !e.target.closest('.rd-account-menu')) this.elements.accountMenu.open=false;
@@ -32,12 +32,12 @@ export default async function boot(){
       if(rid){ this.openRun(rid, true); return; }
       let v=(e.state&&e.state.view)||(location.hash||'').replace('#','')||'tools';
       if(v==='billing'){ this.orgTab='billing'; v='orgs'; }
-      if(['tools','orgs','activity','usage','admin','help','secrets','start','resources','connections','referrals','hub'].includes(v)) this.go(v, true);
+      if(['tools','orgs','activity','usage','admin','help','secrets','start','resources','catalog','connections','referrals','hub'].includes(v)) this.go(v, true);
     });
     // Catalog data does not depend on the session, so a view that shows it starts fetching now,
     // alongside /meta and /auth/me, instead of after them (the shelves used to arrive last).
     const catalogShelf=this.catalogFromPath(location.pathname)?.slug || this.platformFromHash();
-    if(this.catalogFromPath(location.pathname) || catalogShelf || location.hash==='#connections') this.loadPlatforms();
+    if(this.catalogFromPath(location.pathname) || catalogShelf || location.hash==='#catalog') this.loadPlatforms();
     if(catalogShelf) this.prefetchPlatform(catalogShelf);
     // /search needs no session to draw, so it does not wait for one: the page paints now, and the
     // session (the top bar's buttons, a result clicked before sign-in) follows when /auth/me answers.
@@ -132,7 +132,7 @@ export default async function boot(){
       // Platform tab (the provider shelf) fills for a signed-out visitor too — only /connections
       // needs a session, and its failure is caught. Without this the tab reads "Platform 0" and
       // renders blank in an incognito window.
-      if(catRoute.view==='find'){ this.view='find'; this.loadPlatforms(); } else if(catRoute.slug) this.openPlatform(catRoute.slug, true); else { this.view='connections'; this.loadConnections(); }
+      if(catRoute.view==='find'){ this.view='find'; this.loadPlatforms(); } else if(catRoute.slug) this.openPlatform(catRoute.slug, true); else { this.view='catalog'; this.loadConnections(); }
       return; }
     if(!inv && !linkOrg && !route && !qs.get('invite_expired') && !ref && !oauthSignin){ location.replace('/'); return; }  // logged-out plain visit → the marketing landing owns the front door. `ref` is a use-case page's CTA (/app?ref=p1), so keep that attribution while opening sign-in in place.
     if(route){ this.shareGate=route; this.demo.signin=true; }  // shared link while logged out: the focused gate (no sandbox mint, no tour); after sign-in the boot lands on it (email verify reloads in place; OAuth restores via the treg-next stash)

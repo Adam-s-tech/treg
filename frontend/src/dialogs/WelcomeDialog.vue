@@ -37,7 +37,7 @@ export default { components: { BrandMark, TregAgentPicker, TregSetupInstructions
             <treg-try-it-out :copied="startCopied.startsWith('wtry-')?startCopied.slice(5):''" @example="track('tryit_prompt_copied',{key:$event.k,cat:$event.cat,from:'onboarding'}); copyStart($event.prompt,'wtry-'+$event.k)" @provider="welcomeTryProvider"></treg-try-it-out>
             <div class="wc-foot">
               <a href="#" class="sub" @click.prevent="welcomeFinish">Skip</a>
-              <button class="btn primary" @click="track('tryit_browse_catalog',{from:'onboarding'}); welcome.on=false; go('connections')">Browse all catalog →</button>
+              <button class="btn primary" @click="track('tryit_browse_catalog',{from:'onboarding'}); welcome.on=false; go('catalog')">Browse all catalog →</button>
             </div>
           </template>
           <div v-if="welcome.err" class="banner" style="margin-top:12px">{{welcome.err}}</div>

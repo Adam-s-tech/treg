@@ -53,7 +53,8 @@ export function loadScript(src: string): Promise<void> {
 }
 
 export const pages = {
-  connections: lazy(() => import('./pages/CatalogPage.vue')),
+  catalog: lazy(() => import('./pages/CatalogPage.vue')),
+  connections: lazy(() => import('./pages/ConnectionsPage.vue')),
   find: lazy(() => import('./pages/SearchPage.vue')),
   provider: lazy(() => import('./pages/ProviderPage.vue')),
   platform: lazy(() => import('./pages/PlatformPage.vue')),
@@ -134,9 +135,9 @@ export function prefetchAfterBoot(vm: Dashboard) {
     if (vm.bootFailed) return
     const member = vm.authed && !vm.publicCatalog
     const views: View[] = member
-      ? ['start', 'connections', 'tools', 'activity', 'orgs', 'platform', 'provider', 'detail', 'secrets',
+      ? ['start', 'catalog', 'connections', 'tools', 'activity', 'orgs', 'platform', 'provider', 'detail', 'secrets',
          'resources', 'referrals', 'hub', 'run', ...(vm.isAdmin ? ['admin' as const] : [])]
-      : ['connections', 'platform']
+      : ['catalog', 'platform']
     const queue: Lazy[] = [...views.map(v => pages[v]), ...(member ? Object.values(dialogs) : [])]
     for (const component of queue) { await idle(); await prefetch(component) }
   }
