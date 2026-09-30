@@ -188,9 +188,9 @@ job with a way to the whole list on its shelf. An empty answer says which kind i
 does not have this kind of data or action yet"), with a request link, or not a job ("try describing
 the data you want"), without one.
 
-The Catalog box asks on its own only when a typing pause leaves its name filter empty and the text
-is more than one short word; that answer sits above the still-filtered shelves and shrinks to one
-line when it reads or finds nothing. Enter still asks for the full answer (see
+The Catalog box asks on its own when typing pauses on two characters or more; that answer sits
+above the still-filtered shelves, so a name being typed both filters and is answered, and it shrinks
+to one line when it reads or finds nothing. Enter still asks for the full answer (see
 [dashboard](../interface/dashboard.md)).
 
 ## Measuring it

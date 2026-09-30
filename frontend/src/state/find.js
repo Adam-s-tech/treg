@@ -12,23 +12,12 @@ export const FIND_EMPTY = {q:'', scope:'', phase:'idle', candidates:[], rows:[],
 const FIND_OPEN = 'treg-find-open'
 // The Catalog box searches by itself once typing pauses this long: people did not discover Enter.
 const FIND_DEBOUNCE_MS = 700
-// A single word shorter than this is a name being typed ("tik", "goo"), not a job: no auto-find.
-const AUTO_FIND_MIN_CHARS = 4
+const FIND_MIN_CHARS = 2
 
 // A short query is a NAME ("tiktok") and keeps the instant platform filter; a sentence is a JOB.
 export function isJobQuery(text){
   const t=String(text||'').trim();
   return t.split(/\s+/).filter(Boolean).length>=4 || /\?$/.test(t);
-}
-
-// Whether a typing pause should ask the finder. Not while the box's own name filter shows something
-// (the person is navigating by name; Enter still asks), and not for one short word: typing fragments
-// were a large share of the finder's questions and none of them was a job.
-export function autoFindable(text, nameHits){
-  const t=String(text||'').trim();
-  if(!t) return false;
-  if(!/\s/.test(t) && t.length<AUTO_FIND_MIN_CHARS) return false;
-  return !nameHits;
 }
 
 // Group items under a key, into each group's `field` list; a group's fit is its best member's, and
@@ -83,29 +72,19 @@ export default {
   findIsJob(text){ return isJobQuery(text); },
 
   // Typing in the Catalog box: an answer for older text gives way at once (so a name filters the
-  // shelves as you type), and the finder runs when typing pauses (`autoFindable`). Its answer is
-  // `auto`: it sits above the still-filtered shelves instead of replacing them; Enter asks for the
-  // full answer. `findSoon` is true while one is scheduled, so the page does not call a half-typed
-  // job "no platform". `scope` is a platform slug when the box is a shelf's own: the finder then
-  // reads that shelf only.
+  // shelves as you type), and the finder runs when typing pauses on two characters or more. Its
+  // answer is `auto`: it sits above the still-filtered shelves instead of replacing them; Enter asks
+  // for the full answer. `findSoon` is true while one is scheduled, so the page does not call a
+  // half-typed job "no platform". `scope` is a platform slug when the box is a shelf's own: the
+  // finder then reads that shelf only.
   findSchedule(text, scope=''){
     this.findUnschedule();
     const q=String(text||'').trim();
     if(!q){ this.findExit(); return; }
     if(this.findActive && (q!==this.find.q || scope!==this.find.scope)) this.findExit();
-    if(q===this.find.q && scope===this.find.scope) return;
-    if(!autoFindable(q, this.findNameHits(q, scope))) return;
+    if(q.length<FIND_MIN_CHARS || (q===this.find.q && scope===this.find.scope)) return;
     this.findSoon=true;
     this.elements.findTimer=setTimeout(()=>this.findRun(q, {auto:true, scope}), FIND_DEBOUNCE_MS);
-  },
-
-  // Whether the box's name filter shows anything for `q`: the platforms on the Catalog page, the
-  // tools on a shelf. A job-shaped query filters nothing (`isJobQuery`).
-  findNameHits(q, scope=''){
-    const t=String(q||'').trim().toLowerCase();
-    if(!t || isJobQuery(t)) return false;
-    if(scope) return (this.platShelf?.length||0)+(this.platPlumbing?.length||0)>0;
-    return (this.plats?.list||[]).some(p=>this.platNameHit(p, t));
   },
 
   findUnschedule(){

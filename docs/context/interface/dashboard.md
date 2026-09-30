@@ -97,11 +97,11 @@ this page keeps what no single file shows. The look follows the root `design.md`
   job's fit says whether it is the job's or one vendor's (`fit_from`), a folded job reads "4 of 30
   providers", and an empty answer says whether treg lacks it (`gap`, with a request link) or the text
   did not read as a job.
-- The Catalog box (`CatalogSearch.vue`) asks the finder on a typing pause only when its name filter
-  shows nothing (platforms on the Catalog page, tools on a shelf) and the text is more than one word
-  under four letters (`autoFindable`). That auto answer is a section above the still-filtered
-  shelves, and while it reads, or when it is `none` or empty, it is one line. Enter (or the
-  suggestion row) asks for the full answer (`findFull`): shelves unfiltered and lit where it landed.
+- The Catalog box (`CatalogSearch.vue`) asks the finder when typing pauses (700 ms) on two
+  characters or more. That auto answer is a section above the still-filtered shelves (a platform
+  name keeps filtering and gets its answer too), and while it reads, or when it is `none` or empty,
+  it is one line. Enter (or the suggestion row) asks for the full answer (`findFull`): shelves
+  unfiltered and lit where it landed.
 - The `catalog-v2` experiment shows the old ledger (`LegacyPlatformPage.vue`) to its control arm; it
   ends by deleting that page, `state/catalogExperiment.js` and the arm checks.
 

@@ -15,7 +15,7 @@ export default { components: { FindAnswer, CatalogSearch }, setup: useDashboard 
   <header class="pl-hero">
     <h1>{{toolCountText ? toolCountText+' tools' : 'Tools'}} for agents</h1>
     <!-- One box, two questions: a platform name filters the shelves as you type; when typing pauses
-         and no platform matches, the finder answers above the filtered shelves, and Enter asks for
+         the finder answers above the filtered shelves, and Enter asks for
          the full answer (state/find.js). Clearing the box is how you leave an answer. -->
     <CatalogSearch v-if="plats.list.length" v-model="q" placeholder="Search a platform, or describe what your agent needs to do" />
   </header>

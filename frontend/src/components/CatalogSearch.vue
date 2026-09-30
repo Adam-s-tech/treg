@@ -2,8 +2,8 @@
 import { useDashboard } from '../state/context'
 
 // The catalog's one search box, on the Catalog page and on every platform shelf. Typing filters what
-// the page shows at once; when typing pauses and the filter shows nothing, the finder answers what
-// was typed as a job above the page, and Enter asks for the full answer (GET /catalog/find, the
+// the page shows at once; when typing pauses, the finder answers what was typed above the still-
+// filtered page, and Enter asks for the full answer (GET /catalog/find, the
 // relevance judge; state/find.js). On a shelf `scope` is its slug and the finder reads that shelf
 // only. Clearing the box is how you leave an answer.
 export default {

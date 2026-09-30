@@ -1,9 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
 
-// The Catalog box (state/find.js): a typing pause asks the finder only when the name filter shows
-// nothing and the query is more than one short word; its answer sits above the shelves, and an
-// empty one is a single line. Enter asks for the full answer, as before. The browser-test server has
-// no judge key, so /catalog/find is answered here and every request to it is counted.
+// The Catalog box (state/find.js): a typing pause of two characters or more asks the finder; its
+// answer sits above the still-filtered shelves, and an empty one is a single line. Enter asks for
+// the full answer, as before. The browser-test server has no judge key, so /catalog/find is
+// answered here and every request to it is counted.
 
 const row = (id: string, p: number) => ({
   id, name: id, provider: id.split('.')[0], provider_display: id.split('.')[0], platform: 'people',
@@ -54,16 +54,18 @@ test('an empty auto answer is one line, never a page', async ({ page }) => {
   await expect(page.locator('.pl-sec').first()).toBeVisible()
 })
 
-test('no auto-find while a platform name matches, or for one short word; Enter still asks', async ({ page }) => {
-  const asked = await answer(page, { verdict: 'name', named: 'platform', rows: [] })
-  await box(page).pressSequentially('tiktok', { delay: 5 })
-  await expect(page.locator('.cat-card').first()).toBeVisible()
+test('a platform name being typed filters the shelves and gets an answer above them; one character does not ask', async ({ page }) => {
+  const asked = await answer(page, { verdict: 'strong', rows: [row('hunter.people.email.find', 0.9)] })
+  const everyCard = await page.locator('.cat-card').count()
+  await box(page).fill('t')
   await page.waitForTimeout(1200)
-  await box(page).fill('')
-  await box(page).pressSequentially('zqx', { delay: 5 })
-  await page.waitForTimeout(1200)
-  expect(asked).toEqual([])
+  expect(asked, 'one character does not ask').toEqual([])
   await box(page).fill('tiktok')
-  await box(page).press('Enter')
   await expect.poll(() => asked).toEqual(['tiktok'])
+  await expect(page.locator('.fa .ui-tbody .ui-tr')).toHaveCount(1)
+  const names = await page.locator('.cat-card .cat-name b').allTextContents()
+  expect(names, 'the shelves stay filtered to the name').toContain('TikTok')
+  expect(names.length).toBeLessThan(everyCard)
+  await box(page).press('Enter')                                            // Enter still asks, for the full answer
+  await expect.poll(() => asked).toEqual(['tiktok', 'tiktok'])
 })
