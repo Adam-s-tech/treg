@@ -78,9 +78,10 @@ async def test_disk_judge_serves_a_stored_answer_and_never_stores_an_abstention(
     again = await disk("q", cands, model="m", criteria={"true": "x"})
     assert calls == ["q"] and again.probs == first.probs and again.ms == 640 and again.cached
     await disk("q", cands, model="m", criteria={"true": "changed"})   # a new question is a new key
+    await disk("q", cands, model="m", criteria={"true": "changed"}, job_criteria={"true": "a job"})
     await disk("down", cands, model="m")
     await disk("down", cands, model="m")
-    assert calls == ["q", "q", "down", "down"] and (disk.hits, disk.misses) == (1, 4)
+    assert calls == ["q", "q", "q", "down", "down"] and (disk.hits, disk.misses) == (1, 5)
 
 
 def test_paired_diff_lists_each_flip(capsys):

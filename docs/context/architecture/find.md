@@ -4,6 +4,10 @@ status: building
 sources:
   - src/treg/application/catalog_find.py
   - src/treg/domain/catalog/find_recall.py
+  - src/treg/application/find_index.py
+  - src/treg/infra/embed.py
+  - tests/test_find_index.py
+  - tests/test_embed.py
   - src/treg/alembic/versions/0054_find_v2_log.py
   - scripts/find_bench.py
   - tests/fixtures/find_bench.yaml
@@ -79,8 +83,8 @@ a whole word: folded (NFKD, diacritics off, CJK kept), stopwords and single lett
 stemmed (the forms of one verb agree, "scraping" and "scrape"), `aliases.yaml` phrases matching when
 all their words do, a platform's slug counting double. A word of five letters or more may also be
 the prefix of a word in a unit's id, platform or provider names, at half weight ("scrap" starts
-every Scrapecreators row). A semantic channel takes one similarity per unit from the caller and is
-off while none is given. Each channel max-pools a job over its members and remembers which member
+every Scrapecreators row). A semantic channel scores each unit by the cosine of its card's vector
+and the query's (below), and is off for a query whose vector is not there. Each channel max-pools a job over its members and remembers which member
 won; ties go to the unit whose own card scored higher, so a common word does not seat the jobs that
 merely have one member mentioning it.
 
@@ -103,6 +107,29 @@ model name. Product names come from endpoint names on the `AI generation` platfo
 more of those names share and names elsewhere rarely use ("gemini", "seedance", "flux"; not
 "image"), and adjacent pairs of them ("nano banana"), matched with spaces and hyphens folded away.
 On a shelf only a provider there counts.
+
+## v2: the semantic channel
+
+`application/find_index.py` holds one float32 matrix per catalog, a row per unit, and
+`infra/embed.py` is the OpenAI-compatible `/embeddings` client (`find_embed_url`, OpenRouter by
+default; `find_embed_model`, `voyageai/voyage-4-lite`). Per find: the query's vector (cached
+in-process by model and folded text for an hour, `find_embed_timeout_s`), one matrix product, and
+`recall` fuses it with the lexical channel. The client never raises: a timeout, a non-200, a
+malformed body or a vector of the wrong size is an `embed_error`, and the find goes on lexical.
+
+The first v2 find on a catalog starts a background build and answers lexically until it is done:
+each card's vector is read from the archive's object store under
+`find-vectors/<model slug>/<sha256 of the card>`, only the missing cards are embedded (batches of
+96), and those are written back. The store is content-addressed everywhere else; these named
+objects are the one exception, their names built by treg from a validated slug and a digest, and
+each body carries its own card hash and size (`MAGIC`, `dim`, hash, floats) instead of a content
+check. Without a store the vectors live in the process only; without the API the channel stays off
+and a failed build is retried after five minutes. A new model is a new prefix, so vectors of two
+models never mix, and a cached vector of another size is not used. No lock: two instances building
+the same new cards both embed them. The build holds no database connection.
+
+The key is `find_embed_api_key`; left empty with the OpenRouter URL, treg's own OpenRouter key
+(`platform_key_openrouter`) is used. numpy (the `[server]` extra) does the matrix product.
 
 ## v2: the verdict
 
@@ -142,7 +169,8 @@ units reach, so the pages light the right platforms and vendors); `judged` gains
 `SearchLog` (mode `find`, source `web-find`, no identity) with `engine`; v2 also writes
 `platform_choice`, `platform_conf`, `name_p`, `recall_ms`, and `units` as `[kind, id, p]`;
 `baseline_ids` is every endpoint the units reach, `judged` the kept units. `embed_ms` and
-`embed_error` are reserved for the semantic channel. `SearchMiss` gains `reason` (`gap`,
+`embed_error` record the query's vector (`off` without a key, `not_ready` while the card vectors
+build, else the client's reason). The `judged` event carries the same as `embed: {ms, error}`. `SearchMiss` gains `reason` (`gap`,
 `not_task`, `judge_off` for an empty keyword fallback). Migration 0054. Fire-and-forget through
 `audit`, like every row there.
 
@@ -166,13 +194,13 @@ false-strong, false-none, top-1 and MRR, tokens, latency and **job coverage** - 
 two or more vendors, how many the page shows (micro, macro, fully covered). Coverage is the first
 number: it measures what a person gets. Judge answers are cached on disk by (model, query, unit
 ids, questions) with the latency and tokens they cost live, `--baseline` diffs two runs case by
-case, and `--engine logged` scores what a JSONL case's find log recorded. CI runs the recall tier on
+case, `--engine v2` builds the card vectors first when an embedding key is set (cached under
+`<cache>/find-vectors/`), and `--engine logged` scores what a JSONL case's find log recorded. CI runs the recall tier on
 the synthetic `tests/fixtures/find_bench.yaml`; a label that no longer matches the catalog stops the
 run. The labeled real queries live outside this repository, and a score on the set the rules were
 settled on is optimistic.
 
 ## Not here
 
-- No semantic channel yet: `recall` takes one, nothing supplies it.
 - No generated card expansions, no vectors in the repository, no model loaded in the process.
 - No second model request per find, and no probability shown to agents.

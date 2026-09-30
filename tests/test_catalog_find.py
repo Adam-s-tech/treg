@@ -356,3 +356,31 @@ async def test_shadow_serves_v1_and_logs_both_engines(clients, monkeypatch):
     async with session_maker() as s:
         rows = (await s.execute(select(SearchLog))).scalars().all()
     assert sorted(r.engine for r in rows) == ["v1", "v2"]
+
+
+async def test_v2_with_the_semantic_channel_reports_it_on_the_event_and_the_log(clients, monkeypatch):
+    from treg.application import find_index
+    from treg.infra import embed as embed_infra
+
+    _on(monkeypatch, find_engine="v2", find_embed_api_key="embed-key", find_embed_model="test/fake")
+
+    async def fake_embed(texts, **kw):
+        return embed_infra.Embedding(vectors=[[1.0, float(len(t) % 7), 0.5] for t in texts], ms=3)
+    monkeypatch.setattr(embed_infra, "embed", fake_embed)
+    embed_infra.clear_cache()
+    find_index.reset()
+    find_index.configure(None)
+    try:
+        # the first find starts the build and answers from the lexical channel
+        monkeypatch.setattr(judge_infra, "judge", _fake_v2({}))
+        _, (_, judged) = await _find(clients, "find a work email")
+        assert judged["embed"] == {"ms": None, "error": "not_ready"}
+        await find_index._build.task
+        _, (_, judged) = await _find(clients, "find a work email")
+        assert judged["embed"] == {"ms": 3, "error": None}
+        await audit.drain()
+        async with session_maker() as s:
+            rows = (await s.execute(select(SearchLog).order_by(SearchLog.id))).scalars().all()
+        assert [(r.embed_ms, r.embed_error) for r in rows] == [(None, "not_ready"), (3, None)]
+    finally:
+        find_index.reset()

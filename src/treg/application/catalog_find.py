@@ -36,6 +36,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 
 from .. import audit, ratestore
+from . import find_index
 from ..config import get_settings
 from ..domain.catalog import find_recall
 from ..domain.catalog import store as catalog_store
@@ -342,12 +343,29 @@ class Found:
 
 
 def recall_v2(query: str, cat: catalog_store.Catalog, provider_display,
-              platform: str | None = None) -> list[find_recall.Candidate]:
+              platform: str | None = None, semantic: list[float] | None = None) -> list[find_recall.Candidate]:
     s = get_settings()
     return find_recall.recall(
-        query, find_recall.index(cat, provider_display), cat.aliases, platform=platform,
+        query, find_recall.index(cat, provider_display), cat.aliases, semantic=semantic, platform=platform,
         n_jobs=int(s.find_jobs), n_delta=int(s.find_delta), n_raw=int(s.find_raw),
         n_plat=int(s.find_platform_seats))
+
+
+@dataclass
+class Recalled:
+    cands: list[find_recall.Candidate]
+    embed: find_index.Semantic
+    recall_ms: float
+
+
+async def recall_with_meaning(query: str, cat: catalog_store.Catalog, provider_display,
+                              platform: str | None = None) -> Recalled:
+    """The query's vector (when the card vectors are ready), then both channels. The embedding
+    request is the only I/O; without it the recall is the lexical channel alone."""
+    sem = await find_index.semantic(query, cat, find_recall.index(cat, provider_display))
+    t0 = time.perf_counter()
+    cands = recall_v2(query, cat, provider_display, platform, sem.scores)
+    return Recalled(cands, sem, (time.perf_counter() - t0) * 1000)
 
 
 async def judge_v2(query: str, cands: list[find_recall.Candidate], cat: catalog_store.Catalog,
@@ -526,35 +544,32 @@ def _v2_row(r: dict, cat: catalog_store.Catalog, provider_display) -> dict:
 async def _stream_v2(query: str, provider_display, platform: str | None,
                      evidence: Evidence | None) -> AsyncIterator[dict]:
     cat = catalog_store.load()
-    t0 = time.perf_counter()
-    cands = recall_v2(query, cat, provider_display, platform)
-    recall_ms = int((time.perf_counter() - t0) * 1000)
-    yield {"event": "candidates", "candidates": _candidate_endpoints(cands, cat),
-           "units": [{"kind": c.unit.kind, "id": c.unit.id} for c in cands]}
-    found = await answer_v2(query, cands, cat, provider_display, platform, evidence)
+    r = await recall_with_meaning(query, cat, provider_display, platform)
+    yield {"event": "candidates", "candidates": _candidate_endpoints(r.cands, cat),
+           "units": [{"kind": c.unit.kind, "id": c.unit.id} for c in r.cands]}
+    found = await answer_v2(query, r.cands, cat, provider_display, platform, evidence)
     yield {"event": "judged", "verdict": found.verdict, "named": found.name.kind if found.name else "",
-           "read": len(cands), "high": float(get_settings().search_judge_high),
-           "rows": [_v2_row(r, cat, provider_display) for r in found.rows],
-           "reason": found.reason, "platform": found.platform, "engine": "v2"}
-    _log_v2(query, cat, found, recall_ms)
+           "read": len(r.cands), "high": float(get_settings().search_judge_high),
+           "rows": [_v2_row(row, cat, provider_display) for row in found.rows],
+           "reason": found.reason, "platform": found.platform, "engine": "v2",
+           "embed": {"ms": r.embed.ms, "error": r.embed.error}}
+    _log_v2(query, cat, found, r)
 
 
 async def _shadow_v2(query: str, provider_display, platform: str | None, evidence: Evidence | None) -> None:
     """v2 beside a served v1 answer, for the log only. Never raises."""
     try:
         cat = catalog_store.load()
-        t0 = time.perf_counter()
-        cands = recall_v2(query, cat, provider_display, platform)
-        recall_ms = int((time.perf_counter() - t0) * 1000)
-        found = await answer_v2(query, cands, cat, provider_display, platform, evidence)
-        _log_v2(query, cat, found, recall_ms)
+        r = await recall_with_meaning(query, cat, provider_display, platform)
+        found = await answer_v2(query, r.cands, cat, provider_display, platform, evidence)
+        _log_v2(query, cat, found, r)
     except asyncio.CancelledError:
         raise
     except Exception:  # noqa: BLE001 - the shadow is a measurement; it never touches the answer
         log.warning("find shadow failed", exc_info=True)
 
 
-def _log_v2(query: str, cat: catalog_store.Catalog, found: Found, recall_ms: int) -> None:
+def _log_v2(query: str, cat: catalog_store.Catalog, found: Found, r: Recalled) -> None:
     j = found.judgement
     _, baseline_total = catalog_store.search(query, cat, 0)
     probs = j.probs or [None] * len(found.cands)
@@ -569,7 +584,8 @@ def _log_v2(query: str, cat: catalog_store.Catalog, found: Found, recall_ms: int
         baseline_total=int(baseline_total), differs=False,
         judge_ms=j.ms, judge_tokens_in=j.tokens_in, judge_tokens_out=j.tokens_out, judge_error=j.error,
         platform_choice=plat.get("choice"), platform_conf=plat.get("confidence"),
-        name_p=None if found.name_p is None else round(found.name_p, 3), recall_ms=recall_ms,
+        name_p=None if found.name_p is None else round(found.name_p, 3), recall_ms=round(r.recall_ms),
+        embed_ms=r.embed.ms, embed_error=r.embed.error,
         units=[[c.unit.kind, c.unit.id, None if p is None else round(p, 3)] for c, p in zip(found.cands, probs)])
     if found.verdict == NONE or (found.verdict == KEYWORD and not found.rows):
         audit.record_search_miss(query=query, source="web-find",

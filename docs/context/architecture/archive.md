@@ -141,7 +141,8 @@ live call"; 0 makes repeats free. Own-key hits are outside this: never metered, 
 
 `archive_bodies` owns body preparation, object reads, the independent upload queue and completed
 storage observations. `archive.py` retains request keys, snapshots, transactions, TTL learning
-and pruning. `infra.object_store.ObjectStore` exposes only put/get/head; `open_r2` imports
+and pruning. `infra.object_store.ObjectStore` exposes only put/get/head (the same store also holds find's card
+vectors as named `find-vectors/...` objects, `NamedObjectStore`; see [find](find.md)); `open_r2` imports
 obstore lazily and bootstrap owns its lifecycle. Tests inject `MemoryObjectStore` through
 `bootstrap.configure_archive_object_store` or `create_app(archive_object_store=...)`.
 

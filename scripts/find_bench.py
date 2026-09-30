@@ -52,7 +52,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 import yaml  # noqa: E402
 
-from treg.application import catalog_find  # noqa: E402
+from treg.application import catalog_find, find_index  # noqa: E402
 from treg.config import get_settings  # noqa: E402
 from treg.domain.catalog import store  # noqa: E402
 from treg.infra import judge as judge_infra  # noqa: E402
@@ -151,9 +151,10 @@ class DiskJudge:
 
     @staticmethod
     def key(query: str, cands: list[dict], kw: dict) -> str:
-        return hashlib.sha256(json.dumps(
-            [kw.get("model"), query, [c["id"] for c in cands], kw.get("criteria"), kw.get("extra")],
-            sort_keys=True).encode()).hexdigest()
+        parts = [kw.get("model"), query, [c["id"] for c in cands], kw.get("criteria"), kw.get("extra")]
+        if kw.get("job_criteria") is not None:   # v2: the job question's wording, and which ids are jobs
+            parts += [kw["job_criteria"], ["job" if "job" in c else "endpoint" for c in cands]]
+        return hashlib.sha256(json.dumps(parts, sort_keys=True).encode()).hexdigest()
 
     async def __call__(self, query: str, cands: list[dict], **kw) -> judge_infra.Judgement:
         path = self.dir / f"{self.key(query, cands, kw)}.json" if self.dir else None
@@ -173,6 +174,7 @@ class Answer:
     candidates: list[str]                 # unit ids the judge reads, in recall order
     recall_ms: float = 0.0
     reach: list[str] | None = None        # endpoint ids those units reach (v2: a job's members)
+    embed_error: str | None = None        # v2: why the semantic channel was off for this query
     verdict: str = ""
     kept: list[tuple[str, float]] = field(default_factory=list)   # judged rows at or over keep, best first
     shown: list[str] | None = None        # endpoint ids on the page, in order; None = not known
@@ -194,13 +196,13 @@ class V1:
         self.cat = cat
         self.n = max(1, int(get_settings().find_candidates))
 
-    def recall(self, case: Case) -> Answer:
+    async def recall(self, case: Case) -> Answer:
         t0 = time.perf_counter()
         cands = store.candidates(case.q, self.cat, self.n)
         return Answer(candidates=[ep["id"] for ep, _ in cands], recall_ms=(time.perf_counter() - t0) * 1000)
 
     async def answer(self, case: Case) -> Answer:
-        a = self.recall(case)
+        a = await self.recall(case)
         cands = [(self.cat.by_id[i], 0.0) for i in a.candidates]
         judged = await catalog_find.judge(case.q, cands, self.cat, _provider_display)
         j = judged.judgement
@@ -215,24 +217,24 @@ class V1:
 
 
 class V2:
-    """Job-first find: `catalog_find.recall_v2` units, one judge request, `decide` and `expand`
+    """Job-first find: `catalog_find.recall_with_meaning` units (the semantic channel when an
+    embedding key is set and the card vectors are built), one judge request, `decide` and `expand`
     (no evidence: the rerank orders by core and price)."""
 
     def __init__(self, cat: store.Catalog):
         self.cat = cat
 
-    def _recall(self, case: Case):
-        t0 = time.perf_counter()
-        cands = catalog_find.recall_v2(case.q, self.cat, _provider_display)
-        ms = (time.perf_counter() - t0) * 1000
-        reach = [c["id"] for c in catalog_find._candidate_endpoints(cands, self.cat)]
-        return cands, Answer(candidates=[c.unit.id for c in cands], recall_ms=ms, reach=reach)
+    async def _recall(self, case: Case):
+        r = await catalog_find.recall_with_meaning(case.q, self.cat, _provider_display)
+        reach = [c["id"] for c in catalog_find._candidate_endpoints(r.cands, self.cat)]
+        return r.cands, Answer(candidates=[c.unit.id for c in r.cands], recall_ms=r.recall_ms, reach=reach,
+                               embed_error=r.embed.error)
 
-    def recall(self, case: Case) -> Answer:
-        return self._recall(case)[1]
+    async def recall(self, case: Case) -> Answer:
+        return (await self._recall(case))[1]
 
     async def answer(self, case: Case) -> Answer:
-        cands, a = self._recall(case)
+        cands, a = await self._recall(case)
         found = await catalog_find.answer_v2(case.q, cands, self.cat, _provider_display)
         j = found.judgement
         a.verdict = found.verdict
@@ -251,7 +253,7 @@ class Logged:
     def __init__(self, cat: store.Catalog):
         self.cat = cat
 
-    def recall(self, case: Case) -> Answer:
+    async def recall(self, case: Case) -> Answer:
         sys.exit("the logged engine has no recall; use --tier judge")
 
     async def answer(self, case: Case) -> Answer:
@@ -389,6 +391,8 @@ def _frac(pair) -> str:
 def report(run: dict, baseline: dict | None) -> None:
     s, meta = run["summary"], run["meta"]
     print(f"\nfind bench  engine={meta['engine']}  tier={meta['tier']}  cases={s['n']}  catalog={meta['catalog']}")
+    if meta.get("semantic"):
+        print("  semantic channel   " + "  ".join(f"{k}={v}" for k, v in meta["semantic"].items()))
     strata = " ".join(f"{k} {v[0]}/{v[1]}" for k, v in sorted(s["by_stratum"].items()))
     if meta["tier"] == "recall":
         print(f"  recall@candidates  {_frac(s['recall'])}   {strata}")
@@ -432,15 +436,44 @@ def _diff(run: dict, baseline: dict) -> None:
 
 
 # ---- main ----------------------------------------------------------------------------------------
-async def run_all(engine, cases: list[Case], tier: str, concurrency: int) -> dict[str, Answer]:
+class DirStore:
+    """Find's card vectors on local disk (`<cache>/find-vectors/...`), standing in for the object
+    store so a bench rerun embeds no card twice."""
+
+    def __init__(self, root: Path):
+        self.root = root
+
+    async def get_named(self, name: str) -> bytes | None:
+        path = self.root / name
+        return path.read_bytes() if path.exists() else None
+
+    async def put_named(self, name: str, body: bytes) -> None:
+        path = self.root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(body)
+
+
+async def run_all(engine, cases: list[Case], tier: str, concurrency: int,
+                  cache: Path | None = None) -> tuple[dict[str, Answer], dict]:
+    embed = {"channel": "off"}
+    if isinstance(engine, V2) and find_index.enabled():
+        find_index.configure(DirStore(cache) if cache else None)
+        vectors = await find_index.prepare(engine.cat, _index(engine.cat))
+        embed = ({"channel": "on", "model": vectors.model, "dim": vectors.dim, "reused": vectors.reused,
+                  "computed": vectors.computed} if vectors else {"channel": "failed"})
     if tier == "recall":
-        return {c.id: engine.recall(c) for c in cases}
+        return {c.id: await engine.recall(c) for c in cases}, embed
     sem = asyncio.Semaphore(concurrency)
 
     async def one(c: Case) -> tuple[str, Answer]:
         async with sem:
             return c.id, await engine.answer(c)
-    return dict(await asyncio.gather(*(one(c) for c in cases)))
+    return dict(await asyncio.gather(*(one(c) for c in cases))), embed
+
+
+def _index(cat: store.Catalog):
+    from treg.domain.catalog import find_recall
+    return find_recall.index(cat, _provider_display)
 
 
 def bench(cases: list[Case], *, engine: str, tier: str, cache: Path | None = None,
@@ -461,7 +494,7 @@ def bench(cases: list[Case], *, engine: str, tier: str, cache: Path | None = Non
         disk = DiskJudge(cache / "jev" if cache else None, judge_infra.judge)
         judge_infra.judge = disk
     try:
-        answers = asyncio.run(run_all(ENGINES[engine](cat), cases, tier, concurrency))
+        answers, embed = asyncio.run(run_all(ENGINES[engine](cat), cases, tier, concurrency, cache))
     finally:
         if disk:
             judge_infra.judge = disk.live
@@ -484,6 +517,8 @@ def bench(cases: list[Case], *, engine: str, tier: str, cache: Path | None = Non
             "find_candidates": int(s.find_candidates), "model": s.typesafe_model}
     if disk:
         meta["judge_cache"] = {"hits": disk.hits, "misses": disk.misses}
+    if engine == "v2":
+        meta["semantic"] = embed
     return {"meta": meta, "summary": summarize(cases, answers, tier, view, baseline), "cases": rows}
 
 
