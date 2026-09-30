@@ -174,6 +174,7 @@ CATALOG: list[dict] = [
     {"provider": "Cartesia",    "tokens": ["CARTESIA"],            "base_url": "https://api.cartesia.ai",                         "auth": {"shape": "api_key_header", "header": "X-API-Key"}},
     # --- search / scraping ---
     {"provider": "Tavily",      "tokens": ["TAVILY"],              "base_url": "https://api.tavily.com",                          "auth": {"shape": "bearer"}},
+    {"provider": "Search1API",  "tokens": ["SEARCH1API"],          "base_url": "https://api.search1api.com",                    "auth": {"shape": "bearer"}, "probe": "usage"},
     {"provider": "Octen",       "tokens": ["OCTEN"],               "base_url": "https://api.octen.ai",                           "auth": {"shape": "api_key_header", "header": "x-api-key"}},
     {"provider": "Linkup",      "tokens": ["LINKUP"],              "base_url": "https://api.linkup.so/v1",                       "auth": {"shape": "bearer"}, "probe": "credits/balance"},
     {"provider": "You.com",     "tokens": ["YDC_API_KEY", "YOU_API_KEY"], "base_url": "https://api.you.com", "auth": {"shape": "api_key_header", "header": "X-API-Key"}, "probe": "v1/billing/account_balance"},

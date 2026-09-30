@@ -92,6 +92,15 @@ async def _fishaudio(c, key):
     }
 
 
+async def _search1api(c, key):
+    d = await _get(c, "https://api.search1api.com/usage",
+                   headers={"Authorization": f"Bearer {key}"})
+    balance = d.get("usage") if isinstance(d, dict) else None
+    if type(balance) is not int or balance < 0:
+        raise ValueError("Search1API returned no valid credit balance")
+    return {"value": balance, "unit": "credits", "note": "prepaid account balance"}
+
+
 async def _tavily(c, key):
     d = await _get(c, "https://api.tavily.com/usage",
                    headers={"Authorization": f"Bearer {key}"})
@@ -862,6 +871,7 @@ BALANCE_ROUTES = {
     "tinyfish": _tinyfish,
     "fishaudio": _fishaudio,
     "tavily": _tavily,
+    "search1api": _search1api,
     "linkup": _linkup,
     "you": _you,
     "serper": _serper,

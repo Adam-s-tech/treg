@@ -185,6 +185,7 @@ capabilities:
   web.page.audit: "Run an on-page audit of a URL"
   web.search: "Search the open web by meaning or keyword"
   web.extract: "Extract clean content from web pages"
+  web.extract.structured: "Extract typed JSON from one web page"
   web.screenshot: "Capture a rendered web page image"
   web.map: "Discover the URLs on a website"
   web.crawl: "Crawl a website and extract its pages"

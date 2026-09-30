@@ -127,6 +127,26 @@ async def test_tavily_capacity_uses_key_credit_remainder():
     }
 
 
+async def test_search1api_capacity_uses_free_usage_balance():
+    def probe(request):
+        assert request.method == "GET"
+        assert request.url == "https://api.search1api.com/usage"
+        assert request.headers["authorization"] == "Bearer test"
+        return httpx.Response(200, json={"usage": 20050, "credential_type": "api_key"})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(probe)) as client:
+        row = await collectors._search1api(client, "test")
+    assert row == {"value": 20050, "unit": "credits", "note": "prepaid account balance"}
+
+
+@pytest.mark.parametrize("balance", [None, True, "100", -1])
+async def test_search1api_capacity_rejects_invalid_balance(balance):
+    async with httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda _: httpx.Response(200, json={"usage": balance}))) as client:
+        with pytest.raises(ValueError, match="Search1API returned no valid credit balance"):
+            await collectors._search1api(client, "test")
+
+
 async def test_serper_capacity_uses_free_account_balance():
     def probe(request):
         assert request.method == "GET"

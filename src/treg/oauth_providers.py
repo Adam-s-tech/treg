@@ -2503,6 +2503,25 @@ EXA = OAuthProvider(
     probe_json={"urls": ["https://example.com"], "text": {"maxCharacters": 1}},
 )
 
+SEARCH1API = OAuthProvider(
+    service="search1api",
+    display_name="Search1API",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="your Search1API key",
+    setup_url="https://app.s1.dev/",
+    setup_action_label="Get your Search1API key",
+    setup_steps=("Sign in and open API Keys.", "Create or copy an API key."),
+    setup_note="Calls spend Search1API credits. treg checks the free Usage endpoint when connecting.",
+    auth_uri="", token_uri="", scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="SEO",
+    summary="Search the web and news, read pages, discover sites, and extract content.",
+    base_url="https://api.search1api.com",
+    docs_url="https://s1.dev/docs",
+    probe_path="/usage",
+)
+
 TAVILY = OAuthProvider(
     service="tavily",
     display_name="Tavily",
@@ -3809,7 +3828,7 @@ REGISTRY: dict[str, OAuthProvider] = {
         TIKHUB, BRIGHTDATA, SEMRUSH, JUSTONEAPI,
         SCRAPECREATORS,
         # SEO API-key providers
-        DATAFORSEO, SERANKING, MOZ, MAJESTIC, SERPSTAT, EXA, TAVILY, OCTEN, LINKUP, YOU, VALYU, KEENABLE, OLOSTEP, FIRECRAWL, SPIDERCLOUD, PERPLEXITY,
+        DATAFORSEO, SERANKING, MOZ, MAJESTIC, SERPSTAT, EXA, SEARCH1API, TAVILY, OCTEN, LINKUP, YOU, VALYU, KEENABLE, OLOSTEP, FIRECRAWL, SPIDERCLOUD, PERPLEXITY,
         SCRAPEGRAPHAI, SERPER, LITESCRAPE, CLORO,
         # more Enrichment API-key providers
         LUSHA, CORESIGNAL, DIFFBOT, THECOMPANIESAPI, LEADMAGIC, FIBER_AI, CRUSTDATA, AVIATO,
