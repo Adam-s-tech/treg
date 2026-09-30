@@ -95,6 +95,7 @@ for _k in (
     "PLATFORM_KEY_FINANCIALDATASETS",
     "PLATFORM_KEY_ADYNTEL", "PLATFORM_EMAIL_ADYNTEL",
     "PLATFORM_KEY_KEENABLE", "PLATFORM_KEY_OLOSTEP",
+    "PLATFORM_KEY_SEARCH1API",
 ):
     os.environ[f"TREG_{_k}"] = ""  # the test upstream is an in-process ASGI transport, not real DNS
 
