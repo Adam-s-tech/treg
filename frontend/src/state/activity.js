@@ -53,6 +53,20 @@ isVideoUrl(u){ try{ return /\.(mp4|webm|mov|m4v)$/i.test(new URL(u).pathname); }
 fmtBytes(n){ if(n==null) return '—'; if(n<1024) return n+' B'; if(n<1048576) return (n/1024).toFixed(1)+' KB'; return (n/1048576).toFixed(2)+' MB'; },
 async copyCallBody(){ const t=this.callView&&this.callView.response&&this.callView.response.body_text; if(!t) return; if(await this.toClipboard(t)){ this.callCopied='Copied'; setTimeout(()=>{ this.callCopied=''; },1400); } },
 async loadCalls(){ const live=this.ticket('calls');
-      try{ if(!this.apiKeys.length)await this.loadApiKeys(); const q='?limit=100'+(this.activityKey?'&api_key_id='+encodeURIComponent(this.activityKey):''); const [calls,runs]=await Promise.all([this.api('/calls'+q), this.api('/runs'+q).catch(()=>[])]); if(!live()) return; this.calls=calls; this.runs=runs; }catch(e){ if(live()) this.err='Failed to load activity.'; }
-      finally{ if(live()) this.callsLoaded=true; } }  // the empty-state line waits for this, not for the page's global `loading`
+      // A reload supersedes an older page in flight, and its cursor belongs to the rows being replaced.
+      this.ticket('activityOlder'); this.activityOlderBusy=false; this.activityNext=null;
+      try{ const [,page]=await Promise.all([this.apiKeys.length?null:this.loadApiKeys(), this.api('/activity'+this.activityQuery())]);
+        if(!live()) return; this.calls=[]; this.runs=[]; this.takeActivity(page); }
+      catch(e){ if(live()){ this.calls=[]; this.runs=[]; this.err='Failed to load activity.'; } }
+      finally{ if(live()) this.callsLoaded=true; } },  // the empty-state line waits for this, not for the page's global `loading`
+activityQuery(before){ return '?limit=100'+(this.activityKey?'&api_key_id='+encodeURIComponent(this.activityKey):'')+(before?'&before='+encodeURIComponent(before):''); },
+takeActivity(page){  // one newest-first page of the server's merged feed; `next` is the cursor past it
+      this.calls=this.calls.concat(page.rows.filter(r=>r.source==='call'));
+      this.runs=this.runs.concat(page.rows.filter(r=>r.source==='run'));
+      this.activityNext=page.next; },
+async loadOlderActivity(){
+      if(this.activityOlderBusy||!this.activityNext) return; const live=this.ticket('activityOlder'); this.activityOlderBusy=true;
+      try{ const page=await this.api('/activity'+this.activityQuery(this.activityNext)); if(live()) this.takeActivity(page); }
+      catch(e){ if(live()) this.err='Failed to load older activity.'; }
+      finally{ if(live()) this.activityOlderBusy=false; } }
 }

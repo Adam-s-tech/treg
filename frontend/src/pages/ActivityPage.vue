@@ -78,7 +78,8 @@ export default {
         <span v-if="a.cached" class="act-cached" title="Served from treg's archive instead of calling the provider.">Cached</span><span v-if="a.held" class="act-dim">hold </span>{{a.cost!=null?money(a.cost):'-'}}</span></template>
   </DataTable>
   <p v-if="callsLoaded && !activityRows.length" class="pl-empty">No activity yet. Calls your agents make show up here.</p>
-  <p v-else-if="callsLoaded && !activityShown.length" class="pl-empty">No successful calls yet. <button class="pl-link" @click="actOkOnly=false">Show all {{activityRows.length}}</button></p>
+  <p v-else-if="callsLoaded && !activityShown.length" class="pl-empty">{{activityHasOlder?"None of the loaded calls succeeded.":"No successful calls yet."}} <button class="pl-link" @click="actOkOnly=false">Show all {{activityRows.length}}</button></p>
+  <button v-if="callsLoaded && activityHasOlder" class="pl-link pl-more-rows" :disabled="activityOlderBusy" @click="loadOlderActivity">{{activityOlderBusy?'Loading…':'Load older activity'}}</button>
   </template>
 
   <template v-if="canAdmin && actTab==='usage'">

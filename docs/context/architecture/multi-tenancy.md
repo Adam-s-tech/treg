@@ -360,7 +360,7 @@ valid value. A restricted agent's `Membership.pinned_tags` is enforced by the se
 header is a 403. An unpinned operator retains the org-wide view and the shared balance.
 
 `domain.governance.access.pinned_tag_predicates` requires every pinned key/value in the stored tags.
-`/calls`, `/calls/{id}/result`, `/calls/{call_ref}` and `/runs` apply that scope before pagination or
+`/calls`, `/calls/{id}/result`, `/calls/{call_ref}`, `/runs` and `/activity` apply that scope before pagination or
 loading archive bodies. A known foreign or unattributed id is a 404, just like an unknown id.
 `POST /reviews` resolves its call through the same predicates, so a pinned caller can neither rate nor
 probe another pin's call. Every audit writer stores the pin, the routed parent row and the router's
@@ -384,8 +384,8 @@ Revision `0042` adds nullable tags to run/task/resource records without backfill
 untagged rows remain readable by unpinned org members, but not by pinned identities. An older binary
 can run with the additive schema, but does not enforce the new read boundary.
 
-Both run audit writers store membership pins. Both history sources in `/runs` filter before their
-limits. Runs do not gain caller-supplied metadata parsing in this change.
+Both run audit writers store membership pins. Both history sources in `/runs`, and all three in
+`/activity`, filter before their limits. Runs do not gain caller-supplied metadata parsing in this change.
 
 Treg's replay key includes the full pin as well as the existing primary-tag scope, so changing a
 secondary pin cannot expose an old replay. On the shared provider credential, the forwarded

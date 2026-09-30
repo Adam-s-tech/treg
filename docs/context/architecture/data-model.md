@@ -29,6 +29,7 @@ sources:
   - src/treg/alembic/versions/0011_callrecord_archive_link.py
   - src/treg/alembic/versions/0015_idempotentcall_membership_cascade.py
   - src/treg/alembic/versions/0053_idempotentcall_membership_expires_index.py
+  - src/treg/alembic/versions/0054_callrecord_org_id_id.py
   - src/treg/alembic/versions/0034_managed_api_keys.py
   - src/treg/alembic/versions/0035_default_key_generation.py
   - src/treg/alembic/versions/0036_activity_key_indexes.py
@@ -282,7 +283,11 @@ uses this metadata, never the encrypted token's shape.
   `(org_id, user_email, created_at)` in revision 0023, and then the same answer as the ledger: the
   index-only scan still fetched the heap for today's not-yet-vacuumed pages (110k heap fetches,
   2.8 s), so revision 0024 moves the gate to `Membership.calls_today` and the journal count is
-  left to the roster and `/usage/me`.
+  left to the roster and `/usage/me`. A team's newest rows: `/calls` pages by id on
+  `(org_id, id)`, and local runs, a sliver of a team's rows, read a partial
+  `(org_id, created_at, id) WHERE kind = 'local_run'` (revision 0054); without them the first
+  walked the primary key testing `org_id` and the second read the team's whole history. The
+  Activity feed's calls page by time on `(org_id, created_at)`.
 
   `refused_by` distinguishes a treg refusal (`auth`, `policy`, `balance`, `cap`, `resolution`,
   `request`, and other mechanism-specific values) from an upstream answer, where it is null.

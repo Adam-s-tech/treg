@@ -160,3 +160,53 @@ test('Bring your own key lands on Connections, the provider it names in view', a
   await expect(page).toHaveURL(/#connections$/)
   await expect(page.locator('.cn-prov.on')).toBeInViewport()
 })
+
+test('Activity pages the merged feed with the cursor the server returns', async ({ page }) => {
+  const at = (minutes: number) => new Date(Date.UTC(2026, 8, 30, 12) - minutes * 60_000).toISOString().slice(0, 23)
+  const call = (i: number) => ({ source: 'call', id: 5000 - i, kind: 'http', tool_name: 'serp', method: 'GET', path: '/search',
+    status_code: 200, user_email: 'a@example.com', client: 'cli', credential_tier: 'platform', cost_charged_micro: 1000, created_at: at(i) })
+  const run = (i: number) => ({ source: 'run', id: 'l' + i, where: 'local', tool: 'gh', argv: ['pr', 'list'], exit_code: null,
+    user_email: 'a@example.com', client: 'cli', created_at: at(i + 0.5) })
+  const rows = (from: number, to: number) => Array.from({ length: to - from }, (_, i) => from + i).flatMap(i => [call(i), run(i)])
+  const asked: string[] = []
+  await page.route(url => url.pathname === '/activity', route => {
+    const before = new URL(route.request().url()).searchParams.get('before') ?? ''
+    asked.push(before)
+    route.fulfill(json(before ? { rows: rows(50, 60), next: null } : { rows: rows(0, 50), next: 'cursor~l~49' }))
+  })
+  await signIn(page)
+  await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Activity', exact: true }).click()
+  const all = page.getByRole('radio', { name: /^All/ })
+  await expect(all).toHaveText('All 100')
+  await page.getByRole('button', { name: 'Load older activity' }).click()
+  await expect(all).toHaveText('All 120')
+  await expect(page.getByRole('button', { name: 'Load older activity' })).toHaveCount(0)
+  expect(asked).toEqual(['', 'cursor~l~49'])
+})
+
+test('Activity offers no older page while a new filter is loading', async ({ page }) => {
+  // The old cursor belongs to the rows being replaced: an older page fetched with it would mix two
+  // filters, and would supersede the reload.
+  const at = (minutes: number) => new Date(Date.UTC(2026, 8, 30, 12) - minutes * 60_000).toISOString().slice(0, 23)
+  const row = (i: number) => ({ source: 'call', id: 5000 - i, kind: 'http', tool_name: 'serp', method: 'GET', path: '/search',
+    status_code: 200, user_email: 'a@example.com', client: 'cli', credential_tier: 'platform', cost_charged_micro: 1000, created_at: at(i) })
+  const rows = (from: number, to: number) => Array.from({ length: to - from }, (_, i) => row(from + i))
+  let release = () => {}
+  const filtered = new Promise<void>(resolve => { release = resolve })
+  await page.route(url => url.pathname === '/activity', async route => {
+    const q = new URL(route.request().url()).searchParams
+    if (q.get('api_key_id')) { await filtered; return route.fulfill(json({ rows: rows(200, 203), next: null })) }
+    if (q.get('before')) return route.fulfill(json({ rows: rows(100, 150), next: null }))
+    return route.fulfill(json({ rows: rows(0, 100), next: 'cursor~c~4900' }))
+  })
+  await page.route(url => url.pathname.endsWith('/api-keys'), route => route.fulfill(json([
+    { id: 7, name: 'ci', identity: 'bot', assigned_type: 'agent', prefix: 'tr_x' }])))
+  await signIn(page)
+  await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Activity', exact: true }).click()
+  const all = page.getByRole('radio', { name: /^All/ })
+  await expect(all).toHaveText('All 100')
+  await page.getByRole('combobox', { name: 'API key' }).selectOption('7')
+  await expect(page.getByRole('button', { name: 'Load older activity' })).toHaveCount(0)
+  release()
+  await expect(all).toHaveText('All 3')
+})
