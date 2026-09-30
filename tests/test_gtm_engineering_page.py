@@ -52,6 +52,12 @@ async def test_hub_is_linked_from_its_pillars_and_listed(clients: AsyncClient):
                  "/use-cases/lead-enrichment-for-ai-agents", "/workflows"):
         assert f'href="{PATH}"' in (await clients.get(page)).text, page
     assert f"{PATH}<" in (await clients.get("/sitemap.xml")).text
+    # Hosted, the bundled pages and llms.txt keep the links with the markers unwrapped.
+    for page in ("/resources", "/people-search", "/leads-signals", "/grokbot", "/fable",
+                 "/use-cases/lead-enrichment-for-ai-agents", "/llms.txt"):
+        r = await clients.get(page)
+        assert r.status_code == 200 and "/gtm-engineering" in r.text, page
+        assert "hosted-->" not in r.text, page
 
 
 async def test_hub_404s_on_a_self_hosted_registry(monkeypatch):
@@ -66,8 +72,9 @@ async def test_hub_404s_on_a_self_hosted_registry(monkeypatch):
             for page in ("/", "/resources", "/people-search", "/leads-signals", "/grokbot", "/fable",
                          "/use-cases/lead-enrichment-for-ai-agents", "/llms.txt"):
                 r = await c.get(page)
+                assert r.status_code == 200, page
                 assert "/gtm-engineering" not in r.text, page
-                assert "<!--hosted-->" not in r.text, page
+                assert "hosted-->" not in r.text, page
     finally:
         get_settings.cache_clear()
 
