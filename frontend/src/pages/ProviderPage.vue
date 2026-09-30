@@ -47,7 +47,7 @@ export default { components: { ToolDrawer, ProviderLogo, ConnectionCard }, setup
             <div v-if="mkTools && mkTools.loading && !mkToolShelves.length" class="pl-empty">Loading…</div>
             <div v-else-if="mkTools && mkTools.err" class="pl-empty">{{mkTools.err}}</div>
             <div v-for="p in mkToolShelves" :key="p.slug" class="pv-shelf" v-show="p.tools.length">
-              <h3 class="pl-h pl-h-quiet"><a :href="platUrl(p.slug)" @click.prevent="openPlatform(p.slug)">{{p.label}}</a><i></i><em>{{p.tools.length}}</em></h3>
+              <h3 class="pl-h pl-h-quiet"><a :href="platUrl(p.slug)" @click.prevent="openPlatform(p.slug)">{{p.label}}</a><em>{{p.tools.length}}</em></h3>
               <div class="pl-grid pl-grid-t">
                 <div v-for="t in p.tools" :key="t.id" class="pl-card pl-tool" :class="{on:drawerTool===t.id}" role="button" tabindex="0"
                      @click="openTool(t.id)" @keydown.enter="openTool(t.id)">
@@ -58,7 +58,7 @@ export default { components: { ToolDrawer, ProviderLogo, ConnectionCard }, setup
               </div>
             </div>
             <div v-if="mkPlumbCount" class="pv-shelf">
-              <h3 class="pl-h pl-h-quiet"><span>Account and setup</span><i></i><em>{{mkPlumbCount}}</em></h3>
+              <h3 class="pl-h pl-h-quiet"><span>Account and setup</span><em>{{mkPlumbCount}}</em></h3>
               <div class="pl-grid pl-grid-t">
                 <template v-for="p in mkToolShelves" :key="'x'+p.slug">
                   <button v-for="t in p.plumbing" :key="t.id" class="pl-card pl-tool quiet" :class="{on:drawerTool===t.id}" @click="openTool(t.id)">

@@ -57,7 +57,7 @@ export default {
       </div>
     </div>
     <div v-for="g in providerGroups" :key="g.category" class="cn-group">
-      <h3 class="pl-h pl-h-quiet"><span>{{g.category}}</span><i></i><em>{{g.items.length}}</em></h3>
+      <h3 class="pl-h pl-h-quiet"><span>{{g.category}}</span><em>{{g.items.length}}</em></h3>
       <div class="pl-grid pl-grid-t">
         <!-- One line per provider: someone here is looking for an account they already hold, by name.
              The card opens the provider's page (its permissions, its tools); the button connects from here. -->

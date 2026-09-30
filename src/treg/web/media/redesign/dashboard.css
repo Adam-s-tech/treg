@@ -23,11 +23,10 @@ body:has(.redesign)::before { display:none; }
 .redesign .btn,.redesign .seg button,.redesign .tabs button { font-family:var(--sans); }
 .rd-background { position:absolute; top:0; left:0; width:100%; height:auto; pointer-events:none; }
 [data-theme="dark"] .rd-background { filter:invert(1); opacity:.68; }
-/* Declare only the standard backdrop-filter: the minifier adds the -webkit- form, and drops the standard
-   one when a rule declares both. */
 /* The sides never shrink below their content (a squeezed account strip slid its icons under the
    balance); the leftover width is split evenly, so the nav sits centred whenever it fits, and scrolls
-   rather than overlaps when it does not. */
+   rather than overlaps when it does not. Declare only the standard backdrop-filter: the minifier adds
+   the -webkit- form, and drops the standard one when a rule declares both. */
 .rd-top { position:sticky; top:0; z-index:50; display:grid; grid-template-columns:minmax(max-content,1fr) minmax(0,auto) minmax(max-content,1fr); align-items:center; gap:18px; min-height:57px; padding:9px 20px; background:color-mix(in srgb,var(--bg) 88%,transparent); backdrop-filter:blur(14px); }
 .rd-identity,.rd-account,.rd-brand,.rd-navs { display:flex; align-items:center; min-width:0; }
 .rd-identity { gap:24px; }
@@ -41,7 +40,7 @@ body:has(.redesign)::before { display:none; }
 .rd-top .dropdown .row:hover { background:var(--hover); }
 .rd-navs { justify-content:safe center; gap:2px; overflow-x:auto; scrollbar-width:none; }
 .rd-navs::-webkit-scrollbar { display:none; }
-.rd-nav { display:flex; align-items:center; justify-content:center; flex:none; gap:8px; border:0; border-radius:10px; padding:7px 12px; background:transparent; color:var(--muted); font:500 13px/19.5px var(--sans); white-space:nowrap; }
+.rd-nav { display:flex; align-items:center; justify-content:center; flex:none; border:0; border-radius:10px; padding:7px 12px; background:transparent; color:var(--muted); font:500 13px/19.5px var(--sans); white-space:nowrap; }
 .rd-nav:hover { background:var(--hover); color:var(--ink); }
 .rd-nav.active { background:var(--inverse); color:var(--inverse-ink); font-weight:600; }
 .rd-account { justify-content:flex-end; gap:12px; }

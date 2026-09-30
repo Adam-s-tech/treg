@@ -32,7 +32,7 @@ export default { components: { FindAnswer, CatalogSearch }, setup: useDashboard 
   </div>
 
   <section class="pl-sec" v-for="g in platCatGroups" :key="g.category">
-    <h2 class="pl-h"><span>{{g.category}}</span><i></i><em>{{g.total}}</em></h2>
+    <h2 class="pl-h"><span>{{g.category}}</span><em>{{g.total}}</em></h2>
     <p v-if="g.hint" class="cat-hint">{{g.hint}}</p>
     <div class="pl-grid pl-grid-t">
       <!-- A card is a NAME and two facts: a description made every card tall enough that a shelf of
@@ -55,7 +55,7 @@ export default { components: { FindAnswer, CatalogSearch }, setup: useDashboard 
             <!-- A member's own credential, and only the positive fact: calls here use your account or
                  key. Neutral, not green: every platform works, on treg's key; a green "Connected" read
                  as "only these do". -->
-            <span v-if="!publicCatalog && platConnected(pl)" class="cat-own" role="img"
+            <span v-if="!publicCatalog && platOwn(pl).length" class="cat-own" role="img"
                   :title="platConnTitle(pl)" :aria-label="platConnTitle(pl)">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/></svg></span></span>
           <span class="pl-meta">{{pl.endpoints}} tool{{pl.endpoints===1?'':'s'}}<template v-if="platPrice(pl)"> · <span :title="platPriceTitle(pl)">{{platPrice(pl).free ? platPrice(pl).text : 'from '+platPrice(pl).text}}</span></template></span>
@@ -86,7 +86,7 @@ export default { components: { FindAnswer, CatalogSearch }, setup: useDashboard 
   <p v-else-if="plats.settled && !plats.list.length" class="pl-empty">This server has no catalog yet.
     <button v-if="!publicCatalog" class="pl-link" @click="go('connections')">Connect your own accounts</button></p>
 
-  <footer class="cn-foot cat-foot">
+  <footer class="cat-foot">
     <p>Missing a tool? <button class="pl-link" @click="openToolRequest()">Request a tool</button>
       <span aria-hidden="true">·</span> Sell an API? <button class="pl-link" @click="vendorAsk=true">List as vendor</button></p>
   </footer>

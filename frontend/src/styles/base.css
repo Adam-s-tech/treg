@@ -776,8 +776,9 @@ a:hover{text-decoration-color:var(--muted)}
 /* The catalog's one search box (CatalogSearch.vue), on the Catalog page and every shelf: a surface
    lifted by shadow, like the landing's cards, never a drawn box. */
 .cat-find{position:relative;display:flex;align-items:center;gap:10px;max-width:760px;margin:6px 0 26px;padding:0 8px 0 16px;
-  min-height:52px;border:0;border-radius:14px;background:var(--surface,var(--panel));box-shadow:var(--shadow-sm);
   transition:box-shadow .15s}
+/* A search box's surface, shared by the kind switch that sits beside the Connections filter. */
+.cat-find,.seg.cn-kinds{min-height:52px;border:0;border-radius:14px;background:var(--surface,var(--panel));box-shadow:var(--shadow-sm)}
 .cat-find:focus-within{box-shadow:var(--shadow-sm),0 0 0 1.5px var(--ink)}
 .cat-find-i{flex:none;color:var(--muted)}
 .cat-find input{flex:1;min-width:0;border:0;outline:none;background:none;color:var(--ink);font-family:var(--sans);font-size:15.5px;padding:14px 0}
@@ -874,20 +875,18 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
 /* A rule parts a page's main sections. Groups inside one list (a catalog category, a provider
    category, a quiet heading) get none, the count beside the title: a rule each striped the page. */
 .pl-h i{flex:1;height:1px;background:var(--line)}
-.pl-h-quiet,.cat .pl-h{align-items:baseline;gap:10px}
-.pl-h-quiet i,.cat .pl-h i{display:none}
 .pl-h em{font-style:normal;font-family:var(--mono);font-size:12px;font-weight:400;color:var(--muted2)}
 .pl-h-quiet{font-size:15px;color:var(--muted)}
 
 /* Cards. */
 .pl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
 .pl-grid-t{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
-/* A card rests on the faintest shadow (a status may draw its edge in `--pl-edge`); hover lifts it one step. A grid of forty with a
+/* A card rests on the faintest shadow; hover lifts it one step. A grid of forty with a
    full shadow each read as a pile of floating tiles. */
-.pl-card{--pl-edge:0 0 #0000;display:flex;flex-direction:column;gap:12px;padding:18px 20px;border:0;border-radius:16px;background:var(--surface);
-  box-shadow:var(--pl-edge),var(--shadow-sm);color:var(--ink);text-decoration:none;text-align:left;font:inherit;cursor:pointer;
+.pl-card{display:flex;flex-direction:column;gap:12px;padding:18px 20px;border:0;border-radius:16px;background:var(--surface);
+  box-shadow:var(--shadow-sm);color:var(--ink);text-decoration:none;text-align:left;font:inherit;cursor:pointer;
   transition:box-shadow .2s var(--ease),transform .2s var(--ease)}
-.pl-card:hover{box-shadow:var(--pl-edge),var(--shadow-md);transform:translateY(-1px);text-decoration:none}
+.pl-card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px);text-decoration:none}
 .pl-card:focus-visible{outline:none;box-shadow:var(--shadow-sm),0 0 0 1.5px var(--ink)}
 .pl-card.on{box-shadow:var(--shadow-sm),0 0 0 1.5px var(--ink)}
 .pl-cmp b{font-size:15.5px;font-weight:500;line-height:1.4}
@@ -917,7 +916,7 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
 .pl-tool{flex-direction:row;align-items:center;gap:14px;padding:15px 18px}
 .pl-tool-b{display:flex;flex-direction:column;gap:4px;min-width:0}
 .pl-tool-b b{font-size:14px;font-weight:500;line-height:1.4}
-.pl-tool.quiet{box-shadow:var(--pl-edge)}
+.pl-tool.quiet{box-shadow:none}
 .pl-tool.quiet b{font-weight:400;color:var(--muted)}
 .pv-cmp{color:var(--ink);text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--ink) 30%,transparent);text-underline-offset:3px}
 .pv-shelf{margin:0 0 30px}
@@ -961,7 +960,6 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
 .pl-btn:disabled{opacity:.45;cursor:default;transform:none}
 
 /* Catalog index (pages/CatalogPage.vue): the platform shelf's look, one card per platform. */
-.cat .pl-hero h1{margin:0 0 20px}
 .cat .mk-tabs-wrap{margin:0 0 34px}
 .cat-hint{margin:-8px 0 16px;font-size:13px;color:var(--muted)}
 .cat-card{position:relative;transition:opacity .3s,box-shadow .3s,transform .2s var(--ease)}
@@ -971,6 +969,13 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
 @media (prefers-reduced-motion:reduce){.cat-card{transition:none}}
 .cat-card .pl-tool-b{flex:1}
 .cat-card .pl-meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* The catalog's mark for "calls here use your own account or key": a person, not a word, since every
+   platform works and a word ("Connected") read as "only these do". The meaning is on hover. Sized to
+   the name's line, so it never makes a card taller than its neighbours. */
+.cat-own{display:inline-grid;place-items:center;flex:0 0 auto;width:1.4em;height:1.4em;align-self:center;border-radius:50%;
+  background:var(--hover);color:var(--ink)}
+.cat-foot{margin-top:56px;font-size:13px;line-height:1.6;color:var(--muted)}
+.cat-foot p{margin:0}
 .pl-logo.gen{box-shadow:none}
 .pl-logo .pt-i{font-size:14px;font-weight:700;color:#fff;font-family:var(--sans);line-height:1}
 .cat-name{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
@@ -990,10 +995,6 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
 .cn-warn .cn-st{--cn-tone:var(--amber)}
 .cn-bad .cn-st{--cn-tone:var(--red)}
 .cn-quiet .cn-st{--cn-tone:var(--muted)}
-/* The catalog's mark for "calls here use your own account or key": a person, not a word, since every
-   platform works and a word ("Connected") read as "only these do". The meaning is on hover. */
-.cat-own{display:inline-grid;place-items:center;flex:0 0 22px;width:22px;height:22px;align-self:center;border-radius:50%;
-  margin:-2px 0;background:color-mix(in srgb,var(--ink) 7%,transparent);color:var(--ink)}
 .cn-what{margin:0;font-size:12.5px;line-height:1.5;color:var(--muted)}
 .cn-fix p{margin:0 0 8px;font-size:12.5px;line-height:1.5;color:var(--ink)}
 .cn-fix-r{display:flex;gap:8px}
@@ -1010,16 +1011,12 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
 .cn-filters{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;margin:0 0 28px}
 .cn-find{flex:1 1 320px;max-width:560px;margin:0}
 /* The switch sits beside the filter box as its twin: same height, surface and corners. */
-.seg.cn-kinds{height:52px;margin:0;padding:5px;gap:2px;border:0;border-radius:14px;background:var(--surface);box-shadow:var(--shadow-sm)}
+.seg.cn-kinds{height:52px;margin:0;padding:5px;gap:2px}
 .seg.cn-kinds button{height:100%;padding:0 14px;border-radius:10px;font-family:var(--sans);font-size:13.5px}
 .seg.cn-kinds button span{font-family:var(--mono);font-size:11.5px}
 .cn-group{margin:0 0 30px}
-.cn-foot{margin-top:56px;font-size:13px;line-height:1.6;color:var(--muted)}
-.cn-foot p{margin:0}
-.cn-foot a{color:var(--ink)}
 .pv-hero{padding-bottom:36px}
 .pv-id{display:flex;align-items:center;gap:12px}
-.pl .pv-id h1{margin:0}
 .pv-acts{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
 .pv .mk-notice{max-width:68ch}
 

@@ -37,7 +37,7 @@ export default {
     <section v-for="sec in [{key:'tools', label:'Tools', items:platShelf},
                             {key:'setup', label:'Account and setup', items:platPlumbing, quiet:true}].filter(s=>s.items.length)"
              :key="sec.key" class="pl-sec">
-      <h2 class="pl-h" :class="{'pl-h-quiet':sec.quiet}"><span>{{sec.label}}</span><i></i><em>{{sec.items.length}}</em></h2>
+      <h2 class="pl-h" :class="{'pl-h-quiet':sec.quiet}"><span>{{sec.label}}</span><i v-if="!sec.quiet"></i><em>{{sec.items.length}}</em></h2>
       <div class="pl-grid pl-grid-t">
         <template v-for="t in sec.items" :key="t.job ? 'job:'+t.key : t.id">
           <a v-if="t.job" class="pl-card pl-cmp" :href="platUrl(platSlug, t.slug)" @click.prevent="openComparison(t.slug)">

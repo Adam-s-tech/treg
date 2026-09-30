@@ -271,10 +271,11 @@ endpointConnectLabel(e){
       const p=this.providers.find(x=>x.service===service); return !!(p && p.metered); },
 // A platform is callable today if ANY provider serving it is connected — the card is browsing,
     // not routing, so which one it is stays a question for the platform page.
-    platConnected(pl){ return ((pl&&pl.providers)||[]).some(s=>this.catConnected(s)); },
+    // The platform's providers the team holds its own credential for.
+    platOwn(pl){ return ((pl&&pl.providers)||[]).filter(s=>this.catConnected(s)); },
 // What a platform's personal mark means when the team holds a credential for one of its providers:
     // not that the platform works (every platform works, on treg's key) but that calls there use yours.
-    platConnTitle(pl){ const own=((pl&&pl.providers)||[]).filter(s=>this.catConnected(s));
+    platConnTitle(pl){ const own=this.platOwn(pl);
       const what=own.some(s=>!this.pastedCredential(this.providerIndex.get(s))) ? 'your account' : 'your key';
       return 'Calls to '+own.map(s=>this.provName(s)).join(', ')+' use '+what+', unmetered. The rest run on treg\'s key.'; },
 // The endpoint's inputs, grouped by where they go. Query first, then path, then body: the order
@@ -379,7 +380,7 @@ mkOauth(service){ const p=this.providers.find(x=>x.service===service); return !!
 // `providers` comes from /connections, which needs a session. On a public catalog URL there is
     // none, so fall back to the display name the OPEN catalog response already carries — otherwise
     // every provider on a public shelf would render as its bare slug.
-    provName(service){ const p=this.providers.find(x=>x.service===service); if(p) return p.display_name;
+    provName(service){ const p=this.providerIndex.get(service); if(p) return p.display_name;
       const c=(this.platData&&this.platData.providers||{})[service];
       return (c&&c.display_name) || this.plats.providers[service] || service; },
 // Provider-wide facts, served once per provider on the platform response rather than copied

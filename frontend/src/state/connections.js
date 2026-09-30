@@ -157,7 +157,7 @@ async submitToken(){
       try{
         await this.api('/connections/token',{method:'POST',headers:{'content-type':'application/json'},
           body:JSON.stringify({provider:t.provider.service, token:t.token.trim()})});
-        this.tokenAsk=null; await this.loadConnections(); await this.loadAll();
+        this.tokenAsk=null; await this.loadAll();
       }catch(e){ t.err=(e.detail||e.message||e); t.busy=false; }
     },
 async chooseCapability(cap){
@@ -191,7 +191,7 @@ async saveExtraCred(c){
       try{
         await this.api('/connections/'+c.id+'/extra-credential',{method:'POST',
           headers:{'content-type':'application/json'}, body:JSON.stringify({value:v})});
-        this.extraCred[c.id]=''; await this.loadConnections(); await this.loadAll();
+        this.extraCred[c.id]=''; await this.loadAll();
       }catch(e){ this.connErr=(e.detail||e.message||e); }
       this.extraBusy=null;
     },
@@ -233,13 +233,13 @@ async renameConnection(c){
       try{
         await this.api('/connections/'+c.id,{method:'PATCH',headers:{'content-type':'application/json'},
           body:JSON.stringify({name:name.trim()})});
-        await this.loadConnections(); await this.loadAll();
+        await this.loadAll();
       }catch(e){ this.connErr=(e.detail||e.message||e); }
     },
 async disconnect(c){
       if(this.confirmDisc!==c.id){ this.confirmDisc=c.id; setTimeout(()=>{ if(this.confirmDisc===c.id) this.confirmDisc=null; },4000); return; }
       this.confirmDisc=null;
-      try{ await this.api('/connections/'+c.id,{method:'DELETE'}); await this.loadConnections(); await this.loadAll(); }
+      try{ await this.api('/connections/'+c.id,{method:'DELETE'}); await this.loadAll(); }
       catch(e){ this.connErr=String(e.message||e); }
     }
 }
