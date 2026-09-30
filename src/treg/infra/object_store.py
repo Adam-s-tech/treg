@@ -27,9 +27,9 @@ class NamedObjectStore(Protocol):
     async def get_named(self, name: str) -> bytes | None: ...
 
 
-# The only named objects: find's card vectors, one per (model, card hash). The name is built by treg
-# from a model slug and a sha256 hex digest, never from a request.
-NAMED_RE = re.compile(r"find-vectors/[a-z0-9][a-z0-9._-]{0,127}/[0-9a-f]{64}")
+# A named object: `<namespace>/<slug>/<sha256 hex>`, built by treg from a slug and a digest, never
+# from a request (find's card vectors: `find-vectors/<model>/<card hash>`).
+NAMED_RE = re.compile(r"[a-z][a-z0-9-]{0,63}/[a-z0-9][a-z0-9._-]{0,127}/[0-9a-f]{64}")
 
 
 def _named_key(name: str) -> str:
@@ -86,15 +86,34 @@ class R2ObjectStore:
         self._status_errors = status_errors
 
     async def put(self, body: bytes, *, content_hash: str | None = None) -> ObjectInfo:
-        if len(body) > self._max_bytes:
-            raise ValueError("archive body too large")
         key = _key(content_hash) if content_hash is not None else hashlib.sha256(body).hexdigest()
+        await self._put(key, body)
+        return ObjectInfo(key, len(body))
+
+    async def _put(self, key: str, body: bytes) -> None:
+        if len(body) > self._max_bytes:
+            raise ValueError("object body too large")
         try:
             await self._client.put_async(
                 key, body, attributes={"Content-Type": "application/octet-stream"}, use_multipart=False)
         except Exception as exc:
             raise self._failure(exc) from None
-        return ObjectInfo(key, len(body))
+
+    async def _get(self, key: str) -> bytes | None:
+        try:
+            result = await self._client.get_async(key)
+            if result.meta["size"] > self._max_bytes:
+                raise ObjectStoreError("too_large")
+            body = bytes(await result.bytes_async())
+            if len(body) > self._max_bytes:
+                raise ObjectStoreError("too_large")
+            return body
+        except FileNotFoundError:
+            return None
+        except ObjectStoreError:
+            raise
+        except Exception as exc:
+            raise self._failure(exc) from None
 
     async def head(self, content_hash: str) -> ObjectInfo | None:
         key = _key(content_hash)
@@ -108,48 +127,18 @@ class R2ObjectStore:
 
     async def get(self, content_hash: str) -> bytes | None:
         key = _key(content_hash)
-        try:
-            result = await self._client.get_async(key)
-            if result.meta["size"] > self._max_bytes:
-                raise ObjectStoreError("too_large")
-            body = bytes(await result.bytes_async())
-            if len(body) > self._max_bytes:
-                raise ObjectStoreError("too_large")
-            if hashlib.sha256(body).hexdigest() != key:
-                raise ObjectStoreError("hash_mismatch")
-            return body
-        except FileNotFoundError:
-            return None
-        except ObjectStoreError:
-            raise
-        except Exception as exc:
-            raise self._failure(exc) from None
+        body = await self._get(key)
+        if body is not None and hashlib.sha256(body).hexdigest() != key:
+            raise ObjectStoreError("hash_mismatch")
+        return body
 
     async def put_named(self, name: str, body: bytes) -> None:
         """A named object has no content address to verify on read: its body must carry its own
         integrity check (find_index's header)."""
-        key = _named_key(name)
-        if len(body) > self._max_bytes:
-            raise ValueError("object body too large")
-        try:
-            await self._client.put_async(
-                key, body, attributes={"Content-Type": "application/octet-stream"}, use_multipart=False)
-        except Exception as exc:
-            raise self._failure(exc) from None
+        await self._put(_named_key(name), body)
 
     async def get_named(self, name: str) -> bytes | None:
-        key = _named_key(name)
-        try:
-            result = await self._client.get_async(key)
-            if result.meta["size"] > self._max_bytes:
-                raise ObjectStoreError("too_large")
-            return bytes(await result.bytes_async())
-        except FileNotFoundError:
-            return None
-        except ObjectStoreError:
-            raise
-        except Exception as exc:
-            raise self._failure(exc) from None
+        return await self._get(_named_key(name))
 
     def _failure(self, exc):
         reason = failure_reason(exc)

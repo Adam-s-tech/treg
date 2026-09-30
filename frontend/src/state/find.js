@@ -5,10 +5,9 @@ import { storageGet, storageSet, storageRemove } from './storage.js'
 // both pages draw the wait on the first one. State lives in `find` (data.js); the in-flight request's
 // AbortController lives in `elements` because it is a handle, not state to render.
 // The state of no search; `high` is the server's strong cut and arrives with each answer.
-// `reason` says why a `none` is empty (gap: the catalog lacks it; not_task), `platform` is the judge's
-// platform pick and `engine` the server's find engine (v2 only; empty on v1).
+// `reason` says why a `none` is empty (gap: the catalog lacks it; not_task; v2 only).
 export const FIND_EMPTY = {q:'', scope:'', phase:'idle', candidates:[], rows:[], verdict:'', named:'', read:0, high:1, error:'', auto:false,
-  reason:'', platform:null, engine:''}
+  reason:''}
 const FIND_OPEN = 'treg-find-open'
 // The Catalog box searches by itself once typing pauses this long: people did not discover Enter.
 const FIND_DEBOUNCE_MS = 700
@@ -119,10 +118,10 @@ export default {
         if(ev.event==='candidates') this.find={...this.find, phase:'reading', candidates:ev.candidates||[]};
         else if(ev.event==='judged'){
           this.find={...this.find, phase:'done', rows:ev.rows||[], verdict:ev.verdict, named:ev.named||'', read:ev.read||0, high:ev.high??1,
-            reason:ev.reason||'', platform:ev.platform||null, engine:ev.engine||''};
+            reason:ev.reason||''};
           this.track('search_answered', {surface:this.findSurface(), verdict:ev.verdict, results:this.find.rows.length,
             providers:new Set(this.find.rows.map(r=>r.provider)).size, top_fit:this.find.rows[0]?.p ?? null, auto,
-            engine:this.find.engine||'v1', reason:this.find.reason||null, platform_choice:this.find.platform?.choice ?? null});
+            engine:ev.engine||'v1', reason:ev.reason||null, platform_choice:ev.platform?.choice ?? null});
         }
       }
       if(this.find.phase!=='done' && !ctl.signal.aborted) this.find={...this.find, phase:'error', error:'The answer was cut off. Try again.'};

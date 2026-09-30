@@ -69,30 +69,25 @@ def job_view(job: str, description: str, platform: str, providers: int, examples
     }
 
 
-def _question(i: int, criteria: dict | None = None) -> dict:
-    q = {"type": "noul", "instructions": (
-        f"Calling the API endpoint `candidates[{i}]` would directly accomplish, or be a necessary "
-        f"step of, the task described in `task`, on the platform or data source the task implies.")}
-    if criteria:
-        q["criteria"] = criteria
-    return q
+_QUESTIONS = {
+    "endpoint": "Calling the API endpoint `candidates[{i}]` would directly accomplish, or be a necessary "
+                "step of, the task described in `task`, on the platform or data source the task implies.",
+    "job": "Tools that do the job `candidates[{i}]` would directly accomplish, or be a necessary step "
+           "of, the task described in `task`.",
+}
 
 
-def _job_question(i: int, criteria: dict | None = None) -> dict:
-    q = {"type": "noul", "instructions": (
-        f"Tools that do the job `candidates[{i}]` would directly accomplish, or be a necessary step "
-        f"of, the task described in `task`.")}
+def _question(i: int, criteria: dict | None = None, kind: str = "endpoint") -> dict:
+    q = {"type": "noul", "instructions": _QUESTIONS[kind].format(i=i)}
     if criteria:
         q["criteria"] = criteria
     return q
 
 
 def _cache_key(model: str, query: str, ids: list[str], criteria: dict | None, extra: dict | None,
-               job_criteria: dict | None = None, kinds: list[str] | None = None) -> str:
-    parts = [model, query.strip().lower(), ids, criteria, extra]
-    if kinds is not None:   # the endpoint-only key is unchanged, so nothing cached before goes stale
-        parts += [job_criteria, kinds]
-    return hashlib.sha256(json.dumps(parts, sort_keys=True).encode()).hexdigest()
+               job_criteria: dict | None, kinds: list[str]) -> str:
+    return hashlib.sha256(json.dumps([model, query.strip().lower(), ids, criteria, extra, job_criteria, kinds],
+                                     sort_keys=True).encode()).hexdigest()
 
 
 def _extra_answer(answer: dict) -> float | dict:
@@ -140,12 +135,11 @@ async def judge(query: str, candidates: list[dict], *, api_key: str, model: str,
         return Judgement(probs=[], ms=0, extra={})
     ids = [c["id"] for c in candidates]
     kinds = ["job" if "job" in c else "endpoint" for c in candidates]
-    key = _cache_key(model, query, ids, criteria, extra,
-                     job_criteria, kinds if "job" in kinds else None)
+    key = _cache_key(model, query, ids, criteria, extra, job_criteria, kinds)
     cached = _cache_get(key)
     if cached is not None:
         return Judgement(probs=cached[0], ms=0, cached=True, extra=cached[1])
-    questions = {f"c{i}": _job_question(i, job_criteria) if kind == "job" else _question(i, criteria)
+    questions = {f"c{i}": _question(i, job_criteria if kind == "job" else criteria, kind)
                  for i, kind in enumerate(kinds)}
     questions.update({f"x_{k}": q for k, q in (extra or {}).items()})
     body = {

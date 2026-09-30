@@ -280,10 +280,10 @@ def test_v2_a_job_under_high_folds_to_its_first_vendors(monkeypatch):
 def test_v2_name_pages():
     cat = _cat()
     ix = fr.build(cat)
-    assert {e["platform"] for e in F.name_page(fr.name_of("tiktok", ix), "tiktok", cat)} == {"tiktok", "tiktok-ads"}
-    assert F.name_page(fr.name_of("tiktok", ix), "tiktok", cat)[0]["platform"] == "tiktok"
-    assert {e["provider"] for e in F.name_page(fr.name_of("hunter", ix), "hunter", cat)} == {"hunter"}
-    assert {e["id"] for e in F.name_page(fr.name_of("flux", ix), "flux", cat)} == {"replicate.flux.schnell", "falco.flux.pro"}
+    assert {e["platform"] for e in F.name_page(fr.name_of("tiktok", ix), cat)} == {"tiktok", "tiktok-ads"}
+    assert F.name_page(fr.name_of("tiktok", ix), cat)[0]["platform"] == "tiktok"
+    assert {e["provider"] for e in F.name_page(fr.name_of("hunter", ix), cat)} == {"hunter"}
+    assert {e["id"] for e in F.name_page(fr.name_of("flux", ix), cat)} == {"replicate.flux.schnell", "falco.flux.pro"}
 
 
 async def test_v2_streams_units_and_the_answer_and_logs_its_readings(clients, monkeypatch):

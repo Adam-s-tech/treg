@@ -48,7 +48,7 @@ EXAMPLES = 8               # member names on a job card
 # Platforms whose endpoint names carry model and product names ("Seedance 2.5", "Nano Banana 2").
 PRODUCT_CATEGORY = "AI generation"
 
-_SPLIT = re.compile(r"[^a-z0-9㐀-鿿]+")
+_SPLIT = store._SPLIT        # the search tokenizer's cut: letters, digits, CJK
 # Function words of the languages people type into the box, beyond the search stopwords.
 _ROMANCE = frozenset("""de no les des la le et em os as um uma que qui une un pour moi del el los las
     en con por para da do dos das du au aux se il lo gli""".split())
@@ -108,7 +108,6 @@ class Unit:
 class Candidate:
     """One unit handed to the judge. `via` is "rep" for a representative, else ""."""
     unit: Unit
-    score: float
     via: str = ""
 
 
@@ -131,7 +130,10 @@ class Index:
     idf: dict[str, float]
     platform_stems: dict[str, str]           # stem of a platform slug -> slug
     platforms: dict[str, dict] = field(default_factory=dict)
-    providers: dict[str, str] = field(default_factory=dict)    # provider -> display name
+    # per platform with endpoints: (slug, short label words, label and slug words, featured, jobs)
+    platform_names: list[tuple[str, str, list[str], int | None, int]] = field(default_factory=list)
+    providers: tuple[str, ...] = ()
+    providers_on: dict[str, frozenset[str]] = field(default_factory=dict)   # platform -> its providers
     products: dict[str, tuple[str, ...]] = field(default_factory=dict)   # folded name -> endpoint ids
     product_labels: dict[str, str] = field(default_factory=dict)
 
@@ -146,16 +148,16 @@ def short_label(label: str) -> str:
     return label.split(" — ")[0].split(" (")[0].strip()
 
 
-def index(cat: store.Catalog, provider_display: Callable[[str], str] = lambda s: s) -> Index:
+def index(cat: store.Catalog) -> Index:
     """The find index for `cat`, built on first use and cached on the instance."""
     cached = getattr(cat, "_find_index", None)
     if cached is None:
-        cached = build(cat, provider_display)
+        cached = build(cat)
         object.__setattr__(cat, "_find_index", cached)   # frozen dataclass, deliberate
     return cached
 
 
-def build(cat: store.Catalog, provider_display: Callable[[str], str] = lambda s: s) -> Index:
+def build(cat: store.Catalog) -> Index:
     eps = shown_endpoints(cat)
     by_cap: dict[str, list[dict]] = defaultdict(list)
     for e in eps:
@@ -199,12 +201,23 @@ def build(cat: store.Catalog, provider_display: Callable[[str], str] = lambda s:
     n = len(units)
     idf = {t: math.log(1 + (n - len(p) + 0.5) / (len(p) + 0.5)) for t, p in postings.items()}
 
+    providers_on: dict[str, set[str]] = defaultdict(set)
+    for e in eps:
+        providers_on[e["platform"]].add(e["provider"])
+    jobs = defaultdict(int)
+    for u in units:
+        if u.kind == JOB:
+            jobs[u.platform] += 1
+    platforms = {slug: p for slug, p in cat.platforms.items() if slug in providers_on}
     products, product_labels = _products(eps, cat)
     return Index(
         units=units, pos=pos, job_pos=job_pos, members=members, postings=dict(postings), name_postings=dict(name_postings),
-        idf=idf, platform_stems={stem(slug): slug for slug in cat.platforms},
-        platforms={slug: p for slug, p in cat.platforms.items() if any(e["platform"] == slug for e in eps)},
-        providers={p: provider_display(p) for p in sorted({e["provider"] for e in eps})},
+        idf=idf, platform_stems={stem(slug): slug for slug in cat.platforms}, platforms=platforms,
+        platform_names=[(slug, " ".join(words(short_label(p.get("label", slug)))),
+                         words(f"{p.get('label', '')} {slug} {slug.replace('-', ' ')}"), p.get("featured"), jobs[slug])
+                        for slug, p in platforms.items()],
+        providers=tuple(sorted({e["provider"] for e in eps})),
+        providers_on={k: frozenset(v) for k, v in providers_on.items()},
         products=products, product_labels=product_labels)
 
 
@@ -315,7 +328,6 @@ def recall(query: str, ix: Index, aliases: dict[str, list[str]], *,
         srcs.append(ssrc)
     order = [i for i in fuse(*channels) if not platform or ix.units[i].platform == platform]
     rank = {i: r for r, i in enumerate(order)}
-    fused_score = {i: 1.0 / (1 + r) for r, i in enumerate(order)}
 
     named = {ix.platform_stems[t] for t in query_tokens(query) if t in ix.platform_stems}
     jobs: list[int] = []
@@ -343,16 +355,17 @@ def recall(query: str, ix: Index, aliases: dict[str, list[str]], *,
                 reps.append(m)
     reps = sorted(reps, key=lambda m: rank.get(m, 10 ** 9))[:n_delta]
     raw = [i for i in order if ix.units[i].kind == ENDPOINT and not ix.units[i].cap][:n_raw]
-    return ([Candidate(ix.units[i], fused_score.get(i, 0.0)) for i in jobs]
-            + [Candidate(ix.units[i], fused_score.get(i, 0.0), "rep") for i in reps]
-            + [Candidate(ix.units[i], fused_score.get(i, 0.0)) for i in raw])
+    return ([Candidate(ix.units[i]) for i in jobs] + [Candidate(ix.units[i], "rep") for i in reps]
+            + [Candidate(ix.units[i]) for i in raw])
 
 
 # ---- names ---------------------------------------------------------------------------------------
-def name_of(query: str, ix: Index, platform: str | None = None) -> NameHit | None:
+def name_of(query: str, ix: Index, platform: str | None = None,
+            provider_display: Callable[[str], str] = lambda s: s) -> NameHit | None:
     """What a query names, if it is a name: a platform (every query word is, or starts, a word of
-    its label or slug), else a provider (exactly its name at any length, or a prefix of it from four
-    letters), else a product or model name (exactly). On a shelf only a provider there counts."""
+    its label or slug), else a provider (exactly its name or its display name at any length, or a
+    prefix of one from four letters), else a product or model name (exactly). On a shelf only a
+    provider there counts."""
     q = " ".join(words(re.sub(r"[^\w\s-]", "", query)))
     if not q:
         return None
@@ -360,30 +373,21 @@ def name_of(query: str, ix: Index, platform: str | None = None) -> NameHit | Non
     if platform is None:
         hits: list[tuple] = []
         qwords = q.split()
-        jobs = defaultdict(int)
-        for u in ix.units:
-            if u.kind == JOB:
-                jobs[u.platform] += 1
-        for slug, p in ix.platforms.items():
-            short = " ".join(words(short_label(p.get("label", slug))))
+        for slug, short, hay, featured, jobs in ix.platform_names:
             exact = slug in forms or short in forms or slug.replace("-", " ") in forms
-            hay = words(f"{p.get('label', '')} {slug} {slug.replace('-', ' ')}")
             if exact or all(any(h == w or h.startswith(w) for h in hay) for w in qwords) \
                     or any(len(f) >= NAME_PREFIX_MIN and slug.startswith(f) for f in forms):
                 # exactly named first, then one whose name starts with the query, then the
                 # shelves' own featured order, then the most jobs (as the platform name page)
                 starts = slug.startswith(q) or short.startswith(q)
-                featured = p.get("featured")
-                hits.append((not exact, not starts, featured is None, featured or 0, -jobs[slug], slug))
+                hits.append((not exact, not starts, featured is None, featured or 0, -jobs, slug))
         if hits:
             hits.sort()
             return NameHit("platform", tuple(h[-1] for h in hits), exact=not hits[0][0])
-    providers = ix.providers if platform is None else {
-        p: d for p, d in ix.providers.items()
-        if any(u.platform == platform and p in u.providers for u in ix.units if u.kind == ENDPOINT)}
+    providers = ix.providers if platform is None else sorted(ix.providers_on.get(platform, ()))
     for exact_pass in (True, False):
-        for prov, display in providers.items():
-            d = " ".join(words(display))
+        for prov in providers:
+            d = " ".join(words(provider_display(prov)))
             names = {prov, d, d.replace(" ", ""), d.replace(" ", "-")}
             if exact_pass and forms & names:
                 return NameHit("provider", (prov,), exact=True)

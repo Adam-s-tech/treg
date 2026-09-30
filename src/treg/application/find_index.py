@@ -29,6 +29,7 @@ from ..config import get_settings
 from ..domain.catalog import find_recall
 from ..domain.catalog import store as catalog_store
 from ..infra import embed as embed_infra
+from ..infra.object_store import NamedObjectStore
 
 log = logging.getLogger("treg.find_index")
 
@@ -40,13 +41,13 @@ BATCH_RETRIES = 2             # a failed embedding batch is retried this often b
 RETRY_BACKOFF_S = 1.0         # ...after this long, doubling
 RETRY_AFTER_S = 300.0         # a failed build is retried by the next find after this long
 
-_store = None                 # infra.object_store.NamedObjectStore | None, set at startup
+_store: NamedObjectStore | None = None     # set at startup
 
 
-def configure(store) -> None:
+def configure(store: NamedObjectStore | None) -> None:
     """Composition seam: bootstrap hands in the archive's object store (or None)."""
     global _store
-    _store = store if store is not None and hasattr(store, "get_named") else None
+    _store = store
 
 
 @dataclass
@@ -148,13 +149,13 @@ async def build(ix: find_recall.Index, *, transport=None) -> Vectors:
     s = get_settings()
     model = s.find_embed_model
     keys = [card_key(u.text) for u in ix.units]
+    text_of = {k: u.text for k, u in zip(keys, ix.units)}
     have = await _read(model, keys)
     dims = {len(v) for v in have.values()}
     if len(dims) > 1:   # the model changed shape under one name: trust nothing cached
         have, dims = {}, set()
     dim = dims.pop() if dims else None
     missing = sorted({k for k in keys if k not in have})
-    text_of = {card_key(u.text): u.text for u in ix.units}
     made: dict[str, list[float]] = {}
     for i in range(0, len(missing), BATCH):
         batch = missing[i:i + BATCH]
@@ -211,10 +212,11 @@ def ready(cat: catalog_store.Catalog, ix: find_recall.Index) -> Vectors | None:
     return None
 
 
-async def _run(b: _Build, ix: find_recall.Index) -> None:
+async def _run(b: _Build, ix: find_recall.Index, transport=None) -> None:
+    """Build into `b`; a failure is recorded on it (and retried later by `ready`), never raised."""
     t0 = time.perf_counter()
     try:
-        b.vectors = await build(ix)
+        b.vectors = await build(ix, transport=transport)
         log.info("find vectors ready: %d reused, %d computed, %.1fs", b.vectors.reused, b.vectors.computed,
                  time.perf_counter() - t0)
     except asyncio.CancelledError:
@@ -230,13 +232,9 @@ async def prepare(cat: catalog_store.Catalog, ix: find_recall.Index, *, transpor
     global _build
     if not enabled():
         return None
-    b = _Build(cat=cat, task=None)
-    try:
-        b.vectors = await build(ix, transport=transport)
-    except RuntimeError as exc:
-        b.failed_at, b.error = time.monotonic(), str(exc)[:80]
-    _build = b
-    return b.vectors
+    _build = _Build(cat=cat, task=None)
+    await _run(_build, ix, transport)
+    return _build.vectors
 
 
 @dataclass(frozen=True)

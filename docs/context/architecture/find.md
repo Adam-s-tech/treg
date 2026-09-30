@@ -181,8 +181,8 @@ build, else the client's reason). The `judged` event carries the same as `embed:
 
 ## The pages
 
-`state/find.js` keeps `reason`, `platform` and `engine` from the answer and sends `engine`,
-`reason` and `platform_choice` with `search_answered`. A job group's fit says where it came from
+`state/find.js` keeps `reason` from the answer and sends `engine`, `reason` and
+`platform_choice` with `search_answered`. A job group's fit says where it came from
 (`findFitTitle`), its vendor count says "4 of 30" when the server folded the rest
 (`findProvidersText`), and `/search`, which lays vendors out as cards, adds a line for each folded
 job with a way to the whole list on its shelf. An empty answer says which kind it is: a gap ("treg

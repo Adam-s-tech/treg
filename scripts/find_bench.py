@@ -473,7 +473,7 @@ async def run_all(engine, cases: list[Case], tier: str, concurrency: int,
 
 def _index(cat: store.Catalog):
     from treg.domain.catalog import find_recall
-    return find_recall.index(cat, _provider_display)
+    return find_recall.index(cat)
 
 
 def bench(cases: list[Case], *, engine: str, tier: str, cache: Path | None = None,
