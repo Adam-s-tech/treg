@@ -167,8 +167,9 @@ one shelf, so it cannot say the catalog lacks anything, and its SearchMiss row s
 **Rows** (`expand`). Units best first. A job at or over high lists every vendor, in the evidence
 rerank's order (`store.rerank`: measured success, core, price), each row carrying the job's fit and
 `fit_from: job`; the pages show a job as one line with its vendor count, so no vendor is cut. A job
-between keep and high shows its first five and stamps `children_hidden` (the rest) on its first
-row. An endpoint unit at or over keep is its own row with its own fit, `fit_from: endpoint`; a
+between keep and high is folded by provider: one row for each of its first five providers, and
+`children_hidden` on its first row counts the job's other providers not on the page (so "4 of 30
+providers" adds up to the vendor count the judge was shown). An endpoint unit at or over keep is its own row with its own fit, `fit_from: endpoint`; a
 member judged on its own keeps its own fit inside its job, and is left out when that fit is under
 keep. A name's page (`name_page`) is the named platform's endpoints and those the name also
 matches (twelve platforms, forty rows each), a provider's, or every endpoint carrying the product

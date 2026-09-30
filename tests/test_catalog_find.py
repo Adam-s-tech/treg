@@ -5,6 +5,7 @@ served to signed-out visitors (it has no legacy view to fall back to).
 """
 from __future__ import annotations
 
+import dataclasses
 import json
 
 from sqlmodel import select
@@ -277,6 +278,25 @@ def test_v2_a_job_under_high_folds_to_its_first_vendors(monkeypatch):
     assert rows[0]["children_hidden"] == 1
     found, cat = _decide("work email", {"people.email.find": 0.9})
     assert len(F.expand(found, cat, {})) == 3                    # at high: every vendor
+
+
+def test_v2_a_folded_job_counts_providers_not_rows(monkeypatch):
+    """A job under high shows one row per provider, and its hidden count is providers - so "N of M
+    providers" on the page adds up to the vendor count the judge was shown."""
+    monkeypatch.setattr(F, "FOLDED", 1)
+    base = _cat()
+    extra = {**base.by_id["hunter.people.email.find"], "id": "hunter.people.email.find.bulk", "name": "Bulk finder"}
+    cat = dataclasses.replace(base, endpoints=[*base.endpoints, extra], by_id={**base.by_id, extra["id"]: extra})
+    ix = fr.build(cat)
+    cands = fr.recall("work email", ix, cat.aliases)
+    found = F.decide("work email", cands, _judged(cands, {"people.email.find": 0.5}), ix)
+    rows = F.expand(found, cat, {})
+    job = ix.units[ix.job_pos["people.email.find"]]
+    assert len(job.providers) == 3 and len(job.members) == 4
+    assert len(rows) == 1 and rows[0]["children_hidden"] == 2      # 1 of 3 providers, not "1 of 4 rows"
+    monkeypatch.setattr(F, "FOLDED", 5)
+    rows = F.expand(found, cat, {})
+    assert len({r["ep"]["provider"] for r in rows}) == len(rows) == 3 and not rows[0].get("children_hidden")
 
 
 def test_v2_name_pages():

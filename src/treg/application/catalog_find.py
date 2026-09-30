@@ -441,8 +441,8 @@ def expand(found: Found, cat: catalog_store.Catalog, stats: dict, platform: str 
     """The rows of a strong or closest answer, best unit first. A job at or over high lists every
     vendor in the evidence rerank's order (measured success, then core, then price), all of them
     carrying the job's fit: the pages show a job as one line with its vendor count, so cutting
-    vendors here would only hide them. A job under high shows its first `FOLDED`, the first row
-    counting the rest in `children_hidden`. An endpoint judged on its own carries its own fit, also
+    vendors here would only hide them. A job under high shows one row for each of its first `FOLDED`
+    providers, the first row counting the job's other providers in `children_hidden`. An endpoint judged on its own carries its own fit, also
     where its job was expanded, and is left out when its own fit is under keep."""
     s = get_settings()
     keep, high = float(s.search_judge_keep), float(s.search_judge_high)
@@ -457,7 +457,7 @@ def expand(found: Found, cat: catalog_store.Catalog, stats: dict, platform: str 
                 rows.append({"ep": cat.by_id[c.unit.id], "p": p, "fit_from": FIT_FROM_ENDPOINT})
             continue
         members = [cat.by_id[m] for m in c.unit.members if not platform or cat.by_id[m]["platform"] == platform]
-        group = []
+        group: list[dict] = []
         for ep, _ in catalog_store.rerank([(ep, 0.0) for ep in members], stats, cat):
             if ep["id"] in placed:
                 continue
@@ -466,9 +466,17 @@ def expand(found: Found, cat: catalog_store.Catalog, stats: dict, platform: str 
                     group.append({"ep": ep, "p": own[ep["id"]], "fit_from": FIT_FROM_ENDPOINT})
             else:
                 group.append({"ep": ep, "p": p, "fit_from": FIT_FROM_JOB})
-        if p < high and len(group) > FOLDED:
-            group[0]["children_hidden"] = len(group) - FOLDED
-            group = group[:FOLDED]
+        if p < high:
+            # Folded by provider: the first row of each of the first `FOLDED` providers. The count
+            # is of providers, the job's own (what the judge was told it has), less those on the page.
+            firsts: dict[str, dict] = {}
+            for r in group:
+                firsts.setdefault(r["ep"]["provider"], r)
+            group = list(firsts.values())[:FOLDED]
+            on_page = {r["ep"]["provider"] for r in (*rows, *group) if r["ep"]["capability"] == c.unit.id}
+            hidden = len({ep["provider"] for ep in members} - on_page)
+            if group and hidden:
+                group[0]["children_hidden"] = hidden
         placed.update(r["ep"]["id"] for r in group)
         rows.extend(group)
     return rows

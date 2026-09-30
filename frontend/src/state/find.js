@@ -36,8 +36,9 @@ export function groupBest(items, keyOf, make, field){
 
 // Rows grouped by job: one group per capability on a platform (an uncatalogued endpoint is its own
 // job), its providers in the server's order. Shared by the Catalog list and the /search cards.
-// `hidden` counts the vendors the server folded away (a job under the strong cut shows its first
-// five); `fitFrom` says whether the group's fit is the job's or one vendor's own (`fit_from`).
+// `hidden` counts the providers the server folded away (a job under the strong cut shows one row
+// for each of its first five); `fitFrom` says whether the group's fit is the job's or one vendor's
+// own (`fit_from`).
 export function jobGroups(rows){
   return groupBest(rows, r=>(r.capability||r.id)+'|'+r.platform,
     (r, key)=>({key, label:r.capability_description||r.name, platform:r.platform, platform_label:r.platform_label}), 'rows')
