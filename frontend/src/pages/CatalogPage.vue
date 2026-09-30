@@ -52,10 +52,12 @@ export default { components: { FindAnswer, CatalogSearch }, setup: useDashboard 
         </span>
         <span class="pl-tool-b">
           <span class="cat-name"><b>{{platShort(pl.label)}}</b>
-            <!-- Connection state is a MEMBER fact, and only the positive one earns a mark: "not
-                 connected" on every other tile was a wall of red herrings. -->
-            <span v-if="!publicCatalog && platConnected(pl)" class="cn-st" :title="'You have a connected account for '+platConnNames(pl)">
-              Connected</span></span>
+            <!-- A member's own credential, and only the positive fact: calls here use your account or
+                 key. Neutral, not green: every platform works, on treg's key; a green "Connected" read
+                 as "only these do". -->
+            <span v-if="!publicCatalog && platConnected(pl)" class="cn-st cat-own"
+                  :title="'Calls to '+platConnNames(pl)+' use yours, unmetered. The rest run on treg\'s key.'">
+              {{platConnLabel(pl)}}</span></span>
           <span class="pl-meta">{{pl.endpoints}} tool{{pl.endpoints===1?'':'s'}}<template v-if="platPrice(pl)"> · <span :title="platPriceTitle(pl)">{{platPrice(pl).free ? platPrice(pl).text : 'from '+platPrice(pl).text}}</span></template></span>
         </span>
       </button>

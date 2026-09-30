@@ -989,7 +989,7 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
   font-size:11.5px;font-weight:500;line-height:1.2;color:var(--cn-tone);white-space:nowrap}
 .cn-warn .cn-st{--cn-tone:var(--amber)}
 .cn-bad .cn-st{--cn-tone:var(--red)}
-.cn-quiet .cn-st{--cn-tone:var(--muted)}
+.cn-quiet .cn-st,.cn-st.cat-own{--cn-tone:var(--muted)}
 .cn-what{margin:0;font-size:12.5px;line-height:1.5;color:var(--muted)}
 .cn-fix p{margin:0 0 8px;font-size:12.5px;line-height:1.5;color:var(--ink)}
 .cn-fix-r{display:flex;gap:8px}

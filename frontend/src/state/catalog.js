@@ -273,6 +273,10 @@ endpointConnectLabel(e){
     // not routing, so which one it is stays a question for the platform page.
     platConnected(pl){ return ((pl&&pl.providers)||[]).some(s=>this.catConnected(s)); },
 platConnNames(pl){ return ((pl&&pl.providers)||[]).filter(s=>this.catConnected(s)).map(s=>this.provName(s)).join(', '); },
+// What a platform's mark says when the team holds a credential for one of its providers: not that the
+    // platform works (every platform works, on treg's key) but that calls to that provider use yours.
+    platConnLabel(pl){ const own=((pl&&pl.providers)||[]).filter(s=>this.catConnected(s));
+      return own.some(s=>!this.pastedCredential(this.providerIndex.get(s))) ? 'Your account' : 'Your key'; },
 // The endpoint's inputs, grouped by where they go. Query first, then path, then body: the order
     // you fill them in for the common GET, and the order the provider's own docs tend to use.
     paramSections(e){
