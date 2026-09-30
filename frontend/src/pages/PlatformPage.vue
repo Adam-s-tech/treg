@@ -24,7 +24,6 @@ export default {
   <template v-else-if="platData && !platCap">
     <header class="pl-hero">
       <nav class="pl-crumbs" aria-label="Breadcrumb"><a href="/catalog" @click.prevent="go('catalog')">Catalog</a><span>/</span>{{platLabel}}</nav>
-      <p class="pl-eyebrow">{{platShelfIndex.length}} {{platShelfIndex.length === 1 ? 'tool' : 'tools'}} · {{platComparisons.length}} compared across providers · {{platProvLine.length}} {{platProvLine.length === 1 ? 'provider' : 'providers'}}</p>
       <h1>{{platLabel}}</h1>
       <p v-if="platRow && platRow.summary" class="pl-lede">{{platRow.summary}}</p>
       <CatalogSearch v-model="platQ" :scope="platSlug" :scope-label="platLabel"
@@ -79,7 +78,6 @@ export default {
       <header class="pl-hero">
         <nav class="pl-crumbs" aria-label="Breadcrumb"><a href="/catalog" @click.prevent="go('catalog')">Catalog</a><span>/</span><a
           :href="platUrl(platSlug)" @click.prevent="closeComparison">{{platLabel}}</a></nav>
-        <p class="pl-eyebrow">{{platComparison.meta}}</p>
         <h1 class="pl-h1-cmp">{{platCapRow.description}}</h1>
       </header>
 

@@ -15,7 +15,6 @@ export default { components: { ToolDrawer, ProviderLogo, ConnectionCard }, setup
               <h1>{{mkProvider.display_name}}</h1>
             </div>
             <p class="pl-lede">{{mkProvider.summary}}</p>
-            <p class="pv-facts pl-meta">{{mkProvider.category}} · {{authLabel(mkProvider)}} · {{mkProvider.base_url}}</p>
             <div class="pv-acts">
               <button class="pl-btn" :disabled="!mkProvider.configured || connBusy" @click="startConnect(mkProvider)">
                 {{connectLabel(mkProvider, mkAccounts.length)}}</button>
