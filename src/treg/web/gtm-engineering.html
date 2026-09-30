@@ -1101,10 +1101,22 @@ such roles, B if 1+, else C. Show the tier, the roles and their links.</pre></di
       if (on) s.dataset.ch.split(',').forEach(function (c) { if (!picked[c]) { picked[c] = 1; order.push(c); } });
     });
     document.querySelectorAll('#toc a, #tocM nav a').forEach(function (a) { a.classList.toggle('hit', !!picked[a.getAttribute('href').slice(1)]); });
-    if (!order.length) { out.classList.remove('on'); out.innerHTML = ''; return; }
+    out.textContent = '';
+    /* Built from nodes, never an HTML string: the chapter ids come from data-ch and are checked
+       against a fixed shape, and titles are set as text. */
+    order = order.filter(function (c) { return /^ch\d{1,2}$/.test(c); });
+    if (!order.length) { out.classList.remove('on'); return; }
     order.sort(function (a, b) { return parseInt(a.slice(2), 10) - parseInt(b.slice(2), 10); });
-    out.innerHTML = '<b>Start with:</b> ' + order.map(function (c) { return '<a href="#' + c + '">ch. ' + c.slice(2) + ' · ' + (TITLES[c] || '') + '</a>'; }).join(' &nbsp;·&nbsp; ') +
-      '<br><span style="color:#B8B8B4;font-size:13px">They are marked in the chapter list too.</span>';
+    var lead = document.createElement('b'); lead.textContent = 'Start with: '; out.appendChild(lead);
+    order.forEach(function (c, i) {
+      if (i) out.appendChild(document.createTextNode(' \u00a0·\u00a0 '));
+      var a = document.createElement('a'); a.href = '#' + c;
+      a.textContent = 'ch. ' + c.slice(2) + ' · ' + (TITLES[c] || '');
+      out.appendChild(a);
+    });
+    out.appendChild(document.createElement('br'));
+    var note = document.createElement('span'); note.style.color = '#B8B8B4'; note.style.fontSize = '13px';
+    note.textContent = 'They are marked in the chapter list too.'; out.appendChild(note);
     out.classList.add('on');
   }
   document.querySelectorAll('.sym input').forEach(function (i) {
@@ -1113,7 +1125,7 @@ such roles, B if 1+, else C. Show the tier, the roles and their links.</pre></di
 
   /* ---- table of contents: current chapter; mobile copy ---- */
   var tocM = document.querySelector('#tocM nav');
-  tocM.innerHTML = document.getElementById('toc').innerHTML;
+  Array.prototype.forEach.call(document.getElementById('toc').children, function (n) { tocM.appendChild(n.cloneNode(true)); });
   tocM.addEventListener('click', function (e) { if (e.target.closest('a')) document.getElementById('tocM').open = false; });
   var links = {};
   document.querySelectorAll('#toc a').forEach(function (a) { links[a.getAttribute('href').slice(1)] = a; });
