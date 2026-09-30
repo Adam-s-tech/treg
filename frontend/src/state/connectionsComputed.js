@@ -17,16 +17,18 @@ providerIndex(){ return new Map(this.providers.map(p=>[p.service,p])); },
     },
 // What the Secrets page lists: the credentials the team's own tools use, and nothing Connections shows.
     ownSecrets(){
-      const shown=new Set([...this.connections.map(c=>c.id), ...this.namedKeys.map(k=>k.s.id)]);
+      const shown=new Set(this.connAccounts.map(a=>(a.c||a.s).id));
       return this.secrets.filter(s=>!shown.has(s.id));
     },
 // Every credential the team holds for a catalog provider, as one kind of row whichever way it was
     // added: a connection (`c`) or a named key (`s`). `pasted` is computed once here because every
     // card asks it several times.
     connAccounts(){
-      const conns=this.connections.map(c=>{ const p=this.providerIndex.get(c.provider)||null;
-        return {id:'c'+c.id, service:c.provider, c, p, pasted:this.pastedCredential(p),
-                name:(p&&p.display_name)||c.provider||c.name, st:this.connState(c)}; });
+      // A grant with no catalog provider (an own-app OAuth connect) has no provider page to manage it
+      // from: it stays among the team's own secrets.
+      const conns=this.connections.flatMap(c=>{ const p=this.providerIndex.get(c.provider);
+        return p ? [{id:'c'+c.id, service:c.provider, c, p, pasted:this.pastedCredential(p),
+                     name:p.display_name, st:this.connState(c)}] : []; });
       const named=this.namedKeys.map(({s, p, shadowed})=>({id:'s'+s.id, service:p.service, s, p, pasted:true,
         name:p.display_name, st:shadowed
           ? {key:'ok', tone:'quiet', label:'Not in use', title:'The connected '+p.display_name+' credential is used instead'}

@@ -704,8 +704,11 @@ inline-confirms. The nav's **Connections** entry carries the count of cards need
 as a secret named for the provider (`namedKeys`: `treg secret add apollo …`, or a Secrets row) is a
 row of `connAccounts` too, on Connections and on its provider's page, and counts in `connCount` — the
 credential ladder treats it as that provider's key — marked *Saved*, or *Not in use* when a connected
-credential for the same provider outranks it, with **Verify and connect** to run it through the
-connect probe. **Add a connection** is every provider this server can connect
+credential for the same provider outranks it (pasting a key through the provider's button does
+exactly that). `loadConnections` fetches `/secrets` in the same `Promise.all` as `/connections`, because
+a named key is told from a connection by comparing the two: one list older than the other showed a
+removed key, or the previous team's, as saved. A grant with no catalog provider (an own-app OAuth
+connect) has no card; it stays on Secrets. A failed Remove reports in the page's banner (`secretErr`). **Add a connection** is every provider this server can connect
 (`connectable`: `configured` ones only — a provider it holds no client credentials for could only
 show a dead button; an account already connected to one still shows above), in `providerGroups`
 (grouped by the registry's category, filtered by `connQ` and by `connKind` — the **All · Your
@@ -755,7 +758,7 @@ flag = whether *this* deployment can run at least one connect flow) and **`GET /
 (`list_connections` — the org's existing grants). Each authorization method also has its own
 `configured` flag. For a multi-method provider, the registry sets the provider flag when any one method
 is available, so a configured secondary grant cannot be hidden by an unavailable primary grant.
-`go('connections')` also loads **`GET /secrets`**, which `namedKeys` reads.
+`loadConnections` also reads **`GET /secrets`** for a signed-in member, which `namedKeys` reads.
 
 **Consent disclosure.** A provider row may carry a **`consent_notice`**, rendered as a `.mk-notice` panel
 in two places: under the Connect button on the integration page and inside the `capAsk` modal,

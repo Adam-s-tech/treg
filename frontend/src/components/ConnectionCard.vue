@@ -48,11 +48,10 @@ export default {
     <template v-if="owner"> · added by {{short(owner)}}</template>
   </p>
 
-  <!-- A named key: check it and connect it like any other, or remove it. -->
+  <!-- A named key: remove it. Pasting one through the provider's button replaces it in use. -->
   <div v-if="a.s" class="cn-acts">
-    <button v-if="a.st.tone!=='quiet'" class="pl-btn sm ghost" :disabled="connBusy" @click="startConnect(a.p)"
-            title="Check the key against the provider and connect it like any other">Verify and connect</button>
     <span class="cn-links">
+      <a v-if="manage" :href="'/app/marketplace/'+encodeURIComponent(a.service)" @click.prevent="openProvider(a.service)">Manage</a>
       <button class="cn-del" :class="{armed:confirmDelSecret===a.s.id}" @click="deleteSecret(a.s)">
         {{confirmDelSecret===a.s.id ? 'Click again to remove' : 'Remove'}}</button>
     </span>

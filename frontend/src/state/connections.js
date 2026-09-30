@@ -6,12 +6,18 @@ export default {
       this.loadPlatforms();  // fire-and-forget, and first: the catalog must neither hold up nor wait for the connect UI
       try{
         // The provider list is the deployment's, fixed for the session: fetched once, not per view.
-        const [ps, cs]=await Promise.all([
+        // Secrets come in the same breath: a key saved under a provider's name is told apart from a
+        // connection by comparing the two lists, so one fetched later than the other (a team switch,
+        // a disconnect, a slow first answer) would show a removed or foreign key as saved.
+        const member=this.authed && !this.publicCatalog;
+        const [ps, cs, ss]=await Promise.all([
           this.providers.length ? this.providers : fetch('/oauth/providers').then(r=>r.json()).catch(()=>[]),
           this.api('/connections').catch(()=>[]),
+          member ? this.api('/secrets').catch(()=>null) : null,
         ]);
         if(!live()) return;
         this.providers=ps||[]; this.connections=cs||[];
+        if(ss) this.secrets=ss;
       }catch(e){ if(live()) this.connErr=String(e.message||e); }
     },
 authorizationMethodSpec(providerName, methodName){

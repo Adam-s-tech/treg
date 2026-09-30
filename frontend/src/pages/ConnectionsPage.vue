@@ -34,7 +34,7 @@ export default {
       agents make to that provider. Your key always wins over treg's, and those calls are never metered.</p>
   </header>
 
-  <div v-if="connErr" class="banner cn-banner"><span>{{connErr}}</span><button class="btn sm ico" @click="connErr=''" aria-label="Dismiss">✕</button></div>
+  <div v-if="connErr || secretErr" class="banner cn-banner"><span>{{connErr || secretErr}}</span><button class="btn sm ico" @click="connErr=''; secretErr=''" aria-label="Dismiss">✕</button></div>
 
   <section v-if="connAccounts.length" class="pl-sec">
     <h2 class="pl-h"><span>Connected</span><i></i><em>{{connAccounts.length}}</em></h2>

@@ -25,7 +25,7 @@ export default { components: { ToolDrawer, ProviderLogo, ConnectionCard }, setup
             <p v-if="mkProvider.consent_notice" class="mk-notice">{{mkProvider.consent_notice}}</p>
           </header>
 
-          <div v-if="connErr" class="banner cn-banner"><span>{{connErr}}</span><button class="btn sm ico" @click="connErr=''" aria-label="Dismiss">✕</button></div>
+          <div v-if="connErr || secretErr" class="banner cn-banner"><span>{{connErr || secretErr}}</span><button class="btn sm ico" @click="connErr=''; secretErr=''" aria-label="Dismiss">✕</button></div>
           <div v-if="!mkProvider.configured" class="banner cn-banner">
             This server holds no client credentials for {{mkProvider.display_name}}, so the connect flow can't run here.
           </div>
