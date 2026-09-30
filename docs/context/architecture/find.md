@@ -17,6 +17,8 @@ sources:
   - frontend/src/state/find.js
   - frontend/src/components/FindAnswer.vue
   - frontend/src/pages/SearchPage.vue
+  - frontend/src/components/CatalogSearch.vue
+  - frontend/e2e/catalog-find.spec.ts
 related:
   - architecture/search-experiment.md
   - architecture/catalog.md
@@ -185,6 +187,11 @@ build, else the client's reason). The `judged` event carries the same as `embed:
 job with a way to the whole list on its shelf. An empty answer says which kind it is: a gap ("treg
 does not have this kind of data or action yet"), with a request link, or not a job ("try describing
 the data you want"), without one.
+
+The Catalog box asks on its own only when a typing pause leaves its name filter empty and the text
+is more than one short word; that answer sits above the still-filtered shelves and shrinks to one
+line when it reads or finds nothing. Enter still asks for the full answer (see
+[dashboard](../interface/dashboard.md)).
 
 ## Measuring it
 

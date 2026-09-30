@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import find, { findNoneText, isJobQuery } from '../src/state/find.js'
+import find, { autoFindable, findNoneText, isJobQuery } from '../src/state/find.js'
 import findComputed from '../src/state/findComputed.js'
 
 test('a name filters, a sentence or a question asks', () => {
@@ -49,4 +49,38 @@ test('an empty answer says whether treg lacks it or the text is not a job', () =
   expect(findNoneText('gap')).toMatch(/does not have this kind of data or action yet/)
   expect(findNoneText('not_task')).toMatch(/does not read as a job/)
   expect(findNoneText('')).toMatch(/does not read as a job/)
+})
+
+test('a typing pause asks the finder only for more than a short word, and not while names match', () => {
+  expect(autoFindable('', false)).toBe(false)
+  expect(autoFindable('tik', false)).toBe(false)            // one word under four letters: still typing a name
+  expect(autoFindable('seo', false)).toBe(false)
+  expect(autoFindable('leads', false)).toBe(true)
+  expect(autoFindable('ad spy', false)).toBe(true)          // two words, however short
+  expect(autoFindable('tiktok', true)).toBe(false)          // the name filter shows something
+  expect(autoFindable('find emails of dentists', false)).toBe(true)
+})
+
+test('findSchedule arms the timer only when the query is findable', () => {
+  const vm: any = {
+    find: { q: '', scope: '' }, findActive: false, findSoon: false, elements: {} as any,
+    findUnschedule: find.findUnschedule, findExit() { this.find = { q: '', scope: '' } },
+    findNameHits: find.findNameHits,
+    plats: { list: [{ slug: 'tiktok', label: 'TikTok', providers: ['tikhub'] }] },
+    platNameHit: (p: any, q: string) => (p.label + ' ' + p.slug).toLowerCase().includes(q),
+    platShelf: [], platPlumbing: [],
+  }
+  const armed = (q: string, scope = '') => {
+    find.findSchedule.call(vm, q, scope)
+    const on = vm.findSoon
+    find.findUnschedule.call(vm)
+    return on
+  }
+  expect(armed('tikt')).toBe(false)                         // names a platform on the page
+  expect(armed('backlink audit')).toBe(true)
+  expect(armed('abc')).toBe(false)
+  vm.platShelf = [{ id: 'x' }]
+  expect(armed('comments', 'tiktok')).toBe(false)           // a shelf's own tools match
+  vm.platShelf = []
+  expect(armed('comments', 'tiktok')).toBe(true)
 })

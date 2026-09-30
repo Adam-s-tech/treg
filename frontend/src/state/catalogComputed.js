@@ -60,9 +60,9 @@ mkAccounts(){ return this.connAccounts.filter(a=>a.service===this.mkService); },
       return n>=100 ? (Math.floor(n/100)*100).toLocaleString('en-US')+'+' : '';
     },
 // The platform-name filter the Catalog search box applies, lowercased; '' for none. A sentence is
-    // a job, not a name (the finder answers it), and a find answer lights shelves instead of
-    // filtering them, so neither filters anything.
-    platNameQuery(){ return this.findActive || isJobQuery(this.q) ? '' : this.q.trim().toLowerCase(); },
+    // a job, not a name (the finder answers it), and a full find answer lights shelves instead of
+    // filtering them, so neither filters anything. An auto answer leaves the filter on.
+    platNameQuery(){ return this.findFull || isJobQuery(this.q) ? '' : this.q.trim().toLowerCase(); },
 mkTabs(){
       // With a name filter typed, each tab counts what it would SHOW; a tab reading "Social 33" over
       // an empty result made the filter look broken.
@@ -81,9 +81,9 @@ mkTabs(){
         : this.platCategories.filter(g=>g.category===this.mkTab);
       // The top-nav search reaches here too: with a query, every match shows (no featured collapse —
       // a hit hidden behind "N more" reads as no hit) and empty shelves drop away.
-      // A find answer (state/find.js) owns the box while it is showing: the sentence is not a name
-      // to filter by, so every shelf stays, platforms the answer landed on first and uncollapsed.
-      if(this.findActive){
+      // A full find answer (state/find.js) owns the box while it is showing: the sentence is not a
+      // name to filter by, so every shelf stays, platforms the answer landed on first and uncollapsed.
+      if(this.findFull){
         const hits=this.findHits;
         if(!Object.keys(hits).length) return groups.map(g=>({...g, rest:[], total:g.items.length}));
         return groups.map(g=>{ const items=[...g.items].sort((a,b)=>(hits[b.slug]||0)-(hits[a.slug]||0) || (b.endpoints||0)-(a.endpoints||0));

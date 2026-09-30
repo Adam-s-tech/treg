@@ -4,12 +4,16 @@ import { DataTable } from './ui/table'
 
 // The answer to a described job (state/find.js): one row per job, best fit first, weaker fits in a
 // lighter tone. A table (components/ui/table), so every row's columns line up whatever a price says.
-// Clearing the search box is how you leave.
+// An auto answer (a typing pause) sits above the page it did not replace, so while it reads, and when
+// it has nothing, it is one line: an empty answer never takes over the page. Clearing the search box
+// is how you leave.
 export default {
   components: { DataTable },
   setup: useDashboard,
   computed: {
     nothing(){ return this.find.verdict==='none' || (this.find.verdict==='keyword' && !this.findGroups.length); },
+    // An auto answer that found nothing worth a table: one line, not a panel.
+    quietNothing(){ return this.find.auto && (this.nothing || !this.findGroups.length); },
     columns(){ return [
       {key:'what', header:'Tool', mobile:'primary', wrap:true},
       {key:'provs', header:'Providers', mobile:'hide'},
@@ -22,13 +26,19 @@ export default {
 </script>
 
 <template>
-<section class="fa" aria-live="polite" :aria-busy="findBusy">
-  <div v-if="findBusy" aria-label="Finding tools">
+<section class="fa" :class="{auto:find.auto}" aria-live="polite" :aria-busy="findBusy">
+  <p v-if="findBusy && find.auto" class="fa-line"><i class="fa-dot" aria-hidden="true"></i>Looking for tools that do <b>{{find.q}}</b>…</p>
+
+  <div v-else-if="findBusy" aria-label="Finding tools">
     <div v-for="i in 3" :key="i" class="fa-skel"><span></span><span></span><span></span></div>
   </div>
 
-  <p v-else-if="find.phase==='error'" class="fa-note">{{find.error}}
+  <p v-else-if="find.phase==='error'" :class="find.auto ? 'fa-line' : 'fa-note'">{{find.error}}
     <button class="fa-link" type="button" @click="findRun(find.q)">Try again</button></p>
+
+  <p v-else-if="find.phase==='done' && quietNothing" class="fa-line">
+    <template v-if="find.verdict==='none' && find.reason">{{findNoneText()}}</template>
+    <template v-else>No tool in the catalog does <b>{{find.q}}</b> yet.</template></p>
 
   <p v-else-if="find.phase==='done' && nothing" class="fa-note">
     <template v-if="find.verdict==='none' && find.reason">{{findNoneText()}}
@@ -75,6 +85,13 @@ export default {
 .fa-head b{color:var(--ink);font-weight:500}
 .fa-sub,.fa-note{margin:0 0 8px;font-size:13.5px;color:var(--muted)}
 .fa-note{padding:14px 0}
+/* An auto answer's one line: while it reads, and when it found nothing. */
+.fa.auto{margin-bottom:22px}
+.fa-line{margin:0;padding:4px 0;font-size:13.5px;line-height:1.5;color:var(--muted)}
+.fa-line b{color:var(--ink);font-weight:500}
+.fa-dot{display:inline-block;vertical-align:middle;margin:0 9px 2px 0;width:6px;height:6px;border-radius:50%;
+  background:var(--muted);animation:fa-pulse 1s ease-in-out infinite alternate}
+@keyframes fa-pulse{from{opacity:.25}}
 .fa-link{border:0;background:none;padding:0;font:inherit;font-size:13px;color:var(--ink);text-decoration:underline;text-underline-offset:3px;
   text-decoration-color:var(--line2,var(--line));cursor:pointer}
 .fa-link:hover{text-decoration-color:currentColor}
@@ -105,5 +122,5 @@ export default {
 .fa-skel span:first-child{height:36px;border-radius:10px}
 @keyframes fa-sh{to{background-position:-200% 0}}
 @media (hover:none){.fa-copy{opacity:1}}
-@media (prefers-reduced-motion:reduce){:deep(.ui-tbody .ui-tr),.fa-skel span{animation:none}}
+@media (prefers-reduced-motion:reduce){:deep(.ui-tbody .ui-tr),.fa-skel span,.fa-dot{animation:none}}
 </style>
