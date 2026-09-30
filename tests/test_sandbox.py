@@ -26,7 +26,6 @@ from treg.models import Secret, Tool, User
 async def anon():
     """A fresh, UNAUTHENTICATED client + clean rate-limit state (the mint endpoint is the anon door).
     reset_db() also clears the DB-backed sandbox throttle (the `ephemeral` table)."""
-    await drain_background_writes()
     await reset_db()
     app.state.http = AsyncClient(transport=ASGITransport(app=make_upstream()), base_url="http://upstream")
     try:

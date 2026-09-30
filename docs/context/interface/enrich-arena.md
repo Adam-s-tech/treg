@@ -14,7 +14,7 @@ sources:
   - src/treg/web/enrich-arena/arena.js
   - src/treg/web/enrich-arena/bench.js
   - src/treg/web/enrich-arena/arena.css
-  - src/treg/web/agent-setup.js
+  - frontend/src/agent-setup/index.ts
   - src/treg/application/arena_verification_insights.py
   - src/treg/alembic/versions/0029_arena_verification_snapshot.py
   - scripts/import_arena_verification.py
@@ -129,7 +129,7 @@ returned email domain that differs from the requested company domain (subdomains
 while preserving the vendor’s answer. This signals a possible mismatch, not automatic invalidity.
 Vendor icons are bundled locally from official sites, with source URLs in asset comments.
 Original PNG/ICO icons are embedded in SVG wrappers to preserve the shared logo paths; existing
-vector marks remain vectors. Brand.dev now redirects to Context.dev and uses its current icon.
+vector marks remain vectors. Context.dev uses its current icon under the stable `branddev` provider id.
 Initials appear only as an image-load fallback.
 A compact pixel-fighter lineup sits above pricing and results, using those same logos as heads.
 It is idle before dispatch and follows each real attempt: running punches, hits celebrate,
@@ -256,7 +256,9 @@ every two minutes while visible, preserves the last successful values after a re
 shows the last update time. Prices still come from the catalog and team quote.
 
 `application.arena_insights.drain` is the collector, run by the `treg-worker arena insights` cron
-(every two minutes; `--max-seconds` bounds a pass and the next run resumes from the cursor). It no
+(every two minutes; `--max-seconds` bounds a pass and the next run resumes from the cursor). Once
+caught up it re-aggregates the 30-day window at most every `REFRESH_SECONDS` (30 minutes): each
+aggregate scans the whole window on the primary, so the cron cadence is not the refresh cadence. It no
 longer runs inside the web processes: as a lifespan coroutine, every web process (and every extra
 instance during a deploy) contended for the cursor row and each walked `callrecord` on the
 database the money path depends on. In the worker process it uses the API pool, the only one open
@@ -304,7 +306,9 @@ prevent controlled rankings, and returned fields are not independently verified.
 
 The heading's “Setup treg in” button shows Claude Code, Codex, OpenClaw and Hermes logos plus
 the count of other choices. It opens a native dialog using the same `AgentPicker` and
-`SetupInstructions` components as the dashboard welcome modal (`agent-setup.js`). The instruction
+`SetupInstructions` components as the dashboard welcome modal: their source is
+`frontend/src/agent-setup/`, compiled for this page into `/agent-setup.js` (`window.TregAgentSetup`).
+The instruction
 heading sits above the prompt card; the card is a flat panel with Copy floating in a right gutter
 on desktop and above the command on phones. Both stylesheets style that one shape, and the
 component carries no layout of its own, so a change to its markup is checked on both surfaces

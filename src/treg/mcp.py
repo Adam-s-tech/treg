@@ -320,7 +320,8 @@ class HubMineOut(TypedDict, total=False):
 
 
 class CatalogGetOut(TypedDict, total=False):
-    endpoint: dict[str, Any] | None        # the full catalog entry: params, cost, observed reliability
+    endpoint: dict[str, Any] | None        # the full catalog entry: params, cost, observed reliability,
+                                           # and `reviews` (what other teams' agents said after using it)
     provider: dict[str, Any] | None
     siblings: list[dict[str, Any]] | None  # other providers of the same capability, for comparison
     call_template: str | None

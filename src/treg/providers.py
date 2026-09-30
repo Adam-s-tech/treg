@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 # `auth` is the provider's DEFAULT shape; a per-variable form (CLIENT_ID/SECRET → oauth2) can override
 # it. Served at GET /providers.json so the CLI can refresh centrally (bundled copy = offline fallback);
 # bump CATALOG_VERSION whenever entries change so a cache can tell it's stale.
-CATALOG_VERSION = 21  # v21 2026-09-25: Fetchin key detection
+CATALOG_VERSION = 22  # v22: Spider API key detection
 # `skills` (optional) matches a SKILL FOLDER name for file-credential skills that have no env var to
 # key on (OAuth token files etc.) — see `match_skill`. Such providers carry `tokens: []` so the env
 # scanner never mis-detects them as a simple bearer key (their real auth is OAuth + extra headers).
@@ -70,7 +70,7 @@ CATALOG: list[dict] = [
      "cli": {"bin": "openai", "install": "pip install openai", "auth_mechanism": "env", "beta": True,
              "inject": [{"via": "env", "name": "OPENAI_API_KEY"}], "errors": _ERR_AUTH}},
     {"provider": "Anthropic",   "tokens": ["ANTHROPIC", "CLAUDE"], "base_url": "https://api.anthropic.com/v1",                    "auth": {"shape": "api_key_header", "header": "x-api-key"}},
-    {"provider": "Google AI",   "tokens": ["GEMINI"],              "base_url": "https://generativelanguage.googleapis.com/v1beta","auth": {"shape": "api_key_header", "header": "x-goog-api-key"}},
+    {"provider": "Google AI",   "tokens": ["GEMINI"],              "base_url": "https://generativelanguage.googleapis.com/v1beta","auth": {"shape": "api_key_header", "header": "x-goog-api-key"}, "probe": "models?pageSize=1"},
     {"provider": "Mistral",     "tokens": ["MISTRAL"],             "base_url": "https://api.mistral.ai/v1",                       "auth": {"shape": "bearer"}},
     {"provider": "Cohere",      "tokens": ["COHERE"],              "base_url": "https://api.cohere.ai/v1",                        "auth": {"shape": "bearer"}},
     {"provider": "Groq",        "tokens": ["GROQ"],                "base_url": "https://api.groq.com/openai/v1",                  "auth": {"shape": "bearer"}},
@@ -174,12 +174,17 @@ CATALOG: list[dict] = [
     {"provider": "Cartesia",    "tokens": ["CARTESIA"],            "base_url": "https://api.cartesia.ai",                         "auth": {"shape": "api_key_header", "header": "X-API-Key"}},
     # --- search / scraping ---
     {"provider": "Tavily",      "tokens": ["TAVILY"],              "base_url": "https://api.tavily.com",                          "auth": {"shape": "bearer"}},
+    {"provider": "Octen",       "tokens": ["OCTEN"],               "base_url": "https://api.octen.ai",                           "auth": {"shape": "api_key_header", "header": "x-api-key"}},
+    {"provider": "Linkup",      "tokens": ["LINKUP"],              "base_url": "https://api.linkup.so/v1",                       "auth": {"shape": "bearer"}, "probe": "credits/balance"},
+    {"provider": "You.com",     "tokens": ["YDC_API_KEY", "YOU_API_KEY"], "base_url": "https://api.you.com", "auth": {"shape": "api_key_header", "header": "X-API-Key"}, "probe": "v1/billing/account_balance"},
+    {"provider": "Valyu",       "tokens": ["VALYU_API_KEY", "VALYU"], "base_url": "https://api.valyu.ai", "auth": {"shape": "api_key_header", "header": "X-API-Key"}, "probe": "v1/datasources"},
     {"provider": "Keenable",    "tokens": ["KEENABLE"],            "base_url": "https://api.keenable.ai",                         "auth": {"shape": "api_key_header", "header": "X-API-Key"}},
     {"provider": "Olostep",     "tokens": ["OLOSTEP"],             "base_url": "https://api.olostep.com",                         "auth": {"shape": "bearer"}, "probe": "user/credits/info"},
     {"provider": "ScrapeGraphAI", "tokens": ["SCRAPEGRAPHAI", "SGAI"],
      "base_url": "https://v2-api.scrapegraphai.com",
      "auth": {"shape": "api_key_header", "header": "SGAI-APIKEY"}, "probe": "api/credits"},
-    {"provider": "Firecrawl",   "tokens": ["FIRECRAWL"],           "base_url": "https://api.firecrawl.dev/v1",                    "auth": {"shape": "bearer"}},
+    {"provider": "Firecrawl",   "tokens": ["FIRECRAWL"],           "base_url": "https://api.firecrawl.dev/v2",                    "auth": {"shape": "bearer"}, "probe": "team/credit-usage"},
+    {"provider": "Spider",      "tokens": ["SPIDERCLOUD", "SPIDER"], "base_url": "https://api.spider.cloud",                    "auth": {"shape": "bearer"}, "probe": "data/credits"},
     {"provider": "Exa",         "tokens": ["EXA"],                 "base_url": "https://api.exa.ai",                              "auth": {"shape": "api_key_header", "header": "x-api-key"}},
     {"provider": "cloro",       "tokens": ["CLORO"],               "base_url": "https://api.cloro.dev",                           "auth": {"shape": "bearer"}, "probe": "v1/credits"},
     {"provider": "Serper",      "tokens": ["SERPER"],              "base_url": "https://google.serper.dev",                       "auth": {"shape": "api_key_header", "header": "X-API-KEY"}},

@@ -114,3 +114,24 @@ async def test_shutdown_cancels_the_bootstrap_owned_refresh_task():
     await reader.aclose()
     assert reader.counts.refresh == 1
     assert await reader.get_many(["endpoint.a"]) == {}
+
+
+async def test_an_endpoint_nobody_called_is_read_once_and_pending_only_until_then():
+    source = _Source()
+    source.release.clear()
+    real = source.get_many
+
+    async def only_a(endpoint_ids):
+        return {k: v for k, v in (await real(endpoint_ids)).items() if k == "endpoint.a"}
+    source.get_many = only_a
+    reader = CachedEndpointObservationReader(source)
+
+    assert await reader.get_many(["endpoint.a", "endpoint.quiet"]) == {}
+    assert reader.pending(["endpoint.quiet"])
+    source.release.set()
+    await reader.wait_for_idle()
+
+    assert set(await reader.get_many(["endpoint.a", "endpoint.quiet"])) == {"endpoint.a"}
+    assert not reader.pending(["endpoint.a", "endpoint.quiet"])
+    assert len(source.calls) == 1 and reader.counts.fresh == 2
+    await reader.aclose()

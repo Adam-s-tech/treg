@@ -1,3 +1,5 @@
+import * as TregAgentSetup from '../agent-setup/data'
+
 export default {
 // first-run welcome: the agent picker (step 1) and the per-agent setup line (step 2)
     welcomeAgents(){ return TregAgentSetup.agents; },

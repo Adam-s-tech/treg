@@ -1,3 +1,4 @@
+import { storageGet, storageSet, storageRemove } from './storage.js'
 export default async function boot(){
     const lifecycle = new AbortController();
     let versionTimer;
@@ -60,7 +61,7 @@ export default async function boot(){
     const qs = new URLSearchParams(location.search);
     const linkOrg = qs.get('invite_org'), inv = qs.get('invite'), ref = qs.get('ref'), oauthSignin = qs.get('signin')==='oauth';
     this.oauthSignin=oauthSignin;
-    if(ref){ try{ localStorage.setItem('treg-ref', ref); }catch(e){} }  // survives the sign-in reload so the welcome can preselect the agent the landing was about (see maybeOnboard)
+    if(ref) storageSet('treg-ref', ref);  // survives the sign-in reload so the welcome can preselect the agent the landing was about (see maybeOnboard)
     if(linkOrg || inv || qs.get('invite_expired') || ref || oauthSignin){ history.replaceState(null,'',location.pathname+location.hash); }  // strip one-shot params so reload/share doesn't replay them
     if(linkOrg){ this.inviteLinkOrg=parseInt(linkOrg,10)||null; }
     // A shared detail deep link (/app/skills/<x>, /app/tools/<x>) — from the URL itself, or stashed
@@ -73,8 +74,8 @@ export default async function boot(){
     // fallback (see `_spa_catalog_page`) now that the real UI is about to take over.
     const catRoute=this.catalogFromPath(location.pathname);
     if(catRoute){ this.publicCatalog=true; document.getElementById('prerender')?.remove(); }
-    const stashed=localStorage.getItem('treg-next');
-    if(stashed){ localStorage.removeItem('treg-next');
+    const stashed=storageGet('treg-next');
+    if(stashed){ storageRemove('treg-next');
       if(!route && !mkRoute){
         route=this.routeFromPath(stashed); mkRoute=this.mkFromPath(stashed);
         if(route||mkRoute) history.replaceState(null,'',stashed);

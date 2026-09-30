@@ -252,6 +252,9 @@ editable installs remain Python-only. Node and npm are build tools, not runtime 
 accepted only with SQLite and a loopback public URL. `scripts/dev-local.sh up` manages both processes.
 For browser previews from another device, build the dashboard and start or restart the local stack
 with `TREG_FRONTEND_DEV=false`; compiled assets then use the same origin on port 18790.
+The browser tests' server (`scripts/frontend-e2e-server.sh`) runs on `TREG_E2E_PORT`, which
+`frontend/playwright.config.ts` sets to a port the OS reports free at the start of each run, so runs
+in parallel worktrees or beside a `treg serve` proxy (default 18791) never share a port.
 
 A feature flag set in the calling shell (`TREG_HUB_ENABLED=1 scripts/dev-local.sh up`) does not
 reach the server on its own: the script starts the server inside a tmux session, and a tmux session
@@ -308,7 +311,14 @@ whole record.
 Archive recording has independent task-count and byte limits. `_MAX_PENDING_BYTES` bounds bodies
 retained for database writes, and `archive_r2_max_pending_bytes` separately bounds object-store work.
 These are admission budgets, not an RSS ceiling: SDK buffers, compression and mandatory terminal
-evidence require additional memory headroom. Production observations and incident history live in
+evidence require additional memory headroom.
+
+Spooled settlement evidence (`spooled_response`, proxy-model.md) writes large metered answers to
+the process temp directory, not RAM. `TREG_SPOOL_BUDGET_BYTES` (default 512 MiB per process) bounds
+that disk use, `TREG_SPOOL_MAX_BYTES` (64 MiB) one answer, `TREG_SPOOL_PARSE_CONCURRENCY` (2) the
+transient parse memory (up to about three times the body each), and `TREG_SPOOL_DIR` overrides the directory.
+Size the budget against the host's ephemeral disk: a platform that evicts an instance over its
+local-storage allowance turns an oversized budget into a restart. Production observations and incident history live in
 the private [database-capacity runbook](https://github.com/superdesigndev/treg-internal/blob/main/docs/production/database-capacity.md).
 
 ## Hosted feature switches

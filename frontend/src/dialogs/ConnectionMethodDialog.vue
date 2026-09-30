@@ -4,7 +4,7 @@ export default { setup: useDashboard }
 </script>
 
 <template>
-<div  class="scrim" role="dialog" aria-modal="true" aria-labelledby="method-ask-title" @click.self="methodAsk=null">
+<div  class="scrim" role="dialog" aria-modal="true" aria-labelledby="method-ask-title" v-dialog="() => { methodAsk=null }" @click.self="methodAsk=null">
       <div class="modal" style="padding:16px;width:min(560px,94vw)">
         <h3 id="method-ask-title" style="margin:0 0 6px">Connect {{methodAsk.provider.display_name}}</h3>
         <p class="sub" style="margin:0">Choose how this account should connect. You can add the other method separately later.</p>

@@ -428,6 +428,8 @@ class CallRecord(SQLModel, table=True):
     cached: bool = Field(default=False)
     # Did the provider FIND something? Decided at settle from the response body by the endpoint's
     # routing adapter (`catalog/adapters.yaml` `miss`), never stored as content — only the verdict.
+    # An accepted async submission stays NULL until terminal evidence arrives; the task row
+    # retains that verdict across an audit insert race.
     # NULL = no adapter could tell (or the call failed). Feeds `stats.observed` `hit_rate`, the
     # P(hit) of the router's expected-cost-per-hit ranking.
     hit: bool | None = Field(default=None)
@@ -849,6 +851,9 @@ class AsyncTaskRecord(SQLModel, table=True):
     status: str = Field(default="pending", index=True)
     error: str = Field(default="")
     settled_micro: int | None = Field(default=None)
+    # Final contact verdict. Durable here so a fast poll can finish before the best-effort
+    # CallRecord writer inserts the submission row.
+    hit: bool | None = Field(default=None)
     completed_at: NaiveUTC | None = Field(default=None, index=True)
 
     # Attribution snapshot: never infer ownership from a current membership or lossy audit.
@@ -1234,7 +1239,11 @@ class IdempotentCall(SQLModel, table=True):
     one that says no.
     """
 
-    __table_args__ = (UniqueConstraint("membership_id", "key", name="uq_idem_caller_key"),)
+    __table_args__ = (
+        UniqueConstraint("membership_id", "key", name="uq_idem_caller_key"),
+        # The per-call expired-label sweep in `_claim_idempotent` (Alembic 0053).
+        Index("ix_idempotentcall_membership_id_expires_at", "membership_id", "expires_at"),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     # org_id is kept alongside the caller so the row is still org-scoped for deletion and audit.

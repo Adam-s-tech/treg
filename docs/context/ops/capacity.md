@@ -45,6 +45,19 @@ related:
 
 # Provider capacity
 
+Octen's PAYG balance has no account balance or usage endpoint in its published OpenAPI, so
+`NO_BALANCE_API` reports it as dashboard-only. `_KNOWN` classifies the account as manually funded
+cash. The shared-key rate policy spaces calls at five per second, below the Base plan's displayed
+20 QPS allowance; Octen's separate Extract URL/minute limits still apply upstream. BYOK calls
+bypass shared-key capacity policy. The funded account was not exhausted to capture an empty-wallet
+signature, and no overflow route is claimed.
+
+Litescrape's internal collector reads the free `GET /api/keys/status` route with the platform
+Bearer key. It accepts a nonnegative integer `remaining_calls` as the prepaid call balance and
+records the key's reported concurrency limit as an informational note. The policy is
+`requests / manual / api`; the 25 concurrent requests observed on the configured key are not
+a per-second rate, so no token-bucket rate is inferred. The status route stays out of the catalog.
+
 Fetchin capacity is `credits / manual / api`. `collectors._fetchinio` calls the free internal
 `GET /api/v1/subscription` route with the platform `X-API-Key`, accepts only a finite nonnegative
 `creditsRemaining`, and retains plan status, PAYG remainder, renewal date and the account's reported
@@ -92,6 +105,29 @@ raising or enabling the separate PAYGO ceiling is an operator action, and treg a
 top-up. A controlled `/usage` burst did not reproduce its documented 10-per-10-minute 429, so the
 rate policy remains documentation-derived. The funded account was not deliberately exhausted;
 432/433 signatures are documentation-derived rather than live-observed.
+
+Linkup's internal collector reads `GET /v1/credits/balance` with the platform Bearer key and
+accepts only finite nonnegative numeric USD balances. This free account read also probes connected
+keys and stays out of the catalog. The shared-key policy is `cash / manual / api` and smooths
+Search and Fetch at their documented organization-wide 10 requests per second. Research polling
+has separate one-per-second guidance; the provider-wide request spacer is not a claim that Research
+submissions share the Search and Fetch allowance. HTTP 429 can mean depleted credit or too much
+concurrency, so no generic 429 capacity-exhausted signature is registered.
+
+You.com's internal collector reads `GET /v1/billing/account_balance` with the platform
+`X-API-Key` and converts the finite nonnegative cent balance to USD. This free read also verifies
+connected keys and stays out of the catalog. The shared-key policy is `cash / auto_recharge / api`;
+`_RATE_LIMITS` uses the documented Finance Research pace of five requests per second as a
+provider-wide ceiling, including Search, Contents, Answer and Research calls whose documented
+endpoint limits are higher. BYOK calls bypass shared-key smoothing and treg metering. The API
+balance can lag recent calls, so capacity snapshots are not a per-call charge record.
+
+Spider's internal collector calls the free `GET /data/credits` route with the platform Bearer key,
+accepts only finite nonnegative `data.credits`, and converts the API's 10,000 credits per USD to a
+cash balance. The policy is `cash / auto_recharge / api`: the account's auto-refill was confirmed
+in its billing dashboard, while treg only reads the balance. Spider documents 10,000 core API
+requests/minute by default; shared-key smoothing uses a conservative 100/minute. The balance route
+is capacity evidence and a connection probe, never a catalog tool.
 
 ScrapeGraphAI's internal collector calls the free `GET /api/credits` route with the platform
 `SGAI-APIKEY`. It accepts only a finite nonnegative `remaining` credit balance and retains the plan,
@@ -282,8 +318,9 @@ smoothing becomes endpoint-aware.
   `overflow:monid`** (aggregators are prepaid accounts that run dry too). `ensure_policies` inserts
   missing rows only — a hand-edited row is never overwritten — and returns the providers still
   `unknown`, which a person must classify; code never guesses. `latest_state()` is the pure rule:
-  no/failed/old (> 6 h) observation → `stale` (never refuses a call); `remaining ≤ 0` on an exact
-  observation → `exhausted` until `resets_at`, or until the next sweep can prove otherwise.
+  no/failed/old (> 6 h) observation → `stale` (never refuses a call); `remaining < 0.01` on an exact
+  observation (`EMPTY_BELOW`: a spent float pool can read a few millionths, never zero) →
+  `exhausted` until `resets_at`, or until the next sweep can prove otherwise.
 - **`sweep.py`** — `run_sweep(db)`: import policies → collect all providers in parallel (DB idle
   while the network is in flight) → one `CapacitySnapshot` per provider → publish each
   `LatestState` to ratestore as `capacity:state:<provider>` (24 h TTL) → one commit. A note that
@@ -354,7 +391,9 @@ pays the aggregator's real price, 0% markup, disclosed in-band when it ships (st
   one-creator request was refused with the typed 503 telling the caller to bring their own key
   while a two-creator request was served: a customer's agent read that as "your plan no longer
   allows discovery". Three cents, disclosed through `X-Treg-Cost-Micro` and `X-Treg-Served-Via`,
-  beats a refusal. Other unit mismatches remain disabled. A fallback charges the aggregator's
+  beats a refusal. **Icypeas people search** (`icypeas.people.search`, 0.02 credit per row direct)
+  is the third contract: Orthogonal lists `/api/find-people` at $0.01 per request and charged
+  1 cent live for pages of 50 and 200 leads. Other unit mismatches remain disabled. A fallback charges the aggregator's
   actual flat fee, including an empty page, rather than multiplying by results.
 - **The seed** - `overflow_seed.json` contains candidate mappings and recorded verification evidence.
   Tests pin its historical baseline and expiry behavior. Enabled routes decay after seven days
@@ -383,7 +422,11 @@ pays the aggregator's real price, 0% markup, disclosed in-band when it ships (st
   documented HTTP 429 `Discovery API credit limit reached` is an endpoint quota signal; ordinary
   per-minute 429s with Retry-After remain bursts. reAPI's empty prepaid balance is a **402**
   `error.code 30001 "Insufficient credits. Required: N"` (observed 2026-09-14); PiAPI's wallet
-  exhaustion is acknowledged unobserved. HTTP 402 still uses the shared balance signature.
+  exhaustion is acknowledged unobserved. Icypeas is the one **200**: an empty pool answers
+  `{"validationErrors": [{"message": "insufficient_credits", ...}], "success": false}` on every
+  paid route. The call path reads a platform 2xx through the table too, so such an answer is
+  released rather than settled, never archived, counted as a strike, and eligible for overflow.
+  HTTP 402 still uses the shared balance signature.
   Two guards against
   the next such vendor: `unrecorded`,
   a signal kind for a 4xx no row matched whose body still names credits/quota/balance (pattern =

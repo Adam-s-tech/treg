@@ -5,8 +5,8 @@ export default { components: { BrandMark }, setup: useDashboard }
 </script>
 
 <template>
-<div class="lc-scrim" :class="{open:demo.signin}" @click.self="demo.signin=false">
-    <div class="lc-modal" role="dialog" aria-modal="true" aria-label="Sign in">
+<div v-if="demo.signin" class="lc-scrim open" @click.self="demo.signin=false">
+    <div class="lc-modal" role="dialog" aria-modal="true" aria-label="Sign in" v-dialog="() => { demo.signin=false }">
       <button class="cls" @click="demo.signin=false" aria-label="Close">✕</button>
       <div style="font-size:22px;line-height:1"><BrandMark/></div>
       <h2 style="margin:8px 0 2px;font-family:var(--mono)">{{oauthSignin?'Sign in to continue connecting Treg':(invitePrefill?'Accept your invite':(shareGate?'Sign in to view it':(publicCatalog?'Start calling':'Make it yours')))}}</h2>

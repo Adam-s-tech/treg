@@ -113,18 +113,21 @@ class Judged:
     named: str = ""   # on NAME: what the name named, "platform" or "provider" (the pages group by it)
 
 
-def name_rows(query: str, cat: catalog_store.Catalog, provider_display) -> tuple[str, list[dict]]:
+def name_rows(query: str, cat: catalog_store.Catalog, provider_display,
+              platform: str | None = None) -> tuple[str, list[dict]]:
     """What a bare name offers: the endpoints on the platforms whose name or slug contains it (the
     Catalog box's platform filter); else, when the name is a provider's, that provider's endpoints.
     Platform first, because "tiktok" means the platform, not the one provider that happens to be
     called TikTok. Browse endpoints only, like the platform shelves.
 
     Ordered so the first lines read as jobs: inside a platform, catalogued jobs before uncatalogued
-    endpoints (Tag Manager's raw API surface), the jobs most providers sell first."""
+    endpoints (Tag Manager's raw API surface), the jobs most providers sell first.
+
+    Scoped to one `platform`, a name can only be a provider's: what it offers on that shelf."""
     q = query.strip().lower()
     if not q:
         return "", []
-    shown = [e for e in cat.endpoints if catalog_store.browsable(e)]
+    shown = [e for e in (cat.for_platform(platform) if platform else cat.endpoints) if catalog_store.browsable(e)]
     sellers: dict[str, int] = {}
     for e in shown:
         if e["capability"]:
@@ -136,8 +139,8 @@ def name_rows(query: str, cat: catalog_store.Catalog, provider_display) -> tuple
     on: dict[str, list[dict]] = {}
     for e in shown:
         on.setdefault(e["platform"], []).append(e)
-    slugs = [slug for slug, plat in cat.platforms.items()
-             if on.get(slug) and q in f"{plat['label']} {slug}".lower()]
+    slugs = [] if platform else [slug for slug, plat in cat.platforms.items()
+                                 if on.get(slug) and q in f"{plat['label']} {slug}".lower()]
     if slugs:
         # The platform of exactly that name, then those the name starts ("tiktok" -> TikTok Shop)
         # before one that merely mentions it ("Douyin (TikTok China)"); then the Catalog shelves'
@@ -171,7 +174,7 @@ def names_a_platform(query: str, cat: catalog_store.Catalog) -> bool:
 
 
 async def judge(query: str, cands: list[tuple[dict, float]], cat: catalog_store.Catalog,
-                provider_display) -> Judged:
+                provider_display, platform: str | None = None) -> Judged:
     """Judge the recall and decide the verdict. Never raises: an abstaining judge yields the
     keyword page (possibly empty) under the KEYWORD verdict. Rows are best fit first: this page is
     an answer to one job, so unlike the experiment's `interleave.bucketed` it does not keep the
@@ -184,29 +187,34 @@ async def judge(query: str, cands: list[tuple[dict, float]], cat: catalog_store.
                                 url=s.typesafe_url, timeout_s=float(s.find_timeout_s),
                                 criteria=FIT_CRITERIA, extra={"name": NAME_QUESTION})
     if j.probs is None:
-        page, _, _ = catalog_store.rank_band(query, cat, 25)
-        return Judged(KEYWORD, [(ep, None) for ep, _ in page], j)
+        page, _, _ = catalog_store.rank_band(query, cat, 25, platform)
+        return Judged(KEYWORD, [(ep, None) for ep, _ in page[:25]], j)
     keep, high = float(s.search_judge_keep), float(s.search_judge_high)
     scored = sorted(zip((ep for ep, _ in cands), j.probs), key=lambda t: -t[1])
     strong = bool(scored) and scored[0][1] >= high
     kept = [(ep, p) for ep, p in scored if p >= keep]
-    if not strong and ((j.extra or {}).get("name", 0.0) >= float(s.find_name_min) or names_a_platform(query, cat)):
-        named, rows = name_rows(query, cat, provider_display)
+    if not strong and ((j.extra or {}).get("name", 0.0) >= float(s.find_name_min)
+                       or (not platform and names_a_platform(query, cat))):
+        named, rows = name_rows(query, cat, provider_display, platform)
         if rows:
             return Judged(NAME, [(ep, None) for ep in rows], j, kept, named)
     return Judged(STRONG if strong else CLOSEST if kept else NONE, kept, j, kept)
 
 
-async def stream(query: str, provider_display) -> AsyncIterator[dict]:
+async def stream(query: str, provider_display, platform: str | None = None) -> AsyncIterator[dict]:
     """The two events of one find, in order: `candidates` (the lexical recall, at once) and `judged`
     (the kept rows and the verdict, when the judge answers). Logged once the answer is out.
-    `high` rides along so the pages draw the strong cut from this server's setting, not a copy."""
+    `high` rides along so the pages draw the strong cut from this server's setting, not a copy.
+
+    `platform` scopes the whole find to one shelf: recall, the keyword fallback and a bare name's
+    answer; the recall ranks that shelf's rows only, so the judge still gets a full set of them."""
     cat = catalog_store.load()
-    cands = catalog_store.candidates(query, cat, max(1, int(get_settings().find_candidates)))
+    n = max(1, int(get_settings().find_candidates))
+    cands = catalog_store.candidates(query, cat, n, platform)
     yield {"event": "candidates",
            "candidates": [{"id": ep["id"], "platform": ep.get("platform") or "", "provider": ep["provider"]}
                           for ep, _ in cands]}
-    judged = await judge(query, cands, cat, provider_display)
+    judged = await judge(query, cands, cat, provider_display, platform)
     yield {"event": "judged", "verdict": judged.verdict, "named": judged.named, "read": len(cands),
            "high": float(get_settings().search_judge_high),
            "rows": [_row(ep, cat, provider_display, p) for ep, p in judged.rows]}

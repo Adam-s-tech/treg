@@ -1,7 +1,8 @@
 <script>
 import { useDashboard } from '../state/context'
 import FindAnswer from '../components/FindAnswer.vue'
-export default { components: { FindAnswer }, setup: useDashboard, beforeUnmount(){ this.findUnschedule(); } }
+import CatalogSearch from '../components/CatalogSearch.vue'
+export default { components: { FindAnswer, CatalogSearch }, setup: useDashboard }
 </script>
 
 <template>
@@ -20,22 +21,7 @@ export default { components: { FindAnswer }, setup: useDashboard, beforeUnmount(
           <!-- One box, two questions: a platform name filters the shelves as you type, and the finder
                answers whatever is typed once typing pauses, or at once on Enter (state/find.js).
                Clearing the box is how you leave an answer. -->
-          <div class="cat-find" v-if="plats.list.length">
-            <svg class="cat-find-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-            <input :ref="el => setElement('search', el)" v-model="q" aria-label="Search the catalog"
-                   placeholder="Search a platform, or describe what your agent needs to do"
-                   @input="findSchedule($event.target.value)"
-                   @keydown.enter="q.trim() && findRun(q)" @keydown.esc="q=''; findExit()">
-            <button v-if="q" class="cat-find-x" type="button" aria-label="Clear the search" @click="q=''; findExit()">×</button>
-          </div>
-          <!-- A sentence is a job, not a name: say so where the eye already is, as one clickable row. -->
-          <!-- Enter searches every tool for whatever is typed. A name still filters the shelves as you
-               type, so for a short query the row is quieter; for a sentence it is the main action. -->
-          <button v-if="plats.list.length && q.trim() && !findActive" class="cat-find-suggest" :class="{quiet:!findIsJob(q)}" type="button" @click="findRun(q)">
-            <span class="cat-find-suggest-i" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-            <span class="cat-find-suggest-t">{{findIsJob(q) ? 'Find tools for' : 'Search all tools for'}} <b>“{{q.trim()}}”</b></span>
-            <kbd>Enter</kbd>
-          </button>
+          <CatalogSearch v-if="plats.list.length" v-model="q" placeholder="Search a platform, or describe what your agent needs to do" />
           <div v-if="connErr" class="banner" style="margin-top:12px">{{connErr}}</div>
           <div v-for="c in needSecondCred" :key="'n'+c.id" class="banner" style="margin-top:12px">
             <div><b>{{c.name}}</b> is connected, but can't call the API on its own yet. {{c.extra_credential_note}}</div>
@@ -61,7 +47,7 @@ export default { components: { FindAnswer }, setup: useDashboard, beforeUnmount(
                the default because that is the question an agent actually arrives with. -->
           <!-- A described job (the search box's Enter, see state/find.js) is answered here, above the
                shelves rather than instead of them: the shelves stay, lit where the answer landed. -->
-          <FindAnswer v-if="findActive" />
+          <FindAnswer v-if="findActive && !find.scope" />
 
           <div class="mk-tabs-wrap" v-if="plats.list.length">
             <div class="mk-tabs" role="tablist" aria-label="Catalog">

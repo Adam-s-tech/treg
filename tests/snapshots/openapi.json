@@ -303,6 +303,19 @@
         "title": "CliApproveIn",
         "type": "object"
       },
+      "ConnectionRenameIn": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ConnectionRenameIn",
+        "type": "object"
+      },
       "CreditIn": {
         "properties": {
           "amount_usd": {
@@ -1569,6 +1582,17 @@
               }
             ],
             "title": "Health Check"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
           },
           "project": {
             "anyOf": [
@@ -5085,7 +5109,7 @@
         "summary": "Call Tool"
       },
       "get": {
-        "operationId": "call_tool_call__rest__delete",
+        "operationId": "call_tool_call__rest__get",
         "parameters": [
           {
             "in": "path",
@@ -5150,7 +5174,7 @@
         "summary": "Call Tool"
       },
       "head": {
-        "operationId": "call_tool_call__rest__delete",
+        "operationId": "call_tool_call__rest__head",
         "parameters": [
           {
             "in": "path",
@@ -5215,7 +5239,7 @@
         "summary": "Call Tool"
       },
       "options": {
-        "operationId": "call_tool_call__rest__delete",
+        "operationId": "call_tool_call__rest__options",
         "parameters": [
           {
             "in": "path",
@@ -5280,7 +5304,7 @@
         "summary": "Call Tool"
       },
       "patch": {
-        "operationId": "call_tool_call__rest__delete",
+        "operationId": "call_tool_call__rest__patch",
         "parameters": [
           {
             "in": "path",
@@ -5345,7 +5369,7 @@
         "summary": "Call Tool"
       },
       "post": {
-        "operationId": "call_tool_call__rest__delete",
+        "operationId": "call_tool_call__rest__post",
         "parameters": [
           {
             "in": "path",
@@ -5410,7 +5434,7 @@
         "summary": "Call Tool"
       },
       "put": {
-        "operationId": "call_tool_call__rest__delete",
+        "operationId": "call_tool_call__rest__put",
         "parameters": [
           {
             "in": "path",
@@ -5601,7 +5625,7 @@
     },
     "/calls/{call_id}/result": {
       "get": {
-        "description": "What one of this team's calls asked and what came back — the archive's copy.\n\nOnly a METERED PLATFORM 2xx call has one: those answers are recorded by the archive (see\ndocs/context/architecture/archive.md), and the audit row keeps the identities of the exact\nbytes the caller received. Own-key and own-tool calls are relayed without being stored, a\nfailed call never is, and the redacted failure evidence stays admin-only — `stored` is false\nwith a `note` saying which. The request shape is the vendor-facing one BEFORE credential\ninjection, so no secret can appear in it.",
+        "description": "What one of this team's calls asked and what came back — the archive's copy.\n\n`call_id` is either the audit row's numeric `id` or the `X-Treg-Call-Id` the call returned (a\n32-hex call ref; a short all-digit value is the row id).\n\nOnly a METERED PLATFORM 2xx call has one: those answers are recorded by the archive (see\ndocs/context/architecture/archive.md), and the audit row keeps the identities of the exact\nbytes the caller received. Own-key and own-tool calls are relayed without being stored, a\nfailed call never is, and the redacted failure evidence stays admin-only — `stored` is false\nwith a `note` saying which. The request shape is the vendor-facing one BEFORE credential\ninjection, so no secret can appear in it.",
         "operationId": "get_call_result_calls__call_id__result_get",
         "parameters": [
           {
@@ -5610,7 +5634,7 @@
             "required": true,
             "schema": {
               "title": "Call Id",
-              "type": "integer"
+              "type": "string"
             }
           },
           {
@@ -5787,7 +5811,7 @@
     },
     "/catalog/find": {
       "get": {
-        "description": "Open, rate limited: find the endpoints that can do a described JOB (application.catalog_find).\n\nStreams newline-delimited JSON, two events: `candidates` (the lexical recall, immediately) and\n`judged` (the relevance judge's kept rows and a verdict, when it answers). The pages that call\nthis animate the gap between them. Agents keep `/catalog/search` and MCP `catalog_search`.",
+        "description": "Open, rate limited: find the endpoints that can do a described JOB (application.catalog_find).\n\nStreams newline-delimited JSON, two events: `candidates` (the lexical recall, immediately) and\n`judged` (the relevance judge's kept rows and a verdict, when it answers). The pages that call\nthis animate the gap between them. `?platform=<slug>` scopes it to one shelf, for that shelf's\nown search box. Agents keep `/catalog/search` and MCP `catalog_search`.",
         "operationId": "catalog_find_catalog_find_get",
         "parameters": [
           {
@@ -5797,6 +5821,16 @@
             "schema": {
               "default": "",
               "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "platform",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Platform",
               "type": "string"
             }
           }
@@ -5847,7 +5881,7 @@
     },
     "/catalog/platforms/{slug}": {
       "get": {
-        "description": "Open: one platform's operations, grouped by capability so the same job across providers sits\non one row — that grouping is what makes comparison (and a future failover router) possible.\n\nBy default the account/utility (\"management\") endpoints are dropped from every shape below — the\nbrowse view is data + action. `?include_hidden=1` returns the whole surface (each endpoint still\ncarries `kind`, so a client can file the plumbing behind an expander); `hidden_count` always\nreports how many were set aside so a caller can label that expander without a second request.",
+        "description": "Open: one platform's operations, grouped by capability so the same job across providers sits\non one row — that grouping is what makes comparison (and a future failover router) possible.\n\nBy default the account/utility (\"management\") endpoints are dropped from every shape below — the\nbrowse view is data + action. `?include_hidden=1` returns the whole surface (each endpoint still\ncarries `kind`, so a client can file the plumbing behind an expander); `hidden_count` always\nreports how many were set aside so a caller can label that expander without a second request.\nEach endpoint carries `observed`, what its served calls say, so the shelf can lead with what\nagents actually use; `observations=None` (the server-rendered page) leaves it out.",
         "operationId": "catalog_platform_catalog_platforms__slug__get",
         "parameters": [
           {
@@ -5895,6 +5929,48 @@
           }
         },
         "summary": "Catalog Platform"
+      }
+    },
+    "/catalog/providers/{service}": {
+      "get": {
+        "description": "Open: every tool one provider serves, filed by platform. A tool that is one of several\nproviders doing the same capability on its platform (`Catalog.compared`) carries `compare`: the capability, its\nURL key and how many providers do it, so a page listing a provider's tools can link to the\ncomparison. Plumbing is listed, tagged by `kind`.",
+        "operationId": "catalog_provider_catalog_providers__service__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "service",
+            "required": true,
+            "schema": {
+              "title": "Service",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Catalog Provider Catalog Providers  Service  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Catalog Provider"
       }
     },
     "/catalog/search": {
@@ -6159,6 +6235,86 @@
           }
         },
         "summary": "Revoke Connection"
+      },
+      "patch": {
+        "description": "Rename a connected account. The name is the tool name an agent calls, so with several\naccounts on one provider this is how `instagram-2` becomes `instagram-acme`.",
+        "operationId": "rename_connection_connections__secret_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "secret_id",
+            "required": true,
+            "schema": {
+              "title": "Secret Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-treg-token",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Treg-Token",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-treg-org",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Treg-Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "treg_session",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Treg Session",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectionRenameIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Rename Connection Connections  Secret Id  Patch",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rename Connection"
       }
     },
     "/connections/{secret_id}/extra-credential": {

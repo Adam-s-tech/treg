@@ -40,8 +40,6 @@ pricing_url: https://companyenrich.com/pricing
 
 proposed_capabilities:
   companies.autocomplete: "Autocomplete a company by partial domain or name"
-  companies.similar: "Find companies similar to a seed company"
-  companies.search.count: "Count how many companies match a filter, before paying for rows"
   companies.enrich.bulk.start: "Queue a bulk company-enrichment job"
   companies.enrich.bulk.status: "Check a bulk company-enrichment job"
   companies.enrich.bulk.list: "List your bulk company-enrichment jobs"

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from functools import lru_cache
+import hashlib
 import html as _html
 import html as html_mod
 import json
@@ -12,6 +13,7 @@ import re
 from urllib.parse import quote, urlsplit
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request
+from starlette.convertors import Convertor, register_url_convertor
 from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse, PlainTextResponse,
                                RedirectResponse, Response)
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -87,8 +89,9 @@ app = catalog_pages_router
 #
 # `/catalog/<slug>` is registered after the JSON routes so /catalog/platforms, /catalog/search,
 # /catalog/endpoints/… and /catalog/examples/… keep matching first. Registration order alone is a
-# thin guarantee, so the reserved names are also refused explicitly below.
-_CATALOG_RESERVED = {"platforms", "search", "find", "endpoints", "examples"}
+# thin guarantee, so the reserved names are also refused explicitly below, and the comparison page's
+# convertor (`_ShelfSlug`) never matches them. Every `/catalog/<segment>` API prefix belongs here.
+_CATALOG_RESERVED = frozenset({"platforms", "search", "find", "endpoints", "examples", "call", "providers"})
 
 _GH = "https://github.com/superdesigndev/treg"
 
@@ -447,7 +450,8 @@ async def catalog_page(slug: str):
     # endpoints are real inventory and the page files them in their own section rather than hiding
     # them. Asking for a different population than the view that is about to replace this would put
     # two different endpoint counts on one URL.
-    detail = await catalog_platform(slug, include_hidden=1)
+    detail = await catalog_platform(slug, include_hidden=1, observations=None)
+    compared = catalog_store.load().compared()
     base = get_settings().public_url.rstrip("/")
     plat = detail["platform"]
     label, category = plat["label"], plat["category"]
@@ -480,9 +484,9 @@ async def catalog_page(slug: str):
                  + f'<p class="lede">{_esc_html(summary)} {len(eps)} endpoints from '
                    f"{_esc_html(provs)}"
                  + (f", from {_esc_html(cheapest)} per call" if cheapest else "")
-                 + ". Jobs that several providers do sit on one row, so you can compare price and "
-                   "coverage before you spend a call — <b>choosing is yours</b>; treg does not route "
-                   "between providers automatically.</p>"
+                 + ". A job several providers do has its own page comparing them by price, measured "
+                   "success and agents' verdicts; where treg offers a routed tool for it, treg can "
+                   "pick the provider for you.</p>"
                  + "".join(blocks))
 
     desc = (f"{len(eps)} {label.lower()} API endpoints from "
@@ -495,7 +499,8 @@ async def catalog_page(slug: str):
          "numberOfItems": len(caps),
          "itemListElement": [
              {"@type": "ListItem", "position": i, "name": cap["description"] or cap["id"],
-              "url": f"{base}/catalog/{slug}#{cap['id']}"}
+              "url": (f"{base}/catalog/{slug}/{catalog_store.capability_key(slug, cap['id'])}"
+                      if (slug, cap["id"]) in compared else f"{base}/catalog/{slug}#{cap['id']}")}
              for i, cap in enumerate(caps, 1)]},
         {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
             {"@type": "ListItem", "position": 1, "name": "treg.to", "item": base + "/"},
@@ -506,6 +511,57 @@ async def catalog_page(slug: str):
     # title leads with it; the brand is treg.to and the copy carries no em-dash.
     return _spa_catalog_page(f"{label} API pricing: {len(eps)} endpoints priced per call | treg.to",
                              desc[:300], f"/catalog/{slug}", ld, prerender)
+
+
+class _ShelfSlug(Convertor):
+    """A platform slug that is never one of the catalog's own API segments (`_CATALOG_RESERVED`).
+    `/catalog/call/<id>` and friends share the `/catalog/<a>/<b>` shape with the comparison page, and route
+    order across the app roles is not something this page should depend on: the path simply does
+    not match them."""
+    regex = rf"(?!(?:{'|'.join(sorted(_CATALOG_RESERVED))})(?:/|$))[^/]+"
+
+    def convert(self, value: str) -> str:
+        return value
+
+    def to_string(self, value: str) -> str:
+        return value
+
+
+register_url_convertor("shelf", _ShelfSlug())
+
+
+@app.get("/catalog/{slug:shelf}/{key}", include_in_schema=False)
+async def catalog_comparison_page(slug: str, key: str):
+    """One capability on a shelf, compared: the providers that do it, side by side. `key` is the
+    capability id without its platform prefix (`enrich` for `companies.enrich`), or the whole id when
+    it is filed under another prefix. Same SPA as the shelf; the head and the no-JS text name it."""
+    cat = catalog_store.load()
+    cap_id = catalog_store.compared_capability(cat, slug, key)
+    if cap_id is None:
+        raise HTTPException(status_code=404, detail=f"no comparison {key!r} on {slug!r}")
+    base = get_settings().public_url.rstrip("/")
+    label = cat.platforms.get(slug, {}).get("label", slug)
+    does = cat.capabilities.get(cap_id) or cap_id
+    eps = [catalog_store.endpoint_view(e, _provider_display(e["provider"]), cat)
+           for e in cat.for_platform(slug) if e["capability"] == cap_id and catalog_store.browsable(e)]
+    provs = sorted({e["provider_display"] for e in eps})
+    lis = "".join(
+        f'<li><b>{_esc_html(e["provider_display"])}</b> <i>{_esc_html(e.get("summary") or "")}</i>'
+        f'<span class="m">{_esc_html(_price_label(e.get("cost")) or "")} · {_esc_html(e["id"])}</span></li>'
+        for e in eps)
+    path = f"/catalog/{slug}/{key}"
+    prerender = (f'<p class="m"><a href="/catalog">Catalog</a> / <a href="/catalog/{_esc_html(slug)}">'
+                 f"{_esc_html(label)}</a></p><h1>{_esc_html(does)}</h1>"
+                 f'<p class="lede">{len(provs)} providers do this through one treg key: '
+                 f"{_esc_html(', '.join(provs))}.</p><ul>{lis}</ul>")
+    ld = [{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "Catalog", "item": base + "/catalog"},
+        {"@type": "ListItem", "position": 2, "name": label, "item": f"{base}/catalog/{slug}"},
+        {"@type": "ListItem", "position": 3, "name": does, "item": base + path}]}]
+    return _spa_catalog_page(f"{does}: {len(provs)} APIs compared | treg.to",
+                             f"{does}. Compare {', '.join(provs[:4])} and more by price, measured "
+                             "success and agents' verdicts; call any of them through one treg key."[:300],
+                             path, ld, prerender)
 
 
 # --------------------------------------------------------------------------- /agents/<agent>
@@ -1086,15 +1142,7 @@ async def use_case_job_page(request: Request, job: str,
     # so serve them before anything else; `_USE_CASES` stays the one source for which they are.
     legacy = _USE_CASES.get(raw.strip("/").lower())
     if legacy and not as_md:
-        page = _WEB_DIR / legacy
-        if not page.exists():
-            raise HTTPException(status_code=404, detail=f"{legacy} not bundled")
-        # Read-and-substitute rather than a bare FileResponse: {BASE} is templated for the
-        # canonical/og:url so each page names the serving host, not hardcoded treg.to.
-        base = get_settings().public_url.rstrip("/")
-        content = page.read_text(encoding="utf-8").replace("{BASE}", base)
-        # no-cache: these are edited against live campaign data and must never serve stale.
-        return HTMLResponse(content, headers={"Cache-Control": "no-cache"})
+        return _static_page(legacy, request)
     # Possessive slugs that shipped before GSC indexing: redirect to the clean slug with 301 so
     # the canonical stays clean and search engines update before indexing the old URL.
     redirect_to = agent_pages.USE_CASE_REDIRECTS.get(raw.lower())
@@ -3033,7 +3081,7 @@ async def docs_page():
         if path.startswith("/admin"):
             continue
         for method, op in sorted(schema["paths"][path].items()):
-            if method.lower() == "head":     # implied by GET; see `_openapi_without_head`
+            if method.lower() == "head":     # implied by GET; see `_install_head_and_openapi`
                 continue
             params = ", ".join(p["name"] for p in op.get("parameters", []) or []
                                if p["name"].lower() not in _PLUMBING)
@@ -3311,6 +3359,7 @@ _SITEMAP_PAGES: tuple[tuple[str, str, str], ...] = (
     ("/support", "support.html", "0.4"),
     ("/connectors/claude", "claude-connector.html", "0.6"),
     ("/people-search", "people-search.html", "0.8"),
+    ("/leads-signals", "leads-signals.html", "0.8"),
     ("/grokbot", "grokbot.html", "0.8"),
     ("/fable", "fable-gtm.html", "0.8"),
     ("/gpt6", "astra.html", "0.8"),
@@ -3346,6 +3395,11 @@ def _iso_day(ts: float) -> str:
     return datetime.fromtimestamp(ts, tz=timezone.utc).date().isoformat() if ts else ""
 
 
+def _comparison_paths() -> list[tuple[str, str]]:
+    """Every public comparison page (`Catalog.compared`), keyed the way its URL is."""
+    return sorted((plat, catalog_store.capability_key(plat, cap)) for plat, cap in catalog_store.load().compared())
+
+
 @app.get("/sitemap.xml", include_in_schema=False)
 async def sitemap_xml():
     """Generated, not bundled: 80 of its URLs are the catalog's platform shelves, which move with the
@@ -3372,6 +3426,8 @@ async def sitemap_xml():
         add(path, day, priority)
     for row in _platform_rows():
         add(f"/catalog/{row['slug']}", cat_day, "0.6")
+    for slug, key in _comparison_paths():
+        add(f"/catalog/{slug}/{key}", cat_day, "0.6")
     for prow in _provider_rows():
         add(f"/tools/{prow['service']}", cat_day, "0.5")
     # The agent pages exist only on the hosted deployment (see `_hosted`); their lastmod follows the
@@ -3547,6 +3603,13 @@ async def make_ugc_skill_md():
     return _serve_md("skills/make-ugc/SKILL.md")
 
 
+@app.get("/skills/lead-signals/SKILL.md", include_in_schema=False)
+async def lead_signals_skill_md():
+    """The lead-signals skill: the /leads-signals workflow (detect, qualify, contact, keep watching)
+    as a file an agent can follow. Bundled like make-ugc; `.agents/skills/lead-signals` links to it."""
+    return _serve_md("skills/lead-signals/SKILL.md")
+
+
 @app.get("/feedback.md", include_in_schema=False)
 async def feedback_md():
     return _serve_md("feedback.md")
@@ -3585,43 +3648,57 @@ async def legal_css():
     return FileResponse(f, media_type="text/css", headers={"Cache-Control": "no-cache"})
 
 
-def _legal_page(name: str) -> HTMLResponse:
+def _static_page(name: str, request: Request) -> Response:
+    """A bundled HTML page with its placeholders filled: `{BASE}` so each page's canonical and
+    og:url name the host actually serving it (a hardcoded treg.to would tell a self-hosted
+    registry's crawler that the real page lives on someone else's domain), and `{ENDPOINTS}` /
+    `{PROVIDERS}` so the catalog's size is read from the catalog, never typed.
+
+    no-cache: a page must not be served stale after we publish an update. The ETag keeps the
+    revalidation a 304, as it was when these pages were plain FileResponses."""
     page = _WEB_DIR / name
     if not page.exists():
         raise HTTPException(status_code=404, detail=f"{name} not bundled")
-    # `{BASE}`-substituted rather than sent as a plain FileResponse, so each page's canonical and
-    # og:url name the host actually serving it. A hardcoded treg.to would tell a self-hosted
-    # registry's crawler that the real page lives on someone else's domain.
     base = get_settings().public_url.rstrip("/")
-    html = page.read_text(encoding="utf-8").replace("{BASE}", base)
-    # no-cache: a legal page must not be served stale after we publish an update.
-    return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
+    html = _fill_headline(page.read_text(encoding="utf-8")).replace("{BASE}", base)
+    etag = '"' + hashlib.sha256(html.encode("utf-8")).hexdigest()[:32] + '"'
+    headers = {"Cache-Control": "no-cache", "ETag": etag}
+    # An edge that compresses the body weakens the tag (W/"..."), so compare the opaque part.
+    sent = {tag.strip().removeprefix("W/") for tag in request.headers.get("if-none-match", "").split(",")}
+    if etag in sent:
+        return Response(status_code=304, headers=headers)
+    return HTMLResponse(html, headers=headers)
 
 
 @app.get("/terms", include_in_schema=False)
-async def terms_page():
+async def terms_page(request: Request):
     """Terms of Service for the HOSTED registry (self-hosted instances are governed by LICENSE)."""
-    return _legal_page("terms.html")
+    return _static_page("terms.html", request)
 
 
 @app.get("/privacy", include_in_schema=False)
-async def privacy_page():
+async def privacy_page(request: Request):
     """Privacy policy. Also the URL given to OAuth providers at app-registration/verification time
     (Google requires a reachable privacy policy carrying the Limited Use disclosure), so this path
     is effectively public API — don't rename it without updating the provider consoles."""
-    return _legal_page("privacy.html")
+    return _static_page("privacy.html", request)
 
 
 @app.get("/connectors/claude", include_in_schema=False)
-async def claude_connector_page():
+async def claude_connector_page(request: Request):
     """Setup, scope, billing, privacy, and removal instructions for the Claude connector."""
-    return _legal_page("claude-connector.html")
+    return _static_page("claude-connector.html", request)
 
 
 @app.get("/agent-setup.js", include_in_schema=False)
 async def agent_setup_js():
-    return FileResponse(_WEB_DIR / "agent-setup.js", media_type="application/javascript",
-                        headers={"Cache-Control": "no-cache"})
+    """The onboarding widgets for the standalone Enrich Arena page. The Dashboard imports their
+    source (`frontend/src/agent-setup/`) directly; the frontend build compiles the same source into
+    this classic script, which exposes `window.TregAgentSetup` on the page's global Vue build."""
+    f = _WEB_DIR / "dashboard" / "agent-setup.js"
+    if not f.exists():
+        raise HTTPException(status_code=404, detail="agent-setup.js not built")
+    return FileResponse(f, media_type="application/javascript", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/adtrack.js", include_in_schema=False)
@@ -3676,25 +3753,19 @@ async def sitetrack_js():
 
 
 @app.get("/grokbot", include_in_schema=False)
-async def grokbot_page():
+async def grokbot_page(request: Request):
     """Landing page for the treg plugin inside Grok Bot ("Grok Bot for Outreach") — a scroll
     animatic of the Bot working a lead list through treg. Indexed like /people-search: canonical,
     OG meta, listed in the sitemap."""
-    page = _WEB_DIR / "grokbot.html"
-    if not page.exists():
-        raise HTTPException(status_code=404, detail="grokbot.html not bundled")
-    return FileResponse(page, headers={"Cache-Control": "no-cache"})
+    return _static_page("grokbot.html", request)
 
 
 @app.get("/fable", include_in_schema=False)
-async def fable_page():
+async def fable_page(request: Request):
     """Landing page for the Claude Fable 5.1 + treg launch ("Run your GTM from the terminal"):
     one prompt, the market read, four agents, four results, then the catalog and the bill.
     Indexed like /grokbot: canonical, in the sitemap, no-cache so edits land on refresh."""
-    page = _WEB_DIR / "fable-gtm.html"
-    if not page.exists():
-        raise HTTPException(status_code=404, detail="fable-gtm.html not bundled")
-    return FileResponse(page, headers={"Cache-Control": "no-cache"})
+    return _static_page("fable-gtm.html", request)
 
 
 @app.get("/astra", include_in_schema=False)
@@ -3705,48 +3776,43 @@ async def astra_page(request: Request):
 
 
 @app.get("/gpt6", include_in_schema=False)
-async def gpt6_page():
+async def gpt6_page(request: Request):
     """GPT-6 launch destination, with the Codex demo and direct plugin listing."""
-    page = _WEB_DIR / "astra.html"
-    if not page.exists():
-        raise HTTPException(status_code=404, detail="astra.html not bundled")
-    return FileResponse(page, headers={"Cache-Control": "no-cache"})
+    return _static_page("astra.html", request)
 
 
 @app.get("/ugc", include_in_schema=False)
-async def ugc_page():
+async def ugc_page(request: Request):
     """Landing page for the AI-generated UGC workflow article: the five steps (trend pull,
     JSON-prompt character, Seedance 2.5 talking head, phone demo + cloned voice, hooks at scale)
     with the generated clips and the bill. Indexed like /people-search: canonical, OG meta,
     in the sitemap, no-cache so edits land on refresh. Asset paths are relative (media/ugc/…)."""
-    page = _WEB_DIR / "ugc.html"
-    if not page.exists():
-        raise HTTPException(status_code=404, detail="ugc.html not bundled")
-    return FileResponse(page, headers={"Cache-Control": "no-cache"})
+    return _static_page("ugc.html", request)
 
 
 @app.get("/people-search", include_in_schema=False)
-async def people_search_page():
+async def people_search_page(request: Request):
     """Landing page for the people-search launch ("Claude for people search") — the destination the
     launch film points viewers at. A first-class page: canonical, in the sitemap, indexed. Its asset
     paths are RELATIVE (media/…, logos/…) so the same file previews from file:// — which only works
     while this route stays slashless; a /people-search/ variant would re-root them."""
-    page = _WEB_DIR / "people-search.html"
-    if not page.exists():
-        raise HTTPException(status_code=404, detail="people-search.html not bundled")
-    return FileResponse(page, headers={"Cache-Control": "no-cache"})
+    return _static_page("people-search.html", request)
+
+
+@app.get("/leads-signals", include_in_schema=False)
+async def leads_signals_page(request: Request):
+    """Landing page for the buyer-signals launch ("Claude for Monitor Leads Signal"). Built from the
+    /people-search page and served the same way: canonical, in the sitemap, relative asset paths."""
+    return _static_page("leads-signals.html", request)
 
 
 @app.get("/jev", include_in_schema=False)
-async def jev_page():
+async def jev_page(request: Request):
     """Landing page for jev + treg ("jev for GTM engineers"): three agent recipes, each with a prompt
     to copy and a demo under it. The X launch-radar demo is live (`/jev/xboost.json`, judged daily by
     `treg-worker jev xboost`, plus visitor-submitted posts); the signup-triage and signal-leads demos
     replay bundled, anonymised runs. Indexed like /ugc: canonical, OG meta, in the sitemap, no-cache."""
-    page = _WEB_DIR / "jev.html"
-    if not page.exists():
-        raise HTTPException(status_code=404, detail="jev.html not bundled")
-    return FileResponse(page, headers={"Cache-Control": "no-cache"})
+    return _static_page("jev.html", request)
 
 
 _JEV_JUDGE_NS = "jev_judge"
@@ -3825,6 +3891,8 @@ async def jev_xboost_judge(request: Request, db: AsyncSession = Depends(get_sess
 # chronological (newest first), not alphabetical.
 _BLOG_LAUNCHES: list[tuple[str, str, str, str]] = [
     # (slug, title, date, one-line blurb)
+    ("/leads-signals", "Claude for Monitor Leads Signal", "2026-09-28",
+     "Your agent checks hiring, funding, job changes and social chatter on a schedule, and reports what's new."),
     ("/jev", "How to use Jev", "2026-09-20",
      "What Jev is and how to use it: live examples, use cases, code, and GTM automation recipes."),
     ("/ugc", "AI UGC Videos for $0.67 a Clip", "2026-09-15",
@@ -4121,17 +4189,11 @@ async def blog_work_email_finding_bench():
 
 
 @app.get("/resources", include_in_schema=False)
-async def resources_page():
+async def resources_page(request: Request):
     """The hub for the outcome pages. It exists for two reasons beyond navigation: without it the
     `/use-cases/*` pages are orphans that no crawler reaches, and it gives the footer one durable
     link instead of five that grow every time a page is added."""
-    page = _WEB_DIR / "resources.html"
-    if not page.exists():
-        raise HTTPException(status_code=404, detail="resources.html not bundled")
-    # Read-and-substitute for {BASE} templating like the use-case pages.
-    base = get_settings().public_url.rstrip("/")
-    content = page.read_text(encoding="utf-8").replace("{BASE}", base)
-    return HTMLResponse(content, headers={"Cache-Control": "no-cache"})
+    return _static_page("resources.html", request)
 
 
 @app.get("/usecase.css", include_in_schema=False)
@@ -4175,9 +4237,11 @@ async def well_known_skills_index():
     """
     fm = _skill_frontmatter()
     ugc = _skill_frontmatter("skills/make-ugc/SKILL.md")
+    sig = _skill_frontmatter("skills/lead-signals/SKILL.md")
     return JSONResponse({"skills": [
         {"name": fm.get("name", "treg"), "description": fm.get("description", ""), "files": ["SKILL.md"]},
         {"name": ugc.get("name", "make-ugc"), "description": ugc.get("description", ""), "files": ["SKILL.md"]},
+        {"name": sig.get("name", "lead-signals"), "description": sig.get("description", ""), "files": ["SKILL.md"]},
     ]})
 
 
@@ -4196,8 +4260,14 @@ async def well_known_make_ugc_md():
     return _serve_md("skills/make-ugc/SKILL.md")
 
 
+@app.get("/.well-known/skills/lead-signals/SKILL.md", include_in_schema=False)
+async def well_known_lead_signals_md():
+    """The third entry `index.json` promises; the same file as /skills/lead-signals/SKILL.md."""
+    return _serve_md("skills/lead-signals/SKILL.md")
+
+
 @app.get("/connect-demo", include_in_schema=False)
-async def connect_demo_page():
+async def connect_demo_page(request: Request):
     """A page that PRETENDS to be someone else's app, so the OAuth flow can be seen end to end.
 
     It uses only public endpoints — register, authorize, token, revoke, and /mcp/ — with nothing
@@ -4207,26 +4277,26 @@ async def connect_demo_page():
     """
     if not get_settings().connect_demo_enabled:
         raise HTTPException(status_code=404, detail="connect demo is not enabled")
-    return _legal_page("connect-demo.html")
+    return _static_page("connect-demo.html", request)
 
 
 @app.get("/connect-demo/callback", include_in_schema=False)
-async def connect_demo_callback():
+async def connect_demo_callback(request: Request):
     """Where treg sends the browser back. Hands the code to the opener and closes."""
     if not get_settings().connect_demo_enabled:
         raise HTTPException(status_code=404, detail="connect demo is not enabled")
-    return _legal_page("connect-demo-callback.html")
+    return _static_page("connect-demo-callback.html", request)
 
 
 @app.get("/support", include_in_schema=False)
 @app.get("/contact", include_in_schema=False)
 @app.get("/help", include_in_schema=False)
-async def support_page():
+async def support_page(request: Request):
     """How to get help. Three paths for one page because people guess differently, and because a
     plugin-directory listing must give a Support URL that resolves — a 404 there reads as an
     abandoned product. Like `/privacy`, this path is effectively public API once it is filed with a
     directory or an OAuth console: don't rename it without updating them."""
-    return _legal_page("support.html")
+    return _static_page("support.html", request)
 
 
 @app.get("/tutorial", include_in_schema=False)

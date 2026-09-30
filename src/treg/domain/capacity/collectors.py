@@ -143,6 +143,18 @@ async def _serper(c, key):
     return {"value": float(balance), "unit": "credits", "note": rate_note}
 
 
+async def _litescrape(c, key):
+    d = await _get(c, "https://api.litescrape.com/api/keys/status",
+                   headers={"Authorization": f"Bearer {key}"})
+    raw = d.get("remaining_calls")
+    if type(raw) is not int or raw < 0:
+        raise ValueError("Litescrape status returned an invalid remaining_calls")
+    limit = d.get("concurrency_limit")
+    note = (f"key concurrency limit {limit}" if type(limit) is int and limit > 0
+            else "key concurrency limit unavailable")
+    return {"value": raw, "unit": "calls", "note": note}
+
+
 async def _olostep(c, key):
     # Free authenticated account read. `credits` is the authoritative sum of unexpired lots;
     # endpoint responses report their own `credits_consumed`, which settlement handles separately.
@@ -154,6 +166,57 @@ async def _olostep(c, key):
     state = "allowed" if allowed is True else "blocked" if allowed is False else "unknown"
     return {"value": d.get("credits"), "unit": "credits",
             "note": f"plan {plan}; usage {state}"}
+
+
+async def _firecrawl(c, key):
+    d = await _get(c, "https://api.firecrawl.dev/v2/team/credit-usage",
+                   headers={"Authorization": f"Bearer {key}"})
+    data = d.get("data") if isinstance(d, dict) else None
+    remaining = data.get("remainingCredits") if isinstance(data, dict) else None
+    if not isinstance(d, dict) or d.get("success") is not True or type(remaining) is not int or remaining < 0:
+        raise ValueError("Firecrawl returned no valid remaining-credit balance")
+    return {"value": remaining, "unit": "credits",
+            "note": f"billing period ends {data.get('billingPeriodEnd') or 'unknown'}"}
+
+
+async def _spidercloud(c, key):
+    d = await _get(c, "https://api.spider.cloud/data/credits",
+                   headers={"Authorization": f"Bearer {key}"})
+    data = d.get("data") if isinstance(d, dict) else None
+    raw = data.get("credits") if isinstance(data, dict) else None
+    try:
+        credits = Decimal(raw) if isinstance(raw, (str, int, float)) and not isinstance(raw, bool) else None
+    except (InvalidOperation, ValueError):
+        credits = None
+    if credits is None or not credits.is_finite() or credits < 0:
+        raise ValueError("Spider returned no valid credit balance")
+    return {"value": float(credits / Decimal(10_000)), "unit": "USD",
+            "note": "Pay-as-you-go balance; Spider reports 10,000 API credits per USD"}
+
+
+async def _linkup(c, key):
+    d = await _get(c, "https://api.linkup.so/v1/credits/balance",
+                   headers={"Authorization": f"Bearer {key}"})
+    raw = d.get("balance") if isinstance(d, dict) else None
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)) \
+            or not math.isfinite(float(raw)) or raw < 0:
+        raise ValueError("Linkup returned no valid USD balance")
+    return {"value": float(raw), "unit": "USD", "note": "prepaid credit balance"}
+
+
+async def _you(c, key):
+    d = await _get(c, "https://api.you.com/v1/billing/account_balance",
+                   headers={"X-API-Key": key})
+    data = d.get("data") if isinstance(d, dict) else None
+    attributes = data.get("attributes") if isinstance(data, dict) else None
+    raw = attributes.get("balance") if isinstance(attributes, dict) else None
+    try:
+        cents = Decimal(str(raw)) if raw is not None and not isinstance(raw, bool) else None
+    except (InvalidOperation, ValueError):
+        cents = None
+    if cents is None or not cents.is_finite() or cents < 0:
+        raise ValueError("You.com returned no valid account balance")
+    return {"value": float(cents / 100), "unit": "USD", "note": "prepaid account balance"}
 
 
 async def _scrapegraphai(c, key):
@@ -645,7 +708,7 @@ async def _findymail(c, key):
 async def _branddev(c, key):
     # No free account route exists — but a deliberate no-param call is a FREE validation error
     # (400, credits_consumed 0) whose body still carries key_metadata.credits_remaining.
-    r = await c.get("https://api.brand.dev/v1/brand/retrieve",
+    r = await c.get("https://api.context.dev/v1/brand/retrieve",
                     headers={"Authorization": f"Bearer {key}"})
     meta = (r.json() or {}).get("key_metadata", {}) if r.status_code < 500 else {}
     return {"value": meta.get("credits_remaining"), "unit": "credits",
@@ -799,8 +862,13 @@ BALANCE_ROUTES = {
     "tinyfish": _tinyfish,
     "fishaudio": _fishaudio,
     "tavily": _tavily,
+    "linkup": _linkup,
+    "you": _you,
     "serper": _serper,
+    "litescrape": _litescrape,
     "olostep": _olostep,
+    "firecrawl": _firecrawl,
+    "spidercloud": _spidercloud,
     "scrapegraphai": _scrapegraphai,
     "scrapecreators": _scrapecreators,
     "serpapi": _serpapi,
@@ -836,6 +904,12 @@ BALANCE_ROUTES = {
 # obtain. Kept explicit so the report names them instead of silently skipping, and so a future probe
 # has a list of what to re-check.
 NO_BALANCE_API = {
+    "octen": "no account balance or usage endpoint in the published OpenAPI; "
+             "PAYG USD balance and usage are visible in the provider dashboard",
+    "valyu": "no documented API endpoint for remaining credits or account usage; "
+             "the subscription balance is visible in Valyu's dashboard",
+    "perplexity": "no API credit-balance endpoint in the published API reference; "
+                  "the prepaid USD balance is visible in the Perplexity API console",
     "adyntel": "no public balance or usage endpoint in the official API reference "
                 "(checked docs.adyntel.com 2026-09-22) — PAYG credits are visible in the "
                 "provider dashboard only",
@@ -854,6 +928,9 @@ NO_BALANCE_API = {
                          "prepaid Credits are visible in the vendor dashboard only",
     "justoneapi": "balance available only via MCP server (get_account_balance tool), no public REST "
                   "endpoint documented (checked docs.justoneapi.com 2026-08-31) — dashboard only",
+    "google-ai": "no balance endpoint: the Gemini API bills the key's Google Cloud project "
+                 "postpaid, and Cloud Billing reads need OAuth, not the API key (checked "
+                 "ai.google.dev 2026-09-29) — spend and budgets live in the Cloud console",
     "keenable": "no public REST balance or usage endpoint in the official OpenAPI document "
                 "(checked docs.keenable.ai 2026-09-23) — the console shows remaining credits and "
                 "authenticated MCP calls report only per-call usage",

@@ -466,6 +466,40 @@ async def test_owned_terminal_poll_finalizes_original_task_before_response(
     assert (await task_app.settle_due()).claimed == 0
 
 
+async def test_firecrawl_crawl_poll_settles_reported_credits_once(clients: AsyncClient, monkeypatch):
+    monkeypatch.setenv("TREG_PLATFORM_KEY_FIRECRAWL", "PLATFORM-FIRECRAWL")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "firecrawl")
+    get_settings.cache_clear()
+    job_id = "01a0e894-a4fd-77fe-8131-e3f2d5720dbe"
+    try:
+        async def submit(*args, **kwargs):
+            return _response(200, {"success": True, "id": job_id,
+                                   "url": f"https://api.firecrawl.dev/v2/crawl/{job_id}"})
+
+        monkeypatch.setattr(call_service, "relay", submit)
+        org_id = (await clients.get("/orgs")).json()[0]["org_id"]
+        balance_url = f"/orgs/{org_id}/balance"
+        before = (await clients.get(balance_url)).json()["balance_micro"]
+        submitted = await clients.post("/call/firecrawl.web.crawl", json={
+            "url": "https://example.com", "limit": 3, "scrapeOptions": {"parsers": []},
+        })
+        assert submitted.status_code == 200, submitted.text
+        assert (await clients.get(balance_url)).json()["balance_micro"] == before - 15000
+
+        async def poll(*args, **kwargs):
+            return _response(200, {"success": True, "status": "completed", "total": 3,
+                                   "completed": 2, "creditsUsed": 2, "data": []})
+
+        monkeypatch.setattr(call_service, "relay", poll)
+        for _ in range(2):
+            response = await clients.get(f"/call/firecrawl.web.crawl.status?id={job_id}")
+            assert response.status_code == 200, response.text
+            assert response.json()["creditsUsed"] == 2
+            assert (await clients.get(balance_url)).json()["balance_micro"] == before - 10000
+    finally:
+        get_settings.cache_clear()
+
+
 @pytest.mark.parametrize("status, content_type, body", [
     (201, b"application/json", b"{}"),
     (200, b"text/html", b"<html>WAF challenge</html>"),
@@ -564,9 +598,9 @@ def openrouter_platform(monkeypatch):
 
 @pytest.fixture
 def legacy_async_platform(monkeypatch):
-    for provider in ("apify", "oceanio"):
+    for provider in ("apify", "brightdata", "companyenrich", "oceanio"):
         monkeypatch.setenv(f"TREG_PLATFORM_KEY_{provider.upper()}", "test-platform-token")
-    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "apify,oceanio")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "apify,brightdata,companyenrich,oceanio")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
@@ -692,12 +726,34 @@ async def test_byok_task_status_keeps_direct_provider_object_access(
 
 @pytest.mark.parametrize(("start", "payload", "created", "owned_calls"), [
     (
-        "/call/apify.web.scrape.job.start?actor_id=apify~hello-world", {},
-        {"data": {"id": "run-owned", "defaultDatasetId": "dataset-owned"}},
+        "/call/brightdata.web.scrape.job.start?dataset_id=gd_test", [{"url": "https://example.com"}],
+        {"snapshot_id": "snapshot-owned"},
         [
-            "/call/apify.web.scrape.job.status?run_id=run-owned",
-            "/call/apify.web.scrape.job.results?dataset_id=dataset-owned&limit=1",
+            "/call/brightdata.web.scrape.job.status?snapshot_id=snapshot-owned",
+            "/call/brightdata.web.scrape.job.results?snapshot_id=snapshot-owned&format=json",
         ],
+    ),
+    (
+        "/call/companyenrich.companies.enrich.bulk.start", {"domains": ["example.com"]},
+        {"job_id": "job-owned", "status": "pending"},
+        ["/call/companyenrich.companies.enrich.bulk.status?jobId=job-owned"],
+    ),
+    (
+        "/call/companyenrich.companies.search.async.start",
+        {"count": 1, "search": {"countries": ["US"]}},
+        {"job_id": "company-search-owned", "status": "pending"},
+        ["/call/companyenrich.companies.search.async.status?jobId=company-search-owned"],
+    ),
+    (
+        "/call/companyenrich.people.email.bulk.start",
+        {"items": [{"person_id": 1, "domain": "example.com"}]},
+        {"job_id": "people-email-owned", "status": "pending"},
+        ["/call/companyenrich.people.email.bulk.status?jobId=people-email-owned"],
+    ),
+    (
+        "/call/companyenrich.people.search.async.start", {"count": 1, "domains": ["example.com"]},
+        {"job_id": "people-search-owned", "status": "pending"},
+        ["/call/companyenrich.people.search.async.status?jobId=people-search-owned"],
     ),
     (
         "/call/oceanio.companies.segment.create", {"domains": ["example.com"]},
@@ -743,6 +799,54 @@ async def test_legacy_platform_async_utilities_deny_unknown_ids_before_relay(
     response = await clients.get(url)
     assert response.status_code == 403
     assert response.json()["detail"]["error"] == "async_resource_not_owned"
+
+
+async def test_icypeas_shared_key_reads_only_this_teams_searches(clients: AsyncClient, monkeypatch):
+    """The listing modes enumerate every search on treg's one Icypeas account: every team's."""
+    monkeypatch.setenv("TREG_PLATFORM_KEY_ICYPEAS", "test-platform-token")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "icypeas")
+    get_settings.cache_clear()
+    responses = [{"success": True, "item": {"_id": "search-owned", "status": "NONE"}},
+                 {"success": True, "status": "in_progress", "file": "file-owned"}]
+
+    async def fake_relay(*args, **kwargs):
+        return _response(200, responses.pop(0) if responses else {"success": True, "items": []})
+
+    monkeypatch.setattr(call_service, "relay", fake_relay)
+    assert (await clients.post("/call/icypeas.people.email.find", json={
+        "firstname": "A", "lastname": "B", "domainOrCompany": "example.com"})).status_code == 200
+    assert (await clients.post("/call/icypeas.bulk.search", json={
+        "name": "x", "task": "email-verification", "data": [["a@example.com"]]})).status_code == 200
+    owned = [("icypeas.search.results.read", {"id": "search-owned"}),
+             ("icypeas.bulk.results.read", {"mode": "bulk", "file": "file-owned"}),
+             ("icypeas.search.files.read", {"file": "file-owned"})]
+    for endpoint, body in owned:
+        assert (await clients.post(f"/call/{endpoint}", json=body)).status_code == 200, endpoint
+
+    for endpoint, body in [("icypeas.search.results.read", {"mode": "single", "type": "email-search"}),
+                           ("icypeas.search.results.read", {"id": "search-owned", "mode": "single"}),
+                           ("icypeas.bulk.results.read", {"mode": "bulk"}),
+                           ("icypeas.search.files.read", {}),
+                           ("icypeas.search.results.read", {"id": "someone-elses"})]:
+        response = await clients.post(f"/call/{endpoint}", json=body)
+        assert response.status_code in (400, 403), (endpoint, body, response.status_code)
+    other = await clients.post("/users", json={"email": "icypeas-stranger@example.com"})
+    stranger = {"X-Treg-Token": other.json()["token"]}
+    for endpoint, body in owned:
+        assert (await clients.post(f"/call/{endpoint}", json=body, headers=stranger)).status_code == 403
+    get_settings.cache_clear()
+
+
+async def test_apify_actor_start_needs_own_key(
+    clients: AsyncClient, monkeypatch, legacy_async_platform,
+):
+    async def must_not_relay(*args, **kwargs):
+        raise AssertionError("an unmetered actor run reached treg's Apify account")
+
+    monkeypatch.setattr(call_service, "relay", must_not_relay)
+    response = await clients.post(
+        "/call/apify.web.scrape.job.start?actor_id=apify~hello-world", json={})
+    assert response.status_code == 404
 
 
 async def test_legacy_platform_async_mutation_denies_unknown_resource_before_relay(
@@ -943,6 +1047,35 @@ async def test_worker_timeout_releases_the_hold_and_flags_it_for_review(
             db, utcnow_naive() - timedelta(hours=1))
     assert [item["call_id"] for item in report["absorbed_timeouts"]] == [call_id]
     assert report["absorbed_timeouts"][0]["reserved_micro"] == 3000
+
+
+def test_usage_terms_sum_every_reported_meter_at_its_rate():
+    """A response that reports several token meters (Gemini's usageMetadata) settles on the sum
+    of each meter times its rate; per-modality entries are selected by key, never by index."""
+    cost = {"settle": "usage", "fallback": {"value": 0.15}, "usage": {"unit": "usd", "terms": [
+        {"path": "usageMetadata.promptTokenCount", "rate": 0.000002},
+        {"path": "usageMetadata.candidatesTokenCount", "rate": 0.000012},
+        {"path": "usageMetadata.thoughtsTokenCount", "rate": 0.000012},
+        {"path": "usageMetadata.candidatesTokensDetails[modality=IMAGE].tokenCount",
+         "rate": 0.000108}]}}
+    basis = settlement.derive_basis(
+        cost, request={}, input_schema={}, unit_micro=1_000_000, terminal=False)
+    usage = {"promptTokenCount": 17, "candidatesTokenCount": 1229, "thoughtsTokenCount": 141,
+             "candidatesTokensDetails": [{"modality": "TEXT", "tokenCount": 109},
+                                         {"modality": "IMAGE", "tokenCount": 1120}]}
+    # 17*2 + (1229+141)*12 + 1120*108 = 137,434 micro-USD: the image meter at $120/M in total.
+    assert settlement.settle(basis, {"terminal": {"usageMetadata": usage}}) == 137_434
+    # proto3 JSON omits a zero meter: a blocked prompt reports only its input and pays for it.
+    assert settlement.settle(basis, {"terminal": {"usageMetadata": {"promptTokenCount": 40}}}) == 80
+    # No meter at all is unobserved, never free: the success settles at the reserve.
+    assert settlement.usage_evidence(basis, {"terminal": {"candidates": []}}) is None
+    assert settlement.settle(basis, {"terminal": None}) == basis["reserve_micro"] == 150_000
+    # A malformed meter poisons the figure rather than silently billing less.
+    bad = {"usageMetadata": {**usage, "thoughtsTokenCount": -1}}
+    assert settlement.usage_evidence(basis, {"terminal": bad}) is None
+    # A spooled answer keeps only the keys these meters start at.
+    assert settlement.usage_roots(cost) == ("usageMetadata",)
+    assert settlement.usage_roots({"usage": {"path": "usage.cost", "unit": "usd"}}) == ("usage",)
 
 
 def test_basis_derivation_and_settlement_table_vs_usage():

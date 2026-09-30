@@ -41,7 +41,7 @@ from .evidence import (
     _redact_snippet,
     _safe_secret_renderings,
 )
-from .idempotency import IDEMPOTENCY_HEADER, _store_idempotent
+from .idempotency import IDEMPOTENCY_HEADER, _hold_claim_lease, _store_idempotent
 from .intake import META_HEADER, _parse_call_meta, _tag_telemetry, prepare_call_intake
 from .reserve import _enforce_tag_budgets, _platform_reserve
 from .resolve import (
@@ -62,7 +62,6 @@ from . import overflow as overflow_cycle
 from . import route as routed
 from .settle import _dig
 from .settle import (
-    _buffer_response,
     _finish_cancelled_call as finish_cancelled_call,
     _note_capacity_recovery,
     _note_capacity_signal,
@@ -70,6 +69,7 @@ from .settle import (
     _platform_settle,
     _read_whole_if_small,
     _record_first_call,
+    _read_evidence,
 )
 from .types import (
     AuthorizationFailed,
@@ -104,6 +104,7 @@ class _ApplicationRequest:
             call_cost_micro=context.cost_micro,
         )
         self.db = session_maker()
+        self.lease: asyncio.Task | None = None
 
 
 def _served_response(served: dict, body: bytes) -> UpstreamResponse:
@@ -150,6 +151,8 @@ async def execute_call(context: CallContext, upstream_client: httpx.AsyncClient)
     try:
         return await _execute_call(request, upstream_client)
     finally:
+        if request.lease is not None:
+            request.lease.cancel()
         context.idempotency = request.state.idem_claim
         context.audited = request.state.call_audited
         context.cost_micro = request.state.call_cost_micro
@@ -279,6 +282,15 @@ def _burst_retry_after(provider: str, response: UpstreamResponse, body: bytes) -
     if signal.retry_after_s > SMOOTHING_RETRY_MAX_S:
         return None
     return float(signal.retry_after_s)
+
+
+def _account_out_2xx(mk: MarketplaceCall, response: UpstreamResponse, body: bytes) -> bool:
+    """A vendor that says "out of credits" inside a 2xx (Icypeas) is OUR account failing, not a
+    served answer: never archived, released by the settle, and treated by the breaker, the error
+    evidence and overflow as the error it is."""
+    return (mk.tier == "platform" and 200 <= response.status < 300
+            and capacity_signatures.is_exhausting(capacity_signatures.classify(
+                mk.provider, response.status, httpx.Headers(response.raw_headers), body[:4096])))
 
 
 def _refusal_kind(status_code: int) -> str | None:
@@ -562,6 +574,7 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
             read_body=request.body,
             caller=caller,
             enforce_tag_budgets=_enforce_tag_budgets,
+            call_ref=call_ref,
         )
     except CallFailure:
         raise
@@ -574,16 +587,28 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
             status_code=replayed.status_code,
             media_type=replayed.media_type,
             headers={"X-Treg-Idempotent-Replay": "true",
-                     "X-Treg-Cost-Micro": str(replayed.charged_micro),
+                     # A replay charges nothing; the first call's charge is echoed separately so a
+                     # client summing X-Treg-Cost-Micro never counts one call twice.
+                     "X-Treg-Cost-Micro": "0",
+                     # Omitted for a stale claim closed as `idempotency_outcome_unknown` (a
+                     # stored 410 with no charge found): its original cost is not known.
+                     **({} if replayed.status_code == 410 and not replayed.charged_micro
+                        else {"X-Treg-Original-Cost-Micro": str(replayed.charged_micro)}),
                      **({"X-Treg-Error": "1"} if replayed.status_code >= 400 else {}),
                      **({"X-Treg-Call-Id": replayed.call_ref} if replayed.call_ref else {})},
         )
     # Park it so a failure anywhere below can give the label back. Set AFTER the claim succeeds,
     # so losing the race above never releases the winner's row.
     request.state.idem_claim = intake.claim
+    if intake.claim:
+        # Keeps the claim's lease fresh while this call runs; `execute_call` cancels it on exit.
+        request.lease = asyncio.create_task(_hold_claim_lease(request.state))
 
     drop_params: set[str] = set()
     streaming_free_result = False
+    # Size of a metered 2xx relayed from disk (`spooled_response`); None when the body was read
+    # into memory. A spooled body is settled from its usage evidence and never retained.
+    spooled_bytes: int | None = None
     served_hit = False  # a cached hit — set where the archive answers instead of the vendor
     served_repeat = False  # …and this team had already paid for the question: the repeat price
     # The archive identities of this call's answer (question key + exact bytes), set where the
@@ -856,7 +881,7 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
                refused_by: str | None = None, hit: bool | None = None,
                error_request: str | None = None, error_response: str | None = None,
                capacity_signal: str | None = None, answered: bool = True,
-               defer_analytics: bool = False) -> dict | None:
+               defer_analytics: bool = False, async_submission: bool = False) -> dict | None:
         """Records the audit row now. The PostHog mirror goes out now too, unless
         `defer_analytics`: then the props come back for the caller to `_capture` once it knows
         whether overflow turned this attempt into an answer."""
@@ -900,7 +925,7 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
             method=request.method, path=upstream_url, status_code=status_code,
             client=_client_name(request), refused_by=refused_by, telemetry=telemetry,
             api_key_id=caller.api_key_id, api_key_name=caller.api_key_name,
-            api_key_prefix=caller.api_key_prefix,
+            api_key_prefix=caller.api_key_prefix, async_submission=async_submission,
         )
         # Product analytics mirror of the row above.
         props = _tool_called_props(
@@ -1218,8 +1243,10 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
             if (served is None and mk is not None and (mk.metered or mk.free_owned_poll)
                     and not streaming_free_result):
                 # Settlement reads the body; owned free polls also need it to learn result ownership.
-                # A failure while draining remains an upstream failure on either path.
-                response, body = await _buffer_response(response)
+                # A failure while draining remains an upstream failure on either path. An endpoint
+                # that inlines media declares `spooled_response`: its 2xx goes to disk and `body`
+                # is only the usage evidence from here on.
+                response, body, spooled_bytes = await _read_evidence(mk, response)
                 if (platform_tier and response.status == 429 and _idempotent_read(request)
                         and (retry_s := _burst_retry_after(mk.provider, response, body)) is not None):
                     # Half two: ONE bounded wait on the provider's own `retry-after`, then the identical
@@ -1230,7 +1257,7 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
                     response = await relay(
                         upstream_request, upstream_url, tool, secrets, upstream_client,
                         drop_params=drop_params or None, force_identity=True)
-                    response, body = await _buffer_response(response)
+                    response, body, spooled_bytes = await _read_evidence(mk, response)
                     smoothed.append("retry=1")
                 if mk.async_owner_call_id and 200 <= response.status < 300:
                     try:
@@ -1262,7 +1289,9 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
                 # TREG_ARCHIVE_MODE says otherwise; record() is fire-and-forget and never raises.
                 # `own_credential` here means billed OAuth: the org's token, treg's bill.
                 if (mk.metered and archive.recording() and 200 <= response.status < 300
-                        and not (own_credential and _echoes_own_credential(tool, secrets, body))):
+                        and spooled_bytes is None
+                        and not (own_credential and _echoes_own_credential(tool, secrets, body))
+                        and not _account_out_2xx(mk, response, body)):
                     _ct = next((v.decode("latin-1") for k, v in response.raw_headers
                                 if k.lower() == b"content-type"), "")
                     body_observation = archive.archive_bodies.StorageReport(
@@ -1381,6 +1410,7 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
                         and 200 <= response.status < 300)
         rejected = _submission_rejected(mk, body) if terminal_2xx else ""
         deferred = terminal_2xx and not rejected
+        account_out_2xx = _account_out_2xx(mk, response, body)
         try:
             request.context.finalization = FinalizationState.FINALIZING
             if deferred:
@@ -1443,7 +1473,7 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
             await _finish_cancelled_call(request, mk, call_ref, response)
             raise
         capacity_signal = None
-        if response.status >= 400:
+        if response.status >= 400 or account_out_2xx:
             # Did the provider just say OUR account is out? Mark it for the next caller (plan
             # §4.1). After the settle on purpose: the hold is closed, no connection is held.
             try:
@@ -1452,7 +1482,7 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
             except asyncio.CancelledError:
                 await _finish_cancelled_call(request, mk, call_ref, response)
                 raise
-        elif response.status < 300:
+        elif response.status < 300:  # a 2xx that says the account is out is no recovery
             try:
                 await _note_capacity_recovery(mk)
             except asyncio.CancelledError:
@@ -1462,7 +1492,7 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
         # (see _refusal_kind). So this is where the provider's own explanation is captured, and the
         # only place it exists: nothing downstream keeps the body.
         err_request = err_response = None
-        if response.status >= 400:
+        if response.status >= 400 or account_out_2xx:
             _renderings = _safe_secret_renderings(tool, secrets)
             if _renderings is None:
                 err_request = err_response = _ERROR_MASKING_FAILED
@@ -1473,22 +1503,28 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
                     tool, caller_body, _renderings)
                 err_response = _error_response_evidence(
                     response.raw_headers, body, _renderings)
-        may_overflow = response.status >= 400 and mk.tier == "platform"
+        may_overflow = (response.status >= 400 or account_out_2xx) and mk.tier == "platform"
         from ...domain.catalog.results import classify, has_result_rules
 
-        result = classify(mk.endpoint_id, response.status, body)
+        # The submission is only a task ticket. Its contact verdict is learned from the
+        # terminal poll and copied onto this same CallRecord by the async finalizer.
+        result = classify(mk.endpoint_id, response.status, body) if not deferred else None
         result_aware = has_result_rules(mk.endpoint_id)
+        result_state = result.state if result else "unknown"
         cache_diagnostics.update(
-            result_state=result.state, result_reason=result.reason,
+            result_state=result_state,
+            result_reason=result.reason if result else "async_submission",
             cache_result_policy="hit_miss" if result_aware else "legacy",
-            cache_admission=("eligible" if result.state == "found" else result.state)
+            cache_admission=("eligible" if result_state == "found" else result_state)
             if result_aware else "not_applicable")
         pending = _audit(response.status, observed_micro=observed,
                          charged_micro=None if deferred else charged,
                          duration_ms=duration_ms,
-                         response_bytes=None if streaming_free_result else len(body), hit=result.hit,
+                         response_bytes=(None if streaming_free_result else spooled_bytes
+                                         if spooled_bytes is not None else len(body)),
+                         hit=result.hit if result else None,
                          capacity_signal=capacity_signal, error_request=err_request, error_response=err_response,
-                         defer_analytics=may_overflow)
+                         defer_analytics=may_overflow, async_submission=deferred)
         served_via = ""
         if may_overflow:
             if mk.max_cost_micro is not None:
@@ -1533,7 +1569,10 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
             try:
                 await _store_idempotent(idem_key, caller, status_code=response.status, body=body,
                                         media_type=_response_header(response, "content-type"),
-                                        charged_micro=charged, metered=not streaming_free_result,
+                                        charged_micro=charged,
+                                        # A streamed or spooled body is not kept for replay: a
+                                        # retry calls the provider again.
+                                        metered=not streaming_free_result and spooled_bytes is None,
                                         call_ref=call_ref)
             except asyncio.CancelledError:
                 await _finish_cancelled_call(request, mk, call_ref, response)
@@ -1575,7 +1614,8 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
         # label at once instead of making the caller wait out the window to reuse it.
         try:
             await _store_idempotent(idem_key, caller, status_code=response.status, body=b"",
-                                    media_type="", charged_micro=0, metered=False)
+                                    media_type="", charged_micro=0, metered=False,
+                                    call_ref=call_ref)
         except asyncio.CancelledError:
             await _finish_cancelled_call(request, mk, call_ref, response)
             raise

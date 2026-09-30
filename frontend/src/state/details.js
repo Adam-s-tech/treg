@@ -1,3 +1,4 @@
+import { storageSet } from './storage.js'
 
 export default {
 openDetail(kind, name, fromPop){ this.resetConfirms();
@@ -5,13 +6,16 @@ openDetail(kind, name, fromPop){ this.resetConfirms();
       if(!fromPop) history.pushState({detail:{kind,name}}, '', '/app/'+(kind==='skill'?'skills':'tools')+'/'+encodeURIComponent(name));
       this.loadDetail(); },
 async loadDetail(){ if(!this.detail) return; this.detailErr=''; this.detailLoading=true; this.detailData=null;
-      try{ this.detailData=await this.api((this.detail.kind==='skill'?'/bundles/by-name/':'/tools/by-name/')+encodeURIComponent(this.detail.name)); }
+      const live=this.ticket('detail', false);  // the newest opened page wins; findDetailOrg may switch team on purpose
+      try{ const data=await this.api((this.detail.kind==='skill'?'/bundles/by-name/':'/tools/by-name/')+encodeURIComponent(this.detail.name));
+        if(live()) this.detailData=data; }
       catch(e){
+        if(!live()) return;
         if(e.status===404 && await this.findDetailOrg()) return void (this.detailLoading=false);  // it lives in another of my teams — switched
         this.detailErr = e.status===404
           ? 'Not found in your teams. This link needs an invite — ask the person who shared it to invite you (Share… on their side), then click the link again.'
           : 'Could not load: '+(e.detail||e.status); }
-      finally{ this.detailLoading=false; } },
+      finally{ if(live()) this.detailLoading=false; } },
 async fullTool(t){  // skill pages carry tool SUMMARIES — resolve the full record (bindings + cli) before acting on it
       let full=(this.tools||[]).find(x=>x.id===t.id);
       if(!full && !(t.bindings||t.cli)){ try{ full=(await this.api('/tools')).find(x=>x.id===t.id); }catch(e){} }
@@ -34,7 +38,7 @@ async autoAcceptShare(route){  // a share-link invite: clicking the emailed "Sig
         const r=await this.api('/invites/'+inv.id+'/accept',{method:'POST'});
         this.pendingInvites=this.pendingInvites.filter(i=>i.id!==inv.id);
         this.onboarded=true; try{ await this.api('/onboard/skip',{method:'POST'}); }catch(e){}
-        if(r&&r.org){ this.activeSlug=r.org; localStorage.setItem('treg-active',r.org); }
+        if(r&&r.org){ this.activeSlug=r.org; storageSet('treg-active',r.org); }
         await this.loadAll();
         this.inviteLinkOrg=null;
         this.orgMsg='You joined '+((r&&r.name)||inv.name)+' — this page was shared with you.';
@@ -53,7 +57,7 @@ async findDetailOrg(){  // the link may belong to another of MY teams — probe 
           const r=await fetch(path,{credentials:'include',headers:{'ngrok-skip-browser-warning':'1',...h}});
           if(!r.ok) continue;
           const data=await r.json();
-          if(this.sessionMode){ this.activeSlug=o.slug; localStorage.setItem('treg-active',o.slug); }
+          if(this.sessionMode){ this.activeSlug=o.slug; storageSet('treg-active',o.slug); }
           else { this.cfg.active=o.slug; this.save(); }
           this.detailData=data; this.detailErr='';
           this.orgMsg='Switched to '+(o.name||o.slug)+' — this '+this.detail.kind+' lives there.';

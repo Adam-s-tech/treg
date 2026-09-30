@@ -221,6 +221,19 @@ def test_apollo_says_out_of_credits_with_a_422():
     assert S.classify("hunter", 422, None, APOLLO_OUT_OF_CREDITS).kind == "unrecorded"
 
 
+# Icypeas, every paid route, an empty pool: HTTP 200 (read from archived answers, 2026-09-27).
+ICYPEAS_OUT_OF_CREDITS = (b'{"validationErrors":[{"field":"user","message":"insufficient_credits",'
+                          b'"humanReadableMessage":"Insufficient credits to run the search",'
+                          b'"type":"InsufficientCredits","expected":null,"actual":null}],"success":false}')
+
+
+def test_icypeas_says_out_of_credits_with_a_200():
+    sig = S.classify("icypeas", 200, None, ICYPEAS_OUT_OF_CREDITS)
+    assert sig.kind == "balance" and S.is_exhausting(sig)
+    assert S.classify("icypeas", 200, None, b'{"total":3,"success":true,"leads":[]}') is None
+    assert S.classify("hunter", 200, None, ICYPEAS_OUT_OF_CREDITS) is None, "a 2xx is only ever read per provider"
+
+
 def test_every_recorded_phrase_arms_the_tripwire():
     """Recording one vendor's wording must arm the tripwire for every other: each literal body
     phrase in `_TABLE` (the 429 rows carry period words, not capacity phrases) is in CAPACITY_PHRASES."""
@@ -262,7 +275,7 @@ def test_an_unrecorded_vendor_phrase_is_a_tripwire_never_a_mark():
 _UNRECORDED_SIGNATURE = {
     "adyntel",  # no balance endpoint; documented 402 does not uniquely prove wallet exhaustion
     "apify", "aviato", "branddev", "brightdata", "coingecko", "coresignal", "crustdata", "dataforseo",
-    "diffbot", "exa", "fiber-ai", "finnhub", "icypeas", "justoneapi", "marketstack",
+    "diffbot", "exa", "fiber-ai", "finnhub", "justoneapi", "marketstack",
     "sumble",  # exhaustion not forced; no overflow route claimed
     "harvestapi",  # wallet exhaustion unobserved; no overflow route
     "quickenrich",  # subscription exhaustion not observed; do not spend the trial to force it
@@ -274,6 +287,8 @@ _UNRECORDED_SIGNATURE = {
     "getleadsio",  # promotional allocation was not exhausted; bare 402 remains the generic signal
     "keenable",  # funded request balance remains; documented bare 402 was not forced
     "olostep",  # funded credit balance remains; documented 402 was not forced
+    "firecrawl",  # credit balance remains; documented 402 was not deliberately forced
+    "linkup",  # 429 means either exhausted credit or excess concurrency; balance was not exhausted
     "scrapegraphai",  # trial credits remain; no provider-specific empty-balance body was forced
     "scrubby",  # funded account not exhausted; no provider-specific empty-balance body recorded
     "millionverifier",  # funded-account exhaustion not observed; trial still has credits
@@ -287,10 +302,17 @@ _UNRECORDED_SIGNATURE = {
     "fetchinio",  # funded credits remain; documented generic 402 was not deliberately forced
     "fishaudio",  # shared-key serving stays disabled until the funded-account signatures are verified
     "minimax", "oceanio", "openrouter", "replicate", "scrapecreators", "seranking",
+    "google-ai",  # postpaid Cloud project: 429 RESOURCE_EXHAUSTED is a tier rate/spend cap, not a wallet
     "piapi",  # prepaid wallet exhaustion not observed ($50 funded 2026-09-14); no overflow route
     "serper",  # funded credits remain; no provider-specific empty-balance response was forced
+    "litescrape",  # funded call balance remains; no empty-balance response was forced
     "tinyfish",  # funded wallet remains; no provider-specific empty-wallet response was forced
+    "spidercloud",  # funded dollar balance remains; no empty-balance response was forced
+    "perplexity",  # auto top-up is enabled; no empty-credit response was forced
     "trestleiq",  # funded wallet remains; documented 403/429 shapes do not identify empty balance
+    "you",  # funded wallet remains; no provider-specific empty-balance response was forced
+    "valyu",  # subscription credits remain; no provider-specific empty-balance response was forced
+    "octen",  # PAYG balance remains; no provider-specific empty-balance response was forced
 
     "serpapi", "serpstat", "spyfu", "tiingo", "tikhub", "tomba", "twelvedata",
 }
@@ -608,3 +630,13 @@ def test_pdl_operation_allowance_does_not_lock_other_pdl_products():
     assert lock_key('pdl', 'pdl.x.person-identify', signal.kind) == 'pdl.x.person-identify'
     assert S.classify('pdl', 402, None, b'{"error":"Insufficient credits"}').kind == 'balance'
     assert S.classify('pdl', 400, None, b'{"error":"email is required"}') is None
+
+
+def test_orthogonal_relaying_icypeas_empty_pool_is_the_aggregators_dry_account():
+    """Orthogonal's own Icypeas pool can run dry too, and relays the same 200: never served, never billed."""
+    import json as _json
+    from treg.infra.upstream.aggregators import VENDOR_DRY, orthogonal, with_vendor_verdict
+    envelope = {"success": True, "data": _json.loads(ICYPEAS_OUT_OF_CREDITS), "priceCents": 1,
+                "requestId": "run_x", "billing": {"chargedPriceCents": 1}}
+    res = with_vendor_verdict(orthogonal.parse(200, _json.dumps(envelope).encode()), "icypeas")
+    assert res.failure == VENDOR_DRY

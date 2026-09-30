@@ -45,11 +45,19 @@ _KNOWN: dict[str, tuple[str, str, str]] = {
     # reads nor changes that setting, so the observation source remains manual.
     "trestleiq": ("cash", "auto_recharge", "manual"),
     "tavily": ("credits", "manual", "api"),
+    "octen": ("cash", "manual", "manual"),
+    "linkup": ("cash", "manual", "api"),
+    "you": ("cash", "auto_recharge", "api"),
+    "valyu": ("credits", "subscription", "manual"),
     # The API supplies the exact credit balance; vendor auto recharge was manually enabled and
     # verified in the Serper dashboard.
     "serper": ("credits", "auto_recharge", "api"),
+    "litescrape": ("requests", "manual", "api"),
     "keenable": ("requests", "manual", "manual"),
     "olostep": ("credits", "manual", "api"),
+    "firecrawl": ("credits", "subscription", "api"),
+    "spidercloud": ("cash", "auto_recharge", "api"),
+    "perplexity": ("cash", "auto_recharge", "manual"),
     # The shared account uses subscription funding; the API supplies its exact credit balance.
     "scrapegraphai": ("credits", "subscription", "api"),
     "getleadsio": ("credits", "manual", "api"),
@@ -96,6 +104,9 @@ _QUOTAS: dict[str, dict] = {
     "aiark": {"limit": 15000, "period": "billing", "resets_at_rule": "monthly subscription; date not reported by API"},
 }
 _RATE_LIMITS: dict[str, dict] = {
+    # Agent's entry-tier limit is one request per second. Shared-key smoothing is provider-wide,
+    # so Search also uses this conservative pace even though its own allowance is higher.
+    "perplexity": {"limit": 1, "window_s": 1, "source": "docs"},
     # The account reports 5 requests/s, but /post/engagement consumes two rate-limit units. The
     # provider-wide limiter cannot weight one endpoint, so two calls/s is the safe shared-key pace.
     "fetchinio": {"limit": 2, "window_s": 1, "source": "policy"},
@@ -127,6 +138,12 @@ _RATE_LIMITS: dict[str, dict] = {
     # documented tier until the shared key's environment is verified. Crawl has the same 100/minute
     # ceiling on both tiers, so this provider-wide pace is safe for all four catalog tools.
     "tavily": {"limit": 100, "window_s": 60, "source": "docs"},
+    # The free Base plan allows up to 20 QPS. Pace the shared key below that ceiling;
+    # endpoint-specific Extract URL limits remain enforced by Octen.
+    "octen": {"limit": 5, "window_s": 1, "source": "policy"},
+    "linkup": {"limit": 10, "window_s": 1, "source": "docs"},
+    # Finance Research is 5/s; the other You.com APIs are 10/s. Smoothing is provider-wide.
+    "you": {"limit": 5, "window_s": 1, "source": "docs"},
     # GET /account reports 50 queries/s for the current shared account. Pace the platform key to
     # that live account allowance; BYOK bypasses this limiter.
     "serper": {"limit": 50, "window_s": 1, "source": "api"},
@@ -135,6 +152,14 @@ _RATE_LIMITS: dict[str, dict] = {
     # returned no rate-limit headers. Smooth the shared key conservatively until the vendor supplies
     # a contract value or production traffic establishes a safer bound. BYOK bypasses this policy.
     "olostep": {"limit": 5, "window_s": 1, "source": "policy"},
+    # Valyu publishes no numeric self-serve limit and successful calls returned no rate headers.
+    # This is a shared-key pacing policy, not a claim about the provider's allowance.
+    "valyu": {"limit": 5, "window_s": 1, "source": "policy"},
+    # Standard's strictest shared submission limit is 100/min for Crawl and Batch Scrape.
+    # Scrape, Search and Map allow 500/min; provider-wide smoothing uses the lower ceiling.
+    "firecrawl": {"limit": 100, "window_s": 60, "source": "docs"},
+    # Spider allows 10,000 core requests/minute by default. Smooth the shared account well below it.
+    "spidercloud": {"limit": 100, "window_s": 60, "source": "policy"},
     # Deployment allowance supplied for the shared account. Live responses did not include usable
     # rate headers, so keep the configured 500/min ceiling explicit instead of inferring from them.
     "scrapegraphai": {"limit": 500, "window_s": 60, "source": "policy"},
@@ -235,13 +260,17 @@ class LatestState:
 
 
 STALE_AFTER = timedelta(hours=6)
+# A balance below a hundredth of the account's own unit is float dust, not a balance: a spent
+# fractional-credit pool (Icypeas) reads a few millionths while every paid route refuses, and
+# `<= 0` never fires. No route bills that little, in credits or in USD.
+EMPTY_BELOW = 0.01
 
 
 def latest_state(policy: CapacityPolicy, snap: CapacitySnapshot | None,
                  now: datetime | None = None) -> LatestState:
     """Pure: the state one snapshot implies. A missing/failed/old snapshot is `stale`, never
     exhausted — stale must not refuse calls (plan §4.1: blocking fires on confirmed signals only).
-    `remaining <= 0` on an exact observation IS a confirmed signal: exhausted until `resets_at`
+    `remaining < EMPTY_BELOW` on an exact observation IS a confirmed signal: exhausted until `resets_at`
     when the meter resets, else until the next sweep can prove otherwise (STALE_AFTER)."""
     now = now or utcnow_naive()
     rl = policy.rate_limit
@@ -259,7 +288,7 @@ def latest_state(policy: CapacityPolicy, snap: CapacitySnapshot | None,
     if now - snap.observed_at > STALE_AFTER:
         return LatestState(policy.provider, snap.remaining, snap.unit, snap.observed_at, "stale",
                            health="stale", note="last observation older than 6h", rate_limit=rl)
-    if snap.remaining <= 0:
+    if snap.remaining < EMPTY_BELOW:
         until = snap.resets_at or (snap.observed_at + STALE_AFTER)
         return LatestState(policy.provider, snap.remaining, snap.unit, snap.observed_at,
                            snap.confidence, exhausted_until=until, health="exhausted",

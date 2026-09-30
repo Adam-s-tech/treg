@@ -82,7 +82,7 @@ def test_cost_modifiers_accept_only_supported_declarative_credit_rules():
 
     bad_settle: list[str] = []
     validator.check_cost(base | {"settle": "estimate"}, "catalog:test", bad_settle, [])
-    assert any("cost.settle currently supports only 'base' or 'modifiers'" in error for error in bad_settle)
+    assert any("cost.settle currently supports only 'base', 'modifiers' or 'usage'" in error for error in bad_settle)
 
 
 def test_status_marker_references_must_exist_and_end_at_a_live_endpoint():
@@ -551,12 +551,48 @@ def test_async_param_location_must_agree_with_the_target_path(tmp_path, monkeypa
     assert "needs exactly one {id} in the target path" in out
 
 
-def test_usage_settlement_requires_an_async_descriptor_and_finite_interval():
+def _flat_usage_cost() -> dict:
+    return {"type": "per_call", "value": 0.0005, "currency": "USD", "per": 1, "unit": "call",
+            "fallback": {"value": 0.0005, "note": "small ceiling; the reported cost settles"},
+            "settle": "usage", "usage": {"path": "usage.cost", "unit": "usd"},
+            "source": "docs", "source_url": "https://example.com/pricing",
+            "checked": "2026-09-23", "confidence": "documented"}
+
+
+def test_flat_price_usage_settlement_is_accepted():
+    """A synchronous per-call price may settle the reply's own charge (`_platform_settle` hands
+    the buffered body to the usage basis), so no async descriptor or table is required."""
+    errors: list[str] = []
+    validator.check_cost(_flat_usage_cost(), "x", errors, [], provider="openrouter")
+    assert errors == []
+
+
+@pytest.mark.parametrize(("mutate", "message"), [
+    (lambda c: c.pop("fallback"), "requires a fallback mapping"),
+    (lambda c: c.update(fallback={"value": 0.0005}), "fallback.note must explain"),
+    (lambda c: c.update(fallback={"value": float("inf"), "note": "x"}), "finite non-negative"),
+    (lambda c: c.pop("usage"), "requires usage.path and usage.unit"),
+    (lambda c: c.update(usage={"path": "usage..cost", "unit": "usd"}),
+     "requires usage.path and usage.unit"),
+    (lambda c: c.update(usage={"path": "usage.cost", "unit": "tokens"}),
+     "needs a numeric fx.yaml unit_rates_usd entry"),
+    (lambda c: c.update(settle="base"), "usage is only valid with settle: usage"),
+    (lambda c: c.update(settle="later"), "supports only 'base', 'modifiers' or 'usage'"),
+])
+def test_flat_price_usage_settlement_rejects_bad_shapes(mutate, message):
+    cost = _flat_usage_cost()
+    mutate(cost)
+    errors: list[str] = []
+    validator.check_cost(cost, "x", errors, [], provider="openrouter")
+    assert any(message in e for e in errors), errors
+
+
+def test_usage_settlement_block_and_finite_interval():
     cost = _valid_table()
     cost.update(settle="usage", usage={"path": "usage.cost", "unit": "usd"})
     errors: list[str] = []
     validator.check_cost_table(cost, _valid_input(), "x", errors)
-    assert errors == []  # the block itself is fine; the pairing is checked at the endpoint level
+    assert errors == []
     descriptor = _valid_async()
     descriptor["interval"] = float("nan")
     errors = []
@@ -607,13 +643,15 @@ def test_reported_credit_charge_requires_a_provider_fx_rate():
     ({'body.realtime': False}, False),
     ({'body.missing': True}, False),
     ({'queryParams.realtime': True}, False),
+    ({'queryParams.memory': 1024}, True),
+    ({'queryParams.memory': '1024'}, False),
     ({}, False),
 ])
 def test_platform_request_requires_declared_fixed_body_value(rule, valid):
     errors = []
     validator.check_platform_request(rule, {'body': {
         'realtime': {'type': 'boolean', 'enum': [True]},
-    }}, 'test', errors)
+    }, 'queryParams': {'memory': {'type': 'integer', 'enum': [1024]}}}, 'test', errors)
     assert (not errors) is valid
 
 
@@ -646,13 +684,26 @@ def test_tavily_rates_require_complete_positive_finite_endpoint_tables():
         assert errors
 
 
+def test_octen_rate_table_matches_displayed_base_and_requires_every_meter():
+    base = {"currency": "USD", "value": 5, "per": 1000,
+            "octen_rates": {"call": 0.005, "full_content_extra": 0.0005}}
+    errors = []
+    validator.check_octen_rates("octen.web.search", base, "test", errors)
+    assert errors == []
+    for cost in (base | {"octen_rates": {"call": 0.005}},
+                 base | {"octen_rates": {"call": 0.005, "full_content_extra": -0.0005}},
+                 base | {"value": 1}):
+        errors = []
+        validator.check_octen_rates("octen.web.search", cost, "test", errors)
+        assert errors
+
+
 # ---- ContactOut ----
 
 
 def test_contactout_person_routes_cannot_recapture_pii():
-    from pathlib import Path
     import yaml
-    path = Path("src/treg/catalog/contactout.yaml")
+    path = Path(__file__).parents[1] / "src" / "treg" / "catalog" / "contactout.yaml"
     endpoints = yaml.safe_load(path.read_text())["endpoints"]
     safe = {"contactout.people.count", "contactout.people.email.verify",
             "contactout.companies.search", "contactout.companies.enrich"}
@@ -779,3 +830,138 @@ def test_missing_platform_auth_normalizes_as_absent():
         'path': '/values',
     }, 'example', Path('.'))
     assert normalized['platform_auth'] is None
+
+
+def _proposal_findings(taxonomy, docs):
+    errors: list[str] = []
+    warnings: list[str] = []
+    validator.check_proposed_capabilities(taxonomy, docs, errors, warnings)
+    return errors, warnings
+
+
+def _provider(name, proposed=None, used=()):
+    return (f"{name}.yaml", {"provider": name, "proposed_capabilities": proposed or {},
+                             "endpoints": [{"id": f"{name}.{cap}", "capability": cap} for cap in used]})
+
+
+def test_proposed_capability_already_in_the_taxonomy_is_an_error():
+    errors, _ = _proposal_findings(
+        {"web.search": "Search the open web"},
+        [_provider("exa", {"web.search": "Search the web by meaning"}, used=["web.search"])],
+    )
+    assert errors == ["proposed_capabilities web.search: already in capabilities.yaml; "
+                      "delete the proposal from ['exa.yaml']"]
+
+
+def test_one_proposed_id_with_two_descriptions_is_an_error_but_punctuation_is_not():
+    errors, _ = _proposal_findings({}, [
+        _provider("tomba", {"people.phone.verify": "Validate & format a phone number"}),
+        _provider("trestleiq", {"people.phone.verify": "Validate and format a phone number"}),
+    ])
+    assert len(errors) == 1 and "different descriptions" in errors[0]
+
+    errors, _ = _proposal_findings({}, [
+        _provider("a", {"web.crawl.results": "List the pages produced by a website crawl"}),
+        _provider("b", {"web.crawl.results": "List the pages produced by a website crawl."}),
+    ])
+    assert errors == []
+
+
+def test_a_proposal_two_providers_use_warns_to_promote_it():
+    _, warnings = _proposal_findings({}, [
+        _provider("exa", {"web.answer": "Answer a question from the web"}, used=["web.answer"]),
+        _provider("olostep", used=["web.answer"]),
+    ])
+    assert warnings == ["proposed_capabilities web.answer: used by ['exa', 'olostep']; "
+                        "promote it to capabilities.yaml"]
+
+    # one provider using it from both tiers is still one provider
+    _, warnings = _proposal_findings({}, [
+        _provider("exa", {"web.answer": "Answer a question from the web"}, used=["web.answer"]),
+        ("exa.extended.yaml", {"provider": "exa", "endpoints": [{"id": "exa.x", "capability": "web.answer"}]}),
+    ])
+    assert warnings == []
+
+
+def test_two_ids_of_one_platform_with_one_description_warn_across_taxonomy_and_proposals():
+    _, warnings = _proposal_findings(
+        {"companies.similar": "Find companies similar to a seed company",
+         "people.lookalike": "Find companies similar to a seed company"},
+        [_provider("findymail", {"companies.lookalike": "Find companies similar to a seed company!"})],
+    )
+    assert warnings == ["capabilities ['companies.lookalike', 'companies.similar'] share the description "
+                        "'find companies similar to a seed company'; unify them on one id or tell the jobs apart"]
+
+
+
+_TERMS = [{"path": "usageMetadata.promptTokenCount", "rate": 0.000002},
+          {"path": "usageMetadata.candidatesTokensDetails[modality=IMAGE].tokenCount",
+           "rate": 0.000108}]
+
+
+def test_usage_terms_are_accepted_for_a_multi_meter_response():
+    cost = _flat_usage_cost()
+    cost["usage"] = {"terms": _TERMS, "unit": "usd"}
+    errors: list[str] = []
+    validator.check_cost(cost, "x", errors, [], provider="google-ai")
+    assert errors == []
+
+
+@pytest.mark.parametrize(("usage", "message"), [
+    ({"terms": [], "unit": "usd"}, "usage.terms must be"),
+    ({"terms": [{"path": "a.b"}], "unit": "usd"}, "usage.terms must be"),
+    ({"terms": [{"path": "a..b", "rate": 1}], "unit": "usd"}, "usage.terms must be"),
+    ({"terms": [{"path": "a[b]", "rate": 1}], "unit": "usd"}, "usage.terms must be"),
+    # The runtime splits on dots before reading a selector, so a dotted value would read as zero.
+    ({"terms": [{"path": "a[version=v1.2].b", "rate": 1}], "unit": "usd"}, "usage.terms must be"),
+    ({"terms": [{"path": "a.b", "rate": 0}], "unit": "usd"}, "usage.terms must be"),
+    ({"terms": [{"path": "a.b", "rate": float("nan")}], "unit": "usd"}, "usage.terms must be"),
+    ({"terms": [{"path": "a.b", "rate": 1}], "unit": "credit"}, "usage.unit must be 'usd'"),
+    ({"terms": [{"path": "a.b", "rate": 1}], "path": "a.b", "unit": "usd"},
+     "or usage.terms and unit 'usd'"),
+])
+def test_usage_terms_reject_bad_shapes(usage, message):
+    cost = _flat_usage_cost()
+    cost["usage"] = usage
+    errors: list[str] = []
+    validator.check_cost(cost, "x", errors, [], provider="google-ai")
+    assert any(message in e for e in errors), errors
+
+
+
+def _spooled_endpoint() -> dict:
+    cost = _flat_usage_cost()
+    cost["usage"] = {"terms": _TERMS, "unit": "usd"}
+    return {"id": "google-ai.image-gen.demo", "cost": cost, "spooled_response": True}
+
+
+def test_spooled_response_settles_from_reported_usage():
+    errors: list[str] = []
+    validator.check_spooled_response(_spooled_endpoint(), None, "x", errors)
+    assert errors == []
+
+
+@pytest.mark.parametrize(("mutate", "is_async", "message"), [
+    (lambda ep: ep.update(spooled_response={"evidence": ["usageMetadata"]}), False, "must be true"),
+    (lambda ep: ep.update(spooled_response=False), False, "must be true"),
+    (lambda ep: ep.update(resource_ownership={"requires": {}}), False, "cannot be combined"),
+    (lambda ep: None, True, "cannot be combined"),
+    (lambda ep: ep["cost"].update(settle="base"), False, "settle: usage or an expect success rule"),
+])
+def test_spooled_response_rejects_bodies_something_else_must_read(mutate, is_async, message):
+    ep = _spooled_endpoint()
+    mutate(ep)
+    errors: list[str] = []
+    validator.check_spooled_response(ep, {"id_from": "id"} if is_async else None, "x", errors)
+    assert any(message in e for e in errors), errors
+
+
+def test_a_fixed_price_spools_when_its_success_rule_is_declared():
+    """A per-song price has no meters: the `expect` leaf is the evidence a spooled answer keeps."""
+    ep = _spooled_endpoint()
+    ep["cost"].update(settle="base")
+    ep["cost"].pop("usage")
+    ep["expect"] = {"json_path": "candidates.0.finishReason", "equals": "STOP"}
+    errors: list[str] = []
+    validator.check_spooled_response(ep, None, "x", errors)
+    assert errors == []

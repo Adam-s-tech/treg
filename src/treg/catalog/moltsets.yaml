@@ -13,11 +13,9 @@ expect: &found
   equals: ok
 proposed_capabilities:
   linkedin.profile.search: Find professional profiles by name and company
-  people.email.find.personal: Find a personal email from a professional profile
   people.audiences.maid: Convert an email to mobile advertising IDs
   people.audiences.sha256: Convert a business email to personal-email SHA-256 hashes
   people.audiences.hashes: Resolve business and personal email hashes from a professional profile
-  linkedin.profile.from_email: Resolve a professional profile from an email
   companies.identify.ip: Identify companies associated with an IP address
 endpoints:
 - id: moltsets.people.search

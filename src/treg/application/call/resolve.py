@@ -340,6 +340,9 @@ class MarketplaceCall:
     resource_ownership: dict | None = None
     managed_resource: dict | None = None
     public_resource_ids: tuple[str, ...] = ()
+    # On an endpoint declaring `spooled_response`: the response paths its settlement reads (the
+    # usage meters, the `expect` success rule). A metered 2xx goes to disk; only these are kept.
+    spooled_evidence: tuple[str, ...] = ()
     # A platform-key utility poll was authorized against this org-owned submission. The buffered
     # response may teach the same row its provider result/file id before the background worker runs.
     async_owner_call_id: str | None = None
@@ -577,6 +580,9 @@ _TAVILY_ENDPOINTS = frozenset({
     "tavily.web.map",
     "tavily.web.crawl",
 })
+_OCTEN_ENDPOINTS = frozenset({
+    "octen.web.search", "octen.web.search.broad", "octen.web.search.news", "octen.web.extract",
+})
 _TAVILY_BOUNDED_SITE_ENDPOINTS = frozenset({"tavily.web.map", "tavily.web.crawl"})
 _TAVILY_PLATFORM_MAX_RESULTS = 20
 _TAVILY_RATE_KEYS = {
@@ -742,6 +748,19 @@ def _credit_modifiers(cost: dict, query, doc: dict) -> tuple[bool, float, float,
     return free, added, settled_added, per_result
 
 
+def _octen_rates_or_fail(endpoint_id: str, cost: dict | None) -> dict[str, int]:
+    from . import octen
+    try:
+        return octen.rates_micro(endpoint_id, cost or {})
+    except ValueError as exc:
+        raise ResolutionFailed(
+            "catalog_price_invalid", status_code=503, detail={
+                "error": "catalog_price_invalid", "endpoint_id": endpoint_id,
+                "message": "Octen pricing is unavailable because its catalog rates are invalid",
+            },
+        ) from exc
+
+
 def _marketplace_pricing(
     provider: str, endpoint_id: str, cost: dict | None, query, body: bytes
 ) -> tuple[int, int]:
@@ -751,6 +770,10 @@ def _marketplace_pricing(
     scalar cannot express: provider batch shapes and request-dependent modes.
     `unit` is non-zero only when the response must decide the final charge.
     """
+    if provider == "octen" and endpoint_id in _OCTEN_ENDPOINTS:
+        from . import octen
+        rates = _octen_rates_or_fail(endpoint_id, cost)
+        return octen.estimate_micro(endpoint_id, rates, body), 0
     if not cost:
         return 0, 0
     if provider == "tavily" and endpoint_id in _TAVILY_ENDPOINTS:
@@ -797,6 +820,15 @@ def _marketplace_pricing(
     else:
         unit = (_usd_to_micro(cost["usd"])
                 if cost.get("type") in ("per_result", "quota_rows") and cost.get("usd") else 0)
+    if endpoint_id in ("icypeas.bulk.search", "icypeas.people.email.find") and credit_rate:
+        # The answer is an id ({file} / {item: {_id}}) with no rows, so this reserve IS the bill: one
+        # row per bulk `data` entry at its task's rate, one for a single search. Without it the
+        # 20-row default billed a 3-row job, and a single email lookup, $0.38.
+        # ponytail: a search row is billed as if found; per-found billing needs a settle on job end.
+        doc = _json_object(body)
+        rows = doc.get("data") if isinstance(doc.get("data"), list) else []
+        credits = 0.1 if doc.get("task") == "email-verification" else 1
+        return _usd_to_micro(max(1, min(len(rows), 5000)) * credits * credit_rate), unit
     if provider == "quickenrich":
         credit = _usd_to_micro(float(cost.get("usd") or 0))
         if endpoint_id == "quickenrich.people.search.domain":
@@ -808,6 +840,13 @@ def _marketplace_pricing(
             size = max(1, min(size, 100)) if type(size) is int else 100
             return size * credit, credit
         return estimate, credit
+    if provider == "apify" and cost.get("type") == "per_result" and cost.get("usd"):
+        # The platform guard requires maxTotalChargeUsd, which caps every event Apify bills; the
+        # flat call_fee adds the per-run charge (a start event inside the cap, or run compute billed
+        # to the caller outside it).
+        cap = _apify_charge_cap(query)
+        rows = unit * _PLATFORM_PAGE_DEFAULT if cap is None else _usd_to_micro(cap)
+        return _usd_to_micro(float(cost.get("call_fee") or 0)) + rows, unit
     if provider == "tomba" and endpoint_id == "tomba.companies.emails.list":
         # Tomba bills requested page slots in blocks of ten, with a ten-slot default.
         # A partial non-empty page still costs the full block; settlement frees empty pages.
@@ -1409,13 +1448,118 @@ def _request_body_document(ep: dict, body: bytes, headers) -> dict:
     return _strict_json_object(body, ep["id"])
 
 
-def _enforce_platform_request(ep: dict, body: bytes, headers=None) -> None:
+# Apify runs bill per event, and only the run option maxTotalChargeUsd bounds those events: the
+# maxItems option does not bind actors whose own input sets the row count. A platform call must name
+# that cap, and may add only the run options below, each once; a dataset-view option (limit, offset,
+# format, unwind) would make the returned rows disagree with the events billed.
+# ponytail: a run that outlives its timeout answers 400 with no rows while Apify still bills up to
+# the cap; the ceiling below bounds that loss per call. Settling from the run itself would lift it.
+_APIFY_PLATFORM_MAX_CHARGE_USD = 1.0
+# A run must end, and its rows arrive, before anyone stops waiting: past Apify's 300-second synchronous
+# wait it answers 408, past treg's upstream read timeout (call_timeout_s) or the MCP client's 120 s
+# the call fails, and each releases the hold unbilled while the run keeps billing. 90 s leaves room
+# for the container start and the dataset read under the shortest of those waits.
+_APIFY_PLATFORM_MAX_TIMEOUT = 90
+
+
+def _apify_max_timeout() -> int:
+    # Catalog rows pin timeout 90, so call_timeout_s must stay >= 120 or those rows refuse every call.
+    return max(1, min(_APIFY_PLATFORM_MAX_TIMEOUT, get_settings().call_timeout_s - 30))
+_APIFY_PLATFORM_QUERY = frozenset({"maxTotalChargeUsd", "maxItems", "memory", "timeout"})
+_ASCII_INT = re.compile(r"[0-9]+")
+_ASCII_DECIMAL = re.compile(r"[0-9]+(?:\.[0-9]+)?")
+
+
+def _query_value(raw: str, expected: object) -> object:
+    """Read a query string as the pinned value's type. Only plain ASCII spellings count: `int()`
+    also accepts Unicode digits, signs, spaces and underscores that an upstream may not parse."""
+    if isinstance(expected, bool):
+        return {"true": True, "false": False}.get(raw)
+    if isinstance(expected, int):
+        return int(raw) if _ASCII_INT.fullmatch(raw) else None
+    if isinstance(expected, float):
+        return float(raw) if _ASCII_DECIMAL.fullmatch(raw) else None
+    return raw
+
+
+def _apify_charge_cap(query) -> float | None:
+    """The single, plainly spelled maxTotalChargeUsd a platform Apify call carries, else None."""
+    values = [value for name, value in query.multi_items() if name == "maxTotalChargeUsd"] \
+        if query is not None else []
+    if len(values) != 1 or not _ASCII_DECIMAL.fullmatch(values[0]):
+        return None
+    cap = float(values[0])
+    return cap if 0 < cap <= _APIFY_PLATFORM_MAX_CHARGE_USD else None
+
+
+def _enforce_apify_run_options(ep: dict, query) -> None:
+    names = [name for name, _ in query.multi_items()] if query is not None else []
+    problem = None
+    if any(name not in _APIFY_PLATFORM_QUERY for name in names):
+        problem = "only maxTotalChargeUsd, maxItems, memory and timeout"
+    elif len(names) != len(set(names)):
+        problem = "each run option at most once"
+    elif _apify_charge_cap(query) is None:
+        problem = f"maxTotalChargeUsd above 0 and at most {_APIFY_PLATFORM_MAX_CHARGE_USD:g}"
+    elif not (_ASCII_INT.fullmatch(query.get("timeout") or "")
+              and 1 <= int(query.get("timeout")) <= _apify_max_timeout()):
+        problem = f"timeout from 1 to {_apify_max_timeout()} seconds"
+    elif query.get("maxItems") is not None and not (
+            _ASCII_INT.fullmatch(query.get("maxItems")) and int(query.get("maxItems")) >= 1):
+        problem = "maxItems as a positive integer"
+    else:
+        # Settlement bills the whole cap within two rows of it, so a smaller cap would bill an
+        # empty answer in full.
+        cost = ep.get("cost") or {}
+        floor = _usd_to_micro(float(cost.get("call_fee") or 0)) + 3 * _usd_to_micro(
+            float(cost.get("value") or 0) / float(cost.get("per") or 1))
+        if _usd_to_micro(_apify_charge_cap(query)) < floor:
+            problem = (f"maxTotalChargeUsd of at least {floor / 1_000_000:g} "
+                       "(the call fee plus three rows)")
+    if problem:
+        raise ResolutionFailed(
+            "catalog_parameter_invalid", status_code=400, detail={
+                "error": "catalog_parameter_invalid",
+                "endpoint_id": ep["id"],
+                "parameter": "queryParams",
+                "expected": problem,
+                "message": (
+                    f"Apify platform calls take {problem}; maxTotalChargeUsd is the spend cap Apify "
+                    "enforces and the hold. Connect your own key for larger runs"
+                ),
+            },
+        )
+
+
+def _spool_evidence_paths(ep: dict, cost: dict) -> tuple[str, ...]:
+    """What a spooled answer must keep for settlement: the top-level objects its usage terms read,
+    and the leaf its `expect` success rule compares. Everything else stays on disk."""
+    if not ep.get("spooled_response"):
+        return ()
+    rule = (ep.get("expect") or {}).get("json_path")
+    return settlement_basis.usage_roots(cost) + ((str(rule),) if rule else ())
+
+
+def _enforce_platform_request(ep: dict, body: bytes, headers=None, query=None) -> None:
     """Check explicit platform constraints and fixed pricing selectors before reserve/relay.
 
     Catalog tables may price several rows on one upstream path. A table condition whose body field
     has a singleton enum is the row identity, not caller choice: accepting another value lets a cheap
     row reserve for an expensive model. Full schema validation remains out of the faithful BYOK path.
     """
+    if ep.get("provider") == "octen" and ep.get("id") in _OCTEN_ENDPOINTS:
+        from . import octen
+        invalid = octen.invalid_platform_parameter(ep["id"], body)
+        if invalid:
+            raise ResolutionFailed(
+                "catalog_parameter_invalid", status_code=400, detail={
+                    "error": "catalog_parameter_invalid", "endpoint_id": ep["id"],
+                    "parameter": invalid,
+                    "message": "Octen platform calls require a bounded request; connect your own key "
+                               "for the upstream range",
+                },
+            )
+
     if ep.get("provider") == "openmart" and ep.get("id") in _OPENMART_METERED_ENDPOINTS:
         requested = _openmart_requested_records(ep["id"], body)
         parameter = (
@@ -1453,7 +1597,23 @@ def _enforce_platform_request(ep: dict, body: bytes, headers=None) -> None:
                 },
             )
 
+    if ep.get("provider") == "apify" and (ep.get("cost") or {}).get("type") == "per_result":
+        _enforce_apify_run_options(ep, query)
+
     input_schema = ep.get("input") or {}
+    # A path parameter with a declared enum names WHAT the shared key is spent on (Google AI's
+    # `model`): the price row and usage rates are that model's. Accepting any other value would
+    # let one catalog row run a different model on treg's key at the wrong rates.
+    for name, spec in sorted((input_schema.get("pathParams") or {}).items()):
+        allowed = spec.get("enum") if isinstance(spec, dict) else None
+        if isinstance(allowed, list) and (query.get(name) if query is not None else None) not in allowed:
+            raise ResolutionFailed(
+                "catalog_parameter_invalid", status_code=400, detail={
+                    "error": "catalog_parameter_invalid", "endpoint_id": ep["id"],
+                    "parameter": f"pathParams.{name}", "expected": allowed,
+                    "message": f"{ep['id']} serves {name} " + ", ".join(map(str, allowed))
+                               + " on treg's key; connect your own key for other values",
+                })
     rules = ep.get("platform_request") or {}
     for path, expected in sorted(rules.items()):
         if not str(path).startswith("headers."):
@@ -1466,6 +1626,20 @@ def _enforce_platform_request(ep: dict, body: bytes, headers=None) -> None:
                     "error": "catalog_parameter_invalid", "endpoint_id": ep["id"],
                     "parameter": f"headers.{name}", "expected": expected,
                     "message": f"{ep['id']} requires header {name}: {expected}",
+                },
+            )
+    for path, expected in sorted(rules.items()):
+        if not str(path).startswith("queryParams."):
+            continue
+        name = str(path).split(".", 1)[1]
+        supplied = [value for key, value in query.multi_items() if key == name] \
+            if query is not None else []
+        if len(supplied) != 1 or _query_value(supplied[0], expected) != expected:
+            raise ResolutionFailed(
+                "catalog_parameter_invalid", status_code=400, detail={
+                    "error": "catalog_parameter_invalid", "endpoint_id": ep["id"],
+                    "parameter": f"queryParams.{name}", "expected": expected,
+                    "message": f"{ep['id']} requires query parameter {name}={expected}",
                 },
             )
     selectors: dict[str, object] = {
@@ -1942,6 +2116,12 @@ async def _resolve_marketplace_call(
             "when": "response", "amount": {"kind": "observed"},
             "fallback_micro": info_est, "reserve_micro": info_est,
         }
+    if service == "octen" and ep["id"] in _OCTEN_ENDPOINTS:
+        basis = {
+            "when": "response", "amount": {"kind": "observed"},
+            "fallback_micro": info_est, "reserve_micro": info_est,
+            "octen_rates_micro": _octen_rates_or_fail(ep["id"], cv),
+        }
     common = dict(
         upstream=upstream, consumed=consumed, endpoint_id=ep["id"], provider=service,
         params_hash=phash, cost_type=str((ep.get("cost") or {}).get("type") or ""),
@@ -1953,6 +2133,7 @@ async def _resolve_marketplace_call(
         settlement_basis=basis, request_data=request_data,
         async_descriptor=ep.get("async"), resource_ownership=ep.get("resource_ownership"),
         managed_resource=ep.get("managed_resource"),
+        spooled_evidence=_spool_evidence_paths(ep, raw_cost),
     )
     if chosen_tool is not None:
         return MarketplaceCall(tool=chosen_tool, tier="tool", **common)
@@ -1981,7 +2162,7 @@ async def _resolve_marketplace_call(
     # request without inventing an Authorization or provider-key header.
     anonymous_cost = _anonymous_offer(ep, caller.org)
     if anonymous_cost is not None:
-        _enforce_platform_request(ep, body, request_headers)
+        _enforce_platform_request(ep, body, request_headers, query)
         virtual = Tool(
             org_id=caller.org_id, name=ep["id"], owner=caller.email,
             base_url=provider.base_url, host=_host_of(provider.base_url), bindings=[],
@@ -1998,7 +2179,7 @@ async def _resolve_marketplace_call(
     cost = _platform_offer(ep, provider, caller.org)
     async_owner_call_id = None
     if cost is not None:
-        _enforce_platform_request(ep, body, request_headers)
+        _enforce_platform_request(ep, body, request_headers, query)
         if service == "sumble":
             from . import sumble
             sumble.enforce(ep, _strict_json_object(body, ep["id"]) if has_body else {}, query)

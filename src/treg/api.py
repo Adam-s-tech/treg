@@ -211,6 +211,9 @@ async def meta() -> dict:
             "posthog_key": s.posthog_key, "posthog_host": s.posthog_host.rstrip("/") if s.posthog_key else "",
             # public workspace id — only present when this deployment opts in (self-hosters load no widget)
             "intercom_app_id": s.intercom_app_id,
+            # Whether the hub routes exist here at all (TREG_HUB_ENABLED), so the dashboard asks
+            # them nothing when they would only answer 404. Per-team access is still probed.
+            "hub": bool(s.hub_enabled),
             # Config only, no database: lets the top-bar referral entry name the reward on every page
             # without calling GET /referrals, which mints a code and runs the payout sweep.
             "referral": {"referrer_micro": int(s.referral_referrer_micro),
@@ -752,11 +755,14 @@ def _async_charged(c: CallRecord, task: dict | None) -> int | None:
     return None if task["status"] == "pending" else task["settled_micro"]
 
 
-@app.get("/calls/{call_id:int}/result")
+@app.get("/calls/{call_id}/result")
 async def get_call_result(
-    call_id: int, caller: Caller = Depends(require_member), db: AsyncSession = Depends(get_session)
+    call_id: str, caller: Caller = Depends(require_member), db: AsyncSession = Depends(get_session)
 ) -> dict:
     """What one of this team's calls asked and what came back — the archive's copy.
+
+    `call_id` is either the audit row's numeric `id` or the `X-Treg-Call-Id` the call returned (a
+    32-hex call ref; a short all-digit value is the row id).
 
     Only a METERED PLATFORM 2xx call has one: those answers are recorded by the archive (see
     docs/context/architecture/archive.md), and the audit row keeps the identities of the exact
@@ -768,7 +774,9 @@ async def get_call_result(
     row = (await db.execute(
         select(CallRecord)
         .options(defer(CallRecord.error_request), defer(CallRecord.error_response))
-        .where(CallRecord.org_id == caller.org_id, CallRecord.id == call_id,
+        .where(CallRecord.org_id == caller.org_id,
+               CallRecord.id == int(call_id) if call_id.isdigit() and len(call_id) < 19
+               else CallRecord.call_ref == call_id,
                *pinned_tag_predicates(CallRecord.tags, caller.membership.pinned_tags)))).scalars().first()
     if row is None:
         raise HTTPException(status_code=404, detail="no call with that id")

@@ -20,7 +20,8 @@
   .btn.sm{padding:4px 9px;font-size:12px} .btn:disabled{opacity:.45;cursor:not-allowed}
   .btn.ico{width:34px;min-width:34px;padding:0;flex:0 0 auto} .btn.sm.ico{width:30px;min-width:30px;min-height:30px}
   .btn.danger{border-color:var(--red);color:var(--red)} .btn.danger:hover{background:color-mix(in srgb,var(--red) 15%,transparent);border-color:var(--red)}
-  .msel{background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:3px 7px;font-family:var(--mono);font-size:12px}
+  /* max-width: an option's text (an API key's owner email) sets a select's width, and a long one pushed the page past a phone's edge. */
+  .msel{max-width:100%;text-overflow:ellipsis;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:3px 7px;font-family:var(--mono);font-size:12px}
   .frow{display:flex;align-items:center;gap:10px;margin:8px 0} .frow label{width:78px;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;flex:none}
   .frow input,.frow select{flex:1;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:var(--rb);padding:7px 10px;font-family:var(--mono);font-size:12.5px}
   .frow input:disabled{opacity:.6}
@@ -170,46 +171,7 @@
   .pt-mini.gen{border-color:transparent}
   .pt-mini .pt-i{font-size:10px;font-weight:700;color:#fff;font-family:var(--sans);line-height:1}
   .pt-more-t{min-width:0}
-  /* Platform page header: one full-width column. See the template for why it is not .tut-head. */
-  .plat-head{margin-bottom:4px}
-  .plat-title{display:flex;align-items:center;gap:13px;min-width:0}
-  .plat-title h1{margin:0;min-width:0}
-  .plat-intro{margin:10px 0 0;max-width:74ch}
-  .plat-provs{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-top:14px}
-  .plat-provs-l{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-right:2px}
-  /* What you have to SEND, one block per location. Dense on purpose: it sits inside an expanded
-     table row, and a param list that needs its own scroll is a param list nobody reads. */
-  .prm{margin:0 0 12px;border:1px solid var(--line);border-radius:var(--rb);
-    background:color-mix(in srgb,var(--panel) 55%,transparent);padding:11px 12px}
-  .prm-h{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px}
-  .prm-note{margin:0 0 9px;font-size:12px;color:var(--muted);line-height:1.5;max-width:82ch}
-  .prm-sec + .prm-sec{margin-top:11px}
-  .prm-loc{font-size:11.5px;font-weight:600;color:var(--ink);margin-bottom:5px}
-  .prm-type{margin-left:7px;font-weight:400;font-size:10.5px;color:var(--muted)}
-  /* The global `table` rule paints a panel, a border and a radius, and `th` a filled header bar —
-     all of which fight the .prm box this already sits inside, and clip the first column against
-     the table's own border. This is a bare grid; the box around it is the chrome. */
-  .prm-t{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed;
-    background:none;border:0;border-radius:0}
-  .prm-t th{background:none;text-align:left;font-weight:500;color:var(--muted);font-size:10.5px;
-    text-transform:uppercase;letter-spacing:.06em;padding:0 10px 5px 0;border-bottom:1px solid var(--line)}
-  .prm-t th:nth-child(1){width:23%} .prm-t th:nth-child(2){width:13%} .prm-t th:nth-child(3){width:13%}
-  .prm-t td{padding:6px 10px 6px 0;vertical-align:top;border-bottom:1px solid color-mix(in srgb,var(--line) 55%,transparent)}
-  .prm-t tr:last-child td{border-bottom:0}
-  .prm-n{color:var(--ink);font-weight:600;word-break:break-word}
-  .prm-ty{color:var(--muted)}
-  .prm-req{color:var(--amber);font-size:10.5px}
-  .prm-opt{color:var(--muted);font-size:10.5px;opacity:.75}
-  .prm-d{color:var(--muted);line-height:1.5}
-  .prm-ex{display:block;margin-top:2px;color:var(--teal);word-break:break-word}
-  .prm-none{margin:0 0 12px;font-size:12px;color:var(--muted);opacity:.8}
-  /* The path is the fact you came for, so it keeps ink colour where .ttable .th would mute it, and
-     wraps rather than widening the table (some provider paths are 70+ chars). */
-  .cat-path{color:var(--ink);white-space:normal;word-break:break-all}
-  .cat-m{color:var(--teal);font-weight:600;margin-right:7px}
-  .cat-d td{background:var(--panel2)}
-  .cat-sum{margin:0 0 10px;color:var(--muted);line-height:1.5;max-width:78ch;font-size:12.5px}
-  .cat-ex{margin-top:10px} .cat-ex pre{max-height:340px}
+
   .chip.ver{color:var(--green);border-color:color-mix(in srgb,var(--green) 42%,var(--line));background:color-mix(in srgb,var(--green) 10%,transparent)}
   .plogo-tile{width:30px;height:30px;flex:0 0 30px;border-radius:8px;background:#fbfaf7;
     border:1px solid rgba(0,0,0,.07);display:flex;align-items:center;justify-content:center}
@@ -260,7 +222,7 @@
   .layout.solo{grid-template-columns:minmax(0,1fr)}
   .pubnav{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:22px;
     padding:11px 22px;background:color-mix(in srgb,var(--bg) 86%,transparent);
-    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+    backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
   .pubnav .brand{font-family:var(--mono);font-weight:600;font-size:16px;color:var(--ink);text-decoration:none}
   .pubnav-links{margin-left:auto;display:flex;align-items:center;gap:20px;font-size:14px}
   .pubnav-links a{color:var(--muted);font-weight:500;text-decoration:none;cursor:pointer}
@@ -323,9 +285,9 @@
   .card .host{font-size:11.5px;color:var(--muted);margin:4px 0 10px;word-break:break-all}
   .card .foot{display:flex;gap:8px;margin-top:13px}
   .kv{display:flex;gap:18px;flex-wrap:wrap;margin:9px 0} .kv div{font-size:13px} .kv b{display:block;color:var(--muted);font-weight:500;font-size:10px;text-transform:uppercase;letter-spacing:.06em}
-  table{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
-  th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line);overflow-wrap:anywhere} th{color:var(--muted);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.06em;background:var(--panel2)}
-  tr:last-child td{border-bottom:0}
+  :where(table:not(.ui-table)){width:100%;border-collapse:collapse;font-size:12.5px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  :where(table:not(.ui-table)) :is(th,td){text-align:left;padding:10px 13px;border-bottom:1px solid var(--line);overflow-wrap:anywhere} :where(table:not(.ui-table)) th{color:var(--muted);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.06em;background:var(--panel2)}
+  :where(table:not(.ui-table)) tr:last-child td{border-bottom:0}
   .statgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:18px}
   .stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px} .stat .n{font-size:26px;font-weight:700;color:var(--accent)} .stat .l{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
   .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:14px} .tabs button{background:none;border:0;color:var(--muted);padding:9px 13px;border-bottom:2px solid transparent;font-family:var(--mono)} .tabs button.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
@@ -341,7 +303,9 @@
   .fundcard.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
   .fundcard b{display:block;font-size:17px;letter-spacing:-.3px}
   .fundcard span{display:block;font-size:10.5px;color:var(--muted);margin-top:3px}
-  @media(max-width:520px){.fundgrid{grid-template-columns:repeat(2,1fr)}}
+  /* The top-up dialog's four presets plus Other: one row on a desktop, 3 + 2 on a phone. */
+  .fundgrid-5{grid-template-columns:repeat(5,minmax(0,1fr));max-width:none}
+  @media(max-width:520px){.fundgrid{grid-template-columns:repeat(2,1fr)} .fundgrid-5{grid-template-columns:repeat(3,minmax(0,1fr))}}
   /* a switch-option card: knob + [title / caption], vertically centered on the title line */
   .cliopt{display:flex;align-items:flex-start;gap:10px;margin:12px 0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);cursor:pointer}
   .cliopt .tswitch{margin-top:1px} .cliopt b{font-size:12.5px;line-height:1.4} .cliopt .sub{font-size:11px;line-height:1.5;margin:0}
@@ -356,7 +320,9 @@
   .method-card input{margin:3px 0 0;accent-color:var(--accent);flex:none}
   .method-copy{min-width:0;flex:1}.method-title{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
   .method-copy .sub{display:block;margin:4px 0 0;line-height:1.5}
-  .scrim{position:fixed;inset:0;background:rgba(20,16,10,.55);display:grid;place-items:center;z-index:50}
+  .scrim{position:fixed;inset:0;background:rgba(20,16,10,.55);display:grid;place-items:center;z-index:60}
+  /* v-dialog focuses the dialog itself when it has no field to start in; that is not a control. */
+  [role="dialog"][tabindex="-1"]:focus{outline:none}
   /* Inline spinner for waits on a live upstream (resource discovery), so a slow round-trip reads
      as "working" rather than "broken". */
   .spin{display:inline-block;width:11px;height:11px;margin-right:7px;vertical-align:-1px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:treg-spin .7s linear infinite}
@@ -482,8 +448,11 @@
     main{min-width:0}
     .side-acct{margin-top:auto}
     h1,.tut-head,.brand{overflow-wrap:anywhere}
+    /* An inline identifier (a hub tool's `uses`, a tool id) is one unbreakable word; let it break
+       rather than push the page sideways. Tables and pre blocks keep their own scrollers. */
+    main code{overflow-wrap:anywhere}
     .tut-head{flex-wrap:wrap} .tut-head>div:first-child{flex:1 1 100%} .tut-actions{flex:1 1 auto;justify-content:flex-start;margin-left:0}
-    table{display:block;overflow-x:auto;white-space:nowrap}td,th{word-break:break-word}
+    :where(table:not(.ui-table)){display:block;overflow-x:auto;white-space:nowrap}:where(table:not(.ui-table)) :is(td,th){word-break:break-word}
     /* header wraps instead of forcing horizontal page scroll: the search drops to its own full-width
        row and the flex spacer is removed so brand/org/theme/avatar/sign-out fit the viewport. */
     .top{flex-wrap:wrap;gap:8px;padding:10px 12px}.top .spacer{display:none}.search{flex:1 1 100%;max-width:none;order:9}.orgsel{min-width:0}
@@ -587,8 +556,8 @@ h1{font-family:var(--display);font-weight:400;font-size:23px;letter-spacing:0}
 .seg{border-radius:999px} .seg button{border-radius:999px}
 .seg button.on{background:linear-gradient(180deg,#fdfcf7,#eae7de);color:#1c1b19}
 .seg button.on span{color:rgba(28,27,25,.55)}
-th{background:rgba(0,0,0,.25)}
-.ttable-wrap,table{box-shadow:rgba(255,255,255,.07) 0 1px 0 inset}
+:where(table:not(.ui-table)) th{background:rgba(0,0,0,.25)}
+.ttable-wrap,:where(table:not(.ui-table)){box-shadow:rgba(255,255,255,.07) 0 1px 0 inset}
 .stat{background:linear-gradient(180deg,#201f1d,#181715);
   box-shadow:rgba(255,255,255,.07) 0 1px 0 inset, rgba(0,0,0,.35) 0 10px 24px -14px}
 .card{background:linear-gradient(180deg,#1e1d1b 0%,#171614 100%);
@@ -712,11 +681,11 @@ input[type=checkbox],input[type=radio]{accent-color:var(--ink)}
 .stat{background:var(--surface);border-color:transparent;box-shadow:var(--shadow-sm)}
 .card{background:var(--surface);border-color:transparent;box-shadow:var(--shadow-sm)}
 .modal,.drawer{background:var(--surface);box-shadow:var(--shadow-lg)}
-.ttable-wrap,table{box-shadow:none}
+.ttable-wrap,:where(table:not(.ui-table)){box-shadow:none}
 .ttable-wrap{background:var(--surface);border-color:var(--line)}
-table{background:var(--surface)}
+:where(table:not(.ui-table)){background:var(--surface)}
 /* rows.gg's column heads are label text over a rule, not a filled bar. */
-th{background:none;color:var(--muted2);font-weight:450;border-bottom:1px solid var(--line2)}
+:where(table:not(.ui-table)) th{background:none;color:var(--muted2);font-weight:450;border-bottom:1px solid var(--line2)}
 .frow input,.frow select,.field input,.field select,.field textarea,.search,.msel,.bindinput,.si-input{
   background:var(--surface);box-shadow:none;border:1px solid var(--line2);color:var(--ink)}
 .frow input::placeholder,.field input::placeholder,.field textarea::placeholder,.search input::placeholder{color:var(--muted2)}
@@ -750,7 +719,7 @@ h1{font-size:22px;letter-spacing:-.44px} h2{font-size:17px} h3{font-size:15px}
 .sub{font-size:12.5px;color:var(--muted);max-width:74ch}
 /* 450 "book" is a real weight in this design — it is why secondary labels sit
    between regular and medium instead of going grey-and-bold. */
-.side .grp,th,.kv b,.tgh,.stat .l{font-weight:450;text-transform:none;letter-spacing:.1px}
+.side .grp,:where(table:not(.ui-table)) th,.kv b,.tgh,.stat .l{font-weight:450;text-transform:none;letter-spacing:.1px}
 
 /* ---- 3.3 controls: 10px, not pills ----
    Chips and badges stay round; only the BUTTONS square off. */
@@ -840,161 +809,7 @@ a:hover{text-decoration-color:var(--muted)}
 .spin{border-top-color:var(--ink)}
 .loginbox{background:var(--surface);border:0;border-radius:var(--r);box-shadow:var(--shadow-md)}
 
-/* ---- 3.7 the platform ledger ----
-   ONE table per platform, filed into sticky domain sections. Two sticky layers stack under the
-   57px top bar: the filter bar, then the section headings beneath it — so --lsec-top is the top
-   bar plus the bar's own height. The chips wrap, so that height is measured (PlatformPage.vue);
-   the default here only covers the first paint. */
-:root{--lbar-top:57px;--lsec-top:137px}
-.lbar{position:sticky;top:var(--lbar-top);z-index:6;background:var(--bg);
-  display:flex;flex-direction:column;gap:10px;padding:12px 0 10px;margin-top:8px}
-.lctl{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
-.lchips{display:flex;flex-wrap:wrap;gap:6px}
-.lbar .mk-chip{padding:3px 11px;font-size:11.5px;white-space:nowrap;cursor:pointer}
-.lchk{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);
-  cursor:pointer;user-select:none;white-space:nowrap}
-.lfind{flex:0 1 280px;min-width:0;background:var(--surface);border:1px solid var(--line2);
-  border-radius:var(--rb);color:var(--ink);font-family:var(--sans);font-size:12.5px;padding:6px 11px}
-.lfind::placeholder{color:var(--muted2)}
-.lstat{margin-left:auto;font-size:11.5px;color:var(--muted2);font-variant-numeric:tabular-nums;white-space:nowrap}
-.lclear{background:none;border:0;padding:0 0 0 6px;color:var(--muted);font:inherit;cursor:pointer;
-  text-decoration:underline;text-underline-offset:2px}
-.lclear:hover{color:var(--ink)}
-/* Both the wrapper and the table drop their overflow clip: an `overflow:hidden` ancestor is a
-   scroll container, and a sticky heading inside one never leaves it. */
-.lwrap{overflow:visible;border-radius:var(--r)}
-/* Fixed layout, so a nowrap path or `treg call` line inside an expanded row scrolls INSIDE its
-   cell instead of widening the table past the page. */
-.ledger{overflow:visible;table-layout:fixed}
-/* The wrapper draws the one rounded frame. A collapsed table cannot round its own border, so a
-   second one on the table showed as a square frame inside the rounded one; and with nothing
-   clipping (the sticky headings need that), the last row's cells round their own corners so a
-   hover fill cannot square them off. */
-.lwrap .ledger{border:0;border-radius:0;background:none}
-.ledger tr:last-child td:first-child{border-bottom-left-radius:var(--r)}
-.ledger tr:last-child td:last-child{border-bottom-right-radius:var(--r)}
-.ledger th{padding:9px 12px 7px;font-size:10px;text-transform:uppercase;letter-spacing:.06em;
-  white-space:nowrap;color:var(--muted2)}
-.lth-w{width:33%} .lth-p{width:220px} .lth-v{width:72px;text-align:center}
-.ledger td.lver{text-align:center}
-.ledger td{padding:8px 12px;font-size:12.5px;vertical-align:top;border-bottom:1px solid var(--line)}
-.ledger tr:last-child td{border-bottom:0}
-.lsec td{position:sticky;top:var(--lsec-top);z-index:4;background:var(--panel2);padding:6px 12px;
-  font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
-.lsec td span{margin-left:7px;font-weight:450;letter-spacing:0;color:var(--muted2)}
-.lrow{cursor:pointer}
-.lrow:hover td{background:var(--hover)}
-/* The management-endpoints expander at the foot of a section — the same muted "show more" gesture
-   as the platform-tile .pt-more, keeping account/utility plumbing one click out of the browse view. */
-/* The one collapsed section at the foot of the ledger. Its heading is a button, so it reads as a
-   section that opens rather than a row that does something. */
-.lsec-btn{display:inline-flex;align-items:center;gap:7px;padding:0;border:0;background:none;
-  font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
-.lsec-btn:hover{color:var(--ink)}
-.lsec-btn .lcar{transition:transform .12s}
-.lsec-btn[aria-expanded="true"] .lcar{transform:rotate(90deg)}
-/* Same rule down the leading edge the capability list used: the row you can call today is the
-   reason to read the table, so it is findable without reading. */
-.lrow.go td:first-child{box-shadow:inset 3px 0 0 color-mix(in srgb,var(--green) 75%,transparent)}
-.lsum-i{display:flex;align-items:flex-start;gap:7px;max-width:430px}
-.lsum b{font-weight:500;color:var(--ink);line-height:1.45}
-/* DataForSEO's summaries are paragraphs. Two lines keeps the ledger scannable; the full text is
-   one click away, in the expansion. */
-.lsum b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.lcar{flex:0 0 auto;display:inline-block;font-size:10px;line-height:1.8;color:var(--muted);
-  transition:transform .15s var(--ease)}
-.lrow.open .lcar{transform:rotate(90deg)}
-.lrow:hover .lcar,.lrow.open .lcar{color:var(--ink)}
 .ln{margin-left:7px;font-size:11px;color:var(--muted2);white-space:nowrap}
-/* A merged row's providers, priced side by side — the comparison the merge exists to make. Short
-   pills only (see `pillPrice`), so a six-provider row costs a second line at worst. */
-/* Wraps rather than clips: a clipped strip cut the third pill in half and hid the +N chip. */
-.lprovs{display:flex;flex-wrap:wrap;gap:4px}
-.pchip.more{color:var(--muted2)}
-.pchip{display:inline-flex;align-items:center;gap:5px;background:var(--panel2);border-radius:7px;
-  padding:2px 8px;font-size:11px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
-.pchip b{color:var(--ink);font-weight:500}
-.lpath{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  font-size:11px;line-height:18px;color:var(--muted)}
-/* The access chip rides the text line, so it must not make its row taller than a plain one. */
-.lpath .chip{margin-right:8px;padding:0 8px;line-height:16px;font-family:var(--sans)}
-.lpath b{margin-right:7px;font-family:var(--sans);font-weight:500;color:var(--ink)}
-/* What KIND of plumbing an Actions row is — account (the provider's own records) or utility
-   (a helper). Only ever rendered inside the Actions section, where the distinction is the only
-   thing separating one row from the next. */
-.lkind{margin-left:8px;font-family:var(--sans);vertical-align:1px}
-.lprice{font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
-.vmark{color:var(--green);font-weight:600}
-/* Phone width: the shell turns every table into a horizontal scroller, but the ledger's overflow
-   stays visible for its sticky headings, so it pushed the whole page sideways instead. Here each
-   row stacks (title, then route, price and mark on one line), and nothing sticks: a wrapped chip
-   bar pinned to the top would cover half the screen. */
-@media(max-width:760px){
-  .lbar{position:static}
-  .ledger{display:block;white-space:normal}
-  .ledger thead{display:none}
-  .ledger tbody{display:block}
-  .ledger tr{display:grid;grid-template-columns:minmax(0,1fr) auto auto;border-bottom:1px solid var(--line)}
-  .ledger tr:last-child{border-bottom:0}
-  .ledger td,.ledger tr:last-child td{border-bottom:0;border-radius:0}
-  .ledger tr.lrow td:first-child,.lsec td,.cat-d td{grid-column:1/-1}
-  .ledger tr.lrow td:not(:first-child){padding-top:0}
-  .lsec td{position:static}
-  .lsum-i{max-width:none}
-}
-/* The expansion: one block per endpoint — a merged row shows its providers stacked, a single row
-   shows the same block alone, so the two can never present the instruction differently. */
-/* Level two: one collapsed line per provider, and the detail under whichever one is opened. */
-.lgrp + .lgrp{margin-top:4px}
-.lsub{display:flex;align-items:center;gap:8px;width:100%;padding:6px 9px;
-  background:var(--surface);border:1px solid var(--line2);border-radius:var(--rb);
-  color:var(--ink);font-family:inherit;font-size:12px;text-align:left;cursor:pointer;
-  transition:border-color .2s var(--ease),background-color .2s var(--ease)}
-.lsub:hover{background:var(--hover)}
-.lsub.on{border-color:var(--line2);background:var(--hover)}
-.lsub.on .lcar{transform:rotate(90deg)}
-.lsub b{font-weight:500;white-space:nowrap}
-.lsub-label{min-width:0;text-align:left}
-.lsub-name{display:block;font-size:12px;white-space:normal;overflow-wrap:anywhere}
-.lsub-price{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap;
-  font-variant-numeric:tabular-nums}
-.lsub-path{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  text-align:right;font-size:11px;color:var(--muted2)}
-.lsub .plogo-tile{width:20px;height:20px;flex:0 0 20px;border-radius:6px}
-.lsub .plogo{width:13px;height:13px}
-.lsub .chip.go{font-size:9.5px;padding:1px 7px}
-.lgrp .lep{padding:12px 9px 2px}
-/* The detail's tab bar: two panes on the left, and on the right the two things you should never
-   have to scroll for — the provider's docs and the Connect button. */
-.ltabs{display:flex;align-items:center;gap:4px;margin:0 0 11px;
-  border-bottom:1px solid var(--line2);padding-bottom:7px}
-.ltab{background:none;border:0;border-radius:var(--rb);padding:5px 11px;
-  font-family:inherit;font-size:12px;font-weight:450;color:var(--muted);cursor:pointer;
-  transition:background-color .2s var(--ease),color .2s var(--ease)}
-.ltab:hover:not(:disabled){background:var(--hover);color:var(--ink)}
-.ltab.on{background:var(--inverse);color:var(--inverse-ink);font-weight:500}
-.ltab:disabled{color:var(--muted2);opacity:.55;cursor:default}
-.ltabs-r{margin-left:auto;display:flex;align-items:center;gap:7px;flex:0 0 auto}
-/* Connect is the one action that unblocks every row on the page, so it wears the strongest
-   treatment the design language has — the same ink fill as the active tab. */
-.ltabs-r .btn.primary{background:var(--inverse);color:var(--inverse-ink);border-color:var(--inverse)}
-.lep-id{margin-top:8px;font-size:10.5px;color:var(--muted2)}
-.lep + .lep{margin-top:15px;padding-top:15px;border-top:1px solid var(--line2)}
-.lep-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px}
-.lep-h b{font-size:12.5px;font-weight:500}
-.lep-chips{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
-.lfacts{margin:0 0 11px;padding-left:17px;max-width:82ch;font-size:11.5px;line-height:1.6;color:var(--muted)}
-/* A DataForSEO body can carry thirty parameters. Capped and scrolled, the expansion stays a card
-   you read; uncapped it becomes a page that pushes every row below it off the screen. The captured
-   response gets the SAME cap, so the two panes are the same size box. */
-.prm{max-height:320px;overflow-y:auto}
-.cat-ex pre{max-height:320px}
-/* The line that actually runs it — `treg call` proxies the key server-side, so it is paste-ready
-   on a machine that holds no credential. */
-.lcall{display:flex;align-items:center;gap:9px;margin:0 0 11px;padding:7px 9px;
-  background:var(--surface);border:1px solid var(--line2);border-radius:var(--rb)}
-.lcall code{flex:1;min-width:0;overflow-x:auto;white-space:nowrap;font-size:11.5px;color:var(--ink)}
 
 /* ================================================================
    RESTYLE — 3.8 code surfaces follow the theme.
@@ -1031,7 +846,7 @@ a:hover{text-decoration-color:var(--muted)}
   background:transparent;border:0;box-shadow:none;color:var(--code-ink)}
 .lc-cp{background:var(--code-btn);color:var(--code-ink);border:1px solid var(--code-line)}
 .lc-cp:hover{background:var(--code-btn);border-color:var(--code-ink);color:var(--code-ink)}
-/* The shared onboarding component (agent-setup.js) uses Arena's .text-button for "Show key";
+/* The shared onboarding component (src/agent-setup/) uses Arena's .text-button for "Show key";
    this sheet never had one, so the browser painted a native button. */
 .agent-setup-instructions .text-button{background:none;border:0;padding:0;font:inherit;font-size:12px;color:var(--muted);text-decoration:underline;cursor:pointer}
 .agent-setup-instructions .text-button:hover{color:var(--ink)}
@@ -1047,10 +862,12 @@ a:hover{text-decoration-color:var(--muted)}
 
 /* ---- Find tools for a job (state/find.js, components/FindAnswer.vue, pages/SearchPage.vue) ---- */
 /* The Catalog page's search: under the title, left-aligned, the page's first control. */
+/* The catalog's one search box (CatalogSearch.vue), on the Catalog page and every shelf: a surface
+   lifted by shadow, like the landing's cards, never a drawn box. */
 .cat-find{position:relative;display:flex;align-items:center;gap:10px;max-width:760px;margin:6px 0 26px;padding:0 8px 0 16px;
-  min-height:52px;border:1px solid var(--line2,var(--line));border-radius:14px;background:var(--surface,var(--panel));
-  transition:border-color .15s,box-shadow .15s}
-.cat-find:focus-within{border-color:color-mix(in srgb,var(--ink) 28%,var(--line));box-shadow:0 0 0 4px color-mix(in srgb,var(--ink) 6%,transparent)}
+  min-height:52px;border:0;border-radius:14px;background:var(--surface,var(--panel));box-shadow:var(--shadow-md);
+  transition:box-shadow .15s}
+.cat-find:focus-within{box-shadow:var(--shadow-md),0 0 0 1.5px var(--ink)}
 .cat-find-i{flex:none;color:var(--muted)}
 .cat-find input{flex:1;min-width:0;border:0;outline:none;background:none;color:var(--ink);font-family:var(--sans);font-size:15.5px;padding:14px 0}
 /* The box shows focus (:focus-within above); the global focus ring on the bare input would draw a box in a box. */
@@ -1106,3 +923,269 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
 @keyframes boot-in{to{opacity:1}}
 @keyframes boot-slide{from{transform:translateX(-100%)}to{transform:translateX(290%)}}
 @media (prefers-reduced-motion:reduce){.boot-bar::before{animation:none;width:100%;opacity:.35}}
+
+.td-rev-bar{display:flex;gap:2px;height:6px;border-radius:3px;overflow:hidden;margin:2px 0 8px}
+.td-rev-bar span{flex-basis:0;min-width:0}
+.td-rev-bar .useful,.td-rev-legend i.useful{background:var(--green)}
+.td-rev-bar .partly,.td-rev-legend i.partly{background:var(--amber)}
+.td-rev-bar .not_useful,.td-rev-legend i.not_useful{background:var(--red)}
+.td-rev-legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin:0 0 6px;font-size:11.5px;color:var(--ink);
+  font-variant-numeric:tabular-nums}
+.td-rev-legend span{display:inline-flex;align-items:center;gap:6px}
+.td-rev-legend i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.td-rev-v{font-size:10.5px;font-weight:500;white-space:nowrap}
+.td-rev-v.useful{color:var(--green)} .td-rev-v.partly{color:var(--amber)} .td-rev-v.not_useful{color:var(--red)}
+/* ---- Catalog shelf, comparison and provider tool pages (PlatformPage, ToolDrawer, ProviderPage) ----
+   The landing page's rules (usecase.css): no accent colour, emphasis is ink; sans everywhere, mono
+   only for identifiers, commands and counts; Geist Pixel on the h1 only; cards are surfaces lifted
+   by shadow, never boxes drawn by border; no rules between rows. */
+.pl{max-width:1180px;margin:0 auto;padding-bottom:40px;transition:padding-right .25s var(--ease)}
+@media(min-width:1700px){ .pl.dopen{padding-right:600px;max-width:1780px} }
+.pl-empty{margin:48px 0;text-align:center;color:var(--muted);font-size:14px}
+.pl-link{background:none;border:0;padding:0;font:inherit;color:var(--ink);cursor:pointer;text-decoration:underline;
+  text-decoration-color:color-mix(in srgb,var(--ink) 30%,transparent);text-underline-offset:3px}
+.pl-link:hover{text-decoration-color:var(--ink)}
+.pl-eyebrow{margin:0;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted2)}
+
+/* Hero: centred, as on the landing and the provider pages. */
+.pl-hero{padding:28px 0 44px}
+.pl-crumbs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 22px;font-family:var(--mono);font-size:12px;color:var(--muted2)}
+.pl-crumbs a{color:var(--muted);text-decoration:none}
+.pl-crumbs a:hover{color:var(--ink)}
+.pl .pl-hero h1{margin:14px 0 0;font-family:var(--display);font-weight:400;font-size:clamp(34px,4.6vw,52px);line-height:1.08;letter-spacing:0}
+.pl .pl-hero h1.pl-h1-cmp{font-size:clamp(26px,3vw,36px);line-height:1.2}
+.pl-lede{margin:14px 0 0;max-width:68ch;font-size:16px;line-height:1.6;color:var(--muted)}
+
+/* Section heading: title, a hairline to the edge, the count. */
+.pl-sec{margin:0 0 52px}
+.pl-h{display:flex;align-items:center;gap:14px;margin:0 0 18px;font-size:19px;font-weight:600;letter-spacing:-.01em}
+.pl-h a{color:var(--ink);text-decoration:none}
+.pl-h a:hover{text-decoration:underline;text-underline-offset:4px}
+.pl-h i{flex:1;height:1px;background:var(--line)}
+.pl-h em{font-style:normal;font-family:var(--mono);font-size:12px;font-weight:400;color:var(--muted2)}
+.pl-h-quiet{font-size:15px;color:var(--muted)}
+
+/* Cards. */
+.pl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+.pl-grid-t{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.pl-card{display:flex;flex-direction:column;gap:12px;padding:18px 20px;border:0;border-radius:16px;background:var(--surface);
+  box-shadow:var(--shadow-md);color:var(--ink);text-decoration:none;text-align:left;font:inherit;cursor:pointer;
+  transition:box-shadow .2s var(--ease),transform .2s var(--ease)}
+.pl-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-1px);text-decoration:none}
+.pl-card:focus-visible{outline:none;box-shadow:var(--shadow-md),0 0 0 1.5px var(--ink)}
+.pl-card.on{box-shadow:var(--shadow-md),0 0 0 1.5px var(--ink)}
+.pl-cmp b{font-size:15.5px;font-weight:500;line-height:1.4}
+/* A comparison's foot is two fixed lines, logos (and Auto-route) over the provider count and price,
+   so no card wraps them differently from its neighbour. */
+.pl-cmp-f{display:flex;flex-direction:column;gap:8px;margin-top:auto}
+.pl-cmp-r{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.pl-cmp.sm{gap:6px;padding:15px 18px}
+.pl-cmp.sm b{font-size:14px}
+.pl-meta{font-family:var(--mono);font-size:11.5px;color:var(--muted2);font-variant-numeric:tabular-nums}
+/* Auto-route's look, the tag and the comparison page's card alike: a green light and a dot field. */
+.pl-auto,.pl-autocard{--pl-glow:#5b8a5a38;--pl-dot:#ffffff1c}
+[data-theme="light"] .pl-auto,[data-theme="light"] .pl-autocard{--pl-glow:#dce8d5;--pl-dot:#1a1a1a1a}
+.pl-auto{--pl-auto-ink:#b9d6b4;flex:0 0 auto;padding:3px 9px;
+  border-radius:999px;background:radial-gradient(var(--pl-dot) .6px,transparent .9px) 0 0/4px 4px,var(--pl-glow);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pl-auto-ink) 22%,transparent);color:var(--pl-auto-ink);
+  font-size:11px;font-weight:500;letter-spacing:.01em}
+[data-theme="light"] .pl-auto{--pl-auto-ink:#2f5a2e}
+.pl-logo{display:inline-grid;place-items:center;width:24px;height:24px;flex:0 0 24px;border-radius:7px;background:#fbfaf7;
+  box-shadow:0 0 0 1px rgba(0,0,0,.06);overflow:hidden}
+.pl-logo img{width:15px;height:15px;object-fit:contain}
+.pl-logo.lg{width:34px;height:34px;flex:0 0 34px;border-radius:10px}
+.pl-logo.lg img{width:20px;height:20px}
+.pl-stack{display:flex}
+.pl-stack .pl-logo{box-shadow:0 0 0 2px var(--surface),0 0 0 3px rgba(0,0,0,.06)}
+.pl-stack .pl-logo+.pl-logo{margin-left:-6px}
+.pl-tool{flex-direction:row;align-items:center;gap:14px;padding:15px 18px}
+.pl-tool-b{display:flex;flex-direction:column;gap:4px;min-width:0}
+.pl-tool-b b{font-size:14px;font-weight:500;line-height:1.4}
+.pl-tool.quiet{box-shadow:var(--shadow-sm)}
+.pl-tool.quiet b{font-weight:400;color:var(--muted)}
+.pv-cmp{color:var(--ink);text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--ink) 30%,transparent);text-underline-offset:3px}
+.pv-shelf{margin:0 0 30px}
+
+/* Served by: the providers as small logo chips, not a paragraph of names. */
+.pl-provs{margin-top:64px;text-align:center}
+.pl-provs-l{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:16px}
+.pl-prov{display:inline-flex;align-items:center;gap:8px;padding:6px 12px 6px 7px;border-radius:999px;background:var(--surface);
+  box-shadow:var(--shadow-sm);font-size:13px;color:var(--ink);text-decoration:none;transition:box-shadow .2s var(--ease)}
+.pl-prov:hover{box-shadow:var(--shadow-md);text-decoration:none}
+.pl-prov .pl-logo{width:20px;height:20px;flex-basis:20px;border-radius:6px}
+.pl-prov .pl-logo img{width:13px;height:13px}
+
+/* Comparison page: treg's answer, lit like /search: a surface under the landing hero's soft green
+   light and a dot field fading out from the same corner. */
+.pl-autocard{position:relative;isolation:isolate;overflow:hidden;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:36px;align-items:center;margin:0 0 56px;
+  padding:34px 36px;border-radius:20px;background:var(--surface);color:var(--ink);box-shadow:var(--shadow-md)}
+.pl-autocard::before,.pl-autocard::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none}
+.pl-autocard::before{background:radial-gradient(ellipse 110% 150% at 30% -10%,var(--pl-glow),transparent 68%)}
+.pl-autocard::after{background:radial-gradient(var(--pl-dot) .8px,transparent 1.1px) 0 0/7px 7px;
+  -webkit-mask-image:radial-gradient(ellipse 85% 130% at 25% -10%,#000 10%,transparent 70%);
+  mask-image:radial-gradient(ellipse 85% 130% at 25% -10%,#000 10%,transparent 70%)}
+.pl-autocard h2{margin:10px 0 0;font-size:26px;font-weight:600;letter-spacing:-.02em;line-height:1.2}
+.pl-autocard p{margin:10px 0 0;font-size:14.5px;line-height:1.6;color:var(--muted)}
+.pl-auto-f{display:flex;gap:28px;margin:22px 0 0;padding:0;list-style:none;font-size:12px;color:var(--muted)}
+.pl-auto-f b{display:block;margin-bottom:2px;font-family:var(--mono);font-size:15px;font-weight:500;color:var(--ink)}
+.pl-auto-a{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-top:14px}
+/* A command is read and copied, never the headline: a quiet inset, not a black slab. The copy is
+   the primary button beside it. */
+.pl-code{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:12px;
+  background:color-mix(in srgb,var(--bg) 70%,transparent);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line2)}
+.pl-code code{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere;background:none;padding:0;font-family:var(--mono);font-size:12.5px;line-height:1.55;color:inherit}
+.pl-btn{display:inline-flex;align-items:center;height:38px;padding:0 18px;border:0;border-radius:999px;background:var(--inverse);
+  color:var(--inverse-ink);font:inherit;font-size:13.5px;font-weight:500;cursor:pointer;transition:transform .15s var(--ease)}
+.pl-btn:hover{transform:translateY(-1px)}
+.pl-btn.ghost{background:var(--surface);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line2)}
+.pl-btn.ghost:hover{background:var(--hover)}
+.pl-copy{min-width:172px;justify-content:center}   /* "Copied" must not shift the buttons beside it */
+
+.c-prov-i{display:flex;align-items:center;gap:12px}
+.c-name{display:flex;flex-direction:column;gap:2px;min-width:0}
+.c-name b{font-size:14.5px;font-weight:500}
+.c-sub{font-size:12.5px;color:var(--muted)}
+.c-unv{margin-left:8px;font-size:11px;font-weight:400;color:var(--muted2)}
+.pl-tag{display:inline-block;max-width:100%;margin:2px 4px 2px 0;padding:2px 8px;border-radius:6px;background:var(--panel2);font-size:12px;color:var(--ink)}
+.c-price{font-family:var(--mono);font-size:12.5px;color:var(--ink)}
+.c-v{display:block;font-family:var(--mono);font-size:14px;font-weight:500;font-variant-numeric:tabular-nums}
+/* A review label reads like Steam's: blue when positive, amber when mixed, red when negative. */
+.c-rev{display:block;font-size:13.5px;font-weight:550;white-space:nowrap}
+.c-rev.pos,.rev.pos{color:var(--teal)} .c-rev.mixed,.rev.mixed{color:var(--amber)} .c-rev.neg,.rev.neg{color:var(--red)}
+.c-rev.early,.rev.early{color:var(--muted)}   /* quotes, no score yet: a neutral word, not a verdict */
+.td-stats b.rev{font-family:var(--sans);font-size:14.5px;font-weight:600;line-height:1.35;margin-top:5px}
+.td-rev-sum{margin:0 0 10px;font-size:13.5px;color:var(--muted)}
+.c-n{display:block;margin-top:1px;font-size:11px;color:var(--muted2)}
+.c-none{color:var(--muted2)}
+.pl-note{display:none;margin:14px 4px 0;max-width:92ch;font-size:12px;line-height:1.6;color:var(--muted2)}
+.pl-note b{font-weight:500;color:var(--muted)}
+
+/* The drawer: a sheet, not a form. */
+.td{position:fixed;top:0;right:0;bottom:0;width:min(600px,100vw);z-index:55;display:flex;flex-direction:column;
+  background:var(--surface);box-shadow:-24px 0 60px rgba(20,16,10,.14),-1px 0 0 var(--line);
+  transform-origin:right center;transition:transform .32s cubic-bezier(.22,1,.36,1),border-radius .32s cubic-bezier(.22,1,.36,1)}
+/* A drawer opened from this one (Try it) stacks on top: this sheet steps back, shrinks and rounds
+   its corners so it reads as the card underneath, and springs back when the top one closes. */
+.td.behind{transform:translateX(-64px) scale(.94);border-radius:18px;overflow:hidden;box-shadow:-16px 0 40px rgba(20,16,10,.18)}
+.drawer.stack{width:min(600px,100vw);border-radius:18px 0 0 18px;animation:drawer-in .32s cubic-bezier(.22,1,.36,1)}
+@keyframes drawer-in{from{transform:translateX(48px);opacity:.4}to{transform:none;opacity:1}}
+@media(max-width:760px){ .td.behind{transform:translateX(-14px) scale(.97)} .drawer.stack{border-radius:0} }
+@media(prefers-reduced-motion:reduce){ .td,.drawer.stack{transition:none;animation:none} }
+.td-h{display:flex;align-items:center;gap:14px;padding:calc(20px + env(safe-area-inset-top,0px)) 20px 18px 26px}
+.td-t{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.td-prov{font-size:12.5px;color:var(--muted);text-decoration:none}
+a.td-prov:hover{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.td-t b{font-size:17px;font-weight:600;line-height:1.35;letter-spacing:-.01em}
+.td-nav{display:flex;gap:2px;flex:0 0 auto;align-self:flex-start}
+.td-nav button{display:grid;place-items:center;width:32px;height:32px;border:0;border-radius:9px;background:none;color:var(--muted);cursor:pointer}
+.td-nav button:hover{background:var(--hover);color:var(--ink)}
+.td-nav svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.td-b{flex:1;overflow:auto;padding:0 26px calc(32px + env(safe-area-inset-bottom,0px))}
+.td-sum{margin:0 0 20px;font-size:14px;line-height:1.6;color:var(--muted)}
+.td-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 20px}
+.td-stats div{padding:12px 14px;border-radius:12px;background:var(--panel2)}
+.td-stats span{display:block;font-size:11.5px;color:var(--muted)}
+.td-stats b{display:block;margin-top:4px;font-family:var(--mono);font-size:16px;font-weight:500;font-variant-numeric:tabular-nums;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.td-stats i{display:block;margin-top:2px;font-style:normal;font-size:11px;color:var(--muted2)}
+.td-act{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin:12px 0 14px}
+.td-act .pl-link{font-size:13.5px}
+.td-facts{margin:12px 0 26px;font-size:12.5px;color:var(--muted2)}
+.td-tabs{display:flex;gap:22px;margin:0 0 18px;box-shadow:inset 0 -1px 0 var(--line)}
+.td-tabs button{padding:0 0 11px;border:0;background:none;font:inherit;font-size:13.5px;color:var(--muted);cursor:pointer;box-shadow:inset 0 -2px 0 transparent}
+.td-tabs button:hover{color:var(--ink)}
+.td-tabs button[aria-selected="true"]{color:var(--ink);font-weight:500;box-shadow:inset 0 -2px 0 var(--ink)}
+.td-note{margin:0 0 16px;font-size:13px;line-height:1.6;color:var(--muted)}
+.td-loc{margin:18px 0 8px;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted2)}
+.td-loc span{margin-left:8px;letter-spacing:0;text-transform:none}
+.td-params{margin:0;display:flex;flex-direction:column;gap:14px}
+.td-params dt{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px}
+.td-params dt code{background:none;padding:0;font-family:var(--mono);font-size:13px;font-weight:500;color:var(--ink)}
+.td-params dt span{font-family:var(--mono);font-size:11.5px;color:var(--muted2)}
+.td-params dt em{font-style:normal;font-size:11px;color:var(--amber)}
+.td-params dd{margin:4px 0 0;font-size:13px;line-height:1.55;color:var(--muted);overflow-wrap:anywhere}
+.td-ex{display:inline-block;margin-left:6px;font-size:12px}
+.td-more{margin:24px 0 0;font-size:13px}
+.td-more summary{cursor:pointer;color:var(--ink);font-weight:500}
+.td-more ul{margin:10px 0 0;padding-left:18px;font-size:12.5px;line-height:1.6;color:var(--muted);overflow-wrap:anywhere}
+.td-byok{margin:22px 0 0;padding:14px 16px;border-radius:12px;background:var(--panel2);font-size:13px;line-height:1.55;color:var(--muted)}
+.td-json pre{margin:0;max-height:none;padding:16px;border-radius:12px;background:#0f0f0f;color:#e8e8e2;font-family:var(--mono);
+  font-size:12px;line-height:1.55;overflow:auto;white-space:pre}
+.td-quotes{list-style:none;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:12px}
+.td-quotes li{padding:14px 16px;border-radius:12px;background:var(--panel2)}
+.td-quotes p{margin:6px 0;font-size:13.5px;line-height:1.55;color:var(--ink)}
+.td-qm{font-size:11.5px;color:var(--muted2)}
+
+@media(max-width:760px){
+  .pl-hero{padding:8px 0 32px}
+  .pl-grid,.pl-grid-t{grid-template-columns:1fr}
+  .pl-autocard{grid-template-columns:1fr;gap:22px;padding:24px 20px}
+  .pl-autocard h2{font-size:22px}
+  .pl-auto-f{gap:18px}
+  .td-b{padding:0 18px 28px}
+  .td-h{padding-left:18px}
+  .pl-note{display:block}
+}
+.pl-hero .cat-search{margin-top:28px}
+.pl-hero .cat-find{margin-bottom:0}
+.pl-hero .cat-find-suggest{margin:10px 0 0}
+.pl-find{margin:0 0 48px}
+/* ---- ui/table: the shadcn-shaped table primitives (components/ui/table) ----
+   Every new table is built from these. The global table/th/td rules above skip .ui-table, so these
+   start from nothing: no borders, no filled header bar, no word-breaking. Numbers are tabular,
+   headings are the landing's mono eyebrow, and a cell stays on one line unless it says otherwise. */
+.ui-table-wrap{position:relative;width:100%;overflow-x:auto}
+.ui-table-surface{border-radius:18px;background:var(--surface);box-shadow:var(--shadow-md);padding:6px 8px}
+.ui-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px;color:var(--ink);font-variant-numeric:tabular-nums}
+.ui-th{height:44px;padding:0 14px;text-align:left;vertical-align:middle;white-space:nowrap;font-family:var(--mono);
+  font-size:10.5px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--muted2)}
+.ui-td{padding:13px 14px;vertical-align:middle;white-space:nowrap}
+.ui-td[data-wrap]{white-space:normal}
+.ui-right{text-align:right} .ui-center{text-align:center}
+.ui-empty{padding:28px 14px;text-align:center;color:var(--muted)}
+/* lined: shadcn's hairline under each row. plain: rows separated by air, a rounded hover. */
+.ui-table-lined .ui-thead .ui-th{border-bottom:1px solid var(--line2)}
+.ui-table-lined .ui-tbody .ui-tr:not(:last-child) .ui-td{border-bottom:1px solid var(--line)}
+.ui-table-plain .ui-tbody .ui-td:first-child{border-radius:12px 0 0 12px}
+.ui-table-plain .ui-tbody .ui-td:last-child{border-radius:0 12px 12px 0}
+.ui-tr-interactive{cursor:pointer}
+.ui-tr-interactive:hover .ui-td{background:var(--hover)}
+.ui-tr[data-state="selected"] .ui-td{background:color-mix(in srgb,var(--ink) 6%,transparent)}
+.ui-tr-interactive:focus-visible{outline:none}
+.ui-tr-interactive:focus-visible .ui-td{box-shadow:inset 0 1.5px 0 var(--ink),inset 0 -1.5px 0 var(--ink)}
+.ui-trunc{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* A sortable heading is a button; the active one carries its direction. */
+.ui-sort{background:none;border:0;padding:0;font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit;cursor:pointer;white-space:nowrap}
+.ui-sort:hover,.ui-sort.on{color:var(--ink)}
+.ui-sort[data-dir="asc"]::after{content:'↑';margin-left:5px}
+.ui-sort[data-dir="desc"]::after{content:'↓';margin-left:5px}
+/* Heading help: a card under the heading on hover or focus. ::before, because ::after is the sort arrow. */
+.ui-tip,.ui-sort[data-tip]{position:relative;cursor:help;text-decoration:underline dotted color-mix(in srgb,var(--muted2) 70%,transparent);text-underline-offset:4px}
+.ui-sort[data-tip]{cursor:pointer}
+.ui-tip::before,.ui-sort[data-tip]::before{content:attr(data-tip);position:absolute;top:calc(100% + 10px);left:0;z-index:5;width:260px;padding:10px 12px;
+  border-radius:10px;background:var(--inverse);color:var(--inverse-ink);font-family:var(--sans);font-size:12px;font-weight:400;
+  line-height:1.5;letter-spacing:0;text-transform:none;text-align:left;white-space:normal;box-shadow:var(--shadow-lg);
+  opacity:0;transform:translateY(-3px);pointer-events:none;transition:opacity .15s var(--ease),transform .15s var(--ease)}
+.ui-right .ui-tip::before,.ui-right .ui-sort[data-tip]::before{left:auto;right:0}
+.ui-tip:hover::before,.ui-tip:focus-visible::before,.ui-sort[data-tip]:hover::before,.ui-sort[data-tip]:focus-visible::before{opacity:1;transform:none;transition-delay:.12s}
+.ui-data-table{overflow:visible}
+.ui-table-wrap:has(.ui-tip,.ui-sort[data-tip]){overflow:visible}
+/* Phone width: a row is a card. `primary` spans it; a `field` names itself; `hide` drops out. */
+@media(max-width:760px){
+  .ui-table-wrap{overflow:visible}
+  .ui-data-table,.ui-data-table .ui-tbody{display:block}
+  .ui-data-table .ui-thead,.ui-data-table colgroup{display:none}
+  .ui-data-table .ui-tbody .ui-tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px;padding:14px 12px;border-radius:12px}
+  .ui-table-lined.ui-data-table .ui-tbody .ui-tr:not(:last-child){border-bottom:1px solid var(--line)}
+  /* A field gets half the card, so it wraps rather than paint over its neighbour ("/started 10 emails"). */
+  .ui-data-table .ui-td{display:block;padding:0;border:0!important;border-radius:0!important;background:none!important;text-align:left;width:auto!important;max-width:none!important;white-space:normal}
+  .ui-data-table .ui-tr-interactive:hover{background:var(--hover)}
+  .ui-data-table .ui-tr-interactive:focus-visible{outline:1.5px solid var(--ink);outline-offset:-1.5px;box-shadow:none}
+  .ui-data-table .ui-td{box-shadow:none!important}
+  .ui-data-table .ui-td[data-mobile="primary"],.ui-data-table .ui-td[data-mobile="wide"]{grid-column:1/-1}
+  .ui-data-table .ui-td[data-mobile="hide"]{display:none}
+  .ui-data-table .ui-td[data-mobile="field"]::before,.ui-data-table .ui-td[data-mobile="wide"]::before{content:attr(data-label);display:block;margin-bottom:2px;font-family:var(--mono);
+    font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2)}
+  .ui-data-table .ui-trunc{max-width:none!important}
+}

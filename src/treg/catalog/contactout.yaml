@@ -14,7 +14,7 @@ expect:
 endpoints:
 - id: contactout.people.count
   domain: contacts
-  capability: people.count
+  capability: people.search.count
   platform: people
   scope: any_account
   method: POST
@@ -188,7 +188,7 @@ endpoints:
   scope: any_account
   method: GET
   path: /v1/email/verify
-  name: Verify email deliverability
+  name: Verify email address — catch-all (accept-all) status
   summary: Verify email deliverability
   input:
     queryParams:
@@ -691,7 +691,7 @@ endpoints:
   example_response: examples/contactout.people.contact.work.json
 - id: contactout.people.contact.personal
   domain: contacts
-  capability: people.email.personal.find
+  capability: people.email.find.personal
   platform: people
   scope: any_account
   method: GET
@@ -1036,11 +1036,7 @@ endpoints:
   untestable: Requires a person lookup or returns named individuals; no automated
     verification request or stored example under the catalog PII rule.
 proposed_capabilities:
-  people.count: Count profiles matching filters without returning profiles
   people.email.personal.availability: Check personal email availability for a LinkedIn
     profile
   people.email.work.availability: Check work email availability for a LinkedIn profile
   people.phone.availability: Check phone availability for a LinkedIn profile
-  linkedin.profile.from_email: Find LinkedIn profile URL from an email address
-  people.email.personal.find: Find personal email from a LinkedIn profile, optionally
-    with phone

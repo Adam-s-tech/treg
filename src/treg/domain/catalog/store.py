@@ -109,6 +109,7 @@ class Catalog:
     aliases: dict[str, list[str]] = field(default_factory=dict)
     # lazy per-instance search index (see _search_fields) — never part of identity or repr
     _search_fields: list | None = field(default=None, init=False, repr=False, compare=False)
+    _compared: dict | None = field(default=None, init=False, repr=False, compare=False)  # see compared()
     by_id: dict[str, dict] = field(default_factory=dict)
     provider_meta: dict[str, dict] = field(default_factory=dict)  # service -> {limits, pricing_url, docs}
     contracts: dict = field(default_factory=dict)   # capability -> routing.Contract
@@ -125,6 +126,20 @@ class Catalog:
 
     def for_provider(self, service: str) -> list[dict]:
         return [e for e in self.endpoints if e["provider"] == service]
+
+    def compared(self) -> dict[tuple[str, str], frozenset[str]]:
+        """The capabilities worth a comparison, (platform, capability) -> its providers: at least two
+        providers serve it on that platform, browsable endpoints only. The one rule behind a shelf's
+        comparison cards, the comparison pages and their sitemap entries, and a provider's
+        "compare" links."""
+        if self._compared is None:
+            sellers: dict[tuple[str, str], set[str]] = {}
+            for e in self.endpoints:
+                if e.get("capability") and browsable(e):
+                    sellers.setdefault((e["platform"], e["capability"]), set()).add(e["provider"])
+            object.__setattr__(self, "_compared", {k: frozenset(v) for k, v in sellers.items() if len(v) >= 2})
+        return self._compared
+
 
     def cost_view(self, cost, provider: str | None = None) -> dict | None:
         """A cost dict with a computed `usd` field — USD for ONE chargeable event (one call, or one
@@ -255,6 +270,17 @@ class Catalog:
 
 
 _CACHE: Catalog | None = None
+
+def capability_key(platform: str, capability: str) -> str:
+    """A capability's URL segment on a platform: its id without the platform's prefix (`enrich` for
+    `companies.enrich` on companies), or the whole id when it is filed under another prefix."""
+    return capability.removeprefix(platform + ".")
+
+
+def compared_capability(cat: Catalog, platform: str, key: str) -> str | None:
+    """The compared capability a URL segment names on a platform, or None when there is none."""
+    compared = cat.compared()
+    return next((c for c in (f"{platform}.{key}", key) if (platform, c) in compared), None)
 
 
 def load(*, refresh: bool = False, directory: Path | None = None) -> Catalog:
@@ -682,6 +708,9 @@ def _normalize(raw: dict, provider: str, directory: Path) -> dict:
         "resource_ownership": raw.get("resource_ownership") or None,
         # User-visible long-lived objects created on a shared provider account.
         "managed_resource": raw.get("managed_resource") or None,
+        # A metered 2xx too large to buffer (inline media): read to disk and settled from the
+        # keys its usage terms read (application/call/settle.py `_spool_response`).
+        "spooled_response": raw.get("spooled_response") is True,
         "platform_request": raw.get("platform_request") or None,
         # How treg serves the catalog fallback after the team's own tool/credential ladder misses.
         # Absent means the provider credential is required. `anonymous` means the verified public
@@ -702,7 +731,7 @@ def _normalize(raw: dict, provider: str, directory: Path) -> dict:
         # inherited from the file header unless the endpoint declares its own.
         # Generated media and its task/result utilities must never replay shared-account ids.
         # Enforce this for core and generated extended rows without changing their public kind.
-        "cache": "forbidden" if platform in {"image-gen", "video-gen", "voice-gen"} else raw.get("cache"),
+        "cache": "forbidden" if platform in {"image-gen", "video-gen", "voice-gen", "music-gen"} else raw.get("cache"),
         "verified": str(verified) if verified else None,
         # {status, means} — a status the provider uses for "asked and answered: no result" (PDL
         # 404s a person it has no record of). Only endpoints with evidenced miss semantics carry
@@ -935,8 +964,11 @@ def domain_rows(pairs: list[tuple[dict, dict]], capabilities: dict[str, str]) ->
         # a provider's two takes on one job into a single row would show one route and the OTHER's
         # price. The capability id stays on every row either way; it is a join key, never a heading.
         if len({e["provider"] for e in eps}) > 1:
+            # The row files under the domain most of its providers give it, not the cheapest
+            # one's alone: one provider's odd `search` pulled a SERP job out of `serp`.
+            domains = [e["domain"] for e in eps]
             rows.append({"kind": "merged", "capability": cap, "description": title,
-                         "domain": eps[0]["domain"], "endpoints": eps})
+                         "domain": max(domains, key=domains.count), "endpoints": eps})
             continue
         rows += [{"kind": "single", "capability": cap, "description": e["name"] or e["summary"] or title,
                   "domain": e["domain"], "endpoints": [e]} for e in eps]
@@ -1121,7 +1153,8 @@ def _match(query: str, cat: Catalog):
     return tokens, rows, best, idf, required, need
 
 
-def search(query: str, cat: Catalog, limit: int = 25) -> tuple[list[tuple[dict, float]], int]:
+def search(query: str, cat: Catalog, limit: int = 25,
+           platform: str | None = None) -> tuple[list[tuple[dict, float]], int]:
     """`(ranked [(endpoint, score)], total_matches)` for a free-text query.
 
     MOST tokens must match — a query is a refinement, so "tiktok comments" must not return every
@@ -1137,6 +1170,9 @@ def search(query: str, cat: Catalog, limit: int = 25) -> tuple[list[tuple[dict, 
     Rows matching the same tokens in the same fields still tie EXACTLY (same floats from the same
     sums), which `rank_band`'s tie sweep and the evidence rerank both depend on. Remaining ties
     break to core-before-extended, then verified-before-not, then id — total and stable.
+
+    `platform` keeps one shelf's rows only; the idf stays the whole catalog's, so a row scores the
+    same scoped or not.
     """
     m = _match(query, cat)
     if m is None:
@@ -1144,10 +1180,10 @@ def search(query: str, cat: Catalog, limit: int = 25) -> tuple[list[tuple[dict, 
     tokens, rows, best, idf, required, need = m
     scored: list[tuple[dict, float]] = []
     for (ep, _), per_tok in zip(rows, best):
-        if sum(1 for i in required if per_tok[i]) < need:
+        if sum(1 for i in required if per_tok[i]) < need or (platform and ep["platform"] != platform):
             continue
         scored.append((ep, round(sum(w * idf[i] for i, w in enumerate(per_tok)), 4)))
-    scored = with_routed_parents(scored, cat)
+    scored = [r for r in with_routed_parents(scored, cat) if not platform or r[0]["platform"] == platform]
     scored.sort(key=lambda row: (-row[1], row[0]["tier"] != "core", not row[0]["verified"], row[0]["id"]))
     return scored[:max(limit, 0)], len(scored)
 
@@ -1172,7 +1208,7 @@ def with_routed_parents(scored: list[tuple[dict, float]], cat: Catalog) -> list[
     return out
 
 
-def candidates(query: str, cat: Catalog, limit: int = 30) -> list[tuple[dict, float]]:
+def candidates(query: str, cat: Catalog, limit: int = 30, platform: str | None = None) -> list[tuple[dict, float]]:
     """Recall for a JUDGE, not an answer: every concrete endpoint that hits at least one required
     token, best lexical score first, cut at `limit`.
 
@@ -1182,7 +1218,8 @@ def candidates(query: str, cat: Catalog, limit: int = 30) -> list[tuple[dict, fl
     A judge that reads the task can tell a value from a capability; the gate cannot. So this pass
     admits on ONE hit and lets the judge decide, which is only safe because nothing here is shown
     without the judge's answer. Routed parents are left out: the judge scores what an endpoint DOES,
-    and `with_routed_parents` puts the parent back over its children afterwards.
+    and `with_routed_parents` puts the parent back over its children afterwards. `platform` scopes
+    the recall to one shelf, as in `search`.
     """
     m = _match(query, cat)
     if m is None or limit <= 0:
@@ -1190,7 +1227,7 @@ def candidates(query: str, cat: Catalog, limit: int = 30) -> list[tuple[dict, fl
     tokens, rows, best, idf, required, need = m
     scored: list[tuple[dict, float]] = []
     for (ep, _), per_tok in zip(rows, best):
-        if ep.get("kind") == "routed" or not any(per_tok[i] for i in required):
+        if ep.get("kind") == "routed" or not any(per_tok[i] for i in required) or (platform and ep["platform"] != platform):
             continue
         scored.append((ep, round(sum(w * idf[i] for i, w in enumerate(per_tok)), 4)))
     scored.sort(key=lambda row: (-row[1], row[0]["tier"] != "core", not row[0]["verified"], row[0]["id"]))
@@ -1271,7 +1308,8 @@ def near_misses(query: str, cat: Catalog, limit: int = 3) -> list[dict]:
 RERANK_BAND = 250
 
 
-def rank_band(query: str, cat: Catalog, limit: int) -> tuple[list[tuple[dict, float]], int, bool]:
+def rank_band(query: str, cat: Catalog, limit: int,
+              platform: str | None = None) -> tuple[list[tuple[dict, float]], int, bool]:
     """`(rows, total_matches, tie_truncated)` — the candidates the evidence sort gets to reorder.
 
     Takes `limit` rows, then keeps taking while the score stays equal to the last one kept: a cut
@@ -1279,7 +1317,7 @@ def rank_band(query: str, cat: Catalog, limit: int) -> tuple[list[tuple[dict, fl
     already dropped the best-measured row cannot put it back. `tie_truncated` is true when the group
     ran past `RERANK_BAND` and the evidence therefore did not get to see all of it.
     """
-    rows, total = search(query, cat, max(limit, 0))
+    rows, total = search(query, cat, max(limit, 0), platform)
     if not rows or len(rows) >= total:
         return rows, total, False
     # One row PAST the ceiling, so "was the group actually cut?" is observed rather than inferred.
@@ -1290,7 +1328,7 @@ def rank_band(query: str, cat: Catalog, limit: int) -> tuple[list[tuple[dict, fl
     # caller asked for. (Shipped surfaces clamp to 100 and 25, so this was unreachable in
     # production — but a helper that silently under-delivers is a trap for the next call site.)
     ceiling = max(limit, RERANK_BAND)
-    wider, _ = search(query, cat, ceiling + 1)
+    wider, _ = search(query, cat, ceiling + 1, platform)
     edge = rows[-1][1]
     group = [r for r in wider if r[1] >= edge]
     kept = group[:ceiling]

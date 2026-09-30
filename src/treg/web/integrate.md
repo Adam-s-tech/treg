@@ -1,6 +1,6 @@
 ---
 name: treg-integration
-description: Integrate treg into your own product — give your users ~2,600 external API tools without owning the keys, and bill each of your customers for what they used. Covers MCP, CLI and HTTP, per-customer attribution, spend limits, and invoicing.
+description: Integrate treg into your own product — give your users {ENDPOINTS} external API tools without owning the keys, and bill each of your customers for what they used. Covers MCP, CLI and HTTP, per-customer attribution, spend limits, and invoicing.
 ---
 
 # Integrating treg into your product
@@ -9,8 +9,8 @@ You are a coding agent. A human has pointed you at this file because they want *
 product. Read this whole file before writing code — the billing section changes how you write the
 plumbing, so writing the plumbing first means rewriting it.
 
-**What treg is:** one base URL and one token that reach ~2,600 external API endpoints (SEO, SERP,
-backlinks, social, enrichment, ads, scraping) across ~40 providers, plus whatever the team registered
+**What treg is:** one base URL and one token that reach {ENDPOINTS} external API endpoints (SEO, SERP,
+backlinks, social, enrichment, ads, scraping) across {PROVIDERS} providers, plus whatever the team registered
 themselves. treg holds the provider credentials and injects them server-side; your caller makes the
 real upstream request and gets the provider's real response back. Calls served on treg's own key are
 metered per call from a prepaid balance at cost — **0% markup**.
@@ -49,9 +49,12 @@ GET {BASE}/catalog/endpoints/<id>              # params, method, example
 Two response headers matter on every call:
 
 - **`X-Treg-Cost-Micro`** — what this call cost, in integer micro-USD (1e-6 USD). Present only on a
-  metered call; absent means it ran on the team's own key and was not billed.
+  metered call; absent means it ran on the team's own key and was not billed. An idempotent replay
+  reports `0` and puts the first call's charge in `X-Treg-Original-Cost-Micro`.
 - **`X-Treg-Call-Id`** — a stable id for this call. **Store it on your side.** It is how you join
   treg's records to yours later, and it resolves via `GET {BASE}/calls/<id>`.
+  `GET {BASE}/calls/<id>/result` returns the stored response of a successful catalog call, so an
+  answer your code threw away after paying for it can be recovered.
 
 Neither lives in the provider's body, which treg relays unchanged — including its errors. A 4xx/5xx
 from the provider costs nothing. One request header matters when you resell with a budget:

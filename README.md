@@ -3,7 +3,7 @@
 ![treg — the tool catalog for your agent](docs/assets/treg-hero.png)
 
 **OpenRouter, but for agent tools instead of models.** Point an agent at one base URL with one token
-and it can do the job: **3,000+ catalogued endpoints across 60+ providers** — SEO and backlinks,
+and it can do the job: **a curated catalog of thousands of endpoints across many providers** — SEO and backlinks,
 social and trends, people and company enrichment, ads, scraping, image and video generation —
 **priced per call, from a cent**,
 with no provider signup. Plus your own team's keys, skills and CLIs, callable by every teammate's
@@ -98,9 +98,31 @@ Discover what your team has shared: `treg tool ls` · check credential health: `
 Installs with no token and no configuration. The skill loads as `treg:treg` and, on its first run,
 walks your agent through the rest — the CLI, sign-in, then `treg mcp install` — so you end up with
 the command line **and** treg's tools. Other agents: `npx skills add superdesigndev/treg -s treg`
-(the `-s` matters — without it you also get this repo's internal dev skills).
+(or see [Workflow skills](#workflow-skills) for the rest).
 See [docs/CLAUDE-PLUGIN.md](docs/CLAUDE-PLUGIN.md). MiniMax Code / MiniMax Agent users: the same
 skill ships via the MiniMax Plugin Marketplace ([docs/MINIMAX-PLUGIN.md](docs/MINIMAX-PLUGIN.md)).
+
+### Workflow skills
+
+Ready-made recipes your agent runs end to end, every call through treg:
+
+| Skill | What your agent can do |
+|---|---|
+| [`treg`](skills/treg/SKILL.md) | Find and call any tool in the catalog, plus your own tools |
+| [`lead-signals`](skills/lead-signals/SKILL.md) | Find in-market buyers from public signals (complaints, job changes, hiring, funding, tool adoption) and monitor a topic, competitor or account list for them ([treg.to/leads-signals](https://treg.to/leads-signals)) |
+| [`make-ugc`](skills/make-ugc/SKILL.md) | Make AI UGC videos: trending hooks, a presenter, talking-head clips, captions ([treg.to/ugc](https://treg.to/ugc)) |
+
+`install.sh` installs all of them for you. To add them to an existing agent instead
+([skills.sh](https://skills.sh) CLI):
+
+```bash
+npx skills add superdesigndev/treg                        # every public skill
+npx skills add superdesigndev/treg --skill lead-signals   # just one
+treg skill bootstrap                                      # same set, with the treg CLI you already have
+```
+
+The workflow skills run on treg, so set it up first (the Quickstart above, or point your agent at
+[treg.to/llms.txt](https://treg.to/llms.txt)).
 
 ### Claude.ai connector
 
@@ -358,7 +380,9 @@ No `.env` is needed for local dev — every setting has a working default (ephem
 decrypt its secret(s) → apply each binding's injector → stream to the upstream → fire-and-forget
 audit record. The infra relay streams bytes without business logic. The call application buffers
 responses needing settlement or ownership evidence up to 8 MiB; larger responses return a 502
-without charging instead of a truncated success. Authorized free final downloads needing no body
+without charging instead of a truncated success. Endpoints that inline media (Gemini images)
+declare `spooled_response`: their metered answer is read to a temp file instead, settled from its
+reported usage, and relayed whole. Authorized free final downloads needing no body
 evidence stream in full, as do own-key and own-tool responses.
 
 **Module map** (`src/treg/`):

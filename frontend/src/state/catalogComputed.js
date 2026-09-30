@@ -1,5 +1,21 @@
 import { isJobQuery } from './find.js'
+
+// The shelf's order: the last 30 days' calls, most first; then the jobs more providers do; then by
+// title, so an unused shelf still reads in a stable order.
+const byTitle = new Intl.Collator()
+const byUse = (a, b) => (b.usage - a.usage) || (b.provN - a.provN) || byTitle.compare(a.title, b.title)
+
+// What each comparison column means, on hover or focus of its heading (comparisonColumns).
+const COL_TIPS = {
+  takes:'What you can send it. Each tag is one input it accepts; — means the catalog has not mapped it yet.',
+  price:"What one call costs on treg's key, in the provider's own unit: per call, per result or per success. With your own key the provider bills you, and treg adds nothing.",
+  works:'Share of the last 30 days of calls that ended without a provider error. Shown once there are 20 or more.',
+  useful:"What teams' agents said after using the result, read like Steam's user reviews: Positive, Mostly positive, Mixed, Mostly negative or Negative by the share that found it useful (partly useful counts half), and Very or Overwhelmingly once 25 or 50 teams agree. One vote per team, last 90 days, scored once 5 teams have rated it; before that their reasons are quoted as early reviews.",
+}
+
 export default {
+// The catalog-v2 control arm (state/catalogExperiment.js): the ledger, and no comparison pages anywhere.
+    catalogLegacy(){ return this.catalogArm==='control'; },
 mkProvider(){ return this.providers.find(p=>p.service===this.mkService)||null; },
 mkConns(){ return this.connections.filter(c=>c.provider===this.mkService); },
 mkNeedsCred(){ return this.mkConns.filter(c=>c.extra_credential_note); },
@@ -20,7 +36,7 @@ mkNeedsCred(){ return this.mkConns.filter(c=>c.extra_credential_note); },
       // catalog invents tomorrow still gets a shelf, sorted to the end.
       const order=['Enrichment','SEO/AEO','Social','Advertising','E-commerce','Reviews & Apps','AI generation','Community'];
       const hints={
-        'AI generation':'video, image and voice models, the same model over several routes priced side by side',
+        'AI generation':'video, image, voice and music models, the same model over several routes priced side by side',
         'SEO/AEO':'rankings, keywords and backlinks — what search engines know, and what the answer engines say',
         'Social':'posts, profiles and comments, straight from the feeds',
         'Enrichment':'people and company records, resolved from an email or a domain',
@@ -111,104 +127,132 @@ platProviders(){  // providers with endpoints here, in catalog order
       // registry. Depending on that async registry made the entire row flicker away locally. `treg`
       // is the synthetic router, not a provider page a person can open.
       return seen.filter(s=>s!=='treg'); },
-// ---- the ledger ----
-    // Sections, their order and the merged/single split are all decided by the server (see
-    // catalog_store.domain_rows) so the CLI, the API and this page can't disagree about what the
-    // platform contains. Everything below is presentation the server has no business knowing:
-    // the price label, whether the row is callable TODAY (which depends on who is logged in), and
-    // the haystack the filter box searches.
+// ---- the shelf's rows ----
+    // Which endpoints file together (a job several providers do, or one endpoint alone) is decided by
+    // the server (catalog_store.domain_rows), so the CLI, the API and this page cannot disagree about
+    // what a platform contains. What is added here is presentation: the title a row shows, whether it
+    // is account/utility plumbing, and the haystack the search box filters.
     platRowsAll(){
       if(!this.platData) return [];
       const out=[];
       for(const sec of (this.platData.domains||[])) for(const r of (sec.rows||[])){
         const eps=r.endpoints||[]; if(!eps.length) continue;
-        const cheapest=this.capCheapest(eps);
-        const provs=[...new Set(eps.map(e=>e.provider_display||e.provider))];
-        const pills=this.provPills(eps);
         out.push({...r, domain:sec.domain, endpoints:eps,
-          // What the row SHOWS. The server already picked `name` over `summary` where a curated
-          // name exists; this is the guard for the rows where one doesn't yet — a DataForSEO
-          // summary is documentation prose and would render a paragraph in a table cell. The full
-          // text is never lost: the expansion shows it whole.
+          // The server picks `name` over `summary` where a curated name exists; the clip guards the
+          // rows where one does not yet, whose summary is documentation prose.
           title:this.clip(r.description, 90),
-          // Who serves it, as plain text — the collapsed row names the providers and prices none
-          // of them. Three names is what fits on one line; the rest become a count, with the whole
-          // list in the title attribute.
-          // Three pills and a +N. Never four, never a wrap: the strip is what decides whether a
-          // merged row is one line, and one line is the rule.
-          pills:pills.slice(0,3), pillsMore:Math.max(0, pills.length-3),
-          pillsMoreTitle:pills.slice(3).map(x=>x.name).join(', '),
-          // Providers AND endpoints, always both — one provider can offer the same job three ways,
-          // so the two numbers differ and the endpoint count standing in for the provider count read
-          // "6 providers" on a 3-provider row. Both live in the cell's tooltip rather than on a
-          // second line, because a second line is exactly what made these rows look broken.
-          provN:provs.length,
-          provTitle:provs.length+' provider'+(provs.length===1?'':'s')+' · '+eps.length+
-                    ' endpoint'+(eps.length===1?'':'s')+' — '+provs.join(', '),
-          // the capability is the join key when there is one; an unmapped row is its endpoint
-          key:(r.capability||'')+'|'+eps[0].id,
-          // a "management" row is one whose every endpoint is plumbing (account/utility) — those
-          // fold behind a per-section expander instead of sitting in the main ledger.
           mgmt: eps.every(e=>e.kind==='account'||e.kind==='utility'),
-          // "from $0.001" on a merged row, the flat label on a single one — and never "from free",
-          // which reads as a hedge on the one price that needs none.
-          price: cheapest ? ((r.kind==='merged'&&eps.length>1&&cheapest.n>0?'from ':'')+cheapest.label)
-                 // No dollar figure anywhere, but a cost note: the credit-metered providers
-                 // (Apollo, PDL, Hunter…) whose price IS documented, in their own units.
-                 : (eps.some(e=>e.cost&&e.cost.note) ? 'see provider' : '—'),
-          // the provider's own figure, so nobody has to wonder whether we invented the converted one
-          priceNative: cheapest ? cheapest.native : '',
-          priceTitle: r.kind==='merged'
-            ? 'The cheapest of the '+eps.length+' providers on this row — open it for each one'
-            : this.costTitle(eps[0].cost),
-          verified: eps.some(e=>!!e.verified),
-          ready: eps.some(e=>this.catEndpointConnected(e)),
           hay: (r.description+' '+r.domain+' '+(r.capability||'')+' '+eps.map(e=>
                  e.provider+' '+(e.provider_display||'')+' '+(e.name||'')+' '+e.path+' '+e.summary).join(' ')).toLowerCase()});
       }
       return out; },
-// The text box and the verified checkbox narrow the row list; the domain chips then narrow it
-    // again. Splitting it here is what lets each chip carry the count it would actually show.
-    platRowsPreDomain(){
-      const q=this.platQ.trim().toLowerCase();
-      return this.platRowsAll.filter(r=>(!this.platVerifiedOnly||r.verified) && (!q||r.hay.includes(q))); },
-platDomainTabs(){
-      // Only the browse surface counts on the chips: management rows (account/utility) live behind
-      // a per-section expander, not in the domain tally.
-      const n={}; for(const r of this.platRowsPreDomain) if(!r.mgmt) n[r.domain]=(n[r.domain]||0)+1;
-      // The server's order (busiest first, "other" last) is the one the chips keep — a chip bar
-      // that reshuffles as you type is unusable.
-      return (this.platData&&this.platData.domains||[]).filter(s=>n[s.domain]).map(s=>({domain:s.domain, n:n[s.domain]})); },
-platLedger(){
-      // Browse rows (data/action) make the domain sections; a section with no visible row does not
-      // render AT ALL. Filing management rows per-domain conjured sections that existed only
-      // because a hidden endpoint carried that capability id — CAMPAIGNS 0, SCHOOL 0, TITLE 0.
-      const vis={};
-      for(const r of this.platRowsPreDomain){
-        if(r.mgmt || (this.platDomain && r.domain!==this.platDomain)) continue;
-        (vis[r.domain]=vis[r.domain]||[]).push(r); }
-      const out=(this.platData&&this.platData.domains||[]).filter(s=>vis[s.domain])
-        .map(s=>({domain:s.domain, rows:vis[s.domain]}));
-      // ...and every management endpoint on the platform lands in ONE collapsed section at the
-      // bottom, its domain ignored: account/utility routes are the provider's own plumbing, and
-      // which capability id they happen to carry is not a fact worth a heading.
-      const acts=this.platActionRows;
-      if(acts.length) out.push({domain:'Actions', actions:true, count:acts.length,
-                                rows:this.platActionsOpen?acts:[]});
-      return out; },
-// What "All" counts: the same population the domain chips add up to. Counting the management
-    // rows here made the All chip disagree with both the chips beside it and the stat line under it.
-    platBrowseCount(){ return this.platRowsPreDomain.filter(r=>!r.mgmt).length; },
-// Platform-wide, so a domain chip (which is a browse axis) hides it rather than filtering it.
-    platActionRows(){
-      return this.platDomain ? [] : this.platRowsPreDomain.filter(r=>r.mgmt); },
-// Two numbers, because a merged row stands for several endpoints — the browse surface only, so
-    // the header count never jumps when the management expander is opened.
-    platStats(){
-      let rows=0, eps=0;
-      for(const r of this.platRowsPreDomain){ if(r.mgmt || (this.platDomain && r.domain!==this.platDomain)) continue;
-        rows++; eps+=r.endpoints.length; }
-      return {rows, eps}; },
+// ---- the shelf, read as comparisons and tools ----
+    // A capability at least two providers serve on the shelf is the one place a comparison means
+    // something, so it gets a card and a page of its own. The server marks those rows (`compare`,
+    // the key its URL uses; `Catalog.compared`). Everything else is a TOOL, opened in the drawer.
+    // Plumbing (account/utility) stays folded at the foot.
+    platComparisons(){
+      return this.platRowsAll.filter(r=>r.compare).map(r=>{
+        const direct=r.endpoints.filter(e=>e.kind!=='routed'), provs=[...new Set(direct.map(e=>e.provider))];
+        const range=this.priceRange(direct);
+        return {job:true, key:r.capability, slug:r.compare, row:r, title:r.description, hay:r.hay, logos:provs.slice(0,5),
+                routed:r.endpoints.find(e=>e.kind==='routed')||null, provN:provs.length,
+                // An auto-routed call is also recorded on every provider it tries, so the providers'
+                // own calls already count it; adding the routed row too would count it twice.
+                usage:direct.reduce((n,e)=>n+this.callsOf(e), 0),
+                meta:provs.length+' providers'+(range ? ' · '+range : '')}; })
+        .sort(byUse); },
+// What the shelf's lists filter by as you type: a name or a word. A described job is not a filter
+    // (no row contains a sentence); the finder answers it above the lists, which stay whole.
+    platFilterQ(){ return isJobQuery(this.platQ) ? '' : this.platQ.trim().toLowerCase(); },
+// Every endpoint on the shelf that is not part of a comparison card, one line each, built once per
+    // shelf; the search box only filters it.
+    platToolIndex(){
+      const out=[];
+      for(const r of this.platRowsAll){
+        if(r.compare) continue;
+        for(const e of r.endpoints){
+          if(e.kind==='routed') continue;
+          const title=r.endpoints.length===1 ? r.title : this.clip(e.name||e.summary||r.description, 90);
+          out.push({id:e.id, title, e, mgmt:r.mgmt, usage:this.callsOf(e), provN:1,
+                    hay:(title+' '+e.provider+' '+(e.provider_display||'')+' '+(e.summary||'')+' '+e.id).toLowerCase()}); } }
+      return out.sort(byUse); },
+// The shelf itself: comparisons and single-provider tools in ONE list, most used first. A visitor
+    // comes for a job, not for whether one provider or several serve it; a comparison still reads as
+    // one (its logo stack, and Auto-route where treg can pick).
+    // Sorted once per shelf; the search box only filters it.
+    platShelfIndex(){ return [...this.platComparisons, ...this.platToolIndex.filter(t=>!t.mgmt)].sort(byUse); },
+platShelf(){ const q=this.platFilterQ; return q ? this.platShelfIndex.filter(t=>t.hay.includes(q)) : this.platShelfIndex; },
+platPlumbing(){ const q=this.platFilterQ; return this.platToolIndex.filter(t=>t.mgmt && (!q || t.hay.includes(q))); },
+platEpById(){ const m={}; for(const r of this.platRowsAll) for(const e of r.endpoints) m[e.id]=e; return m; },
+// The drawer reads from the list of the view it was opened on.
+    drawerEp(){ if(!this.drawerTool) return null;
+      return (this.view==='provider' ? this.mkToolById : this.platEpById)[this.drawerTool]||null; },
+drawerInfo(){ const i=this.drawerTool && this.epInfo[this.drawerTool]; return i&&i.data||null; },
+// The comparison a URL names, by its key (`enrich` on the companies shelf is `companies.enrich`).
+    platComparison(){ return this.platCap ? this.platComparisons.find(j=>j.slug===this.platCap)||null : null; },
+platCapRow(){ return this.platComparison ? this.platComparison.row : null; },
+platComparisonData(){ const i=this.platComparisonLead && this.epInfo[this.platComparisonLead]; return i&&i.data||null; },
+// Measured reliability by endpoint id, from the lead's detail: the endpoint itself and its siblings.
+    platObserved(){ const d=this.platComparisonData, m={}; if(!d) return m;
+      if(d.endpoint) m[d.endpoint.id]=d.endpoint.observed;
+      for(const s of d.siblings||[]) m[s.id]=s.observed; return m; },
+platAccepts(){ const m={}; for(const p of (((this.platComparisonData||{}).routing)||{}).plan||[]) m[p.endpoint_id]=p.accepts; return m; },
+platComparisonRows(){
+      const row=this.platCapRow; if(!row) return [];
+      const eps=row.endpoints.filter(e=>e.kind!=='routed');
+      const perProv={}; for(const e of eps) perProv[e.provider]=(perProv[e.provider]||0)+1;
+      const rows=eps.map(e=>{ const o=this.platObserved[e.id];
+        return {e, id:e.id, twin:perProv[e.provider]>1, takes:this.takesLabel(this.platAccepts[e.id]),
+                usd:e.platform_eligible===false ? null : this.costUsd(e.cost), works:this.worksOf(o), useful:this.usefulOf(e)}; });
+      const k=this.platComparisonSort.key, val=r=>k==='price' ? r.usd : k==='works' ? (r.works&&r.works.pct) : (r.useful&&r.useful.rank*1000+r.useful.pct);
+      const dir=this.platComparisonSort.dir==='asc' ? 1 : -1;
+      // Unmeasured rows stay last either way; on Reviews, early rows (quotes, no score) sit between
+      // the scored ones and the unrated, whichever way the column sorts.
+      const tier=(r,v)=>v!=null ? 0 : k==='useful' && r.e.reviews ? 1 : 2;
+      return rows.sort((a,b)=>{ const x=val(a), y=val(b), t=tier(a,x)-tier(b,y);
+        if(t) return t;
+        if(x==null) return (a.e.provider_display||a.e.provider).localeCompare(b.e.provider_display||b.e.provider);
+        return (x-y)*dir || (b.e.verified?1:0)-(a.e.verified?1:0); }); },
+// The comparison's columns (components/ui/table DataTable). Price sorts cheapest first, the two
+    // measured columns best first; every heading explains its number.
+    comparisonColumns(){ const t=COL_TIPS; return [
+      {key:'provider', header:'Provider', mobile:'primary', minWidth:'240px', wrap:true},
+      {key:'takes', header:'Takes', tip:t.takes, minWidth:'150px', wrap:true, mobile:'wide'},
+      {key:'price', header:'Price', tip:t.price, align:'right', sortable:true, sortFirst:'asc'},
+      {key:'works', header:'Works', tip:t.works, align:'right', sortable:true, sortFirst:'desc'},
+      {key:'useful', header:'Reviews', tip:t.useful, align:'right', sortable:true, sortFirst:'desc', minWidth:'132px'}]; },
+platOtherComparisons(){ return this.platComparisons.filter(j=>j!==this.platComparison).slice(0,6); },
+drawerIds(){
+      if(this.view==='provider') return [...this.mkToolShelves.flatMap(p=>p.tools), ...this.mkToolShelves.flatMap(p=>p.plumbing)].map(t=>t.id);
+      if(this.platCapRow) return [...(this.platComparison&&this.platComparison.routed ? [this.platComparison.routed.id] : []), ...this.platComparisonRows.map(r=>r.id)];
+      return [...this.platShelf, ...this.platPlumbing].filter(t=>!t.job).map(t=>t.id); },
+// The drawer's three numbers: measured success (the tool's own detail, else the comparison's), agents' verdict.
+    drawerStats(){ const e=this.drawerEp; if(!e) return {};
+      const d=this.drawerInfo;
+      return {works:this.worksOf(d && d.endpoint && d.endpoint.observed) || this.worksOf(this.platObserved[e.id]), useful:this.usefulOf(e)}; },
+// What stands between your agent and this tool: an account to connect (OAuth), a key to add (a tool
+    // only your own key can call), or nothing, and the line can go to the agent as it is.
+    drawerNext(){ const e=this.drawerEp; if(!e) return '';
+      if(this.catEndpointConnected(e)) return 'copy';
+      if(this.provAuthKind(e.provider)==='oauth') return 'connect';
+      return e.platform_eligible===false ? 'key' : 'copy'; },
+// Everything else worth knowing, as one quiet line instead of a row of chips.
+    drawerFacts(){ const e=this.drawerEp; if(!e) return '';
+      const access={'Platform + BYOK':"treg's key or yours", 'Platform access':"treg's key", 'BYOK only':'your own key only'}[this.endpointAccessLabel(e)] || this.endpointAccessLabel(e);
+      return [access, e.verified ? 'verified live '+this.verdictDate(e.verified) : 'not yet verified live',
+              e.scope==='own_account' ? 'reads the account you connect' : e.scope==='any_account' ? 'any public account' : ''].filter(Boolean).join(' · '); },
+// A provider's tools by platform (GET /catalog/providers/<service>), for its provider page.
+    mkToolData(){ const t=this.mkTools; return t && t.service===this.mkService ? t.data : null; },
+mkToolShelves(){ const d=this.mkToolData; if(!d) return [];
+      return d.platforms.map(p=>{ const hidden=t=>t.kind==='account'||t.kind==='utility';
+        const item=t=>({id:t.id, e:t, compare:t.compare||null, title:this.clip(t.name||t.summary||t.id, 90)});
+        return {slug:p.slug, label:p.label, tools:p.tools.filter(t=>!hidden(t)).map(item), plumbing:p.tools.filter(hidden).map(item)}; })
+        .filter(p=>p.tools.length || p.plumbing.length); },
+mkToolById(){ const m={}; for(const p of (this.mkToolData||{platforms:[]}).platforms) for(const t of p.tools) m[t.id]=t; return m; },
+mkToolCount(){ return this.mkToolShelves.reduce((n,p)=>n+p.tools.length, 0); },
+mkPlumbCount(){ return this.mkToolShelves.reduce((n,p)=>n+p.plumbing.length, 0); },
+platProvLine(){ return this.platProviders.map(s=>({s, name:this.provName(s)})).sort((a,b)=>a.name.localeCompare(b.name)); },
 catalogDeny(){ const c=this.tForm.cli; return (c && this.catalogClis && this.catalogClis[c.bin]) || []; },
 catalogExtra(){  // catalog patterns not already in the own list — the union dedupes at run time, so showing both would double up
       const own=new Set((this.tForm.cli&&this.tForm.cli.deny||[]).map(p=>p.trim())); return this.catalogDeny.filter(p=>!own.has(p)); },

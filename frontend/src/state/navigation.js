@@ -6,7 +6,7 @@ switchTo(o){ this.switchOrg(o); },
       if(o.slug!==this.activeSlugNow){ if(!this.sessionMode && !this.connected(o.slug)){ this.addOrg=true; return; } this.switchOrg(o); }
       this.go('orgs'); },
 resetConfirms(){ this.confirmDelTool=null; this.confirmDelSecret=null; this.confirmDelBundle=null; this.confirmRemove=null; this.confirmAgent=null; this.keyMenu=null; this.keyConfirm=null; this.confirmLeave=false; this.confirmDel=''; this.confirmAdmUser=null; this.confirmAdmOrg=null; },
-go(v, fromPop){ this.resetConfirms(); this.mobileNav=false;  // stale inline "Confirm" states must not survive a view switch (accidental-delete risk)
+go(v, fromPop){ this.resetConfirms(); this.mobileNav=false; this.drawerTool=null;  // stale inline "Confirm" states must not survive a view switch (accidental-delete risk)
       // `usage` is a TAB of the activity page now, not a view of its own — keep the old route
       // working so an existing /app#usage link, and the balance card's deep link, still land right.
       if(v==='usage'){ this.actTab='usage'; v='activity'; this.loadUsage(); }
@@ -44,7 +44,8 @@ goByok(service){
       setTimeout(()=>{ if(this.byokFocus===service) this.byokFocus=null; }, 4000);
     },
 openProvider(service, fromPop){ this.resetConfirms();
-      this.detail=null; this.mkService=service; this.view='provider';
+      this.detail=null; this.mkService=service; this.view='provider'; this.drawerTool=null;
+      if(!this.catalogLegacy) this.loadProviderTools(service);   // the control arm shows platform chips instead
       if(!fromPop) history.pushState({mk:service}, '', '/app/marketplace/'+encodeURIComponent(service));
       // The consent popup can return before /connections has been re-read, and a deep link may
       // arrive before the first load — either way the page needs the data it renders from.

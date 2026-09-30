@@ -53,7 +53,7 @@ covers (frontmatter `sources:`). Regenerate this index with
 | [Shell mode (treg shell) — transparent CLI interception](interface/shell.md) | shipped | shell.py, cli.py |
 | [Test cases for the ChatGPT plugin submission](interface/skill-openai-test-cases.md) | reference | — |
 | [Tool justifications for the ChatGPT plugin submission](interface/skill-openai-tool-justifications.md) | reference | — |
-| [The shippable tools-registry skill (3 personas)](interface/skill.md) | shipped | skill.md, SKILL.md, web.py, mcp_install.py, … |
+| [The shippable tools-registry skill (3 personas)](interface/skill.md) | shipped | skill.md, SKILL.md, SKILL.md, web.py, … |
 
 ## Ops (deploy, scale)
 

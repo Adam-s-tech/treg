@@ -27,6 +27,24 @@ async def test_policy_population_covers_every_platform_slot_and_both_aggregators
     assert "tomba_secret" not in pop  # the second half of a credential pair is not an account
 
 
+async def test_octen_platform_account_has_a_known_dashboard_only_capacity_policy(monkeypatch):
+    from treg.config import get_settings
+
+    monkeypatch.setenv("TREG_PLATFORM_KEY_OCTEN", "TEST-OCTEN-KEY")
+    get_settings.cache_clear()
+    try:
+        policy = default_policy("octen", has_key=True)
+        assert (policy.capacity_type, policy.funding_mode, policy.source) == (
+            "cash", "manual", "manual",
+        )
+        assert policy.rate_limit == {"limit": 5, "window_s": 1, "source": "policy"}
+        balance = await collectors.provider_balance("octen")
+        assert balance["no_api"] is True
+        assert "dashboard" in balance["note"]
+    finally:
+        get_settings.cache_clear()
+
+
 async def test_import_creates_one_policy_per_account_and_flags_unknowns_without_overwriting():
     await reset_db()
     async with session_maker() as db:
@@ -73,6 +91,11 @@ def test_latest_state_rules():
     assert st.health == "exhausted" and st.exhausted_until == reset and st.is_exhausted(now)
     assert not st.is_exhausted(reset + timedelta(seconds=1))
     assert LatestState.from_json(st.to_json()) == st
+    # Icypeas' spent pool read 1.9987e-05 credits for hours: float dust is empty, a real remainder is not.
+    dust = CapacitySnapshot(provider="icypeas", observed_at=now, remaining=1.9986932203931718e-05, unit="credits")
+    assert latest_state(pol, dust, now).health == "exhausted"
+    assert latest_state(pol, CapacitySnapshot(provider="icypeas", observed_at=now, remaining=0.5,
+                                              unit="credits"), now).health == "ok"
 
 
 async def test_sweep_one_failing_collector_does_not_stop_the_others(monkeypatch):

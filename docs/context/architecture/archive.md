@@ -294,7 +294,7 @@ dict. The call service (`application/call/service.py`) keeps them in `archive_ke
 targets are already indexed). `archive.resolve_result(key_hash, content_hash)` walks
 row → key → newest snapshot with that content hash → `body_of` carrier, and returns the request
 shape (`req_*`, pre-injection) plus the answer; a hash-only version reports `stored: false`.
-`GET /calls/{id}/result` (api.py) exposes it to members of the row's org, with a `note` on every
+`GET /calls/{id}/result` (api.py; `id` is the row id or the `X-Treg-Call-Id`) exposes it to members of the row's org, with a `note` on every
 "nothing on file" branch; `/calls` rows carry `has_result`. The archive stays platform-scoped —
 what makes the read safe is that the row belongs to the team and names the exact bytes that
 team already received. Failure evidence (`error_*`) is untouched and still admin-only.
@@ -455,7 +455,8 @@ later for the timers; it complements `/admin/reconcile/repeats`, which prices wh
 ## The recorder (PR 2)
 
 Hooked in `call_tool` immediately after `_buffer_response` — the one line where "metered platform
-call, body already in memory" is a fact, which IS eligibility gate 3. Metered 2xx only; the
+call, body already in memory" is a fact, which IS eligibility gate 3. Metered 2xx only, and never a 2xx the capacity
+signature table reads as our own account running dry (Icypeas' 200 "insufficient credits"); the
 serve path already emits `X-Treg-Cache: hit`. The call context also carries `cached` from
 `served_hit`, so review invitations can exclude archive hits independently of response headers. `archive.record()` is fire-and-forget with
 audit's discipline: bounded pending set (512), failures swallowed but logged at **ERROR** (a lost
@@ -585,6 +586,8 @@ Successful free final fetches that qualify for `MarketplaceCall.streamable_free_
 lookup and recording even though their zero-amount money lifecycle remains metered. They have no
 buffered body, so no empty or partial body/hash is recorded. Other calls exceeding the settlement
 buffer's 8 MiB limit fail before recording and cannot populate a cache or idempotent success.
+A spooled answer (`spooled_response`, inline media) is settled from evidence on disk and is never
+recorded: its body is not in memory, and multi-megabyte generated media is not a reusable answer.
 
 ## The cache key
 

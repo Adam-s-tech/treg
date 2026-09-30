@@ -1134,6 +1134,16 @@ adapters:
     const: {queryParams.engine: google_maps, queryParams.type: search}
     out: {places: local_results}
     miss: "local_results == []"
+  apify.google.serp.maps:
+    accepts: [[q]]
+    in:  {q: body.searchStringsArray}
+    in_expr: {body.searchStringsArray: "list(q)", body.locationQuery: "country_name(country)", body.language: language}
+    # treg's key needs the run's spend cap, timeout and memory; 20 places bill at most 20 rows + the start.
+    const: {queryParams.maxTotalChargeUsd: "0.25", queryParams.timeout: "90", queryParams.memory: "1024",
+            body.maxCrawledPlacesPerSearch: 20, body.maxCrawledPlaces: 20, body.scrapeContacts: false,
+            body.scrapePlaceDetailPage: false, body.maxReviews: 0}
+    out: {places: ".", count: "len(.)"}
+    miss: ". == []"
 
   # ---- tiktok.user.videos (batch 5) ------------------------------------------------------------
   justoneapi.tiktok.user.videos:
@@ -1516,13 +1526,6 @@ adapters:
     out: {video_id: data.video_id, title: data.title, channel: data.author, channel_id: data.channel_id, description: data.description,
           views: data.view_count, duration_seconds: data.length_seconds, published: data.publish_date}
     miss: "data.video_id == null"
-  tikhub.youtube.video.detail:
-    accepts: [[video_id]]
-    in:  {video_id: queryParams.video_id}
-    out: {video_id: data.videoDetails.videoId, title: data.videoDetails.title, channel: data.videoDetails.author,
-          channel_id: data.videoDetails.channelId, description: data.videoDetails.shortDescription,
-          views: data.videoDetails.viewCount, duration_seconds: data.videoDetails.lengthSeconds}
-    miss: "data.videoDetails == null"
   justoneapi.youtube.video.detail:
     accepts: [[video_id]]
     in:  {video_id: queryParams.videoId}
@@ -1941,16 +1944,19 @@ adapters:
     in:  {post_id: queryParams.id}
     out: {post: data}
     miss: "data == null"
-  tikhub.x.weibo-web-fetch-post-detail:
-    accepts: [[post_id]]
-    in:  {post_id: queryParams.post_id}
-    out: {post: data.data}
-    miss: "data.data == null"
   tikhub.x.weibo-app-fetch-status-detail:
     accepts: [[post_id]]
     in:  {post_id: queryParams.status_id}
     out: {post: data.detailInfo.status}
     miss: "data.detailInfo == null"
+  apify.weibo.post.detail:
+    accepts: [[post_id]]
+    in:  {post_id: body.post_ids}
+    in_expr: {body.post_ids: "list(post_id)"}
+    const: {body.mode: post, queryParams.maxTotalChargeUsd: "0.05", queryParams.timeout: "90",
+            queryParams.memory: "1024"}
+    out: {post: "[0]"}
+    miss: "[0] == null"
 
   predictleads.companies.job_openings:
     accepts: [[domain]]
@@ -2637,6 +2643,26 @@ adapters:
     miss: "coalesce(output.data.suggestions, []) == []"
 
   # ---- open web -----------------------------------------------------------------------------
+  perplexity.web.search.fast:
+    accepts: [[q]]
+    in: {q: body.query}
+    in_expr: {body.max_results: limit}
+    const: {body.search_type: fast}
+    out: {results: results, count: "len(results)"}
+    miss: "coalesce(results, []) == []"
+  you.web.search:
+    accepts: [[q]]
+    in: {q: body.query}
+    in_expr: {body.count: limit}
+    out: {results: results.web, count: "len(results.web)"}
+    miss: "coalesce(results.web, []) == []"
+  valyu.web.search:
+    accepts: [[q]]
+    in: {q: body.query}
+    in_expr: {body.max_num_results: limit}
+    const: {body.search_type: web, body.max_price: 1.5, body.response_length: short}
+    out: {results: results, count: "len(results)"}
+    miss: "coalesce(results, []) == []"
   tinyfish.web.search:
     accepts: [[q]]
     in: {q: queryParams.query}
@@ -2657,6 +2683,13 @@ adapters:
     const: {body.search_depth: basic, body.include_usage: true}
     out: {results: results, count: "len(results)"}
     miss: "coalesce(results, []) == []"
+  linkup.web.search:
+    accepts: [[q]]
+    in: {q: body.q}
+    in_expr: {body.maxResults: limit}
+    const: {body.depth: flash, body.outputType: searchResults}
+    out: {results: results, count: "len(results)"}
+    miss: "choose(results == null, false, results == [])"
   exa.web.search:
     accepts: [[q]]
     in: {q: body.query}
@@ -2684,7 +2717,26 @@ adapters:
     in_expr: {body.gl: "lower(country)", body.hl: language}
     out: {results: organic, count: "len(organic)"}
     miss: "coalesce(organic, []) == []"
+  firecrawl.web.search:
+    accepts: [[q]]
+    in: {q: body.query}
+    in_expr: {body.limit: limit}
+    out: {results: data.web, count: "len(data.web)"}
+    miss: "choose(coalesce(data.web, []) == null, coalesce(creditsUsed, 0) == 0, false)"
+  branddev.web.search:
+    accepts: [[q]]
+    in: {q: body.query}
+    const: {body.numResults: 10}
+    out: {results: results, count: "len(results)"}
+    miss: "coalesce(results, []) == []"
 
+  you.web.contents:
+    accepts: [[url]]
+    in_expr: {body.urls: "list(url)"}
+    test_identity: {url: "https://example.com"}
+    const: {body.formats: [markdown]}
+    out: {pages: ".", count: "len(.)"}
+    miss: ". == []"
   tinyfish.web.fetch:
     accepts: [[url]]
     in_expr: {body.urls: "list(url)"}
@@ -2719,6 +2771,13 @@ adapters:
     const: {body.extract_depth: basic}
     out: {pages: results, count: "len(results)"}
     miss: "coalesce(results, []) == []"
+  linkup.web.fetch:
+    accepts: [[url]]
+    in: {url: body.url}
+    test_identity: {url: "https://example.com"}
+    const: {body.mode: standard, body.renderJs: false}
+    out: {pages: "list(.)", count: "len(list(.))"}
+    miss: "coalesce(markdown, '') == ''"
   keenable.web.fetch:
     accepts: [[url]]
     in: {url: queryParams.url}
@@ -2731,6 +2790,18 @@ adapters:
     const: {body.includeMarkdown: true}
     out: {pages: "list(.)", count: "len(list(.))"}
     miss: "coalesce(text, '') == ''"
+  firecrawl.web.scrape:
+    accepts: [[url]]
+    in: {url: body.url}
+    const: {body.formats: [markdown], body.parsers: []}
+    out: {pages: "list(data)", count: "len(list(data))"}
+    miss: "coalesce(data.markdown, '') == null"
+  branddev.web.scrape:
+    accepts: [[url]]
+    in: {url: body.url}
+    const: {body.formats: {markdown: true}}
+    out: {pages: "list(.)", count: "len(list(.))"}
+    miss: "markdown.success == false"
 
   anyapi.web.map:
     accepts: [[url], [url, q]]
@@ -2750,6 +2821,19 @@ adapters:
     in: {url: body.url, q: body.search_query}
     in_expr: {body.top_n: limit}
     test_identity: {url: "https://docs.olostep.com", q: "billing and credits"}
+    out: {results: urls, count: "len(urls)"}
+    miss: "coalesce(urls, []) == []"
+  firecrawl.web.map:
+    accepts: [[url, q], [url]]
+    in: {url: body.url, q: body.search}
+    in_expr: {body.limit: limit}
+    out: {results: links, count: "len(links)"}
+    miss: "success == false"
+  branddev.web.map:
+    accepts: [[url]]
+    in_expr: {queryParams.domain: "host(url)"}
+    test_identity: {url: "https://docs.context.dev"}
+    const: {queryParams.maxLinks: "10"}
     out: {results: urls, count: "len(urls)"}
     miss: "coalesce(urls, []) == []"
 

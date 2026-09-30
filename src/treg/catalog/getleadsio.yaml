@@ -10,10 +10,7 @@ source:
 limits: '100 requests per minute by default across all endpoints. Catalog enrichment calls accept exactly one item. Search and company-contact lookups can return up to 5,000 records per request.'
 pricing_url: https://www.getleads.io/pricing/
 proposed_capabilities:
-  people.count: Count people matching search filters without returning records
-  people.search.filters: List the accepted values for a people-search filter
   people.organization_contacts: Find contacts at an organization by domain or role
-  companies.funding.feed: Browse the latest funding rounds across all companies
   companies.acquisitions.feed: Browse recent company acquisition announcements
 endpoints:
   - id: getleadsio.people.enrich.from_email
@@ -235,7 +232,7 @@ endpoints:
     example_response: examples/getleadsio.people.search.json
 
   - id: getleadsio.people.search.count
-    capability: people.count
+    capability: people.search.count
     platform: people
     domain: contacts
     scope: any_account

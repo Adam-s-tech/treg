@@ -10,10 +10,6 @@ proposed_capabilities:
   image-gen.flux-schnell.from_text: "Generate images with FLUX Schnell"
   video-gen.seedance-1-lite.from_text: "Generate a Seedance 1 Lite video from text or an image"
   video-gen.veo-3-1-fast.generate: "Generate a Veo 3.1 Fast video from text, optionally from a starting image"
-  # Shared with reapi.yaml / piapi.yaml: the same image model over several routes merges onto one row.
-  image-gen.gemini-3-pro-image.generate: "Gemini 3 Pro Image"
-  image-gen.gpt-image-2.generate: "GPT Image 2"
-  image-gen.gpt-image-2-5.generate: "GPT Image 2.5"
 # Replicate answers a submission with both a dynamic `urls.get` and the stable official path
 # `GET /v1/predictions/{id}`; the static form is used so the CLI polls a catalog id (served on any
 # credential tier) rather than an absolute URL, which the relay only accepts for a team's own tool.

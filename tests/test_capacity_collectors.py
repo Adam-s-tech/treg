@@ -16,6 +16,27 @@ from treg.domain.capacity import collectors, policy, sweep
 from treg.timeutil import utcnow_naive
 
 
+async def test_spidercloud_balance_converts_api_credits_to_usd():
+    def probe(request):
+        assert request.method == "GET"
+        assert request.url.path == "/data/credits"
+        assert request.headers["authorization"] == "Bearer test"
+        return httpx.Response(200, json={"data": {"credits": "250000.000000"}})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(probe)) as client:
+        row = await collectors._spidercloud(client, "test")
+    assert row["value"] == 25.0
+    assert row["unit"] == "USD"
+
+
+@pytest.mark.parametrize("credits", [None, True, "NaN", "Infinity", "bad", -1])
+async def test_spidercloud_balance_rejects_invalid_api_credits(credits):
+    async with httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda _request: httpx.Response(200, json={"data": {"credits": credits}}))) as client:
+        with pytest.raises(ValueError, match="Spider returned no valid credit balance"):
+            await collectors._spidercloud(client, "test")
+
+
 async def test_fishaudio_balance_uses_workspace_wallet(monkeypatch):
     monkeypatch.setenv("TREG_PLATFORM_KEY_FISHAUDIO", "private-test-key")
     monkeypatch.setenv("TREG_PLATFORM_FISHAUDIO_WORKSPACE_ID", "workspace-test-id")
@@ -120,6 +141,48 @@ async def test_serper_capacity_uses_free_account_balance():
         "unit": "credits",
         "note": "account rate limit 50 queries/s",
     }
+
+
+async def test_litescrape_capacity_uses_free_key_status():
+    def probe(request):
+        assert request.method == "GET"
+        assert request.url == "https://api.litescrape.com/api/keys/status"
+        assert request.headers["authorization"] == "Bearer test"
+        return httpx.Response(200, json={
+            "status": "active", "remaining_calls": 75765, "concurrency_limit": 25,
+        })
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(probe)) as client:
+        row = await collectors._litescrape(client, "test")
+    assert row == {"value": 75765, "unit": "calls", "note": "key concurrency limit 25"}
+
+
+@pytest.mark.parametrize("balance", [None, True, "100", -1])
+async def test_litescrape_capacity_rejects_invalid_remaining_calls(balance):
+    async with httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda _request: httpx.Response(200, json={"remaining_calls": balance}))) as client:
+        with pytest.raises(ValueError, match="invalid remaining_calls"):
+            await collectors._litescrape(client, "test")
+
+
+async def test_you_balance_converts_cents_to_usd():
+    def probe(request):
+        assert request.method == "GET"
+        assert request.url == "https://api.you.com/v1/billing/account_balance"
+        assert request.headers["x-api-key"] == "test-key"
+        return httpx.Response(200, json={"data": {"attributes": {"balance": "9986"}}})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(probe)) as client:
+        row = await collectors._you(client, "test-key")
+    assert row == {"value": 99.86, "unit": "USD", "note": "prepaid account balance"}
+
+
+@pytest.mark.parametrize("balance", [None, True, "bad", "NaN", "Infinity", -1])
+async def test_you_balance_rejects_uncertain_values(balance):
+    async with httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda _request: httpx.Response(200, json={"data": {"attributes": {"balance": balance}}}))) as client:
+        with pytest.raises(ValueError, match="valid account balance"):
+            await collectors._you(client, "test-key")
 
 
 @pytest.mark.parametrize("balance", [None, True, "bad", "NaN", "Infinity", -1])
@@ -415,6 +478,45 @@ async def test_olostep_balance(monkeypatch):
         }
     finally:
         collectors.get_settings.cache_clear()
+
+
+async def test_firecrawl_balance_uses_free_credit_usage_endpoint():
+    def probe(request):
+        assert str(request.url) == "https://api.firecrawl.dev/v2/team/credit-usage"
+        assert request.headers["authorization"] == "Bearer test-key"
+        return httpx.Response(200, json={"success": True, "data": {
+            "remainingCredits": 314, "billingPeriodEnd": "2026-10-28T00:00:00Z",
+        }})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(probe)) as client:
+        assert await collectors._firecrawl(client, "test-key") == {
+            "value": 314, "unit": "credits",
+            "note": "billing period ends 2026-10-28T00:00:00Z",
+        }
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(
+        lambda _: httpx.Response(200, json={"success": True, "data": {"remainingCredits": None}})
+    )) as client:
+        with pytest.raises(ValueError, match="remaining-credit"):
+            await collectors._firecrawl(client, "test-key")
+
+
+async def test_linkup_balance_uses_free_credit_route_and_rejects_invalid_values():
+    def probe(request):
+        assert str(request.url) == "https://api.linkup.so/v1/credits/balance"
+        assert request.headers["authorization"] == "Bearer test-key"
+        return httpx.Response(200, json={"balance": 12.34})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(probe)) as client:
+        assert await collectors._linkup(client, "test-key") == {
+            "value": 12.34, "unit": "USD", "note": "prepaid credit balance",
+        }
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(
+        lambda _: httpx.Response(200, json={"balance": True})
+    )) as client:
+        with pytest.raises(ValueError, match="valid USD balance"):
+            await collectors._linkup(client, "test-key")
 
 
 async def test_scrapegraphai_balance(monkeypatch):

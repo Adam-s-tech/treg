@@ -208,7 +208,12 @@ response. The response remains `Cache-Control: no-store` and precedes any login 
 
 `response_buffer_limit` is a treg-attributed 502 with a structured `detail.error` of the same
 name. It means response evidence exceeded the 8 MiB settlement buffer before delivery; the new
-call is not charged and its hold/idempotency claim is released. Authorized free final GET fetches
+call is not charged and its hold/idempotency claim is released. On an endpoint declaring
+`spooled_response` the same error means the body passed `spool_max_bytes` (64 MiB) or the
+process's concurrent spool budget; the latter is temporary (its message says so) and clears as other
+calls finish, so unlike an oversized answer it is worth retrying. A successful spooled
+answer carries the usual exact `X-Treg-Cost-Micro`, but it is not stored for idempotent replay: a
+retry with the same key calls the provider again and is charged again. Authorized free final GET fetches
 needing no body evidence stream without that limit and return zero cost; their retries read the
 provider again. See `proxy-model.md` for the eligibility and close-once lifecycle.
 
@@ -389,8 +394,9 @@ validated before resolving the shared HTTP client. `/auth/logout` remains an HTT
     virtual-memory cap crashes Go CLIs (gh/stripe/doctl) and `RLIMIT_NPROC` is per-uid, shared with the
     server. Full **filesystem/network** isolation needs a container deploy and is a planned follow-up.
 - **Meta:** `meta` (`GET /meta`, open) → `{public_url, github, google, app_version, treg_version,
-  posthog_key/posthog_host, intercom_app_id, referral}` for the dashboard. `referral` carries the
-  two configured reward amounts so the top-bar entry can name them without `GET /referrals`. The last three are the opt-in
+  posthog_key/posthog_host, intercom_app_id, hub, referral}` for the dashboard. `referral` carries the
+  two configured reward amounts so the top-bar entry can name them without `GET /referrals`. `hub`
+  is `TREG_HUB_ENABLED`, so the dashboard asks no hub route that could only answer 404. The last three are the opt-in
   third-party keys (analytics, support chat): empty on a deployment that didn't set them, so
   self-hosted pages load neither PostHog nor the Intercom Messenger. `intercom_app_id` is paired
   server-side with `intercom_secret`, which never leaves the server: `_intercom_user_hash` (HMAC-SHA256
@@ -405,15 +411,18 @@ validated before resolving the shared HTTP client. `/auth/logout` remains an HTT
   | Route | Contract |
   |---|---|
   | `GET /catalog/platforms` | Non-empty platforms with capability/endpoint counts and providers, ordered by endpoint count; `providers` names every browsable vendor |
-  | `GET /catalog/platforms/{slug}` | Capabilities, extended endpoints, dashboard domain rows and provider metadata; unknown slug is 404 |
+  | `GET /catalog/platforms/{slug}` | Capabilities, extended endpoints, dashboard domain rows (a row whose capability at least two providers serve there carries `compare`, its URL key) and provider metadata; an endpoint teams' agents have reviewed carries `reviews` (`architecture/feedback.md`: scored past five teams, quoted as early before), and every endpoint its `observed` calls (the same snapshot search ranks on); unknown slug is 404 |
   | `GET /catalog/search?q=&limit=` | Ranked endpoint views, count/total and hints; default 25, maximum 100. Listed hub tools merge into the same ranking by score (see [hub](../architecture/hub.md)); a hub row's run hint is its own `treg call <id> --data` line, since it has no catalog row or provider key |
-  | `GET /catalog/find?q=` | Find tools for a described job: NDJSON stream of `candidates` then `judged` (verdict + kept rows with probabilities; a bare platform or provider name gets verdict `name` and its endpoints, unjudged); rate limited per IP, 503 without a judge key |
-  | `GET /catalog/endpoints/{id}` | Endpoint, provider, capability siblings, call template, inline example and next-step hints; `overflow_price_usd` / `overflow_price_unit` / `overflow_via` on the endpoint when the deployment can relay it |
+  | `GET /catalog/find?q=` | Find tools for a described job: NDJSON stream of `candidates` then `judged` (verdict + kept rows with probabilities; a bare platform or provider name gets verdict `name` and its endpoints, unjudged); `&platform=<slug>` scopes recall and the keyword fallback (ranked among that shelf's rows, catalog-wide idf) and a bare provider name to that shelf (unknown slug is 404); rate limited per IP, 503 without a judge key |
+  | `GET /catalog/providers/{service}` | Every tool one provider serves, by platform; a tool whose capability several providers serve on its platform carries `compare` (capability, URL key, provider count); reviewed endpoints carry `reviews`; unknown provider is 404 |
+  | `GET /catalog/endpoints/{id}` | Endpoint, provider, capability siblings (each with `observed` and, where reviewed, `reviews`), call template, inline example and next-step hints; `observed_pending: true` when the observation cache had not read some of these endpoints yet (ask again shortly); `overflow_price_usd` / `overflow_price_unit` / `overflow_via` on the endpoint when the deployment can relay it |
   | `GET /catalog/examples/{id}` | Captured JSON, resolved through the catalog before constructing a file path |
   | `POST /tool-requests` | Open, rate-limited demand report with capped fields and optional caller attribution |
 
-  Domain grouping is server-side (`domain_rows`), so CLI and dashboard share ordering and
-  comparison semantics. `call_template` uses the verified test request, then documented examples.
+  Domain grouping is server-side (`domain_rows`), so CLI and dashboard share grouping and
+  comparison semantics; a merged row, and a routed row, file under the domain most of their
+  providers give them. The dashboard's platform shelf reorders those rows by 30-day calls
+  (`interface/dashboard.md`). `call_template` uses the verified test request, then documented examples.
   Dotted body keys (`params.domain`) are expanded into nested JSON by `unflatten_dotted()` so
   the paste-ready `--data` matches the wire body.
 
@@ -422,6 +431,8 @@ validated before resolving the shared HTTP client. `/auth/logout` remains an HTT
   carry `children_hidden`. Empty results include `near` matches and unmet tokens, plus a
   tool-request hint. Reliability is optional cached evidence: fresh for five minutes, stale while
   refreshing up to thirty minutes; cold or failed reads still answer 200 with no request DB checkout.
+  An endpoint the read had nothing for is remembered as such for the same window, so a never-called
+  endpoint is not a cold miss on every request.
 
   Unknown endpoint ids return `{error, hint, did_you_mean[]}`, using provider-local segment
   matching. Retired/broken entries remain inspectable with `status_note` and `superseded_by`,
@@ -519,7 +530,7 @@ validated before resolving the shared HTTP client. `/auth/logout` remains an HTT
   `/skill.md`, so `{BASE}` templates to the **serving** host and a self-hosted registry advertises
   itself. See [skill.md](skill.md) for the other three distribution doors.
   `terms_page` (`GET /terms`) + `privacy_page` (`GET /privacy`) serve the hosted registry's legal pages
-  (`_legal_page`, no-cache) with `legal_css` (`GET /legal.css`) as the shared skin - `/privacy` is also
+  (`_static_page`: `{BASE}` and the catalog counts filled, no-cache with an ETag) with `legal_css` (`GET /legal.css`) as the shared skin - `/privacy` is also
   the URL given to OAuth providers at app-verification time, so don't rename it.
   `resources_page` (`GET /resources`) is the hub for the outcome pages and the **only** thing linking to
   them: the landing footer and each page's own footer carry one `resources` link rather than five that grow
@@ -536,6 +547,9 @@ validated before resolving the shared HTTP client. `/auth/logout` remains an HTT
   the generator refuses to emit anything past the ad-kit heading so bid and negative keywords cannot
   reach a public page. Provider brand marks are
   mounted at `/logos` (`StaticFiles` over `web/logos/`, resolved by convention `logos/<service>.svg`).
+  Page media is mounted at `/media` (`_MediaStatic` over `web/media/`): the names are unversioned, so
+  scripts, stylesheets and text answer `no-cache` (revalidated through the ETag, never a heuristic
+  lifetime that would pair old code with new HTML) and images, video and fonts `public, max-age=86400`.
   `dashboard_marketplace` (`GET /app/marketplace/{service}`) serves the plain SPA (a connect page is only
   meaningful to a signed-in member, so no OG meta).
   `_serve_md` backs `quickstart_md` (`GET /quickstart.md`) + `tutorial_md` (`GET /tutorial.md`) -
@@ -673,7 +687,15 @@ validated before resolving the shared HTTP client. `/auth/logout` remains an HTT
   and finishes the tool with BOTH bindings - the primary half built by `_provider_bindings`, so it
   follows the provider's own auth shape (pasted key or OAuth) rather than assuming a bearer token. `revoke_connection` (`DELETE /connections/{id}`) deletes the credential and
   cleans up: it removes the tool treg auto-provisioned for the provider and drops the dead binding from
-  any user-built tool, leaving that tool's other bindings intact. All `require_can_register`
+  any user-built tool, leaving that tool's other bindings intact. `rename_connection`
+  (`PATCH /connections/{id}`) renames a connected account, which is the tool name an agent calls
+  (`instagram-2` → `instagram-acme`): the secret, the main tool and `{name}-{suffix}` companion tools
+  bound to it, and member/invite `tool_access` lists move in one transaction; the old name stops
+  resolving (no alias). A taken name is a 409, and so is a live/unchecked hub recipe whose `uses`
+  names the old tool (a published version is never rewritten). `PATCH /tools/{id}` also takes `name`
+  (`rename_tool`): a connection's tool renames through `rename_connection`, any other tool alone under the
+  same checks. `PATCH /secrets/{id}` refuses a name
+  change on a provider connection for the same reason. All `require_can_register`
   (member+). Helpers: `_owned_connection`, `_dig` (dotted-path walk).
 - **Health:** `run_health` (`POST /health/run`) → `health.run_all`; `get_health` (`GET /health`) now
   returns `health._view(s)` plus a `needs_reconnect` flag (`health.needs_reconnect`) so a credential treg
@@ -810,7 +832,7 @@ OAuth grants and catalog-only calls are also refused.
 ### Cost and asynchronous-task headers
 
 `X-Treg-Cost-Micro` reports the metered call's charge. On an async submission it reports the
-reservation, repeated by idempotent replay; the CLI labels it "generation reservation".
+reservation (an idempotent replay reports 0 and echoes it as `X-Treg-Original-Cost-Micro`); the CLI labels it "generation reservation".
 Final charge and task status come from `/calls` or `/calls/{ref}`.
 
 An owned free platform poll explicitly returns zero. Own-key/tool calls omit the header because
@@ -824,7 +846,8 @@ caller who omits it sees byte-identical behaviour to before the feature existed.
 
     Idempotency-Key: <caller's label>        → replay if we already answered this label
     X-Treg-Idempotent-Replay: true           → on the response, when it came from store
-    X-Treg-Cost-Micro: <original charge>     → what the FIRST call cost, not a new charge
+    X-Treg-Cost-Micro: 0                     → a replay charges nothing, so client sums stay true
+    X-Treg-Original-Cost-Micro: <charge>     → what the FIRST call cost (or reserved)
 
 Refusals: `422` when a key is reused for a different request (a caller bug, and answering it would
 hand them a response to a question they did not ask), `409` while the first call with that key is
@@ -877,7 +900,7 @@ if returning the hold itself fails, the money comes back when the hold is reaped
 |---|---|
 | `GET /calls?days=&before_id=&limit=` | this team's calls, windowed and pageable. Analytics - **not** an invoice source |
 | `GET /calls/{call_ref}` | one call by its `X-Treg-Call-Id`, plus the ledger entries for it and its `async_task` view when it was a metered generation |
-| `GET /calls/{id}/result` | what one call asked and what came back - the archive's copy; recorded catalog 2xx only (platform or own key), `stored: false` + `note` otherwise |
+| `GET /calls/{id}/result` | `id` is the row id or the `X-Treg-Call-Id`; what one call asked and what came back - the archive's copy; recorded catalog 2xx only (platform or own key), `stored: false` + `note` otherwise |
 | `GET /orgs/{id}/usage/by-tag?key=&days=` | per-value spend for one tag key. **Money from the ledger**; admin+ |
 | `GET/PUT/DELETE /orgs/{id}/budgets[/{dim}/{val}]` | per-tag limits and blocking; admin+ |
 | `PATCH /orgs/{id}` | (admin+) rename the team: `name` and/or `slug`; the old slug stays an alias so existing keys keep working |

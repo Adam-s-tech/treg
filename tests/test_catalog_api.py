@@ -12,6 +12,7 @@ import dataclasses
 import json
 import re
 import shlex
+from pathlib import Path
 
 import pytest
 from httpx import AsyncClient
@@ -165,6 +166,23 @@ def test_a_curated_name_beats_the_summary_on_a_row(tmp_path):
     rows = {r["endpoints"][0]["id"]: r for s in cs.domain_rows(pairs, cat.capabilities) for r in s["rows"]}
     assert rows["dataforseo.x.named"]["description"] == "Anchor text overview"
     assert rows["dataforseo.x.unnamed"]["description"] == "Domain pages with backlink data"
+
+
+def test_a_job_files_under_the_domain_most_of_its_providers_give_it(tmp_path):
+    """The cheapest endpoint used to decide a merged row's section alone, so one provider's odd
+    `domain:` pulled a SERP job out of `serp` on the platform page."""
+    (tmp_path / "capabilities.yaml").write_text(
+        "platforms: {google: Google}\ncapabilities: {google.serp.local: Local pack}\n")
+    for prov, usd, domain in (("cheap", 0.001, "search"), ("mid", 0.002, "serp"), ("dear", 0.003, "serp")):
+        (tmp_path / f"{prov}.yaml").write_text(
+            f"provider: {prov}\nendpoints:\n  - id: {prov}.local\n    platform: google\n"
+            f"    capability: google.serp.local\n    domain: {domain}\n    method: GET\n"
+            f"    path: /local\n    summary: Local pack\n    cost: {{usd: {usd}}}\n")
+    cat = cs.load(directory=tmp_path)
+    pairs = [(e, cs.endpoint_view(e, e["provider"], cat)) for e in cat.endpoints]
+    [section] = cs.domain_rows(pairs, cat.capabilities)
+    assert section["domain"] == "serp"
+    assert section["rows"][0]["endpoints"][0]["provider"] == "cheap"
 
 
 async def test_every_endpoint_carries_a_domain_and_a_call_line(clients: AsyncClient):
@@ -842,7 +860,6 @@ def _load_validator():
     """The actual validator module, so these tests exercise the real check rather than a copy that
     can drift from it."""
     import importlib.util
-    from pathlib import Path
 
     spec = importlib.util.spec_from_file_location(
         "catalog_validate", Path(__file__).parent.parent / "scripts" / "catalog_validate.py")
@@ -956,7 +973,7 @@ async def test_an_id_that_resembles_nothing_is_sent_to_search(clients: AsyncClie
     assert "catalog search" in detail["hint"]
 
 
-def test_the_ingester_puts_a_POST_routes_arguments_in_the_BODY():
+def test_the_ingester_puts_a_POST_routes_arguments_in_the_BODY(monkeypatch):
     """The checked-in YAML is machine-generated, so a fix that lives only in the file is undone by
     the next `catalog_ingest.py` run. These assert the GENERATOR: the tests above inspect the
     corrected YAML and would pass with the ingester reverted.
@@ -965,8 +982,7 @@ def test_the_ingester_puts_a_POST_routes_arguments_in_the_BODY():
     parameter under `parameters.query` while its OpenAPI declares the same route POST-with-a-JSON
     body, so taking the verb from one and the position from the other produced a POST carrying its
     arguments in the query string — uncallable, just differently."""
-    import sys
-    sys.path.insert(0, "scripts")
+    monkeypatch.syspath_prepend(str(Path(__file__).parents[1] / "scripts"))
     from catalog_ingest import tikhub_input_and_test
 
     doc_op = {"parameters": {"query": [
@@ -992,10 +1008,9 @@ def test_the_ingester_puts_a_POST_routes_arguments_in_the_BODY():
     assert "queryParams" in no_body and "body" not in no_body
 
 
-def test_gtm_ingestion_expands_semantic_resource_names_into_atomic_path_ids():
+def test_gtm_ingestion_expands_semantic_resource_names_into_atomic_path_ids(monkeypatch):
     """The checked-in extended YAML must stay fixed after the next Discovery re-ingest."""
-    import sys
-    sys.path.insert(0, "scripts")
+    monkeypatch.syspath_prepend(str(Path(__file__).parents[1] / "scripts"))
     from catalog_ingest import google_flat_path_params
 
     entry = {
@@ -1014,12 +1029,11 @@ def test_gtm_ingestion_expands_semantic_resource_names_into_atomic_path_ids():
     assert "pageToken" in entry["input"]["queryParams"]
 
 
-def test_a_published_spec_outranks_the_OPTIONS_probe():
+def test_a_published_spec_outranks_the_OPTIONS_probe(monkeypatch):
     """The probe infers a verb from a preflight; the spec is the provider's own contract. When the
     spec names exactly one method the spec wins, so a re-ingest inherits an upstream verb change
     instead of re-deriving a stale guess."""
-    import sys
-    sys.path.insert(0, "scripts")
+    monkeypatch.syspath_prepend(str(Path(__file__).parents[1] / "scripts"))
     from catalog_ingest import resolve_method
 
     # the case that matters: spec says POST, the probe came back GET
@@ -1087,3 +1101,37 @@ def test_generic_display_prices_match_web_and_cli():
     maximum = cat.cost_view({'type': 'per_call', 'currency': 'USD', 'value': 0.064,
                              'display': {'unit': 'call', 'maximum': True}}, 'another-provider')
     assert _price_label(maximum) == _cost_usd(maximum) == _cost_label(maximum) == 'up to $0.064/call'
+
+
+async def test_every_comparison_page_in_the_sitemap_serves(clients):
+    """A capability several providers serve on a shelf has a public comparison page
+    (/catalog/<slug>/<key>), listed in the sitemap by the same rule the shelf uses for its comparison
+    cards; each listed page answers, a made-up one is a 404,
+    and the catalog's own API segments are never read as a shelf."""
+    import re
+    xml = (await clients.get("/sitemap.xml")).text
+    pages = re.findall(r"<loc>[^<]*?(/catalog/[^/<]+/[^/<]+)</loc>", xml)
+    assert pages and all(not p.startswith(("/catalog/platforms/", "/catalog/call/")) for p in pages)
+    for path in pages:
+        r = await clients.get(path)
+        assert r.status_code == 200 and "text/html" in r.headers["content-type"], path
+    assert (await clients.get("/catalog/companies/not-a-capability")).status_code == 404
+    assert (await clients.get("/catalog/platforms/companies")).headers["content-type"].startswith("application/json")
+    # A capability only one provider serves has nothing to compare: no page of its own.
+    from treg.domain.catalog import store as catalog_store
+    cat = catalog_store.load()
+    solo = next((e["platform"], e["capability"]) for e in cat.endpoints
+                if e.get("capability") and catalog_store.browsable(e) and (e["platform"], e["capability"]) not in cat.compared())
+    assert (await clients.get(f"/catalog/{solo[0]}/{catalog_store.capability_key(*solo)}")).status_code == 404
+    assert (await clients.get("/catalog/providers/crustdata")).headers["content-type"].startswith("application/json")
+
+
+def test_an_auto_route_row_files_where_its_providers_do():
+    """A routed row once carried the domain `routed`, which gave it a section of its own on the
+    platform page, apart from the providers it routes to."""
+    cat = cs.load()
+    routed = [e for e in cat.endpoints if e.get("kind") == "routed"]
+    assert routed
+    for ep in routed:
+        kids = {e["domain"] for e in cat.for_capability(ep["capability"]) if e.get("kind") != "routed"}
+        assert ep["domain"] in kids, ep["id"]

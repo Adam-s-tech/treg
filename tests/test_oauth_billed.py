@@ -249,7 +249,7 @@ async def test_billed_oauth_answers_are_the_orgs_own_in_the_archive(
     """Metered (treg's app pays X) but fetched with the org's OWN token: keyed to the org,
     served back to the org at the repeat price, never to a stranger."""
     from sqlalchemy import select
-    from tests.conftest import verified_signup
+    from conftest import verified_signup
     from treg import archive
     from treg.models import ArchiveSnapshot
     await _connect_x(clients)

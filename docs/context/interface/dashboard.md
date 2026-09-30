@@ -12,6 +12,7 @@ sources:
   - frontend/src/state/resources.js
   - frontend/src/state/resourcesComputed.js
   - frontend/src/App.vue
+  - frontend/src/views.ts
   - frontend/src/api.ts
   - frontend/src/components/DashboardNavigation.vue
   - frontend/src/components/PublicNavigation.vue
@@ -23,6 +24,7 @@ sources:
   - frontend/src/dialogs/ConnectTokenDialog.vue
   - frontend/src/dialogs/ConnectionMethodDialog.vue
   - frontend/src/dialogs/CopyToolDialog.vue
+  - frontend/src/dialogs/dialog.ts
   - frontend/src/dialogs/EditToolDialog.vue
   - frontend/src/dialogs/ExtraCredentialDialog.vue
   - frontend/src/dialogs/ImportSkillDialog.vue
@@ -40,9 +42,19 @@ sources:
   - frontend/src/pages/CatalogPage.vue
   - frontend/src/pages/DetailPage.vue
   - frontend/src/pages/GettingStartedPage.vue
+  - frontend/src/pages/getting-started-art.ts
+  - frontend/e2e/experiments.spec.ts
+  - frontend/src/components/AgentCover.vue
   - frontend/src/pages/HelpPage.vue
   - frontend/src/pages/PlatformPage.vue
   - frontend/src/pages/ProviderPage.vue
+  - frontend/src/components/ToolDrawer.vue
+  - frontend/src/pages/LegacyPlatformPage.vue
+  - frontend/src/state/catalogExperiment.js
+  - frontend/src/components/CatalogSearch.vue
+  - frontend/src/components/ui/table/DataTable.vue
+  - frontend/src/components/FindAnswer.vue
+  - frontend/e2e/layout.spec.ts
   - frontend/src/pages/ReferralsPage.vue
   - frontend/src/pages/SecretsPage.vue
   - frontend/src/pages/TeamPage.vue
@@ -86,11 +98,18 @@ sources:
   - frontend/src/state/sharing.js
   - frontend/src/state/skills.js
   - frontend/src/state/snippets.js
+  - frontend/src/state/storage.js
   - frontend/src/state/team.js
+  - frontend/src/state/tickets.js
   - frontend/src/state/tools.js
   - frontend/src/state/tryTool.js
   - frontend/src/styles/base.css
-  - src/treg/web/agent-setup.js
+  - frontend/src/agent-setup/index.ts
+  - frontend/src/agent-setup/data.ts
+  - frontend/src/agent-setup/AgentPicker.vue
+  - frontend/src/agent-setup/SetupInstructions.vue
+  - frontend/src/agent-setup/TryItOut.vue
+  - frontend/vite.agent-setup.config.ts
   - src/treg/web/media/redesign/dashboard.css
   - src/treg/web/media/redesign/SOURCES.md
   - src/treg/web/vendor/README.md
@@ -206,8 +225,18 @@ runs, so mounting swaps the screen for itself. A fast boot shows only the page g
 indicator fades in after a delay, on the page's own clock (`bootStartedAt`), so the node Vue swaps
 in does not restart it. `index.html` also starts
 `/meta` and `/auth/me` alongside the bundle download (`window.__tregBoot`, taken over by boot) and
-applies the saved theme before first paint. `loadAll` waits on one round trip per dependency step:
+applies the saved theme before first paint. Everything the app keeps in `localStorage` is a
+convenience (theme, active team, token-mode config, a deep link parked across sign-in), read and
+written only through `state/storage.js`, which never throws: with site data blocked (Safari throws on
+the first touch of `localStorage`) a read is empty and a write is dropped. `loadAll` waits on one round trip per dependency step:
 `/orgs` with `/invites/mine`, then the bearer with the team's tools, health and skills.
+**A late answer never overwrites a newer one.** Each loader a team switch or a newer call can
+overtake (`loadAll`, the Team roster, billing, keys, Activity, secrets, team resources, connections,
+the hub probe, a catalog platform, a detail page) takes a ticket from `state/tickets.js` and checks it
+after every await; a newer call of the same loader, or for team-scoped data a switch to another
+team, drops the late answer. The Team roster's requests run in parallel. A switch also clears the
+previous team's billing and closes the top-up dialog, and `payTopup` refuses billing that belongs
+to another team and stops before Checkout if the team changes mid-way.
 Catalog data does not wait for the session: boot starts the shelves (and a shelf's endpoints,
 through `prefetchPlatform`, which `loadPlatform` takes over) alongside `/meta` and `/auth/me`.
 **A view renders nothing it cannot yet know.** Empty states, zero figures and fallback views wait
@@ -231,6 +260,18 @@ metadata as before. `_app_version()` hashes the built entry, whose asset filenam
 bundle content. HTML is not cached; `/app/ui/assets/{name}` serves immutable hashed assets and
 returns 404 for missing files. Assets remain a control-role surface.
 
+The entry chunk carries Vue, the shell (navigation, sign-in, the signed-out page) and the state
+modules; every page and dialog is its own chunk, registered in `frontend/src/views.ts` and mounted
+by `App.vue` behind the same `v-if`s as before. `preloadInitialView` starts the chunk for the URL
+being opened (read with boot's own route parsers) before mount, alongside `/meta` and `/auth/me`.
+After boot, `prefetchAfterBoot` loads one chunk per idle period: every screen and dialog for a
+member except Help (it would pull in the tutorial scripts), only the catalog pages for a public
+visitor. It resolves the async wrapper itself, so a prefetched screen renders synchronously and
+navigation shows no blank frame. A dialog whose chunk arrives late still gets `v-dialog`'s focus,
+trap and focus return, since the directive acts when the dialog mounts. Matter.js ships only in
+the `/search` chunk. A chunk that fails to load after
+retries asks `checkVersion`, which offers the refresh toast when a deploy replaced the build.
+
 `bash scripts/build-dashboard.sh` installs the npm lockfile and builds into the gitignored
 `src/treg/web/dashboard/` directory. Hatch includes it in distributions and rejects missing builds;
 Node is not needed when installing a published wheel. `scripts/dev-local.sh up` starts both Python
@@ -239,8 +280,12 @@ and Vite, using a local-only development entry for hot updates. See `CONTRIBUTIN
 ### Browser dependencies
 
 Vue is pinned in the npm lockfile and bundled from the same origin, so a blocked CDN cannot
-prevent startup. The shared onboarding widgets in `/agent-setup.js` still serve both Dashboard and
-Arena; their templates use Vue's bundled compiler. The global Vue runtime for the standalone Arena page is
+prevent startup. The Dashboard bundles Vue's runtime only, never the template compiler: every
+component is a compiled SFC. The onboarding widgets shared with Arena live in
+`frontend/src/agent-setup/`, their one source. The Dashboard imports them directly, and
+`vite.agent-setup.config.ts` compiles the same modules into the classic `/agent-setup.js` script
+(generated into `src/treg/web/dashboard/`, served no-cache), which exposes `window.TregAgentSetup`
+on Arena's global Vue build. The global Vue runtime for the standalone Arena page is
 copied from the npm package at build time, with its license; generated copies are not committed. Agent icons and Google Fonts remain optional external presentation assets.
 The unmounted entry displays a loading message and a reload link rather than hiding a raw template.
 The authenticated redesign follows the root `design.md`.
@@ -250,11 +295,13 @@ The authenticated redesign follows the root `design.md`.
 pageviews on; `initAnalytics()` in the SPA defers to it (`window.__phInit`) and only identifies, keeping
 its inline init as the fallback for a stale bundle. Landing-page visitors used to be invisible to
 analytics — PostHog first met them on `/app` after OAuth, as `$direct` — so this ordering is the whole
-point. `<script src="/adtrack.js">` — the first-party ad-click capture — loads **in `<head>`** on every
-page, guaranteed to run during HTML parsing before any app code can navigate away. An ad click landing
+point. `<script src="/adtrack.js">` - the first-party ad-click capture - loads **in `<head>`** on every
+page, guaranteed to run before any app code can navigate away. An ad click landing
 on `/?gclid=…` falls through to the SPA (because of the query string), whose boot redirects logged-out
-visitors via `location.replace('/')`. Placing capture in `<head>` ensures the click id is stored before
-that redirect can drop the query string. No Google tag, first-party cookie only; see
+visitors via `location.replace('/')`. Capture must store the click id before that redirect can drop the
+query string. In the Dashboard both scripts are `defer` in `<head>`, ahead of the module entry: deferred
+and module scripts run in document order once parsing ends, so neither blocks the first paint and both
+still run before the app (`tests/test_adsconv.py` pins the order). No Google tag, first-party cookie only; see
 [ads-conversions](../architecture/ads-conversions.md).
 
 ## Shell & design system (2026 rework)
@@ -288,19 +335,38 @@ The authenticated wrapper's `.redesign` class scopes `media/redesign/dashboard.c
 the existing `/media` mount. It uses the system UI font for interface text, Geist Pixel for page titles,
 and DM Mono for commands and balances (the only two web fonts, bundled from pinned `@fontsource`
 packages; see `design.md`), with light and dark semantic colors. Getting started uses
-an approximately 1080px centered column, a split agent-preview/setup card, image-backed prompt cards,
-and the existing optional Build on treg and manual setup flows. On mobile the setup card and prompt
-grid stack. Images are copied from the pinned designer repository; provenance is in
-`media/redesign/SOURCES.md`. This first implementation uses static posters instead of autoplay video.
+an approximately 1080px centered column, a split agent-preview/setup card, prompt cards, and the existing optional Build on treg and manual setup flows. On
+mobile the setup card and prompt grid stack. OpenClaw's preview is a static poster; every other agent
+gets `AgentCover.vue`, a gradient, cropped mark and title over a dot grid that animates only while on
+screen and not under reduced motion. The prompt cards are a PostHog experiment,
+`getting-started-example-art`: `test` puts a banner under a frosted panel on each card, `control`
+keeps them text-only. The grid renders once `featureVariant` (state/analytics.js) answers; with no
+PostHog, a loading error or no answer within 800 ms it shows control without reading the flag, so
+only people who saw an assigned arm count as exposed. `tryit_prompt_copied` carries the arm as
+`art`. Getting started artwork is imported through
+`pages/getting-started-art.ts`, so Vite hashes it and serves it immutable from `/app/ui/assets`:
+banners and the designer's mark variants from `frontend/src/assets/getting-started/`, unmodified
+brand marks from the pinned `@lobehub/icons-static-svg` package. The older shell artwork is still
+under `media/redesign/` (provenance in `SOURCES.md`). Write only the standard `backdrop-filter`:
+the CSS minifier adds the `-webkit-` form and drops the standard one when a rule declares both.
 Existing agent selection, token masking/copying, OAuth entry points and all backend data remain wired.
 Copy failures, including unavailable clipboard APIs, surface a dismissible message, and the agent picker/account disclosure close on Escape
 or outside interaction. The search entry on Getting started navigates to Catalog and focuses the
 existing search field. Team settings and switching retain the existing `orgSettings` / `switchTo`
 behavior, including fixed-position dropdown placement via `placeOrgMenu`. The team picker supports
-Enter and Space; Escape restores focus to its trigger. Direct `go` navigation returns to the top of
+Enter and Space; Escape restores focus to its trigger. Every modal and drawer carries `v-dialog`
+(`dialogs/dialog.ts`, registered in `main.ts`) on its `role="dialog"` element, one keyboard contract
+instead of per-dialog code: focus moves to its first field (else the dialog itself), Tab and
+Shift+Tab stay inside, Escape closes the topmost open dialog through the close function it was
+given, and focus returns to the control that opened it. A required decision (the first-run welcome,
+the first-run invite choice) passes no close function and survives Escape. Every `role="dialog"` element is
+named by its title (`aria-labelledby`) or an `aria-label`. `closeOverlays` only
+closes the page's menus. Direct `go` navigation returns to the top of
 the destination; Back/Forward leaves scroll restoration to the browser. Category/team tabs and wide
 tables scroll locally on small screens, and the onboarding OAuth divider wraps instead of widening
-the page.
+the page. At phone width inline `code` (a hub tool's `uses`) breaks anywhere, the top-up amounts
+wrap to three columns, and a merged ledger row puts its provider chips on their own line above the
+price: the page body never scrolls sideways (`e2e/mobile.spec.ts`).
 
 ## Standalone Enrich Arena
 
@@ -557,7 +623,7 @@ Server side (`domain.identity.access`): `require_identity` (who, from token OR s
   shows a **mandatory "name your team" welcome** (`welcome.*`; team name pre-suggested from the email
   domain via `_suggestTeamName`). Step 0 is NOT dismissable — no skip, survives Escape/backdrop — the only
   action is `welcomeCreate` (`POST /orgs`, marks onboarded). The agent picker and setup instruction
-  components and the final Try it out step are shared with Enrich Arena through `/agent-setup.js`, including client definitions,
+  components and the final Try it out step are shared with Enrich Arena through `frontend/src/agent-setup/`, including client definitions,
   logo URLs, the optional plugin step and masked/copyable credentials. Three more steps follow **inside the same
   modal**: an **agent picker** (`welcome.step===1` — OpenClaw / Grok Bot / Hermes Agent / Claude.ai /
   Claude Code / Codex, plus a "More" expander with opencode / pi / Cursor / Gemini CLI / Other; LobeHub icons via
@@ -798,174 +864,103 @@ hash of the slug (`platTileBg`), stable across reloads and needing no colour tab
 **additive and failure-tolerant** — `loadPlatforms` swallows its error, so a deployment whose build predates
 `/catalog` shows the marketplace exactly as it was rather than an error or an empty section.
 
-**A platform** is its own view (`openPlatform(slug)` → `loadPlatform` → **`GET /catalog/platforms/{slug}`**).
-Unlike `/app/marketplace/<service>` it is a **hash route** — `/app#platform/<slug>` — because there is
-no server route that would serve the SPA for a hard reload of a `/app/platforms/<slug>` path; boot and
-`popstate` read it via `platformFromHash`. The page is **ONE ledger** — a single table sectioned by
-DOMAIN (user · video · search · shop · …) — rendered from the response's `domains[]`, which the server
-has already ordered and merged (`catalog_store.domain_rows`). The old per-capability card stack made the
-shape of a platform unreadable: every job looked the same size and nothing could be compared without
-opening two cards.
+**A platform** is its own view (`openPlatform(slug, fromPop, cap)` → `loadPlatform` → **`GET
+/catalog/platforms/{slug}`**), read at two levels plus a drawer. Publicly it lives at `/catalog/<slug>`
+and `/catalog/<slug>/<key>` (both server routes in `web.py`, so a reload and a crawler work); signed
+in at `/app#platform/<slug>` and `/app#platform/<slug>/<key>`. `<key>` is a compared capability's id
+without its platform prefix (`companies.enrich` → `enrich`), as the server puts it on the row
+(`compare`), resolved by `platComparison` once the shelf loads. Moving between a shelf and one of its
+comparisons keeps the loaded payload; only the view state changes.
 
-Its header is **`.plat-head`, a single stacked column** — mark + title on one full-width line, the intro
-under it at a readable measure, then the providers as their own wrapping `.plat-provs` row. It
-deliberately does *not* use the two-column `.tut-head` the other pages share: a platform can be served
-by a dozen providers (`people` has 8, `companies` 10), and as a right-hand column that chip list takes
-half the width and wraps the title into a three-line ribbon ("People & / contact / data").
+There is no separate "job" concept in the code: a comparison is a capability at least two providers
+serve on the shelf (`Catalog.compared`).
+The look is the landing page's (`usecase.css` rules): cards are surfaces lifted by shadow, never boxes
+with borders; no rules between rows; Geist Pixel on the h1 only; mono only for ids, prices and counts.
 
-**Sections are domains, `other` always last.** A domain is the subject an endpoint is about within its
-platform, resolved once at load time (`catalog_store._domain`): an explicit `domain:` in the yaml, else
-the capability id's middle segment (`tiktok.video.comments` → `video`), else a keyword read off the
-**path** — never the summary, since prose says "the Live SERP API…" about endpoints that are nothing of
-the kind — else the path's grouping segment (`/v3/backlinks/anchors/live` → `backlinks`, with delivery
-modes like `/live`, versions and `/json` stripped first), else `other`. Sections run busiest-first with
-`other` pinned to the end: it is the junk drawer, and its position is the one that carries meaning.
+**The shelf** answers "what can I do here". A left-aligned hero (breadcrumb, a mono count line, the
+h1, the platform summary, the search box), then three zones, nothing behind "show more":
+- **Tools** (`platShelf`): comparisons and single-provider tools in one list, most used first
+  (`observed.samples` over the last 30 days, which the platform response carries per endpoint; a
+  comparison sums its providers', whose rows already include auto-routed calls), then more providers,
+  then title. A visitor comes for a job, not for how many providers serve it. A comparison is a card
+  with a stack of provider logos, the provider count, the price spread (`priceRange`: "free – $0.38",
+  never a "from" that reads as one price) and an **Auto-route** badge beside the logos when a routed tool exists; it
+  links to the comparison page. A single tool is a card that opens the drawer.
+- **Account and setup**: the account/utility plumbing, the same cards in a quieter weight.
+- **Served by**: every provider as a logo chip, linking to its page (`goProvider`: `/tools/<service>`
+  signed out, `/app/marketplace/<service>` signed in).
 
-**A domain section renders only if a browse row lands in it, and all the plumbing collapses into one
-section.** The page loads `?include_hidden=1`, so `account`/`utility` endpoints arrive tagged by
-`kind`; they are the provider's own machinery (webhooks, saved lists, token exchanges, enum lookups),
-not the data anyone came to browse. Filing them per-domain conjured sections that existed only because
-a hidden endpoint carried that capability id — the People page grew CAMPAIGNS 0, LOCATION 0, PERSON 0,
-SCHOOL 0, TITLE 0, each with nothing in it but an expander. So: a domain needs at least one visible
-row to exist, and **every** management endpoint on the platform lands in a single collapsed
-**Actions** section at the foot of the ledger, its domain ignored, counted in its heading
-("Actions · 24"). Inside, they render as ordinary rows plus a `kind` chip — account vs utility is the
-only thing distinguishing one from the next. A platform with no such endpoints (telegram) grows no
-Actions section at all. Because Actions is platform-wide rather than a domain, selecting a domain chip
-**hides** it rather than filtering it, and neither the chip counts, the `All` count nor the
-`N rows · M endpoints` line ever counts it — opening Actions must not make the browse surface appear
-to grow.
+**The comparison page** answers "which provider". Its h1 is the capability's description; an
+**Auto-route** card leads when the capability has a routed tool ("29 providers, one call.", the starting price, the $1 cap, the call line, "Copy for your agent" as
+the page's primary action with Try it beside it, and "How it picks" opening the routed tool in the
+drawer). The card is a light surface under the /search page's soft green light and a fading dot
+field; a call line is a quiet inset, never a dark block, so the primary button leads; then **the comparison** as one surface:
+Provider, Takes, Price, Works, Reviews. Takes comes from the routing plan's `accepts` (absent means
+unmapped, never incompatible). Works is `observed.ok_rate` past 20 decided calls. Reviews reads the
+endpoint's agent verdicts (`architecture/feedback.md`) the way Steam reads user reviews
+(`reviewSummary`, scored past five teams): the positive share, a partly useful verdict counting half,
+named Positive (80%+), Mostly positive (70%+), Mixed (40%+), Mostly negative (20%+) or Negative, with
+Very at 25+ teams and Overwhelmingly at 50+ (and 95%+ for the positive one); blue, amber or red. It
+sorts by label, then share. Below five teams the server sends quotes with no share: the cell says
+**Early** in the neutral muted tone over the band ("under 5 teams"), never fed to `reviewSummary`,
+and sorts between the scored rows and the unrated whichever way the column goes. The drawer shows
+the same label, and its Reviews tab the share, the bar and the quotes; for an early tool the tab
+says "Early reviews", that a score needs 5 teams, and the quotes, with no bar.
+Counts are shown by band (`approxCalls`, `approxTeams`), never exact. Price, Works and Reviews sort
+(`platComparisonSort`); every column
+heading carries a hover/focus tip (`COL_TIPS`), because the ground rules behind each number matter more
+than the number. One `/catalog/endpoints/<lead>` read supplies every sibling's `observed` and the
+plan; when the server's observation cache had not read some of them yet (`observed_pending`) it is
+asked once more 1.5 s later. The drawer's example tab reads the example from that same detail. The platform's other
+comparisons follow as small cards.
 
-**Within a section, merged rows lead.** A capability **two or more providers** implement is ONE row —
-that comparison is the reason the catalog groups by capability at all, and burying it under fifty
-single endpoints is how the old page hid it. Everything else is a single row led by the endpoint's
-**`name`** (its curated short title), falling back to a **clipped** `summary` — `clip(…, 90)` cuts at
-a word boundary and the `.lsum b` two-line clamp catches the rest, because a summary is documentation
-prose and DataForSEO's run to a paragraph. The full text is never lost: the clipped row keeps it in a
-`title` attribute and the expansion shows it whole. The capability id stays in the data as a join key
-and never becomes a heading.
+**The tool drawer** (`ToolDrawer.vue`) is not modal: the list behind it stays live, ↑/↓ walk the list
+it was opened from (`drawerIds`), Esc closes. It leads with the tool and three figures (price, works,
+reviews), the call line, and one primary action: the next step to an agent using the tool
+(`drawerNext`): Connect for an OAuth provider not connected, "Add your key" for a tool only your own
+key can call, else "Copy for your agent", which copies the call line. Try it sits beside it as the
+optional step. Then one quiet line of facts (`drawerFacts`: whose key, live verification, scope) in place of a row
+of chips. Parameters are a definition list, not a table, so long names and types never collide;
+provider billing notes fold under "Billing and limits". The Reviews tab shows the verdict bar and the
+quotes, or the quotes alone for an early tool. A drawer opened from it (Try it) stacks on top: the tool drawer steps back and rounds, and
+springs back when the top one closes.
 
-**The merged row's middle cell is a strip of THREE pills and a `+N`** — never four, and it cannot
-wrap (`flex-wrap:nowrap; overflow:hidden`). A wrapped strip gave the shelf ragged row heights and
-left the title cell's border ending mid-row; a collapsed merged row is now exactly as tall as a
-single one (37.5px on every row of tiktok, web and google). The hidden providers' names ride in the
-`+N` chip's tooltip, and the full list is one click down on the sub-rows.
+**The search box** (`CatalogSearch.vue`) is the same component on the Catalog page and on every shelf:
+typing filters the page at once, and a pause or Enter asks the finder (`/catalog/find`, the relevance
+judge) about the words as a job. On a shelf it passes `platform=<slug>`, so recall, the keyword
+fallback and a bare provider name all stay on that shelf; a sentence does not filter the shelf's lists
+(no row contains a sentence), the answer appears above them instead. An answer row opens the comparison
+page when it is one of the shelf's comparisons, the drawer otherwise.
 
-A pill is **per provider** (`provPills`), not per endpoint — TikHub's four takes on the same job
-would otherwise repeat four identical pills — carrying the provider's name, its **cheapest priced**
-endpoint's price, and a ✓ if any of its endpoints is verified. Since only three are ever shown they
-are sorted **cheapest first, then verified**, with the providers that have no price to show (whose
-pill would be a bare name) at the tail. `pillPrice` shows a price only when there IS one: a published
-number or `free`; a `quota_rows` label only if it fits in eight characters ("2 rows" yes); and
-**nothing at all** for a credit-metered or dashboard-only rate. That last rule is why the pills fit —
-four copies of "per result · price in provider dashboard" is what wrapped the row in the first place,
-and it is also why `costShort` says **`credit-priced`** on the sub-rows while the sentence explaining
-the unit and where the rate lives sits in the expanded facts list. The cheapest across the whole row
-stays in the price column, and the provider/endpoint counts live in the cell's tooltip rather than on
-a second line of their own.
+**Tables** are built from `components/ui/table`, shaped after shadcn/ui's Table: native elements, one
+class each (`.ui-table`, `.ui-tr`, `.ui-th`, `.ui-td`), and `DataTable` on top, which takes column
+definitions and a slot per cell while the page keeps the rows and the sort. The comparison and the
+search answer use it. Two variants: `lined` (a hairline per row, shadcn's default) and `plain`
+(rows separated by air, the landing look), optionally on a `surface` card. Cells stay on one line
+unless a column says `wrap`; a `truncate` column ends in an ellipsis with its full text on hover; a
+phone turns each row into a card (`mobile`: primary, field, wide, hide). The sheet's global table rules
+are scoped with `:where(table:not(.ui-table))`, zero specificity, so older tables look as they did and
+new ones start clean. `e2e/layout.spec.ts` renders the main pages at two widths and fails on any text
+painted over other text or past its row, and names what makes a page scroll sideways.
 
-**Merged rows expand in TWO levels.** Clicking one opens its providers as collapsed `.lsub` sub-rows —
-one line each: logo, name, `costShort`, a ✓ when verified, the connected chip, and a truncated `METHOD path`.
-Clicking a sub-row (`toggleEp` → `epOpen[e.id]`) opens **that** provider's instruction. Dropping six
-full parameter tables on one click buried the comparison the merge exists to make. A single row has
-nothing to compare, so it skips the middle level and renders its detail straight away — the SAME
-`.lep` block either way (`v-if="r.kind!=='merged' || epOpen[e.id]"`), so the two paths cannot present
-the instruction differently. Inside a merged sub-row the detail drops the provider/route header the
-sub-row above already shows, and leads with the chips.
+**A provider's page** (`/app/marketplace/<service>`) lists every tool it serves by platform
+(`GET /catalog/providers/<service>`), each a card opening the same drawer; a tool that is one of
+several providers serving the same capability carries `compare` and links to that comparison
+("compare with 24 others").
 
-**The filter bar is sticky** under the top bar, and the section headings stick under *it* (`--lbar-top` /
-`--lsec-top`). The domain chips **wrap**: a scrolling strip with a hidden scrollbar cut its last chip in
-half and gave a mouse no way to reach the rest. So the bar's height varies with the platform and the
-filters, and `stickLedgerBar` (PlatformPage.vue) measures it and writes `--lsec-top` on the bar's parent;
-the redesign shell redeclares the variable on its own element, so a value on the document root never
-reached the headings. At phone width nothing sticks (a wrapped bar would cover half the screen) and each
-row stacks: title, then route, price and ✓ on one line, with the separator drawn on the row. Unverified
-rows show nothing in the Verified column. Text, `verified only` and the domain chips narrow the
-same row list (`platRowsPreDomain` → `platLedger`); a section with no surviving rows disappears rather
-than showing an empty heading, chip counts are taken after the other two filters so a chip never promises
-rows they have already removed, and a live `N rows · M endpoints` line counts both when they differ — a
-merged row stands for several endpoints. Only the wrapper draws the rounded frame: a collapsed table cannot
-round its own border, so a second one showed as a square frame inside it, and the last row's cells round
-their own corners because nothing clips a hover fill. Both the wrapper and the table drop their `overflow` clip (an `overflow:hidden`
-ancestor is a scroll container, and a sticky heading inside one never escapes it) and the table is
-`table-layout:fixed`, so a nowrap path or `treg call` line scrolls **inside** its cell instead of widening
-the table past the page.
-
-**No ledger cell may carry its own `display`.** A `<td>` with `display:flex` stops being a table-cell: the
-browser wraps it in an anonymous cell that stretches to the row height while the flex box sizes to its
-content and keeps the border. The separator under column one then lands ~1px above the one under column
-two — a seam running the length of the table, with the hover and connected-row backgrounds split along it.
-The layout flex lives on `.lsum-i`, a wrapper INSIDE the cell. A markup test asserts it, and a DOM sweep
-over four platforms at two widths, collapsed and expanded, found every cell of every row sharing one top
-and one bottom.
-
-The price column is the same unified USD as everywhere else (`capCheapest` → `costUsd`, native figure as a
-muted `.cost-nat` suffix). Two things can never win "cheapest": an endpoint with no published rate, and a
-`quota_rows` price (a row quota is not a price, and "from —" would be worse than naming the cheapest rate
-we do know). A **connected** `own_account` or `free` row counts as **free** (`capFree`) — the OAuth account
-you already hold is the licence — **unless the provider is `metered`** (`catMetered`, from `/oauth/providers`),
-where the upstream bills treg's app per call and connecting changes nothing about the price. Reading the
-flag off the server rather than naming X here means the display follows `TREG_OAUTH_BILLED_PROVIDERS`:
-throw the kill switch and the rows go back to reading free, because they are. When nothing is priced but a row carries a `cost.note`, the cell reads
-**"see provider"** rather than an em-dash: the enrichment providers (Apollo, PDL, Hunter, Coresignal,
-Lusha, Diffbot…) bill in their own credits, so their price *is* documented, just not in dollars — and that
-is the whole People/Company half of the catalog.
-
-Each `.lep` block is provider logo + name, `METHOD path` (mono), a compact cost chip (`costLabel`:
-`$0.015/success (¥0.10)`, `up to $0.064/call`, `1 row`, `free`, and `per success · price in provider dashboard` when the
-billing unit is known but the rate is not published), a `verified <date>` / `unverified` chip, a **scope**
-chip, and a tier chip. Scope is the load-bearing distinction in a mixed list: `own_account` rows (the
-OAuth providers) read **`your account`** in teal with the hint "reads the account YOU connect via OAuth,
-not arbitrary public accounts", while `any_account` scraper rows read a muted `any account`. Under them
-sit the parameters block, the provider-wide facts (`epFacts`: the cost note, `limits` and the rate card,
-served once per provider in the response's `providers` map rather than copied onto 2,000 rows), the
-paste-ready **`treg call`** line the row carries as `call_template` with a Copy button, the docs link and
-the lazy example toggle. **Connection awareness** reuses `/connections`, but endpoint rows intersect
-their declared `authorization_methods` with each connection's stored `authorization_method`; having one
-grant for a provider therefore cannot mark an endpoint that requires a different grant as connected.
-Providers without multiple authorization methods retain the provider-level `catConnected` behavior.
-The endpoint-aware label names the sole required method when one exists, but the **Connect** action
-always navigates to the provider connection page; consent never starts unexpectedly inside the catalog
-ledger. It is shown only when `mkKnown(service)`, since the catalog can name a provider this deployment
-carries no client credentials for.
-
-**The runnable green.** `.chip.ok` is not styled anywhere in the file, so it renders as muted grey — which
-is how a ready capability came to look identical to an unavailable one. `.chip.go` (+ the haloed `.godot`)
-is the marketplace's single "you can call this right now" green, used in exactly three places: the
-platform card's `Connected` corner, a compatible endpoint grant's `connected` chip, and a ledger row
-with a compatible grant, which carries the green as a rule down its leading edge (`.lrow.go td:first-child`)
-so it survives being skimmed. Everything unconnected stays muted.
-
-An expanded row leads with the endpoint's chips and summary, then splits into **two tabs**: **Request**
-(the parameters, the provider facts, and the `treg call` line) and **Example response** (the captured
-JSON). Stacked, those two documents made the expansion a page you scrolled rather than read. Request
-leads — it is the half that tells you whether the endpoint is callable at all — and the response tab is
-**not rendered at all** when `has_example` is false. Not greyed out, and no "no example captured"
-placeholder either: a disabled tab is a promise the catalog can't keep, and it draws the eye to the one
-thing that isn't there. Those endpoints show a single tab, which reads as a label for the pane under it.
-`epTabOf` also folds a stale `res` state back to `req`, so an endpoint can never be left showing a pane
-whose tab is gone.
-
-Both panes are the **same bounded box**: `.prm` and `.cat-ex pre` cap at **320px** and scroll inside
-themselves. A DataForSEO body carries thirty parameters, and uncapped a single expansion pushed every
-row below it off the screen.
-
-The tab bar's right side carries the provider's **docs** (falling back to its pricing page), then the
-two run actions — and which one is primary depends on the provider's `auth_kind` (`mkOauth(service)`).
-For a **key/token** provider, **▶ Try it** (`openEpTry`) is the ink-fill **primary** — trying on treg's
-own key is what most visitors want — and **Bring your own key** (`goByok(provider)` — jumps to the
-Catalog's Platform tab with that provider's row scrolled into view and flashed, so the user sees where
-their key lives among the rest; formerly `openProvider` straight to the detail page) is the secondary
-ghost beside it. The same `goByok` jump is offered from a platform page's provider row (passing the
-provider only when the platform has exactly one) and from the Try-it drawer's "can't run this here"
-banner, which now carries a real **Connect** / **Bring your own key** button instead of prose alone. For an **OAuth** provider treg *can't* serve on
-its own key (calls act as your account), so the order flips: **Connect {provider}** is the ink-fill
-primary and Try-it is secondary. Once a compatible account method is connected the connect/own-key button
-is replaced in place by the green **`Connected`** chip. A missing method uses the registry's action label
-and missing-message, then routes the user to the provider connection page. The exact CLI connect command
-remains in the access response for CLI and agent consumers, but is not rendered in the Manual banner.
-Everything here renders identically in a single row's expansion
-and in a merged row's provider sub-row, because both paths share the one `.lep` block.
+**The catalog-v2 experiment** (`state/catalogExperiment.js`) compares this shelf with the ledger it
+replaced, which is kept whole as `LegacyPlatformPage.vue` (its rows, state and styles in the one
+file) and shown to the control arm. The PostHog multivariate flag `catalog-v2` (`control` | `test`)
+deals the arm per person on the first platform page of a load, waiting at most a second; the flag
+read is the exposure. No flag answer (analytics off, blocked, too slow, experiment stopped) shows the
+shelf, unexposed, and so does landing on a comparison page, which only the shelf has
+(`catalog_arm: direct`). The arm is registered on every later event as `catalog_arm`. The control arm
+reads a comparison's address as its shelf and keeps the provider page's platform chips instead of its
+tool list. Both arms send the same events: `catalog_platform_viewed`, `catalog_comparison_viewed` (a
+comparison page, or a merged ledger row opened; `compare` names it), `catalog_tool_opened` (the drawer, or one endpoint opened in the ledger), and
+`catalog_action` with `action` try, copy, connect, byok or docs, the experiment's primary metric;
+each carries `surface` (ledger, shelf, comparison, provider, catalog), `arm`, `platform` and `signed_in`.
+The experiment ends by deleting the legacy page, the module and the arm checks.
 
 **The Try-it drawer (`epTry`) is four tabs** (`epTryTab`, default **AI Agent**): **AI Agent** — the
 one-line setup (`epTrySetupLine`, with team + token embedded **here only**, a copy-and-run-now context;
@@ -988,28 +983,9 @@ is selected automatically, while no connected grant keeps the endpoint's recomme
 ordinary catalog access guidance. If a connected grant lacks an endpoint's scopes, the drawer gives
 the smallest registry-defined capability upgrade and its registry-defined action label.
 
-**Example responses** load when their tab is FIRST opened (`setEpTab` → `loadExample`, guarded by
-`if(this.platEx[e.id]) return`), never with the page and never twice — a platform can carry hundreds of
-endpoints and the captured responses are the heaviest thing in the catalog.
-
-**Parameters** come from the row's own `input` field (`{pathParams?, queryParams?, body?, bodyType?,
-note?}`, each param map being `{name: {type, required, note, example}}`) and render *before* the example
-toggle: the response half was already there and this half was not, which made every endpoint look
-uncallable until you left for the provider's docs. `paramSections` groups them **query → path → body**,
-the order you fill them in for the common GET; the body section labels its `bodyType`, and `input.note`
-becomes a hint line above the whole block. `fmtExample` stringifies object/array examples so they don't
-render as `[object Object]`. `input` is null on **every** extended endpoint (~1850 of them, against 250
-mapped ones), so the empty case is the common one and gets an explicit "the provider's docs have them"
-line rather than an empty table. `.prm-t` explicitly resets the global `table`/`th` chrome (panel
-background, border, radius, filled header bar), which otherwise reads as a stray highlight inside the
-`.prm` box and clips the first column against the table's own border. Navigation runs both ways: an integration page carries a
-**Covered in the catalog** chip row (`mkPlatforms`) into the platform pages, and each platform page
-header links back out to the providers that serve it (`platProviders`). Provider navigation derives
-from the platform response itself, so it remains available while the separate OAuth connection
-registry loads. Browser tests in `frontend/e2e/` cover navigation and interactions; they do not pin
-CSS classes or template source spelling. `tests/test_catalog_api.py` locks the server half: the section order, the
-merged/single split, the domain resolution ladder, and a delivery-mode path segment never becoming a
-subject.
+When the drawer is opened from the tool drawer it stacks (`.drawer.stack`). A routed tool's access
+answer (`tier: routed`) runs in Manual like any other callable tier; its line names how many providers
+can serve it now and folds the ones this example cannot use.
 
 ## Find tools for a job (Catalog search box, `/search`)
 
@@ -1126,7 +1102,8 @@ hashes `index.html` and would not move when only the tutorial changed. Both are 
 includes the file by a bare path, so a browser that cached it before the header existed applies a
 heuristic lifetime and never revalidates, and an edited tutorial silently keeps serving the old
 steps. Consumed by **both** the dashboard Help view (native Vue
-render) and the **standalone** `src/treg/web/tutorial.html` (vanilla render, served at `/tutorial`;
+render; the Help chunk injects `/tutorial.js` and `/dashboard-tour/tour.js` before it renders, so no
+other Dashboard entry downloads them) and the **standalone** `src/treg/web/tutorial.html` (vanilla render, served at `/tutorial`;
 renders `steps` only) — so they can never drift. `docs/tutorial.html` is now a redirect to `/tutorial`;
 the prose walkthrough is `docs/TUTORIAL.md`. Editing steps means editing `tutorial.js` only.
 
@@ -1162,7 +1139,7 @@ only owners invite admins), `setRole` (owner-only dropdown), `removeMember`, `re
 (`leaveOrg`, `deleteOrg` — confirm-by-name). Destructive actions use **inline** two-step confirms
 (`confirmRemove`/`confirmLeave`/`confirmDel`), never native `confirm()`. `loadOrgAdmin` refreshes on
 `go('orgs')` + after each switch. The members table also shows each member's **`used_today`** + an inline
-**Daily cap** editor (`setCap` → `PATCH …/members/{id}/cap`; `-1` = unlimited), and every member (not just
+**Daily cap** editor (`setCap` → `PATCH …/members/{id}/cap`; `-1` = unlimited on the wire, shown as an empty "No limit" field, and clearing the field sends `-1`; the agent form's cap works the same), and every member (not just
 admins) sees a **"Your usage today: N / cap"** line from `loadMyUsage` (`GET /usage/me`) when a cap is set.
 The members table also carries the **per-member tool access control**: a **Tools** cell (`All` chip, or
 `N tools ▾` opening an inline checklist of every org tool — `openAccess`/`saveAccess` → `PATCH …/members/

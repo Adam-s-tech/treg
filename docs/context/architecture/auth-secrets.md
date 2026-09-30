@@ -18,6 +18,7 @@ sources:
   - frontend/src/pages/TeamPage.vue
   - src/treg/health.py
   - src/treg/application/connect.py
+  - src/treg/alembic/versions/0051_context_dev_tool_host.py
   - src/treg/routers/connections.py
   - src/treg/routers/resources.py
   - src/treg/domain/tools/__init__.py
@@ -50,6 +51,16 @@ rejects invalid credentials and validates both team-owned and optional platform 
 exposing usage as a catalog tool. `TREG_PLATFORM_KEY_TAVILY` supplies the server-held fallback; the
 existing own-key-first ladder means a team's key always wins and remains unmetered. The public
 surface is limited to Search, Extract, Map, and Crawl.
+
+Linkup uses a pasted Bearer key at `https://api.linkup.so`. Its free internal
+`GET /v1/credits/balance` probe validates a connected key and supplies capacity evidence without
+exposing the account balance as a catalog tool. `TREG_PLATFORM_KEY_LINKUP` supplies the optional
+shared binding; a team's own key wins and remains unmetered by treg.
+
+Spider uses a pasted Bearer key at `https://api.spider.cloud`. The free internal
+`GET /data/credits` probe validates connected keys and supplies capacity evidence.
+`TREG_PLATFORM_KEY_SPIDERCLOUD` supplies the optional shared binding; the own-key-first ladder
+keeps a team's credential unmetered. Only the priced Search listing is shared-key eligible.
 
 ScrapeGraphAI uses a pasted raw `SGAI-APIKEY` header at `https://v2-api.scrapegraphai.com`. Its free
 internal `GET /api/credits` probe rejects invalid credentials and validates team-owned and optional
@@ -279,6 +290,18 @@ unrenewable one earns a warning (`EXPIRING_SOON_DAYS=7`). `connection_view()` is
 (no token material) the dashboard/CLI read, with a single actionable `needs_reconnect` flag.
 
 ## Curated OAuth provider registry (`oauth_providers.py`)
+Octen is an API-key provider with an `x-api-key` binding. Its connection probe sends an empty
+Search query: a valid key receives an unbilled 400 validation response, while an invalid key
+receives 401. `TREG_PLATFORM_KEY_OCTEN` supplies the optional shared binding through the
+typed setting; a team's own key remains first and unmetered. No account balance endpoint is
+documented for this credential.
+
+Connecting a provider persists its API `base_url` and indexed `host` on the team's tool. Changing
+the registry's base URL affects new connections and direct catalog calls, but an existing named
+tool or URL-passthrough call keeps using its stored host until reconnect or a scoped data migration.
+Host migrations must identify the provider-created tool through its connection binding, leaving
+manually registered tools at their caller-chosen URL.
+
 Two ways to connect a provider. **Bring-your-own (BYO):** `POST /oauth/start` takes a caller-supplied
 `client_id`/`client_secret`/URIs — works for any OAuth2 provider. **Curated:** for the providers where
 **treg itself holds the approved app** (Google Search Console/Analytics/Business Profile/Tag Manager/Ads, YouTube,

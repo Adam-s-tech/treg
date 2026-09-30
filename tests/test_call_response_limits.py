@@ -6,6 +6,7 @@ Run with a unique TREG_TEST_DB_URL; conftest resets that database.
 
 import asyncio
 import hashlib
+import json
 import os
 import socket
 import sys
@@ -125,7 +126,10 @@ async def wire(clients, monkeypatch):
     sock.bind(('127.0.0.1', 0))
     sock.listen()
     port = sock.getsockname()[1]
-    server = uvicorn.Server(uvicorn.Config(app, lifespan='off', log_level='critical', ws='none'))
+    # log_config=None: uvicorn's default dictConfig and log_level would reconfigure the process's
+    # `uvicorn` loggers for every later test (uvicorn.error left at CRITICAL hides server faults).
+    server = uvicorn.Server(uvicorn.Config(app, lifespan='off', log_config=None, access_log=False,
+                                           ws='none'))
     task = asyncio.create_task(server.serve(sockets=[sock]))
     try:
         async with asyncio.timeout(10):
@@ -342,3 +346,105 @@ def test_only_final_free_fetches_can_skip_evidence(overrides):
                   cost_type='free', resource_ownership={'requires': {'kind': 'fetch:synthetic'}})
     assert MarketplaceCall(**fields).streamable_free_result
     assert not MarketplaceCall(**(fields | overrides)).streamable_free_result
+
+
+GEMINI = 'google-ai.image-gen.gemini-3-pro-image'
+GEMINI_USAGE = {'promptTokenCount': 17, 'candidatesTokenCount': 2098, 'thoughtsTokenCount': 159,
+                'candidatesTokensDetails': [{'modality': 'IMAGE', 'tokenCount': 2000}]}
+# A 4K-shaped answer: inline base64 image plus a thought signature, far above the 8 MiB buffer.
+GEMINI_BODY = (b'{"candidates":[{"content":{"parts":[{"inlineData":{"mimeType":"image/jpeg","data":"'
+               + b'Q' * (11 * 1024 * 1024) + b'"},"thoughtSignature":"' + b'S' * (9 * 1024 * 1024)
+               + b'"}],"role":"model"},"finishReason":"STOP"}],"usageMetadata":'
+               + json.dumps(GEMINI_USAGE).encode() + b',"modelVersion":"gemini-3-pro-image"}')
+GEMINI_REQUEST = {'contents': [{'parts': [{'text': 'synthetic prompt'}]}],
+                  'generationConfig': {'responseModalities': ['IMAGE'],
+                                       'imageConfig': {'imageSize': '4K'}}}
+
+
+@pytest.fixture
+def gemini(wire, monkeypatch):
+    from treg.application.call import settle
+    client, state = wire
+    monkeypatch.setenv('TREG_PLATFORM_KEY_GOOGLE_AI', 'synthetic-key')
+    monkeypatch.setenv('TREG_PLATFORM_PROVIDERS', 'google-ai')
+    get_settings.cache_clear()
+    monkeypatch.setattr(get_settings(), 'archive_mode', 'shadow')
+    state.update(type='application/json', body=GEMINI_BODY)
+    yield client, state
+    assert settle._spool_in_use == 0  # every spool returned its disk budget
+
+
+async def _gemini_call(client, **headers):
+    return await client.post(f'/call/{GEMINI}?model=gemini-3-pro-image', json=GEMINI_REQUEST,
+                             headers=headers)
+
+
+async def test_inline_media_answer_relays_whole_and_settles_on_token_meters(gemini):
+    from treg.domain import money
+    client, state = gemini
+    async with session_maker() as db:
+        balance = (await db.get(Org, 1)).balance_micro
+    response = await _gemini_call(client, **{'Idempotency-Key': 'synthetic-gemini'})
+    assert response.status_code == 200, response.text[:500]
+    assert hashlib.sha256(response.content).digest() == hashlib.sha256(GEMINI_BODY).digest()
+    # 17*2 + (2098+159)*12 + 2000*108 = 243,118 micro-USD: exactly Google's token bill.
+    charged = money.with_margin(243_118)
+    assert response.headers['x-treg-cost-micro'] == str(charged)
+    await audit.drain()
+    await archive.drain()
+    async with session_maker() as db:
+        assert (await db.get(Org, 1)).balance_micro == balance - charged
+        row = (await db.execute(select(CallRecord).where(
+            CallRecord.call_ref == response.headers['x-treg-call-id']))).scalar_one()
+        assert row.credential_tier == 'platform' and row.cost_charged_micro == charged
+        assert row.cost_estimated_micro == 260_000  # the 4K row held
+        assert row.response_bytes == len(GEMINI_BODY)
+        assert not (await db.execute(select(Hold))).scalars().all()
+        # A spooled body is neither archived nor kept for replay; the claim is released.
+        assert not (await db.execute(select(ArchiveSnapshot))).scalars().all()
+        assert not (await db.execute(select(IdempotentCall))).scalars().all()
+    assert state['closes'] == 1
+
+
+async def test_inline_media_answer_without_usage_settles_at_the_hold(gemini):
+    from treg.domain import money
+    client, state = gemini
+    state['body'] = GEMINI_BODY.replace(b'"usageMetadata"', b'"somethingElse"')
+    response = await _gemini_call(client)
+    assert response.status_code == 200 and response.content == state['body']
+    # Google answered, so the image exists: with no meters to read, the caller pays the hold.
+    assert response.headers['x-treg-cost-micro'] == str(money.with_margin(260_000))
+
+
+async def test_inline_media_error_stays_buffered_and_uncharged(gemini):
+    client, state = gemini
+    state.update(status=400, body=b'{"error":{"code":400,"message":"synthetic invalid argument",'
+                                  b'"status":"INVALID_ARGUMENT"}}')
+    response = await _gemini_call(client)
+    assert response.status_code == 400
+    assert response.headers['x-treg-cost-micro'] == '0'
+
+
+async def test_inline_media_answer_over_the_spool_cap_fails_uncharged(gemini, monkeypatch):
+    client, state = gemini
+    monkeypatch.setattr(get_settings(), 'spool_max_bytes', 16 * 1024 * 1024)
+    async with session_maker() as db:
+        balance = (await db.get(Org, 1)).balance_micro
+    response = await _gemini_call(client)
+    assert response.status_code == 502
+    assert response.json()['detail']['error'] == 'response_buffer_limit'
+    assert response.headers['x-treg-cost-micro'] == '0'
+    async with session_maker() as db:
+        assert (await db.get(Org, 1)).balance_micro == balance
+        assert not (await db.execute(select(Hold))).scalars().all()
+    assert state['closes'] == 1
+
+
+async def test_the_shared_key_serves_only_the_declared_models(gemini):
+    """`model` is a path parameter: on treg's key it must be one the row prices, or another
+    Gemini model would run on the image model's rates."""
+    client, state = gemini
+    response = await client.post(f'/call/{GEMINI}?model=gemini-2.5-pro', json=GEMINI_REQUEST)
+    assert response.status_code == 400
+    assert response.json()['detail']['parameter'] == 'pathParams.model'
+    assert state['hits'] == 0

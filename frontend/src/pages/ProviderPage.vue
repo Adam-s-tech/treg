@@ -1,6 +1,7 @@
 <script>
 import { useDashboard } from '../state/context'
-export default { setup: useDashboard }
+import ToolDrawer from '../components/ToolDrawer.vue'
+export default { components: { ToolDrawer }, setup: useDashboard }
 </script>
 
 <template>
@@ -52,9 +53,10 @@ export default { setup: useDashboard }
             <div class="ttable-wrap" v-else><table class="ttable">
               <tr v-for="c in mkConns" :key="c.id">
                 <td class="tn">
-                  <b>{{c.identity_label || c.name}}</b>
-                  <span class="sub" style="display:block;font-size:11px;overflow-wrap:anywhere" :title="c.resource_ref">
-                    {{c.resource_name || c.resource_ref || (c.supports_discovery ? 'no '+(c.resource_label||'account')+' chosen yet' : 'whole account')}}
+                  <!-- Which account this is; the tool name has its own column, so it is not repeated here. -->
+                  <b :title="c.resource_ref">{{c.resource_name || c.name}}</b>
+                  <span v-if="!c.resource_name" class="sub" style="display:block;font-size:11px;overflow-wrap:anywhere">
+                    {{c.resource_ref || (c.supports_discovery ? 'no '+(c.resource_label||'account')+' chosen yet' : 'whole account')}}
                   </span>
                 </td>
                 <td class="th">
@@ -76,12 +78,47 @@ export default { setup: useDashboard }
                           :title="'Ask for '+c.missing_capabilities.join(', ')+' as well'">Add {{c.missing_capabilities.join(' + ')}}</button>
                   <button v-if="c.supports_discovery" class="btn sm" @click="openResources(c)"
                           :title="'Choose which '+(c.resource_label||'account')+' this connection uses'">Choose {{c.resource_label||'account'}}</button>
+                  <button class="btn sm" @click="renameConnection(c)" title="Change the tool name an agent calls for this account">Rename</button>
                   <button class="btn sm" @click="reconnect(c)" title="Re-consent to refresh this account">Reconnect</button>
                   <button class="btn sm ico" :class="{danger:confirmDisc===c.id}" @click="disconnect(c)" :title="confirmDisc===c.id?'Click again to disconnect':'Disconnect'">✕</button>
                 </td>
               </tr>
             </table></div>
           </div>
+
+          <!-- Every tool this provider serves, by platform. A tool that is one of several providers
+               doing the same thing links to that capability's comparison: from "what does my key do" to
+               "who else does this, and how do they compare". -->
+          <!-- The catalog-v2 control arm (state/catalogExperiment.js) keeps the page it had: platform
+               chips in place of the tool list, whose links lead to comparison pages the ledger does not have. -->
+          <div class="tgroup" v-if="!catalogLegacy && (mkToolShelves.length || (mkTools && mkTools.loading))">
+            <div class="tgh">Tools <span class="tgh-n" v-if="mkToolCount">{{mkToolCount}}</span>
+              <span class="tgh-hint">what an agent can call on {{mkProvider.display_name}}, by platform</span></div>
+            <div v-if="mkTools && mkTools.loading && !mkToolShelves.length" class="mk-empty">Loading…</div>
+            <div v-else-if="mkTools && mkTools.err" class="mk-empty">{{mkTools.err}}</div>
+            <div v-for="p in mkToolShelves" :key="p.slug" class="pv-shelf" v-show="p.tools.length">
+              <h3 class="pl-h"><a :href="platUrl(p.slug)" @click.prevent="openPlatform(p.slug)">{{p.label}}</a><i></i><em>{{p.tools.length}}</em></h3>
+              <div class="pl-grid pl-grid-t">
+                <div v-for="t in p.tools" :key="t.id" class="pl-card pl-tool" :class="{on:drawerTool===t.id}" role="button" tabindex="0"
+                     @click="openTool(t.id)" @keydown.enter="openTool(t.id)">
+                  <span class="pl-tool-b"><b>{{t.title}}</b>
+                    <span class="pl-meta">{{toolPrice(t.e)}}<template v-if="t.compare"> · <a class="pv-cmp"
+                      :href="platUrl(p.slug, t.compare.key)" @click.stop.prevent="openComparisonOn(p.slug, t.compare.key)" :title="t.compare.description">compare with {{t.compare.providers-1}} other{{t.compare.providers>2?'s':''}}</a></template></span></span>
+                </div>
+              </div>
+            </div>
+            <div v-if="mkPlumbCount" class="pv-shelf">
+              <h3 class="pl-h pl-h-quiet"><span>Account and setup</span><i></i><em>{{mkPlumbCount}}</em></h3>
+              <div class="pl-grid pl-grid-t">
+                <template v-for="p in mkToolShelves" :key="'x'+p.slug">
+                  <button v-for="t in p.plumbing" :key="t.id" class="pl-card pl-tool quiet" :class="{on:drawerTool===t.id}" @click="openTool(t.id)">
+                    <span class="pl-tool-b"><b>{{t.title}}</b><span class="pl-meta">{{toolPrice(t.e)}}</span></span>
+                  </button>
+                </template>
+              </div>
+            </div>
+          </div>
+          <ToolDrawer v-if="drawerEp" />
 
           <div class="tgroup">
             <div class="tgh">Permissions <span class="tgh-hint">what {{mkProvider.display_name}} is asked to grant — hover a line for the exact scope</span></div>
@@ -102,11 +139,9 @@ export default { setup: useDashboard }
             </div>
           </div>
 
-          <!-- Cross-link into the endpoint catalog: from "I hold this account" to "here is what it
-               pulls, next to every other provider that serves the same platform". -->
-          <div class="tgroup" v-if="mkPlatforms.length">
+          <div class="tgroup" v-if="catalogLegacy && mkPlatforms.length">
             <div class="tgh">Covered in the catalog <span class="tgh-n">{{mkPlatforms.length}}</span>
-              <span class="tgh-hint">the platforms {{mkProvider.display_name}} serves — compare its endpoints with the other providers'</span></div>
+              <span class="tgh-hint">the platforms {{mkProvider.display_name}} serves - compare its endpoints with the other providers'</span></div>
             <div class="mk-filters" style="margin:0">
               <button v-for="pl in mkPlatforms" :key="pl.slug" class="mk-chip" @click="openPlatform(pl.slug)">{{pl.label}} <span>{{pl.endpoints}}</span></button>
             </div>

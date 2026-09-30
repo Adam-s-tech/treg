@@ -388,8 +388,10 @@ bump; a script's amounts change only with a new version of run.js.
 - **The dashboard** (`frontend/`: `state/hub.js`, `pages/HubPage.vue`, `pages/HubRunPage.vue`):
   a Hub view for the maker (the list; a detail with Overview, Versions, Price, Listing, Earnings,
   Runs & log, Health; copy call line, copy share URL, retire) and the run page
-  `/app/runs/<run_id>`, opened on load in both sign-in modes. The Hub entry shows when
-  `/hub/tools/mine` answers for the active team, and is probed again on a team switch. Files are
+  `/app/runs/<run_id>`, opened on load in both sign-in modes. With the hub off (`/meta.hub`
+  false) the dashboard asks no hub route; otherwise the Hub entry shows when `/hub/tools/mine`
+  answers for the active team, and is probed again on a team switch. The superadmin listing queue
+  follows `/meta.hub` the same way. Files are
   read-only in the dashboard: a new version comes from the terminal or the agent. The frozen
   legacy dashboard carries the same view until its retirement.
 - **The CLI:** `treg hub init` scaffolds a `pricing` block (`price_usd` 0 for a recipe; `max_price_usd` 0.05 and one `ctx.charge` line for a script); `treg hub ls` shows the price

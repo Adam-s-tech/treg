@@ -20,7 +20,7 @@ from treg.application import connect as connect_use_cases
 from treg.application.connect import _backfill_provider_extra_tools
 from treg.config import get_settings
 from treg.infra.db import session_maker
-from treg.models import Secret, Tool
+from treg.models import HubTool, Membership, Secret, Tool
 
 # The test upstream serves /token, standing in for Google's token endpoint.
 BYO = {
@@ -830,6 +830,111 @@ async def test_revoke_removes_the_extra_tool_too(clients: AsyncClient, treg_goog
     names = {t["name"] for t in (await clients.get("/tools")).json()}
     assert "google-analytics" not in names
     assert "google-analytics-admin" not in names
+
+
+# ---- renaming a connected account renames the tool an agent calls ---------------------------
+async def test_rename_moves_the_tool_its_companions_and_member_access(clients: AsyncClient, treg_google_app):
+    """With several accounts, `-2` tells nobody which account it is. A rename moves every name the
+    connection owns together, or the agent is left calling a tool whose credential went elsewhere."""
+    await _connect_byo(clients, provider="google-analytics", name="")
+    second = await _connect_byo(clients, provider="google-analytics", name="")
+    sid = second["secret_id"]
+    async with session_maker() as db:
+        member = (await db.execute(select(Membership))).scalars().first()
+        member.tool_access = ["google-analytics-2", "google-analytics-2-admin", "other"]
+        await db.commit()
+
+    r = await clients.patch(f"/connections/{sid}", json={"name": "Google-Analytics-Acme"})
+    assert r.status_code == 200, r.text
+    assert r.json()["name"] == "google-analytics-acme"
+
+    tools = {t["name"]: t for t in (await clients.get("/tools")).json()}
+    assert "google-analytics-2" not in tools and "google-analytics-2-admin" not in tools
+    assert tools["google-analytics-acme"]["bindings"][0]["secret_id"] == sid
+    assert tools["google-analytics-acme-admin"]["bindings"][0]["secret_id"] == sid
+    assert "google-analytics" in tools, "the other account is untouched"
+    async with session_maker() as db:
+        member = await db.get(Membership, member.id)
+        assert member.tool_access == ["google-analytics-acme", "google-analytics-acme-admin", "other"]
+
+    # Reconnecting the renamed account rebinds the renamed tool rather than resurrecting the old name.
+    await _connect_byo(clients, provider="google-analytics", name="", connection_id=sid)
+    names = {t["name"] for t in (await clients.get("/tools")).json()}
+    assert "google-analytics-2" not in names and "google-analytics-acme" in names
+
+
+async def test_rename_with_unrestricted_members(clients: AsyncClient, treg_google_app):
+    """An owner's "all tools" is a JSON null in tool_access; the rewrite must skip it, not 500."""
+    await _connect_byo(clients, provider="google-search-console", name="")
+    second = await _connect_byo(clients, provider="google-search-console", name="")
+    r = await clients.patch(f"/connections/{second['secret_id']}", json={"name": "gsc-acme"})
+    assert r.status_code == 200, r.text
+
+
+async def test_rename_refuses_bad_taken_and_hub_used_names(clients: AsyncClient, treg_google_app):
+    first = await _connect_byo(clients, provider="google-search-console", name="")
+    second = await _connect_byo(clients, provider="google-search-console", name="")
+    sid = second["secret_id"]
+    assert (await clients.patch(f"/connections/{sid}", json={"name": "a/b"})).status_code == 422
+    assert (await clients.patch(f"/connections/{sid}", json={"name": "google-search-console"})).status_code == 409
+
+    async with session_maker() as db:
+        org_id = (await db.get(Secret, first["secret_id"])).org_id
+        db.add(HubTool(org_id=org_id, tool_id="t.report", name="report", kind="steps", status="live",
+                       summary="s", manifest={"uses": ["google-search-console-2"]}))
+        await db.commit()
+    r = await clients.patch(f"/connections/{sid}", json={"name": "gsc-acme"})
+    assert r.status_code == 409 and "report" in r.json()["detail"]
+
+
+async def test_renaming_a_connections_tool_renames_the_connection(clients: AsyncClient, treg_google_app):
+    """The tool page's edit form is where people look for a rename. A connection's tool renamed
+    there must take its connection and companions along, as if renamed from the provider page."""
+    await _connect_byo(clients, provider="google-analytics", name="")
+    second = await _connect_byo(clients, provider="google-analytics", name="")
+    tool = next(t for t in (await clients.get("/tools")).json() if t["name"] == "google-analytics-2")
+
+    r = await clients.patch(f"/tools/{tool['id']}", json={"name": "ga-acme", "base_url": tool["base_url"]})
+    assert r.status_code == 200, r.text
+    assert r.json()["name"] == "ga-acme"
+    names = {t["name"] for t in (await clients.get("/tools")).json()}
+    assert {"ga-acme", "ga-acme-admin"} <= names and "google-analytics-2" not in names
+    conn = {c["id"]: c for c in (await clients.get("/connections")).json()}[second["secret_id"]]
+    assert conn["name"] == "ga-acme"
+
+
+async def test_renaming_a_user_built_tool(clients: AsyncClient):
+    key = (await clients.post("/secrets", json={"name": "shared-key", "value": "k"})).json()
+    for n in ("mine", "theirs"):
+        await clients.post("/tools", json={"name": n, "base_url": "http://upstream",
+                                           "bindings": [{"secret_id": key["id"]}]})
+    mine = next(t for t in (await clients.get("/tools")).json() if t["name"] == "mine")
+    async with session_maker() as db:
+        member = (await db.execute(select(Membership))).scalars().first()
+        member.tool_access = ["mine"]
+        await db.commit()
+
+    assert (await clients.patch(f"/tools/{mine['id']}", json={"name": "theirs"})).status_code == 409
+    assert (await clients.patch(f"/tools/{mine['id']}", json={"name": "shared-key"})).status_code == 409
+    assert (await clients.patch(f"/tools/{mine['id']}", json={"name": "a b"})).status_code == 422
+    r = await clients.patch(f"/tools/{mine['id']}", json={"name": "renamed"})
+    assert r.status_code == 200 and r.json()["name"] == "renamed"
+    async with session_maker() as db:
+        assert (await db.get(Membership, member.id)).tool_access == ["renamed"]
+    assert (await db_secret_name(key["id"])) == "shared-key", "a plain key shared by tools is not renamed"
+
+
+async def db_secret_name(secret_id: int) -> str:
+    async with session_maker() as db:
+        return (await db.get(Secret, secret_id)).name
+
+
+async def test_secret_patch_cannot_strand_a_connections_tool(clients: AsyncClient, treg_google_app):
+    """Renaming only the secret used to leave its tool under the old name; the next reconnect then
+    minted a second tool under the new one."""
+    st = await _connect_byo(clients, provider="google-search-console", name="")
+    r = await clients.patch(f"/secrets/{st['secret_id']}", json={"name": "renamed"})
+    assert r.status_code == 409, r.text
 
 
 # ---- picking a resource stamps a ready-made call onto the tool -----------------------------

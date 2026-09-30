@@ -235,6 +235,18 @@ async def test_hub_routes_do_not_exist_with_the_flag_off(clients: AsyncClient):
     assert (await clients.get("/hub/tools/mine")).status_code == 404
 
 
+async def test_meta_says_whether_the_hub_routes_exist(clients: AsyncClient, monkeypatch):
+    """The dashboard reads this to skip hub requests that could only answer 404."""
+    assert (await clients.get("/meta")).json()["hub"] is False
+    monkeypatch.setenv("TREG_HUB_ENABLED", "1")
+    get_settings.cache_clear()
+    try:
+        assert (await clients.get("/meta")).json()["hub"] is True
+    finally:
+        monkeypatch.delenv("TREG_HUB_ENABLED")
+        get_settings.cache_clear()
+
+
 async def test_publish_stores_unchecked_and_reads_back(clients: AsyncClient, hub_on, platform_on, monkeypatch):
     monkeypatch.setattr(call_service, "relay", _fake_relay(200, b'{"data": {"domain": "figma.com"}, "body": [1]}'))
     await _own_supabase(clients)
@@ -1625,6 +1637,8 @@ async def test_a_maker_cannot_review_its_own_hub_tool(clients: AsyncClient, hub_
     pub = await _live_tool_with_readme(clients, monkeypatch, price=0.01)
     run = await clients.post(f"/call/{pub['tool_id']}", json={"domain": "x"})
     assert run.status_code == 200
+    from treg import audit
+    await audit.drain()  # the run's call record is a fire-and-forget write, and a review reads it
     r = await clients.post("/reviews", json={"call_id": run.json()["run_id"], "usefulness": "useful"})
     assert r.status_code == 400 and "own hub tool" in r.text, r.text
 

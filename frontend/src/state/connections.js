@@ -2,15 +2,16 @@
 export default {
 // ---- connections (registry OAuth) ----
     async loadConnections(){
-      this.connErr='';
+      this.connErr=''; const live=this.ticket('connections');
       this.loadPlatforms();  // fire-and-forget, and first: the catalog must neither hold up nor wait for the connect UI
       try{
         const [ps, cs]=await Promise.all([
           fetch('/oauth/providers').then(r=>r.json()).catch(()=>[]),
           this.api('/connections').catch(()=>[]),
         ]);
+        if(!live()) return;
         this.providers=ps||[]; this.connections=cs||[];
-      }catch(e){ this.connErr=String(e.message||e); }
+      }catch(e){ if(live()) this.connErr=String(e.message||e); }
     },
 authorizationMethodSpec(providerName, methodName){
       const provider=(this.providers||[]).find(item=>item.service===providerName);
@@ -196,6 +197,17 @@ async chooseResource(r){
           body:JSON.stringify({resource_ref:r.id, resource_name:r.label||''})});
         this.resPick=null; await this.loadConnections();
       }catch(e){ this.connErr=String(e.message||e); }
+    },
+async renameConnection(c){
+      // The name is what agents type, so say plainly what a rename breaks before doing it.
+      const name=window.prompt('New tool name for this account. Scripts and agents that call "'+c.name+'" will need the new name.', c.name);
+      if(!name || name.trim()===c.name) return;
+      this.connErr='';
+      try{
+        await this.api('/connections/'+c.id,{method:'PATCH',headers:{'content-type':'application/json'},
+          body:JSON.stringify({name:name.trim()})});
+        await this.loadConnections(); await this.loadAll();
+      }catch(e){ this.connErr=(e.detail||e.message||e); }
     },
 async disconnect(c){
       if(this.confirmDisc!==c.id){ this.confirmDisc=c.id; setTimeout(()=>{ if(this.confirmDisc===c.id) this.confirmDisc=null; },4000); return; }

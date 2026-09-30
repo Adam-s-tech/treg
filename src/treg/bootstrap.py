@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 from collections.abc import Sequence
 from contextlib import asynccontextmanager, nullcontext
 from copy import copy
+from pathlib import Path
 from typing import Literal
 
 import httpx
@@ -68,12 +70,14 @@ _CONTROL_ROUTE_KEYS: frozenset[RouteKey] = frozenset({
     ('/catalog/platforms/{slug}', ('GET',), 'catalog_platform'),
     ('/catalog/search', ('GET',), 'catalog_search'),
     ('/catalog/find', ('GET',), 'catalog_find'),
+    ('/catalog/providers/{service}', ('GET',), 'catalog_provider'),
     ('/catalog/endpoints/{endpoint_id}', ('GET',), 'catalog_endpoint'),
     ('/table-columns/{tool_id:path}', ('GET',), 'table_columns'),
     ('/table-account', ('GET',), 'table_account'),
     ('/catalog/examples/{endpoint_id}', ('GET',), 'catalog_example'),
     ('/catalog', ('GET',), 'catalog_index'),
     ('/catalog/{slug}', ('GET',), 'catalog_page'),
+    ('/catalog/{slug:shelf}/{key}', ('GET',), 'catalog_comparison_page'),
     ('/search', ('GET',), 'search_page'),
     ('/agents', ('GET',), 'agents_hub'),
     ('/agents/{agent}', ('GET',), 'agent_page'),
@@ -149,6 +153,7 @@ _CONTROL_ROUTE_KEYS: frozenset[RouteKey] = frozenset({
     ('/integrate.md', ('GET',), 'integrate_md'),
     ('/skill.md', ('GET',), 'skill_md'),
     ('/skills/ugc/SKILL.md', ('GET',), 'make_ugc_skill_md'),
+    ('/skills/lead-signals/SKILL.md', ('GET',), 'lead_signals_skill_md'),
     ('/feedback.md', ('GET',), 'feedback_md'),
     ('/favicon.ico', ('GET',), 'favicon'),
     ('/favicon.svg', ('GET',), 'favicon'),
@@ -170,6 +175,7 @@ _CONTROL_ROUTE_KEYS: frozenset[RouteKey] = frozenset({
     ('/gpt6', ('GET',), 'gpt6_page'),
     ('/ugc', ('GET',), 'ugc_page'),
     ('/people-search', ('GET',), 'people_search_page'),
+    ('/leads-signals', ('GET',), 'leads_signals_page'),
     ('/jev', ('GET',), 'jev_page'),
     ('/jev/xboost.json', ('GET',), 'jev_xboost_json'),
     ('/jev/xboost/judge', ('POST',), 'jev_xboost_judge'),
@@ -185,6 +191,7 @@ _CONTROL_ROUTE_KEYS: frozenset[RouteKey] = frozenset({
     ('/.well-known/skills/index.json', ('GET',), 'well_known_skills_index'),
     ('/.well-known/skills/treg/SKILL.md', ('GET',), 'well_known_skill_md'),
     ('/.well-known/skills/make-ugc/SKILL.md', ('GET',), 'well_known_make_ugc_md'),
+    ('/.well-known/skills/lead-signals/SKILL.md', ('GET',), 'well_known_lead_signals_md'),
     ('/connect-demo', ('GET',), 'connect_demo_page'),
     ('/connect-demo/callback', ('GET',), 'connect_demo_callback'),
     ('/help', ('GET',), 'support_page'),
@@ -290,7 +297,7 @@ _CONTROL_ROUTE_KEYS: frozenset[RouteKey] = frozenset({
     ('/bundles/{bundle_id}', ('PATCH',), 'update_bundle'),
     ('/bundles/{bundle_id}', ('DELETE',), 'delete_bundle'),
     ('/calls', ('GET',), 'list_calls'),
-    ('/calls/{call_id:int}/result', ('GET',), 'get_call_result'),
+    ('/calls/{call_id}/result', ('GET',), 'get_call_result'),
     ('/calls/{call_ref}', ('GET',), 'get_call'),
     ('/runs', ('GET',), 'list_runs'),
     ('/oauth/providers', ('GET',), 'oauth_providers_list'),
@@ -302,6 +309,7 @@ _CONTROL_ROUTE_KEYS: frozenset[RouteKey] = frozenset({
     ('/connections/token', ('POST',), 'connect_with_token'),
     ('/connections/{secret_id}/extra-credential', ('POST',), 'set_extra_credential'),
     ('/connections/{secret_id}', ('DELETE',), 'revoke_connection'),
+    ('/connections/{secret_id}', ('PATCH',), 'rename_connection'),
     ('/oauth/status/{state}', ('GET',), 'oauth_status'),
     ('/health/run', ('POST',), 'run_health'),
     ('/health', ('GET',), 'get_health'),
@@ -401,6 +409,22 @@ class _DayStatic(StaticFiles):
         return response
 
 
+class _MediaStatic(StaticFiles):
+    """Page media under stable, unversioned names (`/media/<page>/...`). With no Cache-Control a
+    browser applies a heuristic lifetime and never revalidates, so a page's edited script or
+    stylesheet would keep running old code against new HTML. Code and text therefore revalidate
+    on every use (`no-cache`; the ETag makes that a 304), and images, video and fonts, which a page
+    only ever swaps by renaming, keep a day's cache like the logos."""
+
+    _REVALIDATE = frozenset({".js", ".mjs", ".css", ".html", ".json", ".md", ".txt"})
+
+    def file_response(self, full_path, *args, **kwargs):
+        response = super().file_response(full_path, *args, **kwargs)
+        revalidate = Path(full_path).suffix.lower() in self._REVALIDATE
+        response.headers["Cache-Control"] = "no-cache" if revalidate else "public, max-age=86400"
+        return response
+
+
 def _route_key(route: APIRoute) -> RouteKey:
     return route.path, tuple(sorted(route.methods)), route.name
 
@@ -443,7 +467,7 @@ def _mount_static(app: FastAPI, api_module) -> None:
     if api_module._LOGO_DIR.exists():
         app.mount("/logos", _DayStatic(directory=str(api_module._LOGO_DIR)), name="logos")
     if api_module._MEDIA_DIR.exists():
-        app.mount("/media", StaticFiles(directory=str(api_module._MEDIA_DIR)), name="media")
+        app.mount("/media", _MediaStatic(directory=str(api_module._MEDIA_DIR)), name="media")
     if api_module._TOUR_DIR.exists():
         app.mount(
             "/dashboard-tour",
@@ -469,29 +493,55 @@ def _include_role_routes(app: FastAPI, api_module, role: AppRole) -> None:
     _include_routes(app, pending)
 
 
+def _openapi_operation_routes(routes: Sequence[BaseRoute], widened: set[int]) -> list[BaseRoute]:
+    """One schema view per documented operation, leaving the live routes untouched.
+
+    A widened GET route answers HEAD, but advertising it would duplicate every operation. A route
+    declaring several methods (the /call relay) is one FastAPI operation id for all of them, taken
+    from whichever method the set yields first; split it into per-method copies with their own ids.
+    """
+    result: list[BaseRoute] = []
+    for route in routes:
+        if not isinstance(route, APIRoute):
+            result.append(route)
+            continue
+        methods = {"GET"} if id(route) in widened else route.methods
+        if methods == route.methods and len(methods) == 1:
+            result.append(route)
+            continue
+        base_id = re.sub(r"\W", "_", f"{route.name}{route.path_format}")
+        for method in sorted(methods):
+            view = copy(route)
+            view.methods = {method}
+            if len(methods) > 1 and route.operation_id is None:
+                view.unique_id = f"{base_id}_{method.lower()}"
+            result.append(view)
+    return result
+
+
 def _install_head_and_openapi(app: FastAPI) -> None:
     """Answer HEAD wherever GET works without advertising duplicate OpenAPI operations."""
-    widened: list[APIRoute] = []
+    widened: set[int] = set()
     for route in app.routes:
         if isinstance(route, APIRoute) and route.methods == {"GET"}:
             route.methods = {"GET", "HEAD"}
-            widened.append(route)
+            widened.add(id(route))
 
     fastapi_openapi = app.openapi
 
-    def openapi_without_head():
+    def openapi_by_operation():
         if app.openapi_schema:
             return app.openapi_schema
-        for route in widened:
-            route.methods = {"GET"}
+        live = app.router.routes
+        # Synchronous and awaited nowhere, so no request is routed against the schema view.
+        app.router.routes = _openapi_operation_routes(live, widened)
         try:
             app.openapi_schema = fastapi_openapi()
         finally:
-            for route in widened:
-                route.methods = {"GET", "HEAD"}
+            app.router.routes = live
         return app.openapi_schema
 
-    app.openapi = openapi_without_head
+    app.openapi = openapi_by_operation
 
 
 def _route_manifest(routes: Sequence[BaseRoute]) -> list[str]:

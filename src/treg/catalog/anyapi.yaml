@@ -49,8 +49,6 @@ limits: no published per-key request-rate limit on /v1/run - AnyAPI does not adv
   3 per IP per hour.
 pricing_url: https://getanyapi.com/catalog
 proposed_capabilities:
-  google.maps.reviews: List the Google Maps reviews of a place
-  google.serp.ai_overview: Get the AI Overview panel Google shows above a search result
 endpoints:
 - id: anyapi.x.search.posts
   capability: x.search.posts

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+from copy import deepcopy
 import json
 from types import SimpleNamespace
 
@@ -15,9 +16,10 @@ from sqlmodel import select
 from treg import audit
 from treg.domain import money as ledger
 from treg.application.call import overflow as call_overflow
+from treg.application.call import resolve as call_resolve
 from treg.application.call import route as call_route
 from treg.application.call import service as call_service
-from treg.application.call.types import UpstreamResponse
+from treg.application.call.types import ResolutionFailed, UpstreamResponse
 from treg.config import get_settings
 from treg.infra.db import session_maker
 from treg.domain.catalog import store as catalog_store
@@ -27,7 +29,7 @@ from treg.domain.catalog.routing.plan import Candidate, cost_at, rank
 from treg.infra.catalog_observations import CachedEndpointObservationReader
 from treg.models import CallRecord, Hold, LedgerEntry, OverflowRoute
 
-from test_marketplace_call import _balance, platform_on  # noqa: F401
+from test_marketplace_call import _balance, firecrawl_platform_on, platform_on  # noqa: F401
 
 ROUTED = "treg.people.email.find"
 
@@ -97,6 +99,9 @@ def test_expression_language():
     assert P.evaluate("none == []", doc) is True and P.evaluate("emails == []", doc) is False
     assert P.evaluate("emails[0].email", doc) == "e" and P.evaluate("emails[3].email", doc) is None
     assert P.evaluate("coalesce(data.missing, data.email)", doc) == "a@x.io"
+    assert P.evaluate("coalesce(none, [])", doc) == [] and P.evaluate("coalesce(data.missing, [])", doc) == []
+    assert P.evaluate("coalesce(none, []) == []", doc) is True and P.evaluate("coalesce(emails, []) == []", doc) is False
+    assert P.evaluate("coalesce(data.missing, none)", doc) == []
     assert P.evaluate("split_first(data.name)", {"data": {"name": "Patrick Collison"}}) == "Patrick"
     assert P.evaluate("split_last(data.name)", {"data": {"name": "Patrick"}}) is None
     assert P.evaluate("join(a, b)", {"a": "Patrick", "b": "Collison"}) == "Patrick Collison"
@@ -117,6 +122,103 @@ def test_every_shipped_adapter_round_trips_its_fixture():
     assert b == {"firstName": "Patrick", "lastName": "Collison", "companyDomain": "stripe.com"} and q == {}
     assert ad.from_upstream({"email": "p@stripe.com", "status": "succeeded"}) == {"email": "p@stripe.com"}
     assert ad.is_miss({"email": None}) and not ad.is_miss({"email": "x"})
+
+
+def test_every_adapter_const_passes_its_child_body_allowlist():
+    cat = catalog_store.load()
+    failures = {}
+    for endpoint_id, adapter in cat.adapters.items():
+        ep = cat.by_id[endpoint_id]
+        body_consts = {path: value for path, value in adapter.const.items()
+                       if path.startswith("body.")}
+        if not body_consts or not (ep.get("body_allowlist") or ep.get("strict_body")):
+            continue
+        body = deepcopy((ep.get("test_request") or {}).get("body"))
+        assert isinstance(body, dict), endpoint_id
+        request = {"body": body}
+        for path, value in body_consts.items():
+            P.set_path(request, path, value)
+        try:
+            call_resolve._enforce_catalog_body(ep, json.dumps(body).encode())
+        except ResolutionFailed as exc:
+            failures[endpoint_id] = exc.detail
+    assert failures == {}, failures
+
+
+def test_firecrawl_web_adapters_are_verified_routed_children():
+    cat = catalog_store.load()
+    for parent, child in (
+        ("treg.web.search", "firecrawl.web.search"),
+        ("treg.web.extract", "firecrawl.web.scrape"),
+        ("treg.web.map", "firecrawl.web.map"),
+    ):
+        adapter = cat.adapters[child]
+        assert adapter.verified, (child, adapter.verify_note)
+        assert not adapter.verify_note, child
+        assert child in cat.by_id[parent]["routed_children"], (parent, child)
+
+
+def test_you_web_adapters_are_verified_routed_children():
+    cat = catalog_store.load()
+    for parent, child in (
+        ("treg.web.search", "you.web.search"),
+        ("treg.web.extract", "you.web.contents"),
+    ):
+        adapter = cat.adapters[child]
+        assert adapter.verified, (child, adapter.verify_note)
+        assert not adapter.verify_note, child
+        assert child in cat.by_id[parent]["routed_children"], (parent, child)
+
+
+def test_search_adapter_does_not_treat_an_answer_without_results_as_a_miss():
+    adapter = catalog_store.load().adapters["linkup.web.search"]
+    assert adapter.verified
+    assert adapter.is_miss({"results": []})
+    assert not adapter.is_miss({"answer": "A sourced answer", "sources": []})
+    assert not adapter.is_miss({"data": {"answer": "A structured answer"}})
+
+
+@pytest.mark.parametrize(("parent", "child", "routed_input", "upstream_body", "expected_body", "expected_cost"), [
+    (
+        "treg.web.search", "firecrawl.web.search",
+        {"q": "example", "limit": 3},
+        {"success": True, "data": {"web": [{"title": "Example", "url": "https://example.com"}]}, "creditsUsed": 2},
+        {"query": "example", "limit": 3}, 10_000,
+    ),
+    (
+        "treg.web.extract", "firecrawl.web.scrape",
+        {"url": "https://example.com"},
+        {"success": True, "data": {"markdown": "# Example", "metadata": {"sourceURL": "https://example.com"}}},
+        {"url": "https://example.com", "formats": ["markdown"], "parsers": []}, 5_000,
+    ),
+    (
+        "treg.web.map", "firecrawl.web.map",
+        {"url": "https://example.com", "q": "docs", "limit": 3},
+        {"success": True, "links": [{"url": "https://example.com/docs"}]},
+        {"url": "https://example.com", "search": "docs", "limit": 3}, 5_000,
+    ),
+])
+async def test_firecrawl_web_routed_calls_serve_and_settle(
+    clients, monkeypatch, firecrawl_platform_on,
+    parent, child, routed_input, upstream_body, expected_body, expected_cost,
+):
+    seen = []
+    monkeypatch.setattr(call_service, "relay", _relay_by_provider({
+        "firecrawl": [(200, upstream_body)],
+    }, seen))
+
+    before = await _balance(clients)
+    response = await clients.post(
+        f"/call/{parent}", json=routed_input,
+        headers={"X-Treg-Route-Prefer": "firecrawl", "X-Treg-Route-Waterfall": "0"},
+    )
+    assert response.status_code == 200, response.text
+    doc = response.json()
+    assert doc["_treg"]["served_by"] == child
+    assert doc["_treg"]["charged_micro"] == expected_cost
+    assert response.headers["X-Treg-Route-Outcome"] == "hit"
+    assert before - await _balance(clients) == expected_cost
+    assert len(seen) == 1 and seen[0][3] == expected_body
 
 
 async def test_tavily_routed_empty_search_is_a_paid_miss_then_falls_through(

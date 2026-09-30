@@ -5,8 +5,6 @@ import { fileURLToPath } from 'node:url'
 export default defineConfig({
   plugins: [vue({ template: { transformAssetUrls: { includeAbsolute: false } } })],
   base: '/app/ui/',
-  // Shared onboarding components also serve unbundled public pages and still use templates.
-  resolve: { alias: { vue: 'vue/dist/vue.esm-bundler.js' } },
   build: {
     outDir: fileURLToPath(new URL('../src/treg/web/dashboard', import.meta.url)),
     emptyOutDir: true,

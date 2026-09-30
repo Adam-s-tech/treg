@@ -5,14 +5,19 @@ from __future__ import annotations
 
 import json
 import os
-import re
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
 
 
 def _configure_test_environment() -> None:
-    """Match tests/conftest.py before importing treg, whose settings load at import time."""
+    """Match tests/conftest.py before importing treg, whose settings load at import time.
+
+    Imported by the test suite, treg is already loaded with conftest's environment; rewriting it
+    here would only leave the process's variables disagreeing with the engine it already built."""
+    if "treg" in sys.modules:
+        return
     worker = os.environ.get("PYTEST_XDIST_WORKER", "")
     db_dir = os.path.join(tempfile.gettempdir(), "treg-tests")
     os.makedirs(db_dir, exist_ok=True)
@@ -52,7 +57,6 @@ def _configure_test_environment() -> None:
 
 _configure_test_environment()
 
-from fastapi.routing import APIRoute  # noqa: E402
 from treg.api import app  # noqa: E402
 
 
@@ -160,13 +164,7 @@ def _lifespan() -> dict[str, Any]:
 
 
 def _openapi() -> dict[str, Any]:
-    """Generate OpenAPI with FastAPI's default operation IDs made deterministic."""
-    for route in app.routes:
-        if not isinstance(route, APIRoute) or route.operation_id is not None:
-            continue
-        operation_id = re.sub(r"\W", "_", f"{route.name}{route.path_format}")
-        route.unique_id = f"{operation_id}_{sorted(route.methods)[0].lower()}"
-
+    """Generate OpenAPI; bootstrap gives every operation its own deterministic id."""
     # Another test may have populated the cache before this snapshot is collected.
     app.openapi_schema = None
     return app.openapi()
