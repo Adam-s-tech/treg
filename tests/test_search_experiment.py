@@ -156,6 +156,22 @@ async def test_judge_asks_a_job_its_own_question_and_answers_a_choice():
     assert len(seen) == 2
 
 
+async def test_with_no_candidates_only_the_extra_questions_are_asked():
+    judge_infra.clear_cache()
+    seen = []
+
+    def handler(request):
+        seen.append(json.loads(request.content))
+        return httpx.Response(200, json={"answers": {"x_name": {"noul": 0.1}}})
+
+    kw = dict(api_key="k", model="jev-latest", url="https://judge.test/v1", timeout_s=1.0,
+              transport=_transport(handler))
+    assert (await judge_infra.judge("weather", [], **kw)).probs == [] and not seen       # nothing to ask
+    v = await judge_infra.judge("weather", [], extra={"name": {"type": "noul", "instructions": "a name"}}, **kw)
+    assert v.probs == [] and v.extra == {"name": 0.1}
+    assert set(seen[0]["questions"]) == {"x_name"} and seen[0]["state"]["candidates"] == []
+
+
 async def test_judge_abstains_on_timeout_http_error_and_bad_body():
     judge_infra.clear_cache()
 

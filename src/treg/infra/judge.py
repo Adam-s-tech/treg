@@ -129,9 +129,10 @@ async def judge(query: str, candidates: list[dict], *, api_key: str, model: str,
     `criteria` (Noul `true`/`false` descriptions) is attached to every endpoint question. A candidate
     in `job_view`'s shape (it carries `job`) is asked the job question instead, with `job_criteria`.
     `extra` maps ids to further questions about the same state (the query alone, say), Noul or
-    Choice; they ride in the same request and come back as `Judgement.extra`. None of these changes
-    what a caller passing none sends."""
-    if not candidates:
+    Choice; they ride in the same request and come back as `Judgement.extra`, and are asked even
+    with no candidates (a request of extras only). None of these changes what a caller passing none
+    sends."""
+    if not candidates and not extra:
         return Judgement(probs=[], ms=0, extra={})
     ids = [c["id"] for c in candidates]
     kinds = ["job" if "job" in c else "endpoint" for c in candidates]

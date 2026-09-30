@@ -104,7 +104,9 @@ representatives of those jobs in fused order (`find_delta`), then uncatalogued e
 platform, vendor count, a few names) and is asked whether tools that do the job accomplish the task,
 under `JOB_CRITERIA`; an endpoint keeps the v1 question and view. Two extra questions ride along:
 the v1 name Noul, and off a shelf a Choice over the platforms plus `none` (`platform_question`). No
-second model request, ever; the Choice only classifies and records.
+second model request, ever; the Choice only classifies and records. A recall with no units still
+sends the two extra questions (a request of extras only), so an empty recall is told apart as a
+catalog gap or not a task instead of defaulting to `not_task`.
 
 **The name table** (`find_recall.name_of`) is string lookup, because a name is a lookup, not a
 judgement: a platform (exactly its name or slug, listed with the others the name matches: exact

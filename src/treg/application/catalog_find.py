@@ -199,7 +199,7 @@ async def judge(query: str, cands: list[tuple[dict, float]], cat: catalog_store.
              for ep, _ in cands]
     j = await judge_infra.judge(query, views, api_key=s.typesafe_api_key, model=s.typesafe_model,
                                 url=s.typesafe_url, timeout_s=float(s.find_timeout_s),
-                                criteria=FIT_CRITERIA, extra={"name": NAME_QUESTION})
+                                criteria=FIT_CRITERIA, extra={"name": NAME_QUESTION} if views else None)
     if j.probs is None:
         page, _, _ = catalog_store.rank_band(query, cat, 25, platform)
         return Judged(KEYWORD, [(ep, None) for ep, _ in page[:25]], j)
@@ -375,7 +375,9 @@ async def recall_with_meaning(query: str, cat: catalog_store.Catalog, provider_d
 
 async def judge_v2(query: str, cands: list[find_recall.Candidate], cat: catalog_store.Catalog,
                    provider_display, platform: str | None = None) -> judge_infra.Judgement:
-    """One request: a fit per unit, "is it only a name?", and (off a shelf) which platform."""
+    """One request: a fit per unit, "is it only a name?", and (off a shelf) which platform. With no
+    units the two extra questions are still asked, so an empty recall can still be told apart as a
+    catalog gap or not a task."""
     s = get_settings()
     extra = {"name": NAME_QUESTION}
     if platform is None:

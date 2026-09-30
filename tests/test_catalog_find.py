@@ -344,6 +344,20 @@ def test_v2_a_shelf_none_is_scope_never_a_gap():
     assert (found.verdict, found.reason) == (F.NONE, F.SCOPE)
 
 
+async def test_v2_with_no_units_still_tells_a_gap_from_not_a_task(clients, monkeypatch):
+    seen = []
+    _on(monkeypatch, find_engine="v2")
+    monkeypatch.setattr(judge_infra, "judge", _fake_v2({}, seen, plat=("none", 0.9)))
+    q = "zzqx qqxz"                                              # no word on any card, no vectors
+    _, (first, judged) = await _find(clients, q)
+    assert first["units"] == [] and (judged["verdict"], judged["reason"]) == ("none", "gap")
+    (_, views, kw), = seen
+    assert views == [] and set(kw["extra"]) == {"name", "plat"}
+    monkeypatch.setattr(judge_infra, "judge", _fake_v2({}, plat=("people", 0.9)))
+    _, (_, judged) = await _find(clients, q)
+    assert (judged["verdict"], judged["reason"]) == ("none", "not_task")
+
+
 async def test_v2_on_a_shelf_reads_that_shelf_and_asks_no_platform(clients, monkeypatch):
     seen = []
     _on(monkeypatch, find_engine="v2")

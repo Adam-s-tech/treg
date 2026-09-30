@@ -504,6 +504,8 @@ def bench(cases: list[Case], *, engine: str, tier: str, cache: Path | None = Non
         row = {"q": c.q, "stratum": c.stratum, "candidates": a.candidates}
         if a.reach is not None:
             row["reach"] = a.reach
+        if a.embed_error:
+            row["embed_error"] = a.embed_error
         if tier == "recall":
             row["hit"] = any(view.is_gold(i, c.gold) for i in a.candidates) if c.gold else None
         else:
