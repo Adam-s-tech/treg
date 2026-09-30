@@ -706,12 +706,12 @@ when a connected credential for the same provider outranks it, with **Verify and
 through the connect probe. **Add a connection** is every provider this server can connect
 (`connectable`: `configured` ones only — a provider it holds no client credentials for could only
 show a dead button; an account already connected to one still shows above), in `providerGroups`
-(grouped by the registry's category, filtered by `connQ` and by `connKind` — the **All · Sign in ·
-API key** switch, each counting what it would show — with the sign-in providers first in each
-group) as one-line cards: logo, name, how the credential is
-obtained (`authLabel`: *Sign in* for OAuth, else the provider's `token_label`, e.g. *API key* — only
+(grouped by the registry's category, filtered by `connQ` and by `connKind` — the **All · Your
+account · API key** switch, each counting what it would show — with the account providers first in
+each group) as one-line cards: logo, name, how the credential is
+obtained (`authLabel`: *Your account* for OAuth, else the provider's `token_label`, e.g. *API key* — only
 Slack's is a bot token) and how many are connected; the whole card opens the provider page, and an
-outlined **Connect / Add key / Add account / Replace key** button calls `startConnect(p)` in place (a
+outlined **Connect account / Add key** (once connected, **Add account / Replace key**) button calls `startConnect(p)` in place (a
 pasted key is one per team per provider, so a second one replaces it). Each card has
 `id="prov-<service>"`: **`goByok(service)`** — the Catalog's *Bring your own key*, a tool drawer's *Add
 your X key*, Try-it — lands on Connections, scrolls that card into view and rings it (`.cn-prov.focus`,

@@ -18,7 +18,7 @@ export default { components: { ToolDrawer, ProviderLogo, ConnectionCard }, setup
             <p class="pv-facts pl-meta">{{mkProvider.category}} · {{authLabel(mkProvider)}} · {{mkProvider.base_url}}</p>
             <div class="pv-acts">
               <button class="pl-btn" :disabled="!mkProvider.configured || connBusy" @click="startConnect(mkProvider)">
-                {{pastedCredential(mkProvider) ? (mkConns.length ? 'Replace key' : 'Add key') : (mkConns.length ? 'Add another account' : 'Connect')}}</button>
+                {{pastedCredential(mkProvider) ? (mkConns.length ? 'Replace key' : 'Add key') : (mkConns.length ? 'Add another account' : 'Connect account')}}</button>
               <a v-if="mkProvider.docs_url" class="pl-btn ghost" :href="mkProvider.docs_url" target="_blank" rel="noopener">API docs ↗</a>
             </div>
             <!-- Shown everywhere Connect can be clicked, before the consent popup opens. -->

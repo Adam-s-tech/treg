@@ -66,7 +66,7 @@ export default {
         <input v-model="connQ" aria-label="Filter providers" placeholder="Filter providers, e.g. Apollo, Google Ads, video">
         <button v-if="connQ" class="cat-find-x" type="button" aria-label="Clear the filter" @click="connQ=''">×</button>
       </div>
-      <!-- Signing in with an account you already have and pasting a key are different errands:
+      <!-- Logging in with an account you already have and pasting a key are different errands:
            someone holding a Google Ads login is not scanning for API-key vendors. -->
       <div class="cn-kinds" role="radiogroup" aria-label="How you connect">
         <button v-for="k in connKinds" :key="k.key" role="radio" :aria-checked="connKind===k.key"
@@ -86,8 +86,8 @@ export default {
             <span class="pl-meta">{{authLabel(p)}}<template v-if="connCount[p.service]"> · {{connCount[p.service]}} connected</template></span></span>
           <span class="cn-prov-a" @click.stop>
             <button class="pl-btn sm ghost" :disabled="connBusy"
-                    @click="startConnect(p)" :title="pastedCredential(p) ? 'Paste your own '+p.display_name+' key; treg keeps it server-side' : 'Sign in to '+p.display_name+' and approve access'">
-              {{pastedCredential(p) ? (connCount[p.service] ? 'Replace key' : 'Add key') : (connCount[p.service] ? 'Add account' : 'Connect')}}</button>
+                    @click="startConnect(p)" :title="pastedCredential(p) ? 'Paste your own '+p.display_name+' key; treg keeps it server-side' : 'Log in to '+p.display_name+' and approve access'">
+              {{pastedCredential(p) ? (connCount[p.service] ? 'Replace key' : 'Add key') : (connCount[p.service] ? 'Add account' : 'Connect account')}}</button>
           </span>
         </div>
       </div>

@@ -169,8 +169,10 @@ connProvider(c){ return (this.providers||[]).find(p=>p.service===c.provider)||nu
       if(c.health==='ok') return {key:'ok', tone:'ok', label:'Working', title:'A real call with this credential succeeded.'};
       return {key:'ok', tone:'ok', label:'Connected', title:'Saved. It is checked on its first call.'};
     },
-// How a provider's credential is obtained, in the words a person uses for it.
-    authLabel(p){ return this.pastedCredential(p) ? (p.token_label || 'API key') : 'Sign in'; },
+// How a provider's credential is obtained, in the words a person uses for it: the key's own name,
+    // or the account they log in with ("Sign in" read as signing in to treg; the card's logo and name
+    // already say whose account, and the catalog calls it "your account" too).
+    authLabel(p){ return this.pastedCredential(p) ? (p.token_label || 'API key') : 'Your account'; },
 pastedCredential(p){ return !!p && (p.auth_kind==='key' || p.auth_kind==='token'); },
 async saveExtraCred(c){
       const v=(this.extraCred[c.id]||'').trim(); if(!v) return;

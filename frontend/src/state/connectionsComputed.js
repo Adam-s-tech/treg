@@ -35,18 +35,19 @@ connAttention(){ return this.connAccounts.filter(a=>a.st.key!=='ok').length; },
       return q ? this.connectable.filter(p=>[p.display_name, p.service, p.summary, p.category].join(' ').toLowerCase().includes(q))
         : this.connectable;
     },
-// The sign-in / key choice, each counting what it would show under the typed filter.
+// The account / key choice, each counting what it would show under the typed filter. "Your
+    // account" is the catalog's word for the same thing ("free with your account").
     connKinds(){
-      const signIn=this.connMatches.filter(p=>!this.pastedCredential(p)).length;
+      const accounts=this.connMatches.filter(p=>!this.pastedCredential(p)).length;
       return [
         {key:'', label:'All', n:this.connMatches.length, hint:'Every provider you can connect'},
-        {key:'signin', label:'Sign in', n:signIn, hint:'Approve access with an account you already have: nothing to copy'},
-        {key:'key', label:'API key', n:this.connMatches.length-signIn, hint:'Paste a key from the provider'},
+        {key:'account', label:'Your account', n:accounts, hint:'Log in with an account you already have and approve access: nothing to copy'},
+        {key:'key', label:'API key', n:this.connMatches.length-accounts, hint:'Paste a key from the provider'},
       ];
     },
 // Every provider an account or key can be added for, by category. /oauth/providers already
     // returns them grouped then alphabetical, so this walks the list once and starts a shelf
-    // whenever the category changes. Within a shelf, the sign-in providers come first: an account
+    // whenever the category changes. Within a shelf, the account providers come first: an account
     // the team already holds is the likelier errand than a vendor key, and the sort is stable, so
     // each half keeps the registry's order.
     providerGroups(){
