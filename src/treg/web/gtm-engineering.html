@@ -217,6 +217,9 @@
   .ws .rh { display: flex; justify-content: space-between; align-items: center; padding: 9px 14px; border-bottom: 1px dashed #DDD9D0; font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: .04em; }
   .ws pre { margin: 0; padding: 14px 16px; font-family: var(--mono); font-size: 12.5px; line-height: 1.65; white-space: pre-wrap; color: var(--ink2); }
   .ws button { background: var(--card); color: var(--ink2); border-color: var(--line); }
+  .deeper { margin: 22px 0 0; padding-top: 14px; border-top: 1px dashed var(--line); font-size: 14px; color: var(--muted); }
+  .deeper b { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--green); font-weight: 500; margin-right: 8px; }
+  .deeper a { color: var(--ink2); text-underline-offset: 3px; margin-right: 14px; white-space: nowrap; }
   /* chapter visuals */
   .viz { margin: 20px 0 6px; background: #fff; border-radius: 16px; padding: 18px 20px; box-shadow: 0 1px 2px rgba(20,18,12,.05), 0 4px 14px -6px rgba(20,18,12,.08); }
   .viz .vh { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: .04em; margin-bottom: 12px; text-transform: uppercase; }
@@ -454,6 +457,7 @@
       <div class="layer"><b>CRM</b><span>Where outcomes live, so you can learn from them (<a href="#ch14">chapter 14</a>).</span></div>
     </div></div>
     <div class="runit"><div class="rh"><span><img src="/media/people-search/claude-code.png" alt="">set up once, in your agent</span><button data-copy="#p0" data-ev="gtm_copy_prompt" data-q="0">copy</button></div><pre id="p0">set up treg &mdash; https://treg.to/llms.txt</pre></div>
+      <p class="deeper"><b>Go deeper</b><a href="/catalog">The catalog</a><a href="/agents/claude-code">Set up in Claude Code</a><a href="/tutorial">Tutorial</a></p>
   </section>
 
   <!-- ============================== PART I ============================== -->
@@ -479,6 +483,7 @@ exclude   agencies, services firms, consumer apps, hardware, acquired companies<
 Use their free count endpoints only. For each provider show the exact filter
 object and the count it returns. Do not return any rows yet.</pre></div>
     <div class="rule"><b>The rule</b>If a part of the ICP cannot be a filter, it is a check, and it runs before any expensive step.</div>
+      <p class="deeper"><b>Go deeper</b><a href="/use-cases/company-research-for-ai-agents">Company research for agents</a><a href="/catalog/companies">Company data providers</a></p>
   </section>
 
   <section class="chapter" id="ch2" data-ch="2">
@@ -509,6 +514,7 @@ headcount bands either side of it. Show every filter you used. If two counts dif
 more than 3x, tell me which filter is likely wrong before we pay for anything.</pre></div>
     <div class="rule"><b>The rule</b>No list is bought until two free counts roughly agree and ten sample rows look right.</div>
     <div class="fit-line"><div class="yes"><b>treg does</b>Free count endpoints on several providers behind one key.</div><div><b>You decide</b>Which vocabulary matches your market, after reading the sample.</div></div>
+      <p class="deeper"><b>Go deeper</b><a href="/catalog/companies">Company data providers</a><a href="/tools/companyenrich">CompanyEnrich</a><a href="/tools/dropleads">Dropleads</a></p>
   </section>
 
   <section class="chapter" id="ch3" data-ch="3">
@@ -532,6 +538,7 @@ first_line     a person approves every first line before a sequence starts
 spend_cap      stop and ask if a run will cost more than $5
 owner          &lt;name&gt; can pause every sequence with one command</pre></div>
     <div class="rule"><b>The rule</b>Every threshold is a number in the prompt, every drop has a reason, and one person owns the stop.</div>
+      <p class="deeper"><b>Go deeper</b><a href="/workflows/find-and-verify-a-lead-list">The run the thresholds came from</a></p>
   </section>
 
   <!-- ============================== PART II ============================== -->
@@ -556,6 +563,7 @@ owner          &lt;name&gt; can pause every sequence with one command</pre></div
 same size band. Enrich each lookalike, then run my ICP check from rules.md on it.
 Return only the ones that pass, with the reason each failed one was dropped.</pre></div>
     <div class="rule"><b>The rule</b>A lookalike goes through the same size filter and ICP check as any other row.</div>
+      <p class="deeper"><b>Go deeper</b><a href="/use-cases/enrich-a-company">Company enrichment compared</a><a href="/tools/findymail">Findymail</a></p>
   </section>
 
   <section class="chapter" id="ch5" data-ch="5">
@@ -583,6 +591,7 @@ Before you find anyone, judge each company against my ICP from the list fields a
 drop anything below 50%, and show me the price of every paid step before you run it.</pre></div>
     <div class="rule"><b>The rule</b>No expensive lookup (people, emails, news) runs on a row that has not passed the check. If a row lacks the fields to judge, one cheap enrichment comes first.</div>
     <div class="fit-line"><div class="yes"><b>treg does</b>Prices every step before it runs, meters per call, and puts your own keys first, unmetered.</div><div><b>You decide</b>What the check is. The agent applies it; it cannot invent your ICP.</div></div>
+      <p class="deeper"><b>Go deeper</b><a href="/workflows/find-and-verify-a-lead-list">The full lead-list run</a><a href="/use-cases/lead-enrichment-for-ai-agents">Lead enrichment</a><a href="/tools/apollo">Apollo</a></p>
   </section>
 
   <section class="chapter" id="ch6" data-ch="6">
@@ -615,6 +624,7 @@ drop anything below 50%, and show me the price of every paid step before you run
 title and a seniority guess. Do not reveal emails yet.</pre></div>
     <div class="rule"><b>The rule</b>Search for the buyer&rsquo;s function. A &ldquo;decision makers&rdquo; list is a map of the company, not your committee.</div>
     <div class="fit-line"><div class="yes"><b>treg does</b>Routed people search that tries providers cheapest first and names the one that answered.</div><div><b>You decide</b>Who is on your buying committee. No endpoint knows what you sell.</div></div>
+      <p class="deeper"><b>Go deeper</b><a href="/use-cases/people-search">People search APIs compared</a><a href="/people-search">Claude for people search</a><a href="/blog/people-search-bench">People Search Bench</a><a href="/tools/quickenrich">QuickEnrich</a></p>
   </section>
 
   <section class="chapter" id="ch7" data-ch="7">
@@ -643,6 +653,7 @@ verify each one. Report found, verified and cost per verified email, and which
 provider found each address.</pre></div>
     <div class="rule"><b>The rule</b>Pick providers per segment from a test on your own rows, and re-test when the segment changes.</div>
     <div class="fit-line"><div class="yes"><b>treg does</b>Every provider of a job behind one key, and a routed endpoint that tries them cheapest first and names the one that answered.</div><div><b>You decide</b>Which provider wins for your segment; the catalog compares, your agent chooses.</div></div>
+      <p class="deeper"><b>Go deeper</b><a href="/use-cases/find-professional-emails">Email finders compared</a><a href="/blog/work-email-finding-bench">The 292-person bench</a><a href="/tools/hunter">Hunter</a></p>
   </section>
 
   <section class="chapter" id="ch8" data-ch="8">
@@ -660,6 +671,7 @@ provider found each address.</pre></div>
     </ol>
     <div class="rule"><b>The rule</b>Only a verified-deliverable address goes into the main sequence.</div>
     <div class="fit-line"><div class="yes"><b>treg does</b>Finding and verification as separate calls, with the verifier&rsquo;s verdict and a catch-all flag where the verifier returns one.</div><div><b>Not treg</b>Inboxes, warm-up and sending limits.</div></div>
+      <p class="deeper"><b>Go deeper</b><a href="/use-cases/verify-an-email">Email verifiers compared</a><a href="/tools/trykitt">Kitt</a><a href="/tools/tomba">Tomba</a></p>
   </section>
 
   <!-- ============================== PART III ============================== -->
@@ -687,6 +699,7 @@ provider found each address.</pre></div>
     </ol>
     <div class="runit"><div class="rh"><span><img src="/media/people-search/claude-code.png" alt="">install the signals skill</span><button data-copy="#p9" data-ev="gtm_copy_prompt" data-q="9">copy</button></div><pre id="p9">npx skills add superdesigndev/treg --skill lead-signals</pre></div>
     <div class="rule"><b>The rule</b>No source link, no signal. No &ldquo;why now&rdquo;, no outreach.</div>
+      <p class="deeper"><b>Go deeper</b><a href="/leads-signals">Claude for lead signals</a><a href="/skills/lead-signals/SKILL.md">The skill</a><a href="/tools/predictleads">PredictLeads</a></p>
   </section>
 
   <section class="chapter" id="ch10" data-ch="10">
@@ -712,6 +725,7 @@ marketing and growth roles that are still open and were posted or first seen in 
 60 days. Tier A if fit >= 0.6 and 2+
 such roles, B if 1+, else C. Show the tier, the roles and their links.</pre></div>
     <div class="rule"><b>The rule</b>Work tier A this week. Tier C gets nothing until a signal moves it.</div>
+      <p class="deeper"><b>Go deeper</b><a href="/leads-signals">Lead signals</a><a href="/tools/aviato">Aviato</a></p>
   </section>
 
   <!-- ============================== PART IV ============================== -->
@@ -732,6 +746,7 @@ such roles, B if 1+, else C. Show the tier, the roles and their links.</pre></di
     </ol>
     <div class="rule"><b>The rule</b>Nothing is sent that a person has not read.</div>
     <div class="fit-line"><div class="yes"><b>treg does</b>The research: news, hiring, posts, company data, each with a source.</div><div><b>Not treg</b>Writing and sending. For the method, see the cold-email skill in <a href="#skills">appendix A</a>.</div></div>
+      <p class="deeper"><b>Go deeper</b><a href="/jev">How the opener scoring works</a><a href="/use-cases/company-research-for-ai-agents">Company research</a></p>
   </section>
 
   <section class="chapter" id="ch12" data-ch="12">
@@ -770,6 +785,7 @@ such roles, B if 1+, else C. Show the tier, the roles and their links.</pre></di
     </ol>
     <div class="runit"><div class="rh"><span>from a form handler or your agent</span><button data-copy="#p13" data-ev="gtm_copy_prompt" data-q="13">copy</button></div><pre id="p13">treg call treg.companies.enrich --method POST --data '{"domain":"acme.com"}'</pre></div>
     <div class="rule"><b>The rule</b>Every inbound lead is enriched and routed before a person opens it.</div>
+      <p class="deeper"><b>Go deeper</b><a href="/use-cases/enrich-a-company">Company enrichment compared</a><a href="/use-cases/enrich-a-person">Person enrichment</a><a href="/tools/thecompaniesapi">TheCompaniesAPI</a></p>
   </section>
 
   <!-- ============================== PART VI ============================== -->
@@ -790,6 +806,7 @@ such roles, B if 1+, else C. Show the tier, the roles and their links.</pre></di
     </ol>
     <div class="rule"><b>The rule</b>A row without its source and provider does not go into a sequence.</div>
     <div class="fit-line"><div class="yes"><b>treg does</b>Names the provider that answered each call and what it cost, so your agent can write both onto the row.</div><div><b>Not treg</b>The durable record and the CRM join. Keep provider and outcome on your own rows.</div></div>
+      <p class="deeper"><b>Go deeper</b><a href="/workflows/find-and-verify-a-lead-list">Download the tagged CSV</a></p>
   </section>
 
   <section class="chapter" id="ch15" data-ch="15">
@@ -805,6 +822,7 @@ such roles, B if 1+, else C. Show the tier, the roles and their links.</pre></di
       </tbody>
     </table></div>
     <div class="rule"><b>The rule</b>Review the three layers weekly, and change one rule at a time.</div>
+      <p class="deeper"><b>Go deeper</b><a href="/workflows">All workflows with receipts</a></p>
   </section>
 
   <section class="chapter" id="ch16" data-ch="16">
@@ -826,6 +844,7 @@ such roles, B if 1+, else C. Show the tier, the roles and their links.</pre></di
       <li>Set a spend cap per run and have the agent stop and ask above it.</li>
     </ol>
     <div class="rule"><b>The rule</b>Nothing goes autonomous until it has run in shadow, and every stage reports its row count.</div>
+      <p class="deeper"><b>Go deeper</b><a href="/workflows">All workflows with receipts</a><a href="/catalog">Provider success rates in the catalog</a></p>
   </section>
 
   <!-- ============================== APPENDICES ============================== -->

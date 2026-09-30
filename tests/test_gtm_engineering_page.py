@@ -48,7 +48,7 @@ async def test_every_internal_link_on_the_hub_resolves(clients: AsyncClient):
 
 
 async def test_hub_is_linked_from_its_pillars_and_listed(clients: AsyncClient):
-    for page in ("/resources", "/people-search", "/leads-signals",
+    for page in ("/", "/resources", "/people-search", "/leads-signals", "/blog", "/use-cases",
                  "/use-cases/lead-enrichment-for-ai-agents", "/workflows"):
         assert f'href="{PATH}"' in (await clients.get(page)).text, page
     assert f"{PATH}<" in (await clients.get("/sitemap.xml")).text

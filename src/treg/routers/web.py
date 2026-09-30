@@ -1665,7 +1665,8 @@ async def use_cases_hub():
         '</div>' + blocks
         + '<section class="cat"><h2>Everything else</h2><div class="cap"><p style="margin:0">These are the jobs '
           'written up so far. The full menu is on the agent pages, and the whole catalog is at '
-          '<a href="/catalog">/catalog</a>. The multi-step versions are at <a href="/workflows">/workflows</a>.'
+          '<a href="/catalog">/catalog</a>. The multi-step versions are at <a href="/workflows">/workflows</a>, '
+          'and the whole sequence, chapter by chapter, is the <a href="/gtm-engineering">GTM engineering playbook</a>.'
           '</p></div></section></main>')
     ld = [{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
         {"@type": "ListItem", "position": 1, "name": "treg.to", "item": base + "/"},
@@ -2004,7 +2005,8 @@ async def workflows_hub(observations: endpoint_stats.EndpointObservationReader =
         f'</div><section class="cat"><div class="grid">{"".join(cards)}</div></section>'
         '<section class="cat"><h2>Everything else</h2><div class="cap"><p style="margin:0">The single-job '
         'versions are at <a href="/use-cases">/use-cases</a>, and the whole catalog is at '
-        '<a href="/catalog">/catalog</a>.</p></div></section></main>')
+        '<a href="/catalog">/catalog</a>. How the workflows fit together is the '
+        '<a href="/gtm-engineering">GTM engineering playbook</a>.</p></div></section></main>')
     ld = [{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
         {"@type": "ListItem", "position": 1, "name": "treg.to", "item": base + "/"},
         {"@type": "ListItem", "position": 2, "name": "Workflows", "item": base + "/workflows"}]}]
@@ -3919,6 +3921,8 @@ async def jev_xboost_judge(request: Request, db: AsyncSession = Depends(get_sess
 # chronological (newest first), not alphabetical.
 _BLOG_LAUNCHES: list[tuple[str, str, str, str]] = [
     # (slug, title, date, one-line blurb)
+    ("/gtm-engineering", "The GTM Engineering Playbook", "2026-09-30",
+     "16 chapters from ICP to rollout, each with a prompt to run, a recorded run with its bill, and the rule to keep."),
     ("/leads-signals", "Claude for Monitor Leads Signal", "2026-09-28",
      "Your agent checks hiring, funding, job changes and social chatter on a schedule, and reports what's new."),
     ("/jev", "How to use Jev", "2026-09-20",
