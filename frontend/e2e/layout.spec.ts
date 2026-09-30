@@ -90,7 +90,7 @@ for (const [width, height] of [[1440, 1000], [390, 844]] as const) {
   })
 }
 
-// The top bar is one row down to 1080px. Every width in that range holds the brand, the team, every
+// The top bar is one row down to 1121px. Every width in that range holds the brand, the team, every
 // nav destination (the hub's too) and the account strip, none painted over another or scrolled away.
 test('the top bar never paints one item over another', async ({ page }) => {
   await signIn(page, 'top-bar')
@@ -100,7 +100,7 @@ test('the top bar never paints one item over another', async ({ page }) => {
     hub.lastChild!.textContent = 'Hub'
     nav.insertBefore(hub, nav.lastElementChild)
   })
-  for (const width of [1081, 1180, 1251, 1280, 1365, 1366, 1440, 1600, 1920]) {
+  for (const width of [1121, 1200, 1300, 1301, 1366, 1440, 1600, 1920]) {
     await page.setViewportSize({ width, height: 800 })
     const found = await page.evaluate(() => {
       const nav = document.querySelector('.rd-navs')!

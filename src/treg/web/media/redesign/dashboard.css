@@ -151,7 +151,7 @@ body:has(.redesign)::before { display:none; }
 .rd-build-panel { margin-top:12px; padding:4px; border-radius:20px; background:var(--panel2); }
 .rd-build-panel > .sub { margin:0; padding:12px 16px 8px; max-width:620px; }
 .rd-start > details { padding:0 24px; }
-@media(max-width:1250px) {
+@media(max-width:1300px) {
   .rd-top { grid-template-columns:max-content minmax(0,1fr) max-content; gap:12px; }
   .rd-identity { gap:12px; }
   .rd-top .orgblock { width:150px; }
@@ -160,7 +160,7 @@ body:has(.redesign)::before { display:none; }
   .rd-referral { width:36px; padding:0; justify-content:center; }
   .rd-referral span { display:none; }
 }
-@media(max-width:1080px) {
+@media(max-width:1120px) {
   .rd-top { grid-template-columns:1fr auto; gap:8px; }
   .rd-navs { grid-row:2; grid-column:1/-1; justify-content:flex-start; padding-bottom:2px; }
   .rd-account { grid-row:1; grid-column:2; }
