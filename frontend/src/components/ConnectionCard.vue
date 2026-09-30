@@ -37,7 +37,7 @@ export default {
            Only worth a line once it says more than the provider's own id. -->
       <span v-if="a.c && a.c.name!==a.service" class="pl-meta" :title="'treg call '+a.c.name">{{a.c.name}}</span>
     </span>
-    <span class="cn-st" :title="a.st.title"><i aria-hidden="true"></i>{{a.st.label}}</span>
+    <span class="cn-st" :title="a.st.title">{{a.st.label}}</span>
   </div>
 
   <p class="cn-what">
