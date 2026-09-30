@@ -1237,12 +1237,18 @@ them.
 
 ## The Referrals view
 
-`ReferralsPage.vue` renders the referrals view. The maintained Dashboard's entry is a pill in the
-top bar that names the offer ("Give $5, get $5") from `/meta.referral`, falling back to
-`Refer a friend` when either amount is zero or `/meta` has not loaded. Below 1600px it shows only
-its gift icon (the offer is its hover title and accessible name), and the nav drops its icons: the
-bar's sides never shrink below their content, so without those the nav and the account strip would
-not fit on one row. One row holds down to 1080px; `layout.spec.ts` checks no item paints over another.
+`ReferralsPage.vue` renders the referrals view. The maintained Dashboard's entry is a **Referral**
+pill in the top bar: it leads to two programs, and a friend credit is a small pull for an affiliate
+with an audience, so the credit offer ("Give $5, get $5, or become an affiliate partner", from
+`/meta.referral` via `refEntryTitle`) is its hover title and accessible name, not its label.
+
+The top bar is words only: the nav's destinations carry no icons, GitHub and Discord sit in the
+account menu beside Follow on X, and the balance shows cents, never rounded up (`moneyGlance`: the
+exact figure is its hover title and on the Billing tab). The bar's sides never shrink below their
+content and share only the leftover width, so the nav stays centred when it fits and scrolls rather
+than overlaps when it does not. Below 1250px the referral keeps only its gift; below 1080px the nav
+takes its own row. `layout.spec.ts` checks the one-row widths, the hub's button included, for items
+painted over each other.
 
 **`'referrals'` must appear in BOTH view whitelists** — `viewFromHash()` and the `popstate` handler.
 `go('referrals')` works on click regardless of them; those two lists are what make the view survive

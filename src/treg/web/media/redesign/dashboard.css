@@ -27,7 +27,7 @@ body:has(.redesign)::before { display:none; }
    balance); the leftover width is split evenly, so the nav sits centred whenever it fits, and scrolls
    rather than overlaps when it does not. */
 .rd-top { position:sticky; top:0; z-index:50; display:grid; grid-template-columns:minmax(max-content,1fr) minmax(0,auto) minmax(max-content,1fr); align-items:center; gap:18px; min-height:57px; padding:9px 20px; background:color-mix(in srgb,var(--bg) 88%,transparent); backdrop-filter:blur(14px); }
-.rd-identity,.rd-account,.rd-brand,.rd-navs,.rd-social { display:flex; align-items:center; min-width:0; }
+.rd-identity,.rd-account,.rd-brand,.rd-navs { display:flex; align-items:center; min-width:0; }
 .rd-identity { gap:24px; }
 .rd-brand { gap:6px; flex:none; text-decoration:none; font-size:15px; font-weight:700; color:var(--ink); }
 .rd-top .orgblock { width:185px; min-width:0; margin:0; border-radius:10px; background:var(--surface); }
@@ -40,18 +40,11 @@ body:has(.redesign)::before { display:none; }
 .rd-navs { justify-content:safe center; gap:2px; overflow-x:auto; scrollbar-width:none; }
 .rd-navs::-webkit-scrollbar { display:none; }
 .rd-nav { display:flex; align-items:center; justify-content:center; flex:none; gap:8px; border:0; border-radius:10px; padding:7px 12px; background:transparent; color:var(--muted); font:500 13px/19.5px var(--sans); white-space:nowrap; }
-.rd-nav img { width:15px; height:15px; filter:brightness(0); opacity:.75; }
 .rd-nav:hover { background:var(--hover); color:var(--ink); }
 .rd-nav.active { background:var(--inverse); color:var(--inverse-ink); font-weight:600; }
-.rd-nav.active img { filter:brightness(0) invert(1); opacity:1; }
-[data-theme="dark"] .rd-nav img,[data-theme="dark"] .rd-social img { filter:brightness(0) invert(1); }
-[data-theme="dark"] .rd-nav.active img { filter:brightness(0); }
 /* How many connections need a person (an expired grant, a missing second credential). */
 .rd-nav-n { min-width:17px; height:17px; padding:0 5px; border-radius:999px; background:var(--amber); color:#fff; font:600 10.5px/17px var(--sans); text-align:center; }
 .rd-account { justify-content:flex-end; gap:12px; }
-.rd-social { gap:4px; }
-.rd-social a { display:grid; place-items:center; width:28px; height:32px; border-radius:8px; }
-.rd-social img { width:12px; height:12px; }
 .rd-balance { display:flex; align-items:center; gap:12px; padding:8px 13px; border:1px solid var(--line); border-radius:999px; background:linear-gradient(90deg,#f4fdff,#fff); color:var(--ink); white-space:nowrap; }
 .rd-balance span { font-size:10px; color:var(--muted); }
 .rd-balance b { font:500 12px/18px var(--mono); }
@@ -159,20 +152,14 @@ body:has(.redesign)::before { display:none; }
 .rd-build-panel { margin-top:12px; padding:4px; border-radius:20px; background:var(--panel2); }
 .rd-build-panel > .sub { margin:0; padding:12px 16px 8px; max-width:620px; }
 .rd-start > details { padding:0 24px; }
-/* Below this width the bar cannot hold every nav icon and the referral's words beside the account
-   strip: the nav keeps its words, the referral keeps its gift (its label is on hover and for screen
-   readers), and everything fits down to the two-row layout. */
-@media(max-width:1599px) {
-  .rd-nav img { display:none; }
-  .rd-referral { width:36px; padding:0; justify-content:center; }
-  .rd-referral span { display:none; }
-}
 @media(max-width:1250px) {
   .rd-top { grid-template-columns:max-content minmax(0,1fr) max-content; gap:12px; }
   .rd-identity { gap:12px; }
   .rd-top .orgblock { width:150px; }
   .rd-nav { padding-inline:9px; }
-  .rd-social { display:none; }
+  /* The referral keeps its gift; the word is on hover and in its accessible name. */
+  .rd-referral { width:36px; padding:0; justify-content:center; }
+  .rd-referral span { display:none; }
 }
 @media(max-width:1080px) {
   .rd-top { grid-template-columns:1fr auto; gap:8px; }

@@ -3,6 +3,10 @@ export default {
 money(micro){ const m=Math.round(Number(micro)||0), s=m<0?'-':'', a=Math.abs(m);
       if(a%10000===0) return s+'$'+(a/1e6).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
       return s+'$'+(a/1e6).toFixed(6).replace(/0+$/,''); },
+// The top bar's balance, to the cent and never rounded up: "$24.48", not "$24.485672". A glance
+    // wants the dollars; the exact figure is on hover and on the Billing tab.
+    moneyGlance(micro){ const m=Math.round(Number(micro)||0);
+      return m>0 && m<10000 ? '<$0.01' : this.money(Math.trunc(m/10000)*10000); },
 async loadBilling(){ if(!this.canAdmin || !this.activeOrgId){ this.billing=null; return; }
       this.autoOpen=false; this.autoConsent=false;
       const live=this.ticket('billing'), org=this.activeOrgId;

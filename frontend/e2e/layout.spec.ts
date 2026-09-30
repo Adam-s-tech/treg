@@ -100,7 +100,7 @@ test('the top bar never paints one item over another', async ({ page }) => {
     hub.lastChild!.textContent = 'Hub'
     nav.insertBefore(hub, nav.lastElementChild)
   })
-  for (const width of [1081, 1180, 1280, 1366, 1440, 1512, 1600, 1920]) {
+  for (const width of [1081, 1180, 1251, 1280, 1365, 1366, 1440, 1600, 1920]) {
     await page.setViewportSize({ width, height: 800 })
     const found = await page.evaluate(() => {
       const nav = document.querySelector('.rd-navs')!

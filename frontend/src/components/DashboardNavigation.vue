@@ -35,17 +35,16 @@ export default { components: { BrandMark }, setup: useDashboard }
 
 
       </div>
-      <nav class="rd-navs" aria-label="Primary navigation"><button v-if="authed" class="rd-nav" :class="{active:view==='start'}" :aria-current="(view==='start')?'page':null" @click="go('start')"><img src="/media/redesign/nav-getting-started.svg" alt="">Getting started</button>
-<button v-if="canRegister" class="rd-nav" :class="{active:view==='catalog'}" :aria-current="(view==='catalog')?'page':null" @click="go('catalog')"><img src="/media/redesign/nav-catalog.svg" alt="">Catalog</button>
-<button v-if="authed" class="rd-nav" :class="{active:view==='connections'||view==='provider'}" :aria-current="(view==='connections'||view==='provider')?'page':null" @click="go('connections')"><img src="/media/redesign/nav-connections.svg" alt="">Connections<span v-if="connAttention" class="rd-nav-n" :title="connAttention+' connection'+(connAttention===1?' needs':'s need')+' you'">{{connAttention}}</span></button>
-<button v-if="authed" class="rd-nav" :class="{active:view==='tools'||view==='secrets'||view==='resources'}" :aria-current="(view==='tools'||view==='secrets'||view==='resources')?'page':null" @click="go('tools')"><img src="/media/redesign/nav-vault.svg" alt="">Your own tools</button>
-<button v-if="authed" class="rd-nav" :class="{active:view==='activity'}" :aria-current="(view==='activity')?'page':null" @click="go('activity')"><img src="/media/redesign/nav-activity.svg" alt="">Activity</button>
-<button v-if="authed && hubOn" class="rd-nav" :class="{active:view==='hub'||view==='run'}" :aria-current="(view==='hub'||view==='run')?'page':null" @click="go('hub')"><img src="/media/redesign/nav-hub.svg" alt="">Hub</button>
-<button v-if="authed" class="rd-nav" :class="{active:view==='orgs'}" :aria-current="(view==='orgs')?'page':null" @click="go('orgs')"><img src="/media/redesign/nav-team.svg" alt="">Team</button></nav>
+      <nav class="rd-navs" aria-label="Primary navigation"><button v-if="authed" class="rd-nav" :class="{active:view==='start'}" :aria-current="(view==='start')?'page':null" @click="go('start')">Getting started</button>
+<button v-if="canRegister" class="rd-nav" :class="{active:view==='catalog'}" :aria-current="(view==='catalog')?'page':null" @click="go('catalog')">Catalog</button>
+<button v-if="authed" class="rd-nav" :class="{active:view==='connections'||view==='provider'}" :aria-current="(view==='connections'||view==='provider')?'page':null" @click="go('connections')">Connections<span v-if="connAttention" class="rd-nav-n" :title="connAttention+' connection'+(connAttention===1?' needs':'s need')+' you'">{{connAttention}}</span></button>
+<button v-if="authed" class="rd-nav" :class="{active:view==='tools'||view==='secrets'||view==='resources'}" :aria-current="(view==='tools'||view==='secrets'||view==='resources')?'page':null" @click="go('tools')">Your own tools</button>
+<button v-if="authed" class="rd-nav" :class="{active:view==='activity'}" :aria-current="(view==='activity')?'page':null" @click="go('activity')">Activity</button>
+<button v-if="authed && hubOn" class="rd-nav" :class="{active:view==='hub'||view==='run'}" :aria-current="(view==='hub'||view==='run')?'page':null" @click="go('hub')">Hub</button>
+<button v-if="authed" class="rd-nav" :class="{active:view==='orgs'}" :aria-current="(view==='orgs')?'page':null" @click="go('orgs')">Team</button></nav>
       <div class="rd-account">
-        <a v-if="authed" class="rd-referral" href="#referrals" @click.prevent="go('referrals')" :aria-current="view==='referrals'?'page':null" :title="refEntryLabel()" :aria-label="refEntryLabel()==='Refer a friend' ? 'Refer a friend' : 'Refer a friend: '+refEntryLabel()"><img src="/media/redesign/referral-gift.svg" alt=""><span>{{refEntryLabel()}}</span></a>
-        <div class="rd-social"><a href="https://github.com/superdesigndev/treg" target="_blank" rel="noopener" aria-label="GitHub"><img src="/media/redesign/social-github.svg" alt=""></a><a href="https://discord.gg/6mQYYfFMAn" target="_blank" rel="noopener" aria-label="Discord"><img src="/media/redesign/social-discord.svg" alt=""></a></div>
-        <button v-if="billing" class="rd-balance" @click="orgTab='billing'; go('orgs')"><span>Balance</span><b>{{money(billing.balance_micro)}}</b></button>
+        <a v-if="authed" class="rd-referral" href="#referrals" @click.prevent="go('referrals')" :aria-current="view==='referrals'?'page':null" :title="refEntryTitle()" :aria-label="'Referral: '+refEntryTitle()"><img src="/media/redesign/referral-gift.svg" alt=""><span>Referral</span></a>
+        <button v-if="billing" class="rd-balance" :title="'Balance: '+money(billing.balance_micro)" @click="orgTab='billing'; go('orgs')"><span>Balance</span><b>{{moneyGlance(billing.balance_micro)}}</b></button>
         <details class="rd-account-menu" :ref="el => setElement('accountMenu', el)">
           <summary :aria-label="'Account: '+me"><span class="rd-avatar">{{initials}}</span></summary>
           <div class="rd-account-panel">
@@ -54,6 +53,8 @@ export default { components: { BrandMark }, setup: useDashboard }
             <button v-if="billing" @click="orgTab='billing'; go('orgs'); elements.accountMenu.open=false">Billing</button>
             <button v-if="isAdmin" @click="go('admin'); elements.accountMenu.open=false">Admin</button>
             <a href="/tutorial">Tutorial</a>
+            <a href="https://github.com/superdesigndev/treg" target="_blank" rel="noopener">GitHub</a>
+            <a href="https://discord.gg/6mQYYfFMAn" target="_blank" rel="noopener">Discord</a>
             <a href="https://x.com/treg_ai" target="_blank" rel="noopener">Follow on X</a>
             <button @click="logout">Sign out</button>
           </div>
