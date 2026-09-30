@@ -871,7 +871,7 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
                refused_by: str | None = None, hit: bool | None = None,
                error_request: str | None = None, error_response: str | None = None,
                capacity_signal: str | None = None, answered: bool = True,
-               defer_analytics: bool = False) -> dict | None:
+               defer_analytics: bool = False, async_submission: bool = False) -> dict | None:
         """Records the audit row now. The PostHog mirror goes out now too, unless
         `defer_analytics`: then the props come back for the caller to `_capture` once it knows
         whether overflow turned this attempt into an answer."""
@@ -915,7 +915,7 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
             method=request.method, path=upstream_url, status_code=status_code,
             client=_client_name(request), refused_by=refused_by, telemetry=telemetry,
             api_key_id=caller.api_key_id, api_key_name=caller.api_key_name,
-            api_key_prefix=caller.api_key_prefix,
+            api_key_prefix=caller.api_key_prefix, async_submission=async_submission,
         )
         # Product analytics mirror of the row above.
         props = _tool_called_props(
@@ -1496,21 +1496,25 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
         may_overflow = (response.status >= 400 or account_out_2xx) and mk.tier == "platform"
         from ...domain.catalog.results import classify, has_result_rules
 
-        result = classify(mk.endpoint_id, response.status, body)
+        # The submission is only a task ticket. Its contact verdict is learned from the
+        # terminal poll and copied onto this same CallRecord by the async finalizer.
+        result = classify(mk.endpoint_id, response.status, body) if not deferred else None
         result_aware = has_result_rules(mk.endpoint_id)
+        result_state = result.state if result else "unknown"
         cache_diagnostics.update(
-            result_state=result.state, result_reason=result.reason,
+            result_state=result_state,
+            result_reason=result.reason if result else "async_submission",
             cache_result_policy="hit_miss" if result_aware else "legacy",
-            cache_admission=("eligible" if result.state == "found" else result.state)
+            cache_admission=("eligible" if result_state == "found" else result_state)
             if result_aware else "not_applicable")
         pending = _audit(response.status, observed_micro=observed,
                          charged_micro=None if deferred else charged,
                          duration_ms=duration_ms,
                          response_bytes=(None if streaming_free_result else spooled_bytes
                                          if spooled_bytes is not None else len(body)),
-                         hit=result.hit,
+                         hit=result.hit if result else None,
                          capacity_signal=capacity_signal, error_request=err_request, error_response=err_response,
-                         defer_analytics=may_overflow)
+                         defer_analytics=may_overflow, async_submission=deferred)
         served_via = ""
         if may_overflow:
             if mk.max_cost_micro is not None:
