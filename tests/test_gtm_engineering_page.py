@@ -24,7 +24,7 @@ async def test_hub_is_served_canonical_and_measurable(clients: AsyncClient):
     # Hand-written pages are the ones PostHog sees; the hub exists partly to be measured.
     # The agent name in the H1 rotates in the browser; what a crawler reads must already be whole.
     assert '<span id="agName">Claude Code</span>' in html
-    assert re.search(r"<h1>.*GTM engineering with.*Claude Code.*</h1>", html, re.S)
+    assert re.search(r"<h1>.*GTM engineering playbook.*Claude Code.*</h1>", html, re.S)
     title = re.search(r"<title>(.*?)</title>", html).group(1)
     assert len(title.replace("&amp;", "&")) <= 62, title
     assert '<script src="/sitetrack.js"></script>' in html
@@ -63,3 +63,20 @@ async def test_hub_404s_on_a_self_hosted_registry(monkeypatch):
             assert f"{PATH}<" not in (await c.get("/sitemap.xml")).text
     finally:
         get_settings.cache_clear()
+
+
+async def test_markdown_twin_carries_every_chapter(clients: AsyncClient):
+    """The Markdown copy is hand-kept; a chapter added to the page and not to the twin fails here."""
+    import html as _html
+    page = (await clients.get(PATH)).text
+    md = await clients.get(PATH + ".md")
+    assert md.status_code == 200
+    assert md.headers.get("x-robots-tag") == "noindex"
+    assert "{BASE}" not in md.text
+    norm = lambda s: re.sub(r"[“”\"]", '"', _html.unescape(re.sub(r"<[^>]+>", "", s))).strip()
+    headings = [norm(h) for h in re.findall(r'<h3 class="ct">(.*?)</h3>', page, re.S)]
+    assert len(headings) >= 20
+    md_headings = {norm(h) for h in re.findall(r"^## (.+)$", md.text, re.M)}
+    missing = [h for h in headings if h not in md_headings]
+    assert not missing, missing
+    assert f'rel="alternate" type="text/markdown" href="' in page

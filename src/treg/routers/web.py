@@ -3821,6 +3821,19 @@ async def gtm_engineering_page(request: Request):
     return _static_page("gtm-engineering.html", request)
 
 
+@app.get("/gtm-engineering.md", include_in_schema=False)
+async def gtm_engineering_md():
+    """The playbook as Markdown, for agents and answer engines that read text rather than render
+    pages. Hand-kept beside the HTML; `tests/test_gtm_engineering_page.py` fails if a chapter
+    heading on one is missing from the other. `noindex`: the HTML page is the indexed copy and
+    names this one with `rel=alternate`."""
+    if not _hosted():
+        raise HTTPException(status_code=404, detail="not found")
+    resp = _serve_md("gtm-engineering.md")
+    resp.headers["X-Robots-Tag"] = "noindex"
+    return resp
+
+
 @app.get("/jev", include_in_schema=False)
 async def jev_page(request: Request):
     """Landing page for jev + treg ("jev for GTM engineers"): three agent recipes, each with a prompt
