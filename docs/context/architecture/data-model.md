@@ -344,7 +344,7 @@ uses this metadata, never the encrypted token's shape.
 - **`SearchMiss`** - a catalog search that returned **nothing**: `query` (capped to 300 chars),
   `source` (`api` for the HTTP route that serves web + CLI + raw API; `mcp` for the team MCP; or
   `claude-connector` for V2; `web-find` for `/catalog/find`), `created_at`, and on a find `reason`
-  (0054: `gap` | `not_task` | `judge_off`, see [find](find.md)). The demand
+  (0054: `gap` | `not_task` | `judge_off` | `scope`, see [find](find.md)). The demand
   signal one step before a `ToolRequest`: most agents that miss never file, so the query text is all
   they leave. Written fire-and-forget through `audit.record_search_miss` (dropped rows cost
   analytics, never a search) from both search paths - `GET /catalog/search` and the in-process MCP

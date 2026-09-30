@@ -64,3 +64,13 @@ test('a typing pause of two characters or more always asks; one character does n
   for (const q of ['tik', 'tts', 'image', 'ads', 'tiktok', 'find emails of dentists']) expect(armed(q)).toBe(true)
   expect(armed('comments', 'tiktok')).toBe(true)
 })
+
+test('a shelf\'s answer asks the whole catalog with the same words', () => {
+  const calls: any[] = []
+  const vm: any = { find: { q: 'verify emails', scope: 'companies' }, q: '',
+    findExit() { calls.push(['exit']); this.find = { q: '', scope: '' } },
+    go(v: string) { calls.push(['go', v, this.q]) },
+    findRun(q: string, opts: any) { calls.push(['run', q, opts]) } }
+  find.findEverywhere.call(vm)
+  expect(calls).toEqual([['exit'], ['go', 'catalog', 'verify emails'], ['run', 'verify emails', { scope: '' }]])
+})

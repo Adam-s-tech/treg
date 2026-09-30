@@ -331,6 +331,17 @@ async def test_v2_empty_answers_say_why(clients, monkeypatch):
     assert judged["verdict"] == "keyword" and judged["rows"] and all(r["p"] is None for r in judged["rows"])
 
 
+def test_v2_a_shelf_none_is_scope_never_a_gap():
+    """A shelf's find read one shelf: even a name the judge is sure of is not a catalog gap there."""
+    cat = _cat()
+    ix = fr.build(cat)
+    cands = fr.recall("zzqx widgets", ix, cat.aliases, platform="people")
+    found = F.decide("zzqx widgets", cands, _judged(cands, {}, name=0.95), ix, platform="people")
+    assert (found.verdict, found.reason) == (F.NONE, F.SCOPE)
+    found = F.decide("zzqx widgets", cands, _judged(cands, {}), ix, platform="people")
+    assert (found.verdict, found.reason) == (F.NONE, F.SCOPE)
+
+
 async def test_v2_on_a_shelf_reads_that_shelf_and_asks_no_platform(clients, monkeypatch):
     seen = []
     _on(monkeypatch, find_engine="v2")
@@ -339,6 +350,9 @@ async def test_v2_on_a_shelf_reads_that_shelf_and_asks_no_platform(clients, monk
     assert first["units"] and {c["platform"] for c in first["candidates"]} == {"companies"}
     (_, _, kw), = seen
     assert set(kw["extra"]) == {"name"}
+    await audit.drain()
+    async with session_maker() as s:
+        assert [m.reason for m in (await s.execute(select(SearchMiss))).scalars()] == ["scope"]
 
 
 async def test_shadow_serves_v1_and_logs_both_engines(clients, monkeypatch):

@@ -131,6 +131,16 @@ export default {
     }
   },
 
+  // From a shelf's answer to the whole catalog: the Catalog page, its box holding the same words,
+  // asked again unscoped. A shelf's find read that shelf only; this is how its reader asks everywhere.
+  findEverywhere(){
+    const q=this.find.q;
+    this.findExit();
+    this.q=q;
+    this.go('catalog');
+    this.findRun(q, {scope:''});
+  },
+
   findExit(){
     this.findUnschedule();
     this.elements.findAbort?.abort?.();

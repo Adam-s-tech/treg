@@ -280,10 +280,12 @@ def _log(query: str, *, source: str, baseline_total: int, cands: list[tuple[dict
 
 # ==== v2: recall by job, one judge request, eight rules ===========================================
 # Why a `none` has nothing to show: the catalog lacks it (a gap, worth recording), or the text is
-# not a task the page can read; `judge_off` is the keyword fallback that found nothing.
+# not a task the page can read; `judge_off` is the keyword fallback that found nothing. A shelf's
+# find reads that shelf only, so its `none` is `scope`: it cannot say the catalog lacks anything.
 GAP = "gap"
 NOT_TASK = "not_task"
 JUDGE_OFF = "judge_off"
+SCOPE = "scope"
 
 FIT_FROM_JOB = "job"            # the row carries its job's fit
 FIT_FROM_ENDPOINT = "endpoint"  # the row was judged on its own words
@@ -396,6 +398,8 @@ def decide(query: str, cands: list[find_recall.Candidate], j: judge_infra.Judgem
     6. a fit at or over high: strong
     7. a fit at or over keep: closest
     8. otherwise: none/not_task
+
+    On a shelf (`platform`) any `none` is `scope`: that find read one shelf.
     """
     s = get_settings()
     if j.probs is None:
@@ -426,6 +430,8 @@ def decide(query: str, cands: list[find_recall.Candidate], j: judge_infra.Judgem
         found.reason = NOT_TASK
     if found.verdict == NONE:
         found.kept = []
+        if platform:
+            found.reason = SCOPE
     return found
 
 

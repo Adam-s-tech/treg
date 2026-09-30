@@ -69,3 +69,33 @@ test('a platform name being typed filters the shelves and gets an answer above t
   await box(page).press('Enter')                                            // Enter still asks, for the full answer
   await expect.poll(() => asked).toEqual(['tiktok', 'tiktok'])
 })
+
+test('an empty answer on a shelf offers the whole catalog, and asks it with the same words', async ({ page }) => {
+  const asked: { q: string, platform: string | null }[] = []
+  await page.route('**/catalog/find?**', route => {
+    const url = new URL(route.request().url())
+    const platform = url.searchParams.get('platform')
+    asked.push({ q: url.searchParams.get('q') || '', platform })
+    const judged = platform
+      ? { verdict: 'none', reason: 'scope', rows: [] }
+      : { verdict: 'strong', rows: [row('hunter.people.email.find', 0.9)] }
+    return route.fulfill({ status: 200, contentType: 'application/x-ndjson',
+      body: JSON.stringify({ event: 'candidates', candidates: [] }) + '\n'
+          + JSON.stringify({ event: 'judged', named: '', read: 3, high: 0.7, reason: '', ...judged }) + '\n' })
+  })
+  await page.goto('/catalog/companies')
+  const shelfBox = page.locator('.pl-hero .cat-find input')
+  await expect(shelfBox).toBeVisible()
+  await page.waitForLoadState('networkidle')
+  await shelfBox.fill('verify an email before sending')
+  await shelfBox.press('Enter')
+  const line = page.locator('.fa .fa-line')
+  await expect(line).toContainText('Nothing in')
+  await expect(line).toContainText('verify an email before sending')
+  await expect(page.locator('.fa').getByText('Request it')).toHaveCount(0)   // a shelf cannot call it a gap
+  await line.getByRole('button', { name: 'Search all tools' }).click()
+  await expect(page).toHaveURL(/\/catalog$/)
+  await expect(box(page)).toHaveValue('verify an email before sending')
+  await expect(page.locator('.fa .ui-tbody .ui-tr')).toHaveCount(1)
+  expect(asked.at(-1)).toEqual({ q: 'verify an email before sending', platform: null })
+})

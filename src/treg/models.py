@@ -1504,7 +1504,8 @@ class SearchMiss(SQLModel, table=True):
     # api (HTTP /catalog/search: web + CLI) | mcp | claude-connector
     source: str = Field(default="api", index=True)
     created_at: NaiveUTC = Field(default_factory=_now, index=True)
-    # web-find only: why the answer was empty - gap (the catalog lacks it) | not_task | judge_off
+    # web-find only: why the answer was empty - gap (the catalog lacks it) | not_task | judge_off |
+    # scope (a shelf's find read that shelf only)
     reason: str | None = Field(default=None)
 
 

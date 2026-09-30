@@ -5,15 +5,17 @@ import { DataTable } from './ui/table'
 // The answer to a described job (state/find.js): one row per job, best fit first, weaker fits in a
 // lighter tone. A table (components/ui/table), so every row's columns line up whatever a price says.
 // An auto answer (a typing pause) sits above the page it did not replace, so while it reads, and when
-// it has nothing, it is one line: an empty answer never takes over the page. Clearing the search box
-// is how you leave.
+// it has nothing, it is one line: an empty answer never takes over the page. A shelf's answer read
+// that shelf only, so an empty one says so and offers the whole catalog instead of calling it a gap.
+// Clearing the search box is how you leave.
 export default {
   components: { DataTable },
   setup: useDashboard,
   computed: {
     nothing(){ return this.find.verdict==='none' || (this.find.verdict==='keyword' && !this.findGroups.length); },
+    empty(){ return this.nothing || !this.findGroups.length; },
     // An auto answer that found nothing worth a table: one line, not a panel.
-    quietNothing(){ return this.find.auto && (this.nothing || !this.findGroups.length); },
+    quietNothing(){ return this.find.auto && this.empty; },
     columns(){ return [
       {key:'what', header:'Tool', mobile:'primary', wrap:true},
       {key:'provs', header:'Providers', mobile:'hide'},
@@ -36,6 +38,10 @@ export default {
   <p v-else-if="find.phase==='error'" :class="find.auto ? 'fa-line' : 'fa-note'">{{find.error}}
     <button class="fa-link" type="button" @click="findRun(find.q)">Try again</button></p>
 
+  <p v-else-if="find.phase==='done' && find.scope && empty" class="fa-line">
+    Nothing in {{platLabel}} for <b>“{{find.q}}”</b>.
+    <button class="fa-link" type="button" @click="findEverywhere()">Search all tools</button></p>
+
   <p v-else-if="find.phase==='done' && quietNothing" class="fa-line">
     <template v-if="find.verdict==='none' && find.reason">{{findNoneText()}}</template>
     <template v-else>No tool in the catalog does <b>{{find.q}}</b> yet.</template></p>
@@ -53,7 +59,8 @@ export default {
         {{findCopied==='all' ? 'Copied' : 'Copy for your agent'}}</button>
     </div>
     <p v-if="find.verdict==='closest'" class="fa-sub">Nothing fits closely. These come nearest.
-      <button class="fa-link" type="button" @click="findRequestTool()">Request a better tool</button></p>
+      <button v-if="!find.scope" class="fa-link" type="button" @click="findRequestTool()">Request a better tool</button>
+      <button v-else class="fa-link" type="button" @click="findEverywhere()">Search all tools</button></p>
 
     <DataTable :columns="columns" :rows="findGroups" :row-key="g => g.key" interactive
                :row-class="g => ({ weak: findWeak(g) })" @row-click="g => findOpen(g, findGroups.indexOf(g)+1)">

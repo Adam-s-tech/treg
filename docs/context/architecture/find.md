@@ -151,7 +151,9 @@ The key is `find_embed_api_key`; left empty with the OpenRouter URL, treg's own 
 | 7 | a fit at or over keep | `closest` |
 | 8 | otherwise | `none`, reason `not_task` |
 
-Rule 5 sits before the strong rule: a confident "no platform provides this" caps the answer.
+Rule 5 sits before the strong rule: a confident "no platform provides this" caps the answer. On a
+shelf (`?platform=`) the platform Choice is not asked and any `none` is reason `scope`: that find read
+one shelf, so it cannot say the catalog lacks anything, and its SearchMiss row says `scope`.
 
 **Rows** (`expand`). Units best first. A job at or over high lists every vendor, in the evidence
 rerank's order (`store.rerank`: measured success, core, price), each row carrying the job's fit and
@@ -176,7 +178,7 @@ units reach, so the pages light the right platforms and vendors); `judged` gains
 `baseline_ids` is every endpoint the units reach, `judged` the kept units. `embed_ms` and
 `embed_error` record the query's vector (`off` without a key, `not_ready` while the card vectors
 build, else the client's reason). The `judged` event carries the same as `embed: {ms, error}`. `SearchMiss` gains `reason` (`gap`,
-`not_task`, `judge_off` for an empty keyword fallback). Migration 0054. Fire-and-forget through
+`not_task`, `judge_off` for an empty keyword fallback, `scope` for a shelf's `none`). Migration 0054. Fire-and-forget through
 `audit`, like every row there.
 
 ## The pages
@@ -187,7 +189,9 @@ build, else the client's reason). The `judged` event carries the same as `embed:
 (`findProvidersText`), and `/search`, which lays vendors out as cards, adds a line for each folded
 job with a way to the whole list on its shelf. An empty answer says which kind it is: a gap ("treg
 does not have this kind of data or action yet"), with a request link, or not a job ("try describing
-the data you want"), without one.
+the data you want"), without one. On a shelf an empty answer is one line, "Nothing in <platform> for …", with
+"Search all tools" (`findEverywhere`): the Catalog page, its box holding the same words, asked
+unscoped. A shelf never offers a request, since it cannot know the tool is missing.
 
 The Catalog box asks on its own when typing pauses on two characters or more; that answer sits
 above the still-filtered shelves, so a name being typed both filters and is answered, and it shrinks
