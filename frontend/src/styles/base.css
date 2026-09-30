@@ -982,15 +982,15 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
 .cn-id{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
 .cn-id b{font-size:14.5px;font-weight:500;line-height:1.35}
 .cn-id .pl-meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* Status is the one place colour is spent: green works, amber needs a person soon, red is broken now. */
-.cn-st{--cn-tone:var(--green);display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;align-self:flex-start;margin-top:2px;
-  font-size:11.5px;font-weight:600;color:var(--cn-tone)}
-.cn-st i{width:6px;height:6px;border-radius:50%;background:var(--cn-tone);box-shadow:0 0 0 3px color-mix(in srgb,var(--cn-tone) 18%,transparent)}
+/* A status is a soft pill, the one place colour is spent: green works, amber needs a person soon,
+   red is broken now. The card around it stays plain; its primary button is the call to act. */
+.cn-st{--cn-tone:var(--green);display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;align-self:flex-start;
+  padding:3px 8px 3px 7px;border-radius:999px;background:color-mix(in srgb,var(--cn-tone) 11%,transparent);
+  font-size:11.5px;font-weight:500;line-height:1.2;color:var(--cn-tone);white-space:nowrap}
+.cn-st i{width:5px;height:5px;border-radius:50%;background:currentColor}
 .cn-warn .cn-st{--cn-tone:var(--amber)}
 .cn-bad .cn-st{--cn-tone:var(--red)}
-.cn-quiet .cn-st{--cn-tone:var(--muted2)}
-.cn-warn{--pl-edge:0 0 0 1px color-mix(in srgb,var(--amber) 45%,transparent)}
-.cn-bad{--pl-edge:0 0 0 1px color-mix(in srgb,var(--red) 45%,transparent)}
+.cn-quiet .cn-st{--cn-tone:var(--muted)}
 .cn-what{margin:0;font-size:12.5px;line-height:1.5;color:var(--muted)}
 .cn-fix p{margin:0 0 8px;font-size:12.5px;line-height:1.5;color:var(--ink)}
 .cn-fix-r{display:flex;gap:8px}

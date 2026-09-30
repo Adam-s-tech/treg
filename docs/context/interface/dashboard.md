@@ -74,7 +74,7 @@ this page keeps what no single file shows. The look follows the root `design.md`
   only what the team's own tools use. Telling the two apart compares lists, so `loadConnections`
   fetches `/connections` and `/secrets` together.
 - **Status comes from the server** (expiry, health, `needs_extra_credential`, an unchosen resource);
-  the fix is the card's primary button, and the nav counts cards needing a person.
+  the status is a soft pill and the fix is the card's primary button.
 - **Only providers this deployment can connect are offered** (`configured`), account ones first.
   Labels come from `oauth_providers.listing()`; templates never name a provider.
 - **A pasted key is one per team per provider**, so a second replaces it. OAuth consent opens in a

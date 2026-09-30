@@ -44,8 +44,6 @@ body:has(.redesign)::before { display:none; }
 .rd-nav { display:flex; align-items:center; justify-content:center; flex:none; gap:8px; border:0; border-radius:10px; padding:7px 12px; background:transparent; color:var(--muted); font:500 13px/19.5px var(--sans); white-space:nowrap; }
 .rd-nav:hover { background:var(--hover); color:var(--ink); }
 .rd-nav.active { background:var(--inverse); color:var(--inverse-ink); font-weight:600; }
-/* How many connections need a person (an expired grant, a missing second credential). */
-.rd-nav-n { min-width:17px; height:17px; padding:0 5px; border-radius:999px; background:var(--amber); color:#fff; font:600 10.5px/17px var(--sans); text-align:center; }
 .rd-account { justify-content:flex-end; gap:12px; }
 .rd-balance { display:flex; align-items:center; gap:12px; padding:8px 13px; border:1px solid var(--line); border-radius:999px; background:linear-gradient(90deg,#f4fdff,#fff); color:var(--ink); white-space:nowrap; }
 .rd-balance span { font-size:10px; color:var(--muted); }

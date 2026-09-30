@@ -35,7 +35,6 @@ providerIndex(){ return new Map(this.providers.map(p=>[p.service,p])); },
           : {key:'ok', tone:'ok', label:'Saved', title:'Saved. It is checked on its first call.'}}));
       return [...conns, ...named].sort((a,b)=>RANK[a.st.key]-RANK[b.st.key] || byName.compare(a.name, b.name));
     },
-connAttention(){ return this.connAccounts.filter(a=>a.st.key!=='ok').length; },
 // How many credentials the team holds per provider, named keys included: the catalog's Connected
     // mark and a provider card's Add / Replace both mean "calls here already use your key".
     connCount(){ const m={}; for(const a of this.connAccounts) if(a.service) m[a.service]=(m[a.service]||0)+1; return m; },

@@ -37,7 +37,7 @@ export default { components: { BrandMark }, setup: useDashboard }
       </div>
       <nav class="rd-navs" aria-label="Primary navigation"><button v-if="authed" class="rd-nav" :class="{active:view==='start'}" :aria-current="(view==='start')?'page':null" @click="go('start')">Getting started</button>
 <button v-if="canRegister" class="rd-nav" :class="{active:view==='catalog'}" :aria-current="(view==='catalog')?'page':null" @click="go('catalog')">Catalog</button>
-<button v-if="authed" class="rd-nav" :class="{active:view==='connections'||view==='provider'}" :aria-current="(view==='connections'||view==='provider')?'page':null" @click="go('connections')">Connections<span v-if="connAttention" class="rd-nav-n" :title="connAttention+' connection'+(connAttention===1?' needs':'s need')+' you'">{{connAttention}}</span></button>
+<button v-if="authed" class="rd-nav" :class="{active:view==='connections'||view==='provider'}" :aria-current="(view==='connections'||view==='provider')?'page':null" @click="go('connections')">Connections</button>
 <button v-if="authed" class="rd-nav" :class="{active:view==='tools'||view==='secrets'||view==='resources'}" :aria-current="(view==='tools'||view==='secrets'||view==='resources')?'page':null" @click="go('tools')">Your own tools</button>
 <button v-if="authed" class="rd-nav" :class="{active:view==='activity'}" :aria-current="(view==='activity')?'page':null" @click="go('activity')">Activity</button>
 <button v-if="authed && hubOn" class="rd-nav" :class="{active:view==='hub'||view==='run'}" :aria-current="(view==='hub'||view==='run')?'page':null" @click="go('hub')">Hub</button>
