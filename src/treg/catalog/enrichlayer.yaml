@@ -156,7 +156,7 @@ endpoints:
         required: false
     note: Shared-key calls require use_cache=if-present for the documented base price. A team key can use the upstream
       freshness and enrichment options.
-  test_request: {queryParams: {"url": "https://www.linkedin.com/in/satyanadella", "use_cache": "if-present"}}
+  test_request: {queryParams: {"profile_url": "https://www.linkedin.com/in/satyanadella", "use_cache": "if-present"}}
   cost:
     type: per_success
     value: 1

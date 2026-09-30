@@ -1,6 +1,8 @@
 """Request bounds and response evidence for Enrichlayer's shared-key result prices."""
 
 from treg.application.call import enrichlayer
+from treg.application.call.resolve import QueryValues, _marketplace_pricing
+from treg.domain.catalog import store as catalog_store
 
 
 def test_search_premium_hold_and_returned_result_settlement():
@@ -49,3 +51,14 @@ def test_personal_email_precise_counts_valid_and_invalid_found_addresses():
     assert (hold, unit) == (400000, 200000)
     assert enrichlayer.observed_micro(cost["enrichlayer"], unit, {
         "emails": ["valid@example.com"], "invalid_emails": ["invalid@example.com"]}, hold) == 400000
+
+
+def test_public_price_preview_accepts_routed_query_dict():
+    cat = catalog_store.load()
+    ep = cat.by_id["enrichlayer.people.search"]
+    cost = cat.cost_view(ep["cost"], ep["provider"])
+    query = {"page_size": "10", "enrich_profiles": "skip", "use_cache": "if-present"}
+    expected = (3_000_000, 300_000)
+    assert _marketplace_pricing(ep["provider"], ep["id"], cost, query, b"{}") == expected
+    assert _marketplace_pricing(ep["provider"], ep["id"], cost,
+                                QueryValues(tuple(query.items())), b"{}") == expected

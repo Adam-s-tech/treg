@@ -777,7 +777,8 @@ def _marketplace_pricing(
     if provider == "enrichlayer" and cost and cost.get("enrichlayer"):
         from . import enrichlayer
         credit = _usd_to_micro(catalog_store.load().credit_rates["enrichlayer"])
-        return enrichlayer.estimate_micro(endpoint_id, cost, dict(query.multi_items()), credit)
+        query_values = dict(query.multi_items()) if isinstance(query, QueryValues) else dict(query)
+        return enrichlayer.estimate_micro(endpoint_id, cost, query_values, credit)
     if not cost:
         return 0, 0
     if provider == "tavily" and endpoint_id in _TAVILY_ENDPOINTS:
