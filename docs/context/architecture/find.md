@@ -107,7 +107,8 @@ then one whose name starts with the query, then the shelves' featured order, the
 a provider (its name exactly at any length, "exa"; a prefix from four letters), else a product or
 model name. Product names come from endpoint names on the `AI generation` platforms: words two or
 more of those names share and names elsewhere rarely use ("gemini", "seedance", "flux"; not
-"image"), and adjacent pairs of them ("nano banana"), matched with spaces and hyphens folded away.
+"image"), minus the keys of `aliases.yaml` ("tts" is a way of saying a job, not a product), and
+adjacent pairs of them ("nano banana"), matched with spaces and hyphens folded away.
 On a shelf only a provider there counts.
 
 ## v2: the semantic channel

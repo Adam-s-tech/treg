@@ -211,10 +211,12 @@ def build(cat: store.Catalog, provider_display: Callable[[str], str] = lambda s:
 def _products(eps: list[dict], cat: store.Catalog) -> tuple[dict[str, tuple[str, ...]], dict[str, str]]:
     """Model and product names: words in the endpoint names on the AI generation platforms that at
     least two of those names share and that names elsewhere rarely use ("gemini" yes, "image" no),
+    and that `aliases.yaml` does not already file as a way of saying a job ("tts" is text-to-speech),
     plus the adjacent pairs of them ("nano banana"). Each maps, spaces and hyphens folded away, to
     every shown endpoint whose name carries it, on any platform."""
     gen = {slug for slug, p in cat.platforms.items() if p.get("category") == PRODUCT_CATEGORY}
     plat_words = {w for slug, p in cat.platforms.items() for w in words(f"{slug} {p.get('label', '')}")}
+    vocabulary = {w for key in cat.aliases for w in words(key)}   # "tts", "t2v": a way of saying a job
     inside: dict[str, set[str]] = defaultdict(set)
     outside: dict[str, int] = defaultdict(int)
     name_words = {e["id"]: words(e.get("name") or "") for e in eps}
@@ -226,7 +228,7 @@ def _products(eps: list[dict], cat: store.Catalog) -> tuple[dict[str, tuple[str,
                 outside[w] += 1
     product = {w for w, ids in inside.items()
                if len(ids) >= 2 and len(w) >= 3 and w.isalpha() and w not in STOPWORDS
-               and w not in plat_words and outside[w] <= 3 and outside[w] * 2 < len(ids)}
+               and w not in plat_words and w not in vocabulary and outside[w] <= 3 and outside[w] * 2 < len(ids)}
     keys: dict[str, set[str]] = defaultdict(set)
     labels: dict[str, str] = {}
     for e in eps:

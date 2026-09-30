@@ -31,6 +31,8 @@ def _cat() -> store.Catalog:
             "Generate an image from a prompt"),
         _ep("falco.flux.pro", "image-gen.flux.generate", "image-gen", "falco", "FLUX Pro",
             "Generate an image from a prompt"),
+        _ep("vox.tts.fast", "", "image-gen", "vox", "TTS Fast", "Speak a text"),
+        _ep("vox.tts.hd", "", "image-gen", "vox", "TTS HD", "Speak a text"),
         _ep("scrapecreators.x.trending", "", "tiktok", "scrapecreators", "Trending videos",
             "Videos trending on TikTok today"),
         _ep("hunter.account.usage", "", "people", "hunter", "Account usage", "Credits left", kind="utility"),
@@ -50,7 +52,7 @@ def _cat() -> store.Catalog:
             "image-gen.flux.generate": "Generate images with FLUX",
         },
         endpoints=eps, by_id={e["id"]: e for e in eps},
-        aliases={"t2i": ["text-to-image"], "mail": ["email"]},
+        aliases={"t2i": ["text-to-image"], "mail": ["email"], "tts": ["text-to-speech"]},
     )
 
 
@@ -150,6 +152,7 @@ def test_names_platform_then_provider_then_product():
     product = fr.name_of("flux", ix)
     assert product.kind == "product" and set(product.keys) == {"replicate.flux.schnell", "falco.flux.pro"}
     assert fr.name_of("find a work email", ix) is None
+    assert fr.name_of("tts", ix) is None                                      # an alias is vocabulary, not a name
     # on a shelf only a provider there counts
     assert fr.name_of("tiktok", ix, platform="people") is None
     assert fr.name_of("hunter", ix, platform="people").keys == ("hunter",)
