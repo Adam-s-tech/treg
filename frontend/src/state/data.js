@@ -119,7 +119,7 @@ export default function data(){
       onboarded:true,  // first-run onboarding done (server flag; gates the welcome modal)
       welcome:{on:false, step:0, name:'', agent:'claude-code', moreOpen:false, busy:false, err:''},  // first-run: name your team → pick your agent → setup line
       emptyTab:'agent',
-      tools:[], health:{}, calls:[], runs:[], callsLoaded:false, adminStats:null, adminOrgs:[], adminUsers:[],
+      tools:[], health:{}, calls:[], runs:[], callsLoaded:false, activityNext:null, activityOlderBusy:false, adminStats:null, adminOrgs:[], adminUsers:[],
       admHub:{on:false, state:'requested', rows:[], reason:{}, cap:{}, busy:null, updates:[]},  // hub listing review (superadmin)
       adminBusy:false, confirmAdmUser:null, confirmAdmOrg:null,
       proxy: location.origin, copyTool:null, snippetTab:'cURL', snippetTabs:['cURL','CLI','Claude Code','Python','Node'], copied:false,

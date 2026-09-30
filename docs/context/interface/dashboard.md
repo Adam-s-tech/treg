@@ -72,6 +72,9 @@ this page keeps what no single file shows. The look follows the root `design.md`
   share one look: a display-font title, sections under a rule, a filter row (`FilterBox`, a
   segmented switch), things as cards, and lists as `DataTable` on a card surface.
 - **A card lifts only when it opens something** (a link or button); a panel, form or figure stays put.
+- **Activity reads one feed.** `/activity` merges calls, server runs and local runs on the server
+  and pages them by one cursor, `(created_at, source, id)`, so Load older never lands rows above
+  ones already shown; `/calls` and `/runs` stay for the CLI and API callers.
 - **Every credential for a catalog provider is a Connections card**: a connection, or a secret named
   exactly for a pasted-key provider, which the credential ladder uses the same way. Secrets lists
   only what the team's own tools use. Telling the two apart compares lists, so `loadConnections`
