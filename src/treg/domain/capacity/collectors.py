@@ -834,6 +834,16 @@ async def _crustdata(c, key):
     return {"value": acct.get("credits"), "unit": "credits", "note": note}
 
 
+async def _enrichlayer(c, key):
+    d = await _get(c, "https://enrichlayer.com/api/v2/credit-balance",
+                   headers={"Authorization": f"Bearer {key}"})
+    balance = d.get("credit_balance") if isinstance(d, dict) else None
+    if isinstance(balance, bool) or not isinstance(balance, (int, float)) \
+            or not math.isfinite(balance) or balance < 0:
+        raise ValueError("Enrichlayer returned no valid credit balance")
+    return {"value": balance, "unit": "credits", "note": "pay-as-you-go balance"}
+
+
 async def _akta(c, key):
     # GET /mcp/account is free — returns plan tier and remaining credit balance.
     # Response: {credit_balance, balance_amount, currency, package_type, is_enterprise, ...}
@@ -847,6 +857,7 @@ async def _akta(c, key):
 
 
 BALANCE_ROUTES = {
+    "enrichlayer": _enrichlayer,
     "akta": _akta,
     "brightdata": _brightdata,
     "crustdata": _crustdata,

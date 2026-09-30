@@ -329,6 +329,35 @@ def check_octen_rates(endpoint_id: str, cost: dict, where: str,
         fail(errors, where, "cost.value/per must match the Octen base rate")
 
 
+def check_enrichlayer_rule(cost: dict, input_schema: dict, where: str,
+                           errors: list[str]) -> None:
+    """A response-count price must have a finite hold and only declared option riders."""
+    rule = cost.get("enrichlayer")
+    if cost.get("type") != "per_result":
+        if rule is not None:
+            fail(errors, where, "cost.enrichlayer is only valid on per_result prices")
+        return
+    if (not isinstance(rule, dict) or set(rule) - {"field", "max_page", "extra_per_result"}
+            or set(rule) & {"field", "max_page"} != {"field", "max_page"}
+            or rule.get("field") not in {"results", "employees", "numbers", "emails"}
+            or type(rule.get("max_page")) is not int or not 1 <= rule["max_page"] <= 10
+            or cost.get("currency") != "credit" or cost.get("per") != 1
+            or type(cost.get("value")) is not int or cost["value"] <= 0):
+        fail(errors, where, "cost.enrichlayer needs a result field, bounded page, and positive credit rate")
+        return
+    fields = (input_schema or {}).get("queryParams") or {}
+    if "page_size" not in fields:
+        fail(errors, where, "cost.enrichlayer requires a declared page_size query parameter")
+    extras = rule.get("extra_per_result", {})
+    if not isinstance(extras, dict) or any(
+        name not in fields or not isinstance(prices, dict) or not prices
+        or any(not isinstance(value, str) or type(amount) is not int or amount <= 0
+               for value, amount in prices.items())
+        for name, prices in extras.items()
+    ):
+        fail(errors, where, "cost.enrichlayer.extra_per_result needs declared options with positive credit rates")
+
+
 def check_platform_auth(ep: dict, where: str, errors: list[str]) -> None:
     """Anonymous platform fallback is intentionally narrow: proven public GETs that cost zero."""
     mode = ep.get("platform_auth")
@@ -1264,6 +1293,8 @@ def main(argv: list[str]) -> int:
                         check_tavily_rates(eid, cost, where, errors)
                     if service == "octen":
                         check_octen_rates(eid, cost, where, errors)
+                    if service == "enrichlayer":
+                        check_enrichlayer_rule(cost, inp, where, errors)
             effective_async = effective_async_descriptor(data.get("async"), ep.get("async"))
             if effective_async is not None:
                 check_async_descriptor(effective_async, where, str(service), endpoint_index,

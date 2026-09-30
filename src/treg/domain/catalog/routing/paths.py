@@ -118,6 +118,14 @@ def at_least(v: Any, floor: Any) -> Any:
         return floor
 
 
+def at_most(v: Any, ceiling: Any) -> int:
+    """Cap a provider's page size while keeping the routed quote at that same maximum."""
+    try:
+        return max(1, min(int(v), int(ceiling)))
+    except (TypeError, ValueError):
+        return int(ceiling)
+
+
 def linkedin_handle(v: Any) -> str | None:
     """`https://www.linkedin.com/in/patrickcollison/` → `patrickcollison` (hunter wants the handle)."""
     if not isinstance(v, str) or not v:
@@ -224,7 +232,7 @@ def choose(condition: Any, when_true: Any, when_false: Any) -> Any:
 
 TRANSFORMS = {"values": values, "get": get_path, "null_if": null_if, "choose": choose, "split_first": split_first, "split_last": split_last, "join": join, "has_type": has_type, "len": length,
               "dfs_location": dfs_location, "seranking_source": seranking_source, "lower": lower, "upper": upper,
-              "list": as_list, "at_least": at_least, "linkedin_handle": linkedin_handle, "linkedin_url": linkedin_url,
+              "list": as_list, "at_least": at_least, "at_most": at_most, "linkedin_handle": linkedin_handle, "linkedin_url": linkedin_url,
               "email_domain": email_domain, "host": host, "fmt": fmt, "obj": obj, "tca_filter": tca_filter, "csv": csv, "country_name": country_name}
 
 _CALL = re.compile(r"^(\w+)\((.*)\)$")
