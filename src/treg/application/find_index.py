@@ -36,6 +36,8 @@ MAGIC = b"TRV1"               # a stored vector: MAGIC, uint32 dim, 32-byte card
 BATCH = 96                    # cards per embedding request
 BUILD_TIMEOUT_S = 30.0        # per embedding request while building (not the query's timeout)
 READ_CONCURRENCY = 32
+BATCH_RETRIES = 2             # a failed embedding batch is retried this often before the build fails
+RETRY_BACKOFF_S = 1.0         # ...after this long, doubling
 RETRY_AFTER_S = 300.0         # a failed build is retried by the next find after this long
 
 _store = None                 # infra.object_store.NamedObjectStore | None, set at startup
@@ -156,9 +158,13 @@ async def build(ix: find_recall.Index, *, transport=None) -> Vectors:
     made: dict[str, list[float]] = {}
     for i in range(0, len(missing), BATCH):
         batch = missing[i:i + BATCH]
-        e = await embed_infra.embed([text_of[k] for k in batch], api_key=api_key(), model=model,
-                                    url=s.find_embed_url, timeout_s=BUILD_TIMEOUT_S, dim=dim,
-                                    transport=transport)
+        for attempt in range(BATCH_RETRIES + 1):
+            e = await embed_infra.embed([text_of[k] for k in batch], api_key=api_key(), model=model,
+                                        url=s.find_embed_url, timeout_s=BUILD_TIMEOUT_S, dim=dim,
+                                        transport=transport)
+            if e.vectors is not None or not _transient(e.error) or attempt == BATCH_RETRIES:
+                break
+            await asyncio.sleep(RETRY_BACKOFF_S * 2 ** attempt)
         if e.vectors is None:
             await _write(model, made)   # keep what this build already paid for
             raise RuntimeError(e.error or "embedding failed")
@@ -172,6 +178,16 @@ async def build(ix: find_recall.Index, *, transport=None) -> Vectors:
     norms = np.linalg.norm(matrix, axis=1, keepdims=True)
     matrix /= np.where(norms == 0, 1, norms)
     return Vectors(model=model, matrix=matrix, dim=dim or 0, reused=len(have), computed=len(made))
+
+
+def _transient(error: str | None) -> bool:
+    """Worth another try: a timeout, a 429 or 5xx, a dropped connection. Not a refused key (4xx) or a
+    vector of the wrong size - asking again answers the same."""
+    if not error:
+        return True
+    if error.startswith("dim_") or error == "bad_body":
+        return False
+    return not error.startswith("http_4") or error == "http_429"
 
 
 def ready(cat: catalog_store.Catalog, ix: find_recall.Index) -> Vectors | None:

@@ -123,8 +123,10 @@ each card's vector is read from the archive's object store under
 96), and those are written back. The store is content-addressed everywhere else; these named
 objects are the one exception, their names built by treg from a validated slug and a digest, and
 each body carries its own card hash and size (`MAGIC`, `dim`, hash, floats) instead of a content
-check. Without a store the vectors live in the process only; without the API the channel stays off
-and a failed build is retried after five minutes. A new model is a new prefix, so vectors of two
+check. A batch that fails transiently (timeout, 429, 5xx) is tried twice more with a short backoff
+before the build gives up; a refused key or a wrong-size vector is not retried. Without a store the
+vectors live in the process only; without the API the channel stays off and a failed build is
+retried after five minutes. A new model is a new prefix, so vectors of two
 models never mix, and a cached vector of another size is not used. No lock: two instances building
 the same new cards both embed them. The build holds no database connection.
 

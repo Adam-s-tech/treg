@@ -36,6 +36,7 @@ def api(monkeypatch):
         state["texts"].extend(texts)
         return embed_infra.Embedding(vectors=[_vector(t) for t in texts], ms=5)
     monkeypatch.setattr(embed_infra, "embed", fake_embed)
+    monkeypatch.setattr(find_index, "RETRY_BACKOFF_S", 0.0)
     embed_infra.clear_cache()
     find_index.reset()
     find_index.configure(None)
@@ -163,3 +164,35 @@ async def test_the_object_store_names_only_find_vectors():
             await store.get_named(bad)
     with pytest.raises(ValueError):
         await store.put_named(name, b"x" * 1001)
+
+
+async def test_a_failed_batch_is_retried_before_the_build_gives_up(api, monkeypatch):
+    """A transient upstream error in one batch of many must not fail the whole build."""
+    ix = fr.build(_cat())
+    monkeypatch.setattr(find_index, "BATCH", 4)
+    real = embed_infra.embed
+    fails = {"left": 2, "error": "http_502", "calls": 0}
+
+    async def flaky(texts, **kw):
+        fails["calls"] += 1
+        if fails["calls"] >= 2 and fails["left"]:   # the first batch answers, then the next fails
+            fails["left"] -= 1
+            return embed_infra.Embedding(vectors=None, ms=5, error=fails["error"])
+        return await real(texts, **kw)
+    monkeypatch.setattr(embed_infra, "embed", flaky)
+    v = await find_index.build(ix)                                # batch 2 fails twice, then answers
+    assert v.computed == len(ix.units) and fails["calls"] == -(-len(ix.units) // 4) + 2
+
+    # a third failure of the same batch fails the build, keeping what it paid for
+    store = MemoryObjectStore()
+    find_index.configure(store)
+    fails.update(left=3, calls=0)
+    with pytest.raises(RuntimeError, match="http_502"):
+        await find_index.build(ix)
+    assert fails["calls"] == 4 and len(store.objects) == 4       # batch 1 written, batch 2 tried 3 times
+
+    # a refused key is not retried
+    fails.update(left=10, calls=1, error="http_401")
+    with pytest.raises(RuntimeError, match="http_401"):
+        await find_index.build(fr.build(_cat()))
+    assert fails["calls"] == 2
