@@ -274,7 +274,7 @@ def _log(query: str, *, source: str, baseline_total: int, cands: list[tuple[dict
         baseline_total=int(baseline_total), differs=False,
         judge_ms=j.ms, judge_tokens_in=j.tokens_in, judge_tokens_out=j.tokens_out, judge_error=j.error)
     if judged.verdict == NONE or (judged.verdict == KEYWORD and not judged.rows):
-        audit.record_search_miss(query=query, source=source,
+        audit.record_search_miss(query=query, source=source, engine="v1",
                                  reason=JUDGE_OFF if judged.verdict == KEYWORD else None)
 
 
@@ -532,7 +532,7 @@ def _v2_row(r: dict, cat: catalog_store.Catalog, provider_display) -> dict:
 
 
 async def _stream_v2(query: str, provider_display, platform: str | None,
-                     evidence: Evidence | None) -> AsyncIterator[dict]:
+                     evidence: Evidence | None, served: bool = True) -> AsyncIterator[dict]:
     cat = catalog_store.load()
     r = await recall_with_meaning(query, cat, provider_display, platform)
     reached = _candidate_endpoints(r.cands, cat)
@@ -544,13 +544,13 @@ async def _stream_v2(query: str, provider_display, platform: str | None,
            "rows": [_v2_row(row, cat, provider_display) for row in found.rows],
            "reason": found.reason, "platform": found.platform, "engine": "v2",
            "embed": {"ms": r.embed.ms, "error": r.embed.error}}
-    _log_v2(query, cat, found, r, reached)
+    _log_v2(query, cat, found, r, reached, served)
 
 
 async def _shadow_v2(query: str, provider_display, platform: str | None, evidence: Evidence | None) -> None:
     """v2 beside a served v1 answer, for the log only: the v2 stream, its events unread. Never raises."""
     try:
-        async for _ in _stream_v2(query, provider_display, platform, evidence):
+        async for _ in _stream_v2(query, provider_display, platform, evidence, served=False):
             pass
     except asyncio.CancelledError:
         raise
@@ -558,7 +558,10 @@ async def _shadow_v2(query: str, provider_display, platform: str | None, evidenc
         log.warning("find shadow failed", exc_info=True)
 
 
-def _log_v2(query: str, cat: catalog_store.Catalog, found: Found, r: Recalled, reached: list[dict]) -> None:
+def _log_v2(query: str, cat: catalog_store.Catalog, found: Found, r: Recalled, reached: list[dict],
+            served: bool = True) -> None:
+    """The v2 SearchLog row, and - when v2's answer is the one served - its SearchMiss: a shadow
+    answer never files a miss beside the served engine's, so each find files at most one."""
     j = found.judgement
     _, baseline_total = catalog_store.search(query, cat, 0)
     probs = j.probs or [None] * len(found.cands)
@@ -576,6 +579,6 @@ def _log_v2(query: str, cat: catalog_store.Catalog, found: Found, r: Recalled, r
         name_p=None if found.name_p is None else round(found.name_p, 3), recall_ms=round(r.recall_ms),
         embed_ms=r.embed.ms, embed_error=r.embed.error,
         units=[[c.unit.kind, c.unit.id, None if p is None else round(p, 3)] for c, p in zip(found.cands, probs)])
-    if found.verdict == NONE or (found.verdict == KEYWORD and not found.rows):
-        audit.record_search_miss(query=query, source="web-find",
+    if served and (found.verdict == NONE or (found.verdict == KEYWORD and not found.rows)):
+        audit.record_search_miss(query=query, source="web-find", engine="v2",
                                  reason=found.reason or (JUDGE_OFF if found.verdict == KEYWORD else None))

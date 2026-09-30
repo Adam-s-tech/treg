@@ -187,7 +187,9 @@ units reach, so the pages light the right platforms and vendors); `judged` gains
 `baseline_ids` is every endpoint the units reach, `judged` the kept units. `embed_ms` and
 `embed_error` record the query's vector (`off` without a key, `not_ready` while the card vectors
 build, else the client's reason). The `judged` event carries the same as `embed: {ms, error}`. `SearchMiss` gains `reason` (`gap`,
-`not_task`, `judge_off` for an empty keyword fallback, `scope` for a shelf's `none`). Migration 0054. Fire-and-forget through
+`not_task`, `judge_off` for an empty keyword fallback, `scope` for a shelf's `none`) and `engine`.
+Only the served engine files a miss: in `shadow` v1 does, and v2's empty answers show in its
+SearchLog row only, so a find never counts twice in the misses. Migration 0054. Fire-and-forget through
 `audit`, like every row there.
 
 ## The pages

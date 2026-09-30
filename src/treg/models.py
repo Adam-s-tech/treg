@@ -1507,6 +1507,8 @@ class SearchMiss(SQLModel, table=True):
     # web-find only: why the answer was empty - gap (the catalog lacks it) | not_task | judge_off |
     # scope (a shelf's find read that shelf only)
     reason: str | None = Field(default=None)
+    # web-find only: the engine whose answer was served and empty (v1 | v2); a shadow files no miss
+    engine: str | None = Field(default=None)
 
 
 class SearchLog(SQLModel, table=True):

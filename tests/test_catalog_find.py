@@ -414,3 +414,15 @@ async def test_v2_with_the_semantic_channel_reports_it_on_the_event_and_the_log(
         assert [(r.embed_ms, r.embed_error) for r in rows] == [(None, "not_ready"), (3, None)]
     finally:
         find_index.reset()
+
+
+async def test_shadow_files_one_miss_from_the_engine_it_serves(clients, monkeypatch):
+    _on(monkeypatch, find_engine="shadow")
+    monkeypatch.setattr(judge_infra, "judge", _fake_v2({}, plat=("none", 0.9)))   # both engines find nothing
+    await _find(clients, JOB)
+    await audit.drain()
+    async with session_maker() as s:
+        misses = (await s.execute(select(SearchMiss))).scalars().all()
+        logs = (await s.execute(select(SearchLog))).scalars().all()
+    assert [(m.engine, m.source) for m in misses] == [("v1", "web-find")]
+    assert sorted(r.engine for r in logs) == ["v1", "v2"]
