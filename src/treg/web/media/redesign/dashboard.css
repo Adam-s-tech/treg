@@ -23,6 +23,8 @@ body:has(.redesign)::before { display:none; }
 .redesign .btn,.redesign .seg button,.redesign .tabs button { font-family:var(--sans); }
 .rd-background { position:absolute; top:0; left:0; width:100%; height:auto; pointer-events:none; }
 [data-theme="dark"] .rd-background { filter:invert(1); opacity:.68; }
+/* Declare only the standard backdrop-filter: the minifier adds the -webkit- form, and drops the standard
+   one when a rule declares both. */
 /* The sides never shrink below their content (a squeezed account strip slid its icons under the
    balance); the leftover width is split evenly, so the nav sits centred whenever it fits, and scrolls
    rather than overlaps when it does not. */

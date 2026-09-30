@@ -26,117 +26,28 @@ Regenerate via `scripts/build-map.py`.
 | `dsh/index.js` | interface/skill.md |
 | `examples/proxy-demo/server.js` | architecture/local-proxy.md |
 | `external:meetings/2026-06-30-jason-tools-registry.md` | foundation/charter.md, reference/glossary.md |
-| `frontend/README.md` | interface/dashboard.md |
-| `frontend/e2e/experiments.spec.ts` | interface/dashboard.md |
 | `frontend/e2e/landing.spec.ts` | interface/seo.md |
 | `frontend/e2e/layout.spec.ts` | interface/dashboard.md |
-| `frontend/index.html` | interface/dashboard.md, interface/seo.md |
-| `frontend/package.json` | interface/dashboard.md |
-| `frontend/scripts/copy-runtime.mjs` | interface/dashboard.md |
+| `frontend/index.html` | interface/seo.md |
 | `frontend/src/App.vue` | interface/dashboard.md, interface/seo.md |
-| `frontend/src/agent-setup/AgentPicker.vue` | interface/dashboard.md |
-| `frontend/src/agent-setup/SetupInstructions.vue` | interface/dashboard.md |
-| `frontend/src/agent-setup/TryItOut.vue` | interface/dashboard.md |
-| `frontend/src/agent-setup/data.ts` | interface/dashboard.md |
-| `frontend/src/agent-setup/index.ts` | interface/dashboard.md, interface/enrich-arena.md |
-| `frontend/src/api.ts` | interface/dashboard.md |
-| `frontend/src/components/AgentCover.vue` | interface/dashboard.md |
-| `frontend/src/components/CatalogSearch.vue` | interface/dashboard.md |
-| `frontend/src/components/DashboardNavigation.vue` | interface/dashboard.md |
-| `frontend/src/components/FindAnswer.vue` | interface/dashboard.md |
-| `frontend/src/components/LandingNavigation.vue` | interface/dashboard.md |
-| `frontend/src/components/PublicNavigation.vue` | interface/dashboard.md, interface/seo.md |
-| `frontend/src/components/SignInDialog.vue` | interface/dashboard.md |
-| `frontend/src/components/SignedOutPage.vue` | interface/dashboard.md, interface/landing-sandbox.md |
-| `frontend/src/components/ToolDrawer.vue` | interface/dashboard.md |
-| `frontend/src/components/ui/table/DataTable.vue` | interface/dashboard.md |
-| `frontend/src/dialogs/AcceptInvitesDialog.vue` | interface/dashboard.md |
-| `frontend/src/dialogs/AgentGuideDialog.vue` | interface/dashboard.md |
-| `frontend/src/dialogs/CallDetailsDialog.vue` | interface/dashboard.md |
-| `frontend/src/dialogs/ConnectTokenDialog.vue` | interface/dashboard.md |
-| `frontend/src/dialogs/ConnectionMethodDialog.vue` | interface/dashboard.md |
-| `frontend/src/dialogs/CopyToolDialog.vue` | interface/dashboard.md |
-| `frontend/src/dialogs/EditToolDialog.vue` | interface/dashboard.md |
-| `frontend/src/dialogs/ExtraCredentialDialog.vue` | interface/dashboard.md |
-| `frontend/src/dialogs/FishVoiceDialog.vue` | interface/dashboard.md |
-| `frontend/src/dialogs/ImportSkillDialog.vue` | interface/dashboard.md |
-| `frontend/src/dialogs/RecipeDialog.vue` | interface/dashboard.md |
-| `frontend/src/dialogs/RequestToolDialog.vue` | interface/dashboard.md |
-| `frontend/src/dialogs/ResourcePickerDialog.vue` | interface/dashboard.md |
-| `frontend/src/dialogs/RunToolDialog.vue` | interface/dashboard.md |
-| `frontend/src/dialogs/ShareDialog.vue` | interface/dashboard.md |
-| `frontend/src/dialogs/TopUpDialog.vue` | interface/dashboard.md |
-| `frontend/src/dialogs/TryEndpointDialog.vue` | interface/dashboard.md |
-| `frontend/src/dialogs/WelcomeDialog.vue` | interface/dashboard.md, interface/onboarding.md |
-| `frontend/src/dialogs/dialog.ts` | interface/dashboard.md |
-| `frontend/src/main.ts` | interface/dashboard.md |
-| `frontend/src/pages/ActivityPage.vue` | interface/dashboard.md |
-| `frontend/src/pages/AdminPage.vue` | interface/dashboard.md |
-| `frontend/src/pages/CatalogPage.vue` | interface/dashboard.md |
-| `frontend/src/pages/DetailPage.vue` | interface/dashboard.md |
-| `frontend/src/pages/GettingStartedPage.vue` | interface/dashboard.md, interface/onboarding.md |
-| `frontend/src/pages/HelpPage.vue` | interface/dashboard.md |
+| `frontend/src/agent-setup/index.ts` | interface/enrich-arena.md |
+| `frontend/src/components/PublicNavigation.vue` | interface/seo.md |
+| `frontend/src/components/SignedOutPage.vue` | interface/landing-sandbox.md |
+| `frontend/src/dialogs/WelcomeDialog.vue` | interface/onboarding.md |
+| `frontend/src/pages/GettingStartedPage.vue` | interface/onboarding.md |
 | `frontend/src/pages/HubPage.vue` | architecture/hub.md |
 | `frontend/src/pages/HubRunPage.vue` | architecture/hub.md |
-| `frontend/src/pages/LegacyPlatformPage.vue` | interface/dashboard.md |
-| `frontend/src/pages/PlatformPage.vue` | interface/dashboard.md |
-| `frontend/src/pages/ProviderPage.vue` | architecture/instagram-oauth.md, interface/dashboard.md |
-| `frontend/src/pages/ReferralsPage.vue` | interface/dashboard.md |
-| `frontend/src/pages/SearchPage.vue` | interface/dashboard.md |
-| `frontend/src/pages/SecretsPage.vue` | interface/dashboard.md |
-| `frontend/src/pages/TeamPage.vue` | architecture/auth-secrets.md, interface/dashboard.md |
-| `frontend/src/pages/TeamResourcesPage.vue` | interface/dashboard.md |
-| `frontend/src/pages/ToolsPage.vue` | interface/dashboard.md |
-| `frontend/src/pages/getting-started-art.ts` | interface/dashboard.md |
-| `frontend/src/state/activity.js` | interface/dashboard.md |
-| `frontend/src/state/admin.js` | interface/dashboard.md |
-| `frontend/src/state/agents.js` | interface/dashboard.md |
-| `frontend/src/state/agentsComputed.js` | interface/dashboard.md |
-| `frontend/src/state/analytics.js` | interface/dashboard.md |
-| `frontend/src/state/billing.js` | interface/dashboard.md |
-| `frontend/src/state/billingComputed.js` | interface/dashboard.md |
-| `frontend/src/state/boot.js` | interface/dashboard.md, interface/landing-sandbox.md, interface/seo.md |
-| `frontend/src/state/catalog.js` | interface/dashboard.md |
-| `frontend/src/state/catalogComputed.js` | interface/dashboard.md |
-| `frontend/src/state/catalogExperiment.js` | interface/dashboard.md |
-| `frontend/src/state/connections.js` | architecture/instagram-oauth.md, interface/dashboard.md |
-| `frontend/src/state/constants.js` | interface/dashboard.md |
-| `frontend/src/state/context.ts` | interface/dashboard.md |
+| `frontend/src/pages/ProviderPage.vue` | architecture/instagram-oauth.md |
+| `frontend/src/pages/TeamPage.vue` | architecture/auth-secrets.md |
+| `frontend/src/state/boot.js` | interface/landing-sandbox.md, interface/seo.md |
+| `frontend/src/state/connections.js` | architecture/instagram-oauth.md |
 | `frontend/src/state/controller.js` | interface/dashboard.md |
-| `frontend/src/state/data.js` | interface/dashboard.md |
-| `frontend/src/state/details.js` | interface/dashboard.md |
-| `frontend/src/state/detailsComputed.js` | interface/dashboard.md |
-| `frontend/src/state/find.js` | interface/dashboard.md |
-| `frontend/src/state/findComputed.js` | interface/dashboard.md |
-| `frontend/src/state/format.js` | interface/dashboard.md |
-| `frontend/src/state/governance.js` | interface/dashboard.md |
-| `frontend/src/state/help.js` | interface/dashboard.md |
 | `frontend/src/state/hub.js` | architecture/hub.md |
-| `frontend/src/state/keys.js` | architecture/auth-secrets.md, interface/dashboard.md |
-| `frontend/src/state/lifecycle.js` | interface/dashboard.md |
-| `frontend/src/state/navigation.js` | interface/dashboard.md |
-| `frontend/src/state/onboarding.js` | interface/dashboard.md, interface/onboarding.md |
-| `frontend/src/state/onboardingComputed.js` | interface/dashboard.md |
-| `frontend/src/state/pile.ts` | interface/dashboard.md |
-| `frontend/src/state/projects.js` | interface/dashboard.md |
-| `frontend/src/state/referrals.js` | interface/dashboard.md |
-| `frontend/src/state/resources.js` | interface/dashboard.md |
-| `frontend/src/state/resourcesComputed.js` | interface/dashboard.md |
-| `frontend/src/state/secrets.js` | interface/dashboard.md |
-| `frontend/src/state/session.js` | architecture/auth-secrets.md, interface/dashboard.md |
-| `frontend/src/state/sessionComputed.js` | interface/dashboard.md |
-| `frontend/src/state/sharing.js` | interface/dashboard.md |
-| `frontend/src/state/skills.js` | interface/dashboard.md |
-| `frontend/src/state/snippets.js` | interface/dashboard.md |
-| `frontend/src/state/storage.js` | interface/dashboard.md |
-| `frontend/src/state/team.js` | interface/dashboard.md |
-| `frontend/src/state/tickets.js` | interface/dashboard.md |
-| `frontend/src/state/tools.js` | interface/dashboard.md |
-| `frontend/src/state/tryTool.js` | interface/dashboard.md |
+| `frontend/src/state/keys.js` | architecture/auth-secrets.md |
+| `frontend/src/state/onboarding.js` | interface/onboarding.md |
+| `frontend/src/state/session.js` | architecture/auth-secrets.md |
 | `frontend/src/styles/base.css` | interface/dashboard.md |
 | `frontend/src/views.ts` | interface/dashboard.md |
-| `frontend/vite.agent-setup.config.ts` | interface/dashboard.md |
-| `frontend/vite.config.ts` | interface/dashboard.md |
 | `hatch_build.py` | ops/deploy.md |
 | `package.json` | interface/skill.md |
 | `plugin/.codex-plugin/plugin.json` | interface/skill.md |
@@ -213,7 +124,7 @@ Regenerate via `scripts/build-map.py`.
 | `src/treg/alembic/versions/0052_async_task_hit.py` | architecture/data-model.md |
 | `src/treg/alembic/versions/0053_idempotentcall_membership_expires_index.py` | architecture/data-model.md |
 | `src/treg/analytics.py` | architecture/data-model.md |
-| `src/treg/api.py` | architecture/archive.md, architecture/money.md, architecture/multi-tenancy.md, architecture/proxy-model.md, architecture/super-admin.md, interface/api.md, interface/dashboard.md, interface/landing-sandbox.md, interface/seo.md |
+| `src/treg/api.py` | architecture/archive.md, architecture/money.md, architecture/multi-tenancy.md, architecture/proxy-model.md, architecture/super-admin.md, interface/api.md, interface/landing-sandbox.md, interface/seo.md |
 | `src/treg/application/__init__.py` | architecture/import-boundaries.md |
 | `src/treg/application/arena.py` | interface/enrich-arena.md |
 | `src/treg/application/arena_insights.py` | interface/enrich-arena.md |
@@ -423,7 +334,7 @@ Regenerate via `scripts/build-map.py`.
 | `src/treg/domain/identity/health.py` | architecture/mcp-oauth.md |
 | `src/treg/domain/identity/mcp_oauth.py` | architecture/composition.md, architecture/mcp-oauth.md, interface/api.md |
 | `src/treg/domain/identity/promotions.py` | architecture/money.md, architecture/multi-tenancy.md |
-| `src/treg/domain/identity/session.py` | architecture/composition.md, architecture/mcp-oauth.md, architecture/multi-tenancy.md, interface/api.md, interface/dashboard.md |
+| `src/treg/domain/identity/session.py` | architecture/composition.md, architecture/mcp-oauth.md, architecture/multi-tenancy.md, interface/api.md |
 | `src/treg/domain/money/__init__.py` | architecture/hub.md, architecture/import-boundaries.md, architecture/money.md |
 | `src/treg/domain/money/settlement.py` | architecture/catalog.md, architecture/money.md |
 | `src/treg/domain/provider_resources.py` | architecture/catalog.md, architecture/data-model.md, architecture/multi-tenancy.md |
@@ -469,7 +380,7 @@ Regenerate via `scripts/build-map.py`.
 | `src/treg/reconcile.py` | architecture/money.md |
 | `src/treg/routers/__init__.py` | interface/api.md |
 | `src/treg/routers/admin.py` | architecture/archive.md, architecture/composition.md, architecture/money.md, architecture/super-admin.md, interface/api.md |
-| `src/treg/routers/api_keys.py` | architecture/auth-secrets.md, architecture/mcp-oauth.md, interface/api.md, interface/cli.md, interface/dashboard.md |
+| `src/treg/routers/api_keys.py` | architecture/auth-secrets.md, architecture/mcp-oauth.md, interface/api.md, interface/cli.md |
 | `src/treg/routers/arena.py` | interface/enrich-arena.md |
 | `src/treg/routers/auth.py` | architecture/composition.md, architecture/mcp-oauth.md, architecture/multi-tenancy.md, interface/api.md, interface/enrich-arena.md, interface/onboarding.md |
 | `src/treg/routers/auth_helpers.py` | interface/api.md, interface/cli.md |
@@ -549,20 +460,17 @@ Regenerate via `scripts/build-map.py`.
 | `src/treg/web/media/landing/product-theme.css` | interface/seo.md |
 | `src/treg/web/media/landing/refinement.css` | interface/seo.md |
 | `src/treg/web/media/landing/refinement.js` | interface/seo.md |
-| `src/treg/web/media/redesign/SOURCES.md` | interface/dashboard.md |
 | `src/treg/web/media/redesign/dashboard.css` | interface/dashboard.md |
 | `src/treg/web/people-search.html` | interface/seo.md |
 | `src/treg/web/robots.txt` | interface/seo.md |
 | `src/treg/web/selfhost.sh` | ops/deploy.md |
-| `src/treg/web/sitetrack.js` | architecture/data-model.md, interface/api.md, interface/dashboard.md, interface/enrich-arena.md |
+| `src/treg/web/sitetrack.js` | architecture/data-model.md, interface/api.md, interface/enrich-arena.md |
 | `src/treg/web/skill.md` | architecture/hub.md, interface/skill.md |
 | `src/treg/web/skills/lead-signals/SKILL.md` | interface/skill.md |
 | `src/treg/web/skills/make-ugc/SKILL.md` | interface/skill.md |
 | `src/treg/web/support.html` | interface/seo.md |
 | `src/treg/web/terms.html` | interface/seo.md |
-| `src/treg/web/tour/index.html` | interface/dashboard.md |
 | `src/treg/web/tour/tour.js` | interface/dashboard.md |
-| `src/treg/web/tutorial.html` | interface/dashboard.md |
 | `src/treg/web/tutorial.js` | interface/dashboard.md |
 | `src/treg/web/ugc.html` | interface/seo.md |
 | `src/treg/web/usecase-ads.html` | interface/seo.md |
@@ -571,13 +479,12 @@ Regenerate via `scripts/build-map.py`.
 | `src/treg/web/usecase-seo.html` | interface/seo.md |
 | `src/treg/web/usecase-social.html` | interface/seo.md |
 | `src/treg/web/usecase.css` | interface/seo.md |
-| `src/treg/web/vendor/README.md` | interface/dashboard.md |
 | `src/treg/worker.py` | architecture/hub.md, ops/capacity.md, ops/deploy.md |
 | `tests/callmatrix/test_hub_run.py` | architecture/hub.md |
 | `tests/fake_object_store.py` | architecture/archive.md |
 | `tests/test_aigc_pr_b.py` | architecture/catalog.md |
 | `tests/test_alembic_expand_safety.py` | architecture/data-model.md |
-| `tests/test_api_keys.py` | architecture/auth-secrets.md, architecture/data-model.md, interface/cli.md, interface/dashboard.md |
+| `tests/test_api_keys.py` | architecture/auth-secrets.md, architecture/data-model.md, interface/cli.md |
 | `tests/test_app_roles.py` | architecture/composition.md |
 | `tests/test_archive_r2.py` | architecture/archive.md |
 | `tests/test_arena_insights.py` | interface/enrich-arena.md |
@@ -666,7 +573,7 @@ Regenerate via `scripts/build-map.py`.
 | `interface/api.md` | `media.py`, `sitetrack.js`, `api.py`, `bootstrap_handlers.py`, `bootstrap_http.py`, `call_surface.py`, `caller_metadata.py`, `client_identity.py`, `auth.py`, `provider_resources.py`, `access.py`, `authorize.py`, `idempotency.py`, `intake.py`, `resolve.py`, `reserve.py`, `settle.py`, `evidence.py`, `service.py`, `types.py`, `relay.py`, `connect.py`, `__init__.py`, `referrals.py`, `signup.py`, `__init__.py`, `admin.py`, `auth.py`, `auth_helpers.py`, `billing.py`, `call.py`, `catalog.py`, `connections.py`, `onboard.py`, `orgs.py`, `provider_resources.py`, `api_keys.py`, `resources.py`, `referrals.py`, `signup_cookies.py`, `web.py`, `access.py`, `api_keys.py`, `teams.py`, `access.py`, `budgets.py`, `publicdemo.py`, `usage.py`, `mcp_oauth.py`, `session.py`, `timeutil.py`, `store.py`, `email.py`, `runner.py`, `ratestore.py` |
 | `interface/catalog-review-proposal.md` | _(no source files — narrative/reference)_ |
 | `interface/cli.md` | `cli.py`, `test_released_cli_compat.py`, `test_cli_key_compatibility.py`, `auth_helpers.py`, `cli_analytics.py`, `convert.py`, `agents.py`, `api_keys.py`, `test_api_keys.py` |
-| `interface/dashboard.md` | `sitetrack.js`, `README.md`, `index.html`, `package.json`, `vite.config.ts`, `TeamResourcesPage.vue`, `FishVoiceDialog.vue`, `resources.js`, `resourcesComputed.js`, `App.vue`, `views.ts`, `api.ts`, `DashboardNavigation.vue`, `PublicNavigation.vue`, `SignInDialog.vue`, `SignedOutPage.vue`, `AcceptInvitesDialog.vue`, `AgentGuideDialog.vue`, `CallDetailsDialog.vue`, `ConnectTokenDialog.vue`, `ConnectionMethodDialog.vue`, `CopyToolDialog.vue`, `dialog.ts`, `EditToolDialog.vue`, `ExtraCredentialDialog.vue`, `ImportSkillDialog.vue`, `RecipeDialog.vue`, `RequestToolDialog.vue`, `ResourcePickerDialog.vue`, `RunToolDialog.vue`, `ShareDialog.vue`, `TopUpDialog.vue`, `TryEndpointDialog.vue`, `WelcomeDialog.vue`, `main.ts`, `ActivityPage.vue`, `AdminPage.vue`, `CatalogPage.vue`, `DetailPage.vue`, `GettingStartedPage.vue`, `getting-started-art.ts`, `experiments.spec.ts`, `AgentCover.vue`, `HelpPage.vue`, `PlatformPage.vue`, `ProviderPage.vue`, `ToolDrawer.vue`, `LegacyPlatformPage.vue`, `catalogExperiment.js`, `CatalogSearch.vue`, `DataTable.vue`, `FindAnswer.vue`, `layout.spec.ts`, `ReferralsPage.vue`, `SecretsPage.vue`, `TeamPage.vue`, `ToolsPage.vue`, `activity.js`, `admin.js`, `agents.js`, `agentsComputed.js`, `analytics.js`, `billing.js`, `billingComputed.js`, `boot.js`, `catalog.js`, `catalogComputed.js`, `find.js`, `findComputed.js`, `pile.ts`, `FindAnswer.vue`, `SearchPage.vue`, `LandingNavigation.vue`, `connections.js`, `constants.js`, `context.ts`, `controller.js`, `data.js`, `details.js`, `detailsComputed.js`, `format.js`, `governance.js`, `help.js`, `keys.js`, `lifecycle.js`, `navigation.js`, `onboarding.js`, `onboardingComputed.js`, `projects.js`, `referrals.js`, `secrets.js`, `session.js`, `sessionComputed.js`, `sharing.js`, `skills.js`, `snippets.js`, `storage.js`, `team.js`, `tickets.js`, `tools.js`, `tryTool.js`, `base.css`, `index.ts`, `data.ts`, `AgentPicker.vue`, `SetupInstructions.vue`, `TryItOut.vue`, `vite.agent-setup.config.ts`, `dashboard.css`, `SOURCES.md`, `README.md`, `copy-runtime.mjs`, `tutorial.js`, `tutorial.html`, `tour.js`, `index.html`, `api.py`, `web.py`, `session.py`, `api_keys.py`, `test_api_keys.py` |
+| `interface/dashboard.md` | `App.vue`, `views.ts`, `controller.js`, `base.css`, `layout.spec.ts`, `dashboard.css`, `web.py`, `tutorial.js`, `tour.js` |
 | `interface/enrich-arena.md` | `arena.py`, `arena.py`, `arena.py`, `models.py`, `0027_enrich_arena.py`, `teams.py`, `auth.py`, `bootstrap.py`, `enrich-arena.html`, `arena.js`, `bench.js`, `arena.css`, `index.ts`, `arena_verification_insights.py`, `0029_arena_verification_snapshot.py`, `import_arena_verification.py`, `test_arena_verification_insights.py`, `arena_insights.py`, `arena_insights.py`, `0028_arena_insights.py`, `test_arena_insights.py`, `apollo.svg`, `branddev.svg`, `companyenrich.svg`, `findymail.svg`, `hunter.svg`, `icypeas.svg`, `leadmagic.svg`, `leadsforge.svg`, `lusha.svg`, `pdl.svg`, `predictleads.svg`, `thecompaniesapi.svg`, `tomba.svg`, `sitetrack.js`, `test_enrich_arena.py` |
 | `interface/env-import.md` | `providers.py`, `skills.py` |
 | `interface/landing-sandbox.md` | `sandbox.py`, `sandbox_identity.py`, `pubfeed.py`, `sandbox.py`, `__init__.py`, `sandbox.py`, `api.py`, `onboard.py`, `web.py`, `boot.js`, `SignedOutPage.vue`, `install.sh` |
