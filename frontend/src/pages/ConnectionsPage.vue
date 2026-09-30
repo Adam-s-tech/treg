@@ -28,10 +28,8 @@ export default {
 <template>
 <div class="pl cn">
   <header class="pl-hero">
-    <p class="pl-eyebrow">{{connAccounts.length}} connected<template v-if="connAttention"> · {{connAttention}} need{{connAttention===1?'s':''}} you</template> · {{connectable.length}} providers</p>
     <h1>Connections</h1>
-    <p class="pl-lede">Your own accounts and API keys. treg keeps each one server-side and adds it to every call your
-      agents make to that provider. Your key always wins over treg's, and those calls are never metered.</p>
+    <p class="pl-lede">Your own accounts and keys. Calls with them are never metered.</p>
   </header>
 
   <div v-if="connErr || secretErr" class="banner cn-banner"><span>{{connErr || secretErr}}</span><button class="btn sm ico" @click="connErr=''; secretErr=''" aria-label="Dismiss">✕</button></div>
@@ -81,10 +79,5 @@ export default {
       <button class="pl-link" @click="openToolRequest()">Ask for it</button></p>
     <p v-else-if="!providers.length" class="pl-empty">Loading providers…</p>
   </section>
-
-  <footer class="cn-foot">
-    <p>From a terminal, <span class="mono">treg secret add apollo …</span> saves a key under its provider's name, and it
-      shows up here. Keys your own tools use live under <a href="#secrets" @click.prevent="go('secrets')">Your own tools → Secrets</a>.</p>
-  </footer>
 </div>
 </template>
