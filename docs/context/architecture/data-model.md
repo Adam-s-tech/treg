@@ -28,6 +28,7 @@ sources:
 
   - src/treg/alembic/versions/0011_callrecord_archive_link.py
   - src/treg/alembic/versions/0015_idempotentcall_membership_cascade.py
+  - src/treg/alembic/versions/0053_idempotentcall_membership_expires_index.py
   - src/treg/alembic/versions/0034_managed_api_keys.py
   - src/treg/alembic/versions/0035_default_key_generation.py
   - src/treg/alembic/versions/0036_activity_key_indexes.py
@@ -321,6 +322,16 @@ uses this metadata, never the encrypted token's shape.
   the membership is revoked there is no valid caller that can replay it. `delete_membership` removes
   it explicitly and the `membership_id` foreign key uses `ON DELETE CASCADE` as the schema backstop
   (Alembic `0015`), so a cached paid response can never turn token revocation into a 500.
+  A `pending` row is a lease owned by one call: it carries that call's `call_ref` from the claim,
+  the owner renews `created_at` every `IDEMPOTENCY_LEASE_RENEW_S` while it runs, and every store,
+  release and renewal is fenced on `call_ref`. A lease older than `IDEMPOTENCY_STALE_PENDING_S`
+  with no open hold or pending async task under `call_ref` (and its `call_ref:` children) is closed
+  by compare-and-swap (owner and `created_at`) with a stored terminal 410:
+  `idempotency_response_lost` with the charge when the owner's ledger shows one, else
+  `idempotency_outcome_unknown`. The key is never run again: a lapsed lease does not prove its owner
+  stopped. Rows without a `call_ref` (written before this) keep answering 409 until they expire.
+  The per-call expired-label sweep reads `(membership_id, expires_at)` (Alembic `0053`), so its
+  cost is the expired rows, not every label the caller holds.
 - **`ToolRequest`** - a "the catalog doesn't have X" report (`POST /tool-requests`, open + per-IP
   rate-limited): `capability` (the headline, ≤200 chars), `query` (the search that came up empty -
   auto-filled by agents, the dedup/priority signal), `note`, `contact`, `source` (`web` | `cli` |
