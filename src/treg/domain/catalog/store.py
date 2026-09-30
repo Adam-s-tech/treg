@@ -112,6 +112,8 @@ class Catalog:
     # lazy per-instance search index (see _search_fields) — never part of identity or repr
     _search_fields: list | None = field(default=None, init=False, repr=False, compare=False)
     _compared: dict | None = field(default=None, init=False, repr=False, compare=False)  # see compared()
+    # lazy per-instance find index (see find_recall.index) — same pattern as _search_fields
+    _find_index: object | None = field(default=None, init=False, repr=False, compare=False)
     by_id: dict[str, dict] = field(default_factory=dict)
     provider_meta: dict[str, dict] = field(default_factory=dict)  # service -> {limits, pricing_url, docs}
     contracts: dict = field(default_factory=dict)   # capability -> routing.Contract

@@ -596,9 +596,11 @@ async def pool_gauge(*, sample_s: float = _POOL_GAUGE_SAMPLE_S,
 
 
 def configure_archive_object_store(store) -> None:
-    """Composition seam shared by startup and in-memory tests."""
+    """Composition seam shared by startup and in-memory tests. Find's card vectors share the store."""
     from . import archive_bodies
+    from .application import find_index
     archive_bodies.configure(store)
+    find_index.configure(store)
 
 
 @asynccontextmanager

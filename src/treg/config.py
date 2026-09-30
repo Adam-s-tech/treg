@@ -349,6 +349,28 @@ class Settings(BaseSettings):
     # the wait, so the timeout is looser than an agent's search. Rate limits bound anonymous use.
     find_candidates: int = 60
     find_timeout_s: float = 6.0
+    # Which find answers: `v1` (endpoint recall, above), `v2` (recall by job: a unit per capability,
+    # every vendor listed once the job fits; docs/context/architecture/find.md), or `shadow` (v1 is
+    # served, v2 runs beside it and is only logged). One setting is the rollout and the rollback.
+    find_engine: str = "v1"
+    # v2's seats for the judge: jobs, representatives (a member whose own words fit better than its
+    # job's card), uncatalogued endpoints, and the jobs reserved for a platform the query names.
+    find_jobs: int = 25
+    find_delta: int = 10
+    find_raw: int = 10
+    find_platform_seats: int = 8
+    # The judge's confidence that no platform covers the task at or above which v2 caps the verdict
+    # at closest, and calls it a catalog gap when nothing fits well.
+    find_gap_min: float = 0.5
+    # v2's semantic channel: card and query vectors from an OpenAI-compatible /embeddings API
+    # (infra/embed.py). Empty key = the channel is off; with the default OpenRouter URL an empty key
+    # falls back to treg's own OpenRouter key (`platform_key_openrouter`). Card vectors are computed
+    # when a catalog is first used and cached in the archive's object store by card hash under the
+    # model's name (application/find_index.py), so a new model recomputes and never mixes.
+    find_embed_api_key: str = Field(default="", repr=False)
+    find_embed_model: str = "voyageai/voyage-4-lite"
+    find_embed_url: str = "https://openrouter.ai/api/v1/embeddings"
+    find_embed_timeout_s: float = 0.8
     # The judge's probability that a find query is only a name ("google", "semrush") at or above
     # which, with no strong fit, the answer is what that platform or provider offers.
     find_name_min: float = 0.8

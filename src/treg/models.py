@@ -1510,6 +1510,11 @@ class SearchMiss(SQLModel, table=True):
     # api (HTTP /catalog/search: web + CLI) | mcp | claude-connector
     source: str = Field(default="api", index=True)
     created_at: NaiveUTC = Field(default_factory=_now, index=True)
+    # web-find only: why the answer was empty - gap (the catalog lacks it) | not_task | judge_off |
+    # scope (a shelf's find read that shelf only)
+    reason: str | None = Field(default=None)
+    # web-find only: the engine whose answer was served and empty (v1 | v2); a shadow files no miss
+    engine: str | None = Field(default=None)
 
 
 class SearchLog(SQLModel, table=True):
@@ -1548,6 +1553,17 @@ class SearchLog(SQLModel, table=True):
     judge_tokens_in: int | None = Field(default=None)
     judge_tokens_out: int | None = Field(default=None)
     judge_error: str | None = Field(default=None)            # timeout | http_<status> | <exception>; None = answered
+    # web-find only (application.catalog_find): which engine answered (v1 | v2; shadow writes one
+    # row for each), and v2's own readings - the judge's platform pick and name probability, the
+    # recall's time, and every unit it read as [kind, id, probability]
+    engine: str | None = Field(default=None)
+    platform_choice: str | None = Field(default=None)
+    platform_conf: float | None = Field(default=None)
+    name_p: float | None = Field(default=None)
+    recall_ms: int | None = Field(default=None)
+    embed_ms: int | None = Field(default=None)
+    embed_error: str | None = Field(default=None)
+    units: list | None = Field(default=None, sa_column=Column("units", JSON, nullable=True))
 
 
 class CapacityPolicy(SQLModel, table=True):

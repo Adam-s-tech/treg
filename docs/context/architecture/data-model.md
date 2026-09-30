@@ -46,6 +46,7 @@ sources:
   - src/treg/routers/provider_resources.py
   - src/treg/alembic/versions/0033_signup_promo_eligibility.py
   - src/treg/alembic/versions/0041_searchlog.py
+  - src/treg/alembic/versions/0055_find_v2_log.py
   - src/treg/timeutil.py
   - src/treg/infra/db.py
   - src/treg/domain/referrals.py
@@ -347,7 +348,9 @@ uses this metadata, never the encrypted token's shape.
   querying the table; a Slack notifier may hang off the insert later, but the row is the record.
 - **`SearchMiss`** - a catalog search that returned **nothing**: `query` (capped to 300 chars),
   `source` (`api` for the HTTP route that serves web + CLI + raw API; `mcp` for the team MCP; or
-  `claude-connector` for V2), `created_at`. The demand
+  `claude-connector` for V2; `web-find` for `/catalog/find`), `created_at`, and on a find `reason`
+  (0055: `gap` | `not_task` | `judge_off` | `scope`, see [find](find.md)) and `engine` (the find
+  engine served; a shadow answer files none). The demand
   signal one step before a `ToolRequest`: most agents that miss never file, so the query text is all
   they leave. Written fire-and-forget through `audit.record_search_miss` (dropped rows cost
   analytics, never a search) from both search paths - `GET /catalog/search` and the in-process MCP
@@ -361,6 +364,9 @@ uses this metadata, never the encrypted token's shape.
   judge's `judge_ms` / tokens / `judge_error`. Written fire-and-forget through
   `audit.record_search`; read by `scripts/search_experiment_report.sql` joined to `CallRecord`.
   Nothing is written while `search_experiment` is `off`.
+  `/catalog/find` writes the same row with `mode=find`, `source=web-find` and no identity; 0055 adds
+  `engine` (v1 | v2) and v2's readings: `platform_choice`, `platform_conf`, `name_p`, `recall_ms`,
+  `embed_ms`, `embed_error`, and `units` as `[kind, id, p]` rows ([find](find.md)).
 - **`RunRecord`** - the **server-side run** audit row (a `treg run --server` CLI execution - the "kind"
   `server_run` in usage rollups): `org_id`, `user_email`, `bundle_name` (holds the **tool** name since the
   tool-side run unification; column name is historical), `argv` (JSON - never carries a secret value;

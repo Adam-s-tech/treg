@@ -52,7 +52,8 @@ When archive settings select R2, the lifespan validates object-store configurati
 verification, then owns the asynchronous client until archive and analytics drains finish. This
 conditional resource setup does no object I/O at startup and adds no worker. Tests can supply
 `create_app(..., archive_object_store=...)`; `configure_archive_object_store` is the shared
-in-memory injection seam. See [archive](archive.md) for switches and queue behavior.
+in-memory injection seam, and hands the same store to find's card vectors (`find_index.configure`,
+see [find](find.md)). See [archive](archive.md) for switches and queue behavior.
 The same `archive_object_store` context owns the client for the Arena insights worker; that command
 does not start a web lifespan or its background tasks.
 

@@ -106,11 +106,13 @@ def _known_fields(model, telemetry: dict | None) -> dict:
     return known
 
 
-def record_search_miss(*, query: str, source: str) -> None:
+def record_search_miss(*, query: str, source: str, reason: str | None = None,
+                       engine: str | None = None) -> None:
     """A catalog search that matched nothing — logged so the misses can steer ingest (see
-    models.SearchMiss). Same contract as every write here: fire-and-forget, and a dropped row
-    under load costs a data point, never a search response."""
-    _enqueue(SearchMiss, dict(query=query[:300], source=source))
+    models.SearchMiss). On a find, `reason` says why the answer was empty and `engine` which find
+    answered. Same contract as every write here: fire-and-forget, and a dropped row under load
+    costs a data point, never a search response."""
+    _enqueue(SearchMiss, dict(query=query[:300], source=source, reason=reason, engine=engine))
 
 
 def record_search(*, query: str, source: str, org_id: int | None, user_email: str | None,

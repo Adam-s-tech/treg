@@ -18,19 +18,33 @@ first and the judged rows when they arrive, and the pages animate the wait on th
 judge abstains rather than fails (see `infra.judge`); an abstaining judge falls back to the keyword
 page, labelled as such, never to an error.
 
+Two engines behind `find_engine` (docs/context/architecture/find.md). v1, above: endpoint recall.
+v2: recall by JOB (`domain.catalog.find_recall`), so one judge seat carries every vendor of a job,
+the same single request also asks which platform the task needs, eight rules decide the verdict
+(`decide`), and a fitting job lists all its vendors (`expand`). `shadow` serves v1 and logs v2.
+
 Session discipline: `admit` opens, commits and closes its own session BEFORE the judge's upstream
-call, so no request holds a database connection while Jev is thinking.
+call, and the evidence read that orders v2's rows happens after the judge has answered, so no
+request holds a database connection while Jev is thinking.
 """
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
-from dataclasses import dataclass
+import asyncio
+import logging
+import time
+from collections import Counter
+from collections.abc import AsyncIterator, Awaitable, Callable
+from dataclasses import dataclass, field
 
 from .. import audit, ratestore
+from . import find_index
 from ..config import get_settings
+from ..domain.catalog import find_recall
 from ..domain.catalog import store as catalog_store
 from ..infra import db as database
 from ..infra import judge as judge_infra
+
+log = logging.getLogger("treg.find")
 
 RATE_NS = "catalog_find"
 RATE_WINDOW_S = 3600
@@ -128,14 +142,7 @@ def name_rows(query: str, cat: catalog_store.Catalog, provider_display,
     if not q:
         return "", []
     shown = [e for e in (cat.for_platform(platform) if platform else cat.endpoints) if catalog_store.browsable(e)]
-    sellers: dict[str, int] = {}
-    for e in shown:
-        if e["capability"]:
-            sellers[e["capability"]] = sellers.get(e["capability"], 0) + 1
-
-    def jobs_first(eps: list[dict]) -> list[dict]:   # stable: ties keep the catalog's order
-        return sorted(eps, key=lambda e: (not e["capability"], -sellers.get(e["capability"], 0)))
-
+    jobs_first = _jobs_first(shown)
     on: dict[str, list[dict]] = {}
     for e in shown:
         on.setdefault(e["platform"], []).append(e)
@@ -156,11 +163,18 @@ def name_rows(query: str, cat: catalog_store.Catalog, provider_display,
     return "provider", jobs_first([e for e in shown if q in (e["provider"].lower(), provider_display(e["provider"]).lower())])
 
 
+def _jobs_first(shown: list[dict]) -> Callable[[list[dict]], list[dict]]:
+    """A sort for rows of `shown` that reads as jobs: catalogued jobs before uncatalogued endpoints,
+    the jobs most providers sell first. Stable: ties keep the catalog's order."""
+    sellers = Counter(e["capability"] for e in shown if e["capability"])
+    return lambda eps: sorted(eps, key=lambda e: (not e["capability"], -sellers[e["capability"]]))
+
+
 def _short(label: str) -> str:
     """A platform label without its gloss, lowercased: "Google Analytics (GA4)" -> "google analytics".
     The same cut as the pages' `platShort` (frontend/src/state/catalog.js), so a name matches what
     the shelves show."""
-    return label.split(" — ")[0].split(" (")[0].strip().lower()
+    return find_recall.short_label(label).lower()
 
 
 def _is_named(q: str, slug: str, plat: dict) -> bool:
@@ -185,7 +199,7 @@ async def judge(query: str, cands: list[tuple[dict, float]], cat: catalog_store.
              for ep, _ in cands]
     j = await judge_infra.judge(query, views, api_key=s.typesafe_api_key, model=s.typesafe_model,
                                 url=s.typesafe_url, timeout_s=float(s.find_timeout_s),
-                                criteria=FIT_CRITERIA, extra={"name": NAME_QUESTION})
+                                criteria=FIT_CRITERIA, extra={"name": NAME_QUESTION} if views else None)
     if j.probs is None:
         page, _, _ = catalog_store.rank_band(query, cat, 25, platform)
         return Judged(KEYWORD, [(ep, None) for ep, _ in page[:25]], j)
@@ -201,13 +215,35 @@ async def judge(query: str, cands: list[tuple[dict, float]], cat: catalog_store.
     return Judged(STRONG if strong else CLOSEST if kept else NONE, kept, j, kept)
 
 
-async def stream(query: str, provider_display, platform: str | None = None) -> AsyncIterator[dict]:
-    """The two events of one find, in order: `candidates` (the lexical recall, at once) and `judged`
-    (the kept rows and the verdict, when the judge answers). Logged once the answer is out.
-    `high` rides along so the pages draw the strong cut from this server's setting, not a copy.
+async def stream(query: str, provider_display, platform: str | None = None,
+                 evidence: Evidence | None = None) -> AsyncIterator[dict]:
+    """The two events of one find, in order: `candidates` (the recall, at once) and `judged` (the
+    rows and the verdict, when the judge answers). Logged once the answer is out. `high` rides
+    along so the pages draw the strong cut from this server's setting, not a copy.
 
-    `platform` scopes the whole find to one shelf: recall, the keyword fallback and a bare name's
-    answer; the recall ranks that shelf's rows only, so the judge still gets a full set of them."""
+    `find_engine` picks the answer: `v1` (endpoint recall), `v2` (job recall and the eight rules),
+    or `shadow` - v1 is served and v2 runs beside it, its judge request in parallel, for the log
+    only. `platform` scopes the whole find to one shelf. `evidence` reads the measured success of
+    endpoint ids (the evidence rerank's input) once the judge has answered; None = unmeasured."""
+    engine = str(get_settings().find_engine).strip().lower()
+    if engine == "v2":
+        async for event in _stream_v2(query, provider_display, platform, evidence):
+            yield event
+        return
+    shadow = None
+    if engine == "shadow":
+        shadow = asyncio.create_task(_shadow_v2(query, provider_display, platform, evidence))
+    try:
+        async for event in _stream_v1(query, provider_display, platform):
+            yield event
+        if shadow is not None:
+            await shadow
+    finally:
+        if shadow is not None and not shadow.done():
+            shadow.cancel()
+
+
+async def _stream_v1(query: str, provider_display, platform: str | None) -> AsyncIterator[dict]:
     cat = catalog_store.load()
     n = max(1, int(get_settings().find_candidates))
     cands = catalog_store.candidates(query, cat, n, platform)
@@ -230,7 +266,7 @@ def _log(query: str, *, source: str, baseline_total: int, cands: list[tuple[dict
     j = judged.judgement
     audit.record_search(
         query=query, source=source, org_id=None, user_email=None,
-        mode="find", arm="judged",
+        mode="find", arm="judged", engine="v1",
         baseline_ids=[ep["id"] for ep, _ in cands],
         judged=None if judged.kept is None else [[ep["id"], round(p, 3)] for ep, p in judged.kept],
         shown=[[ep["id"], "judged" if p is not None else "name" if judged.verdict == NAME else "baseline"]
@@ -238,4 +274,335 @@ def _log(query: str, *, source: str, baseline_total: int, cands: list[tuple[dict
         baseline_total=int(baseline_total), differs=False,
         judge_ms=j.ms, judge_tokens_in=j.tokens_in, judge_tokens_out=j.tokens_out, judge_error=j.error)
     if judged.verdict == NONE or (judged.verdict == KEYWORD and not judged.rows):
-        audit.record_search_miss(query=query, source=source)
+        audit.record_search_miss(query=query, source=source, engine="v1",
+                                 reason=JUDGE_OFF if judged.verdict == KEYWORD else None)
+
+
+# ==== v2: recall by job, one judge request, eight rules ===========================================
+# Why a `none` has nothing to show: the catalog lacks it (a gap, worth recording), or the text is
+# not a task the page can read; `judge_off` is the keyword fallback that found nothing. A shelf's
+# find reads that shelf only, so its `none` is `scope`: it cannot say the catalog lacks anything.
+GAP = "gap"
+NOT_TASK = "not_task"
+JUDGE_OFF = "judge_off"
+SCOPE = "scope"
+
+FIT_FROM_JOB = "job"            # the row carries its job's fit
+FIT_FROM_ENDPOINT = "endpoint"  # the row was judged on its own words
+FOLDED = 5                      # vendors a job under high shows (as `store.MAX_ROUTED_CHILDREN`)
+CAPPED_TOP = 0.6                # under a confident "no platform", below this is a gap
+
+# What a fitting JOB means. The `false` side is the endpoint question's: sharing words is not doing
+# the job, and a bare name does no job at all (the NAME question answers that).
+JOB_CRITERIA = {
+    "true": "Tools that do this job return the data or perform the action the task asks for, or one "
+            "essential step of it.",
+    "false": FIT_CRITERIA["false"],
+}
+
+# Measured success per endpoint id, for the rows' order. Must not raise: the route passes
+# `_observed_or_empty`, which answers {} when the observations are unavailable.
+Evidence = Callable[[list[str]], Awaitable[dict]]
+
+
+def platform_question(ix: find_recall.Index) -> dict:
+    """Which platform the task most needs, or none: a `none` with confidence marks a catalog gap."""
+    options = {slug: f"{p.get('label', slug)}: {p.get('summary', '')}" for slug, p in ix.platforms.items()}
+    return {
+        "type": "choice",
+        "instructions": "Which platform or data source does `task` most need? Pick `none` when no "
+                        "listed platform provides the data or action, or when `task` is not a task.",
+        "criteria": {**options, "none": "nothing listed covers this, or the text is not a task"},
+    }
+
+
+def _unit_view(unit: find_recall.Unit, cat: catalog_store.Catalog) -> dict:
+    if unit.kind == find_recall.JOB:
+        return judge_infra.job_view(unit.id, cat.capabilities.get(unit.id, ""), unit.platform,
+                                    len(unit.providers), list(unit.examples))
+    ep = cat.by_id[unit.id]
+    return judge_infra.candidate_view(ep, cat.capabilities.get(ep.get("capability") or "", ""))
+
+
+@dataclass
+class Found:
+    """One v2 answer: the verdict, why a `none` is empty, what a name named, and the rows."""
+    verdict: str
+    judgement: judge_infra.Judgement
+    cands: list[find_recall.Candidate]
+    kept: list[tuple[find_recall.Candidate, float]] = field(default_factory=list)
+    reason: str = ""
+    name: find_recall.NameHit | None = None
+    rows: list[dict] = field(default_factory=list)   # {"ep", "p", "fit_from", "children_hidden"}
+
+    @property
+    def platform(self) -> dict | None:
+        answer = (self.judgement.extra or {}).get("plat")
+        return {"choice": answer["choice"], "confidence": round(answer["confidence"], 3)} \
+            if isinstance(answer, dict) else None
+
+    @property
+    def name_p(self) -> float | None:
+        v = (self.judgement.extra or {}).get("name")
+        return float(v) if isinstance(v, (int, float)) else None
+
+
+def recall_v2(query: str, cat: catalog_store.Catalog, provider_display,
+              platform: str | None = None, semantic: list[float] | None = None) -> list[find_recall.Candidate]:
+    s = get_settings()
+    return find_recall.recall(
+        query, find_recall.index(cat), cat.aliases, semantic=semantic, platform=platform,
+        n_jobs=int(s.find_jobs), n_delta=int(s.find_delta), n_raw=int(s.find_raw),
+        n_plat=int(s.find_platform_seats))
+
+
+@dataclass
+class Recalled:
+    cands: list[find_recall.Candidate]
+    embed: find_index.Semantic
+    recall_ms: float
+
+
+async def recall_with_meaning(query: str, cat: catalog_store.Catalog, provider_display,
+                              platform: str | None = None) -> Recalled:
+    """The query's vector (when the card vectors are ready), then both channels. The embedding
+    request is the only I/O; without it the recall is the lexical channel alone."""
+    sem = await find_index.semantic(query, cat, find_recall.index(cat))
+    t0 = time.perf_counter()
+    cands = recall_v2(query, cat, provider_display, platform, sem.scores)
+    return Recalled(cands, sem, (time.perf_counter() - t0) * 1000)
+
+
+async def judge_v2(query: str, cands: list[find_recall.Candidate], cat: catalog_store.Catalog,
+                   provider_display, platform: str | None = None) -> judge_infra.Judgement:
+    """One request: a fit per unit, "is it only a name?", and (off a shelf) which platform. With no
+    units the two extra questions are still asked, so an empty recall can still be told apart as a
+    catalog gap or not a task."""
+    s = get_settings()
+    extra = {"name": NAME_QUESTION}
+    if platform is None:
+        extra["plat"] = platform_question(find_recall.index(cat))
+    return await judge_infra.judge(
+        query, [_unit_view(c.unit, cat) for c in cands], api_key=s.typesafe_api_key,
+        model=s.typesafe_model, url=s.typesafe_url, timeout_s=float(s.find_timeout_s),
+        criteria=FIT_CRITERIA, job_criteria=JOB_CRITERIA, extra=extra)
+
+
+def decide(query: str, cands: list[find_recall.Candidate], j: judge_infra.Judgement,
+           ix: find_recall.Index, platform: str | None = None, provider_display=lambda s: s) -> Found:
+    """The verdict, the first rule that holds (docs/context/architecture/find.md):
+
+    1. the judge abstained: keyword
+    2. the query is exactly a name, or a name's prefix the judge reads as a name: name
+    3. no strong fit, a short query, a name matches: name (a typed prefix)
+    4. no strong fit, the judge reads a name, the name table has none and nothing is kept: none/gap
+    5. the judge picks no platform with confidence: none/gap under `CAPPED_TOP`, else closest (never strong)
+    6. a fit at or over high: strong
+    7. a fit at or over keep: closest
+    8. otherwise: none/not_task
+
+    On a shelf (`platform`) any `none` is `scope`: that find read one shelf.
+    """
+    s = get_settings()
+    if j.probs is None:
+        return Found(KEYWORD, j, cands)
+    keep, high = float(s.search_judge_keep), float(s.search_judge_high)
+    scored = sorted(zip(cands, j.probs), key=lambda t: -t[1])
+    top = scored[0][1] if scored else 0.0
+    kept = [(c, p) for c, p in scored if p >= keep]
+    hit = find_recall.name_of(query, ix, platform, provider_display)
+    found = Found(NONE, j, cands, kept)
+    is_name = (found.name_p or 0.0) >= float(s.find_name_min)
+    strong = top >= high
+    plat = found.platform
+    if hit and (hit.exact or is_name or (not strong and len(find_recall.query_tokens(query)) <= 3)):
+        found.verdict, found.name = NAME, hit
+    elif is_name and not strong and not kept:
+        found.reason = GAP
+    elif plat and plat["choice"] == "none" and plat["confidence"] >= float(s.find_gap_min):
+        if top < CAPPED_TOP:
+            found.reason = GAP
+        else:
+            found.verdict = CLOSEST
+    elif strong:
+        found.verdict = STRONG
+    elif kept:
+        found.verdict = CLOSEST
+    else:
+        found.reason = NOT_TASK
+    if found.verdict == NONE:
+        found.kept = []
+        if platform:
+            found.reason = SCOPE
+    return found
+
+
+def expand(found: Found, cat: catalog_store.Catalog, stats: dict, platform: str | None = None) -> list[dict]:
+    """The rows of a strong or closest answer, best unit first. A job at or over high lists every
+    vendor in the evidence rerank's order (measured success, then core, then price), all of them
+    carrying the job's fit: the pages show a job as one line with its vendor count, so cutting
+    vendors here would only hide them. A job under high shows one row for each of its first `FOLDED`
+    providers, the first row counting the job's other providers in `children_hidden`. An endpoint judged on its own carries its own fit, also
+    where its job was expanded, and is left out when its own fit is under keep."""
+    s = get_settings()
+    keep, high = float(s.search_judge_keep), float(s.search_judge_high)
+    own = {c.unit.id: p for c, p in zip(found.cands, found.judgement.probs or [])
+           if c.unit.kind == find_recall.ENDPOINT}
+    rows: list[dict] = []
+    placed: set[str] = set()
+    for c, p in found.kept:
+        if c.unit.kind == find_recall.ENDPOINT:
+            if c.unit.id not in placed:
+                placed.add(c.unit.id)
+                rows.append({"ep": cat.by_id[c.unit.id], "p": p, "fit_from": FIT_FROM_ENDPOINT})
+            continue
+        members = [cat.by_id[m] for m in c.unit.members if not platform or cat.by_id[m]["platform"] == platform]
+        group: list[dict] = []
+        for ep, _ in catalog_store.rerank([(ep, 0.0) for ep in members], stats, cat):
+            if ep["id"] in placed:
+                continue
+            if ep["id"] in own:
+                if own[ep["id"]] >= keep:
+                    group.append({"ep": ep, "p": own[ep["id"]], "fit_from": FIT_FROM_ENDPOINT})
+            else:
+                group.append({"ep": ep, "p": p, "fit_from": FIT_FROM_JOB})
+        if p < high:
+            # Folded by provider: the first row of each of the first `FOLDED` providers. The count
+            # is of providers, the job's own (what the judge was told it has), less those on the page.
+            firsts: dict[str, dict] = {}
+            for r in group:
+                firsts.setdefault(r["ep"]["provider"], r)
+            group = list(firsts.values())[:FOLDED]
+            on_page = {r["ep"]["provider"] for r in (*rows, *group) if r["ep"]["capability"] == c.unit.id}
+            hidden = len({ep["provider"] for ep in members} - on_page)
+            if group and hidden:
+                group[0]["children_hidden"] = hidden
+        placed.update(r["ep"]["id"] for r in group)
+        rows.extend(group)
+    return rows
+
+
+def name_page(hit: find_recall.NameHit, cat: catalog_store.Catalog, platform: str | None = None) -> list[dict]:
+    """What a name offers, jobs first: a platform's endpoints (the platforms the name matches, in
+    `name_of`'s order, `MAX_NAME_PLATFORMS` at most, each cut at `MAX_NAME_ROWS_PER_PLATFORM`); a
+    provider's (on the shelf, when scoped); or every endpoint whose name carries the product, by
+    platform."""
+    shown = [e for e in find_recall.shown_endpoints(cat) if not platform or e["platform"] == platform]
+    jobs_first = _jobs_first(shown)
+    if hit.kind == "platform":
+        on: dict[str, list[dict]] = {}
+        for e in shown:
+            on.setdefault(e["platform"], []).append(e)
+        return [e for slug in hit.keys[:MAX_NAME_PLATFORMS]
+                for e in jobs_first(on.get(slug, []))[:MAX_NAME_ROWS_PER_PLATFORM]]
+    if hit.kind == "provider":
+        return jobs_first([e for e in shown if e["provider"] == hit.keys[0]])
+    ids = set(hit.keys)
+    return sorted(jobs_first([e for e in shown if e["id"] in ids]), key=lambda e: e["platform"])
+
+
+async def answer_v2(query: str, cands: list[find_recall.Candidate], cat: catalog_store.Catalog,
+                    provider_display, platform: str | None = None,
+                    evidence: Evidence | None = None) -> Found:
+    """Judge the units, decide, and lay out the rows. Never raises."""
+    j = await judge_v2(query, cands, cat, provider_display, platform)
+    found = decide(query, cands, j, find_recall.index(cat), platform, provider_display)
+    if found.verdict == KEYWORD:
+        page, _, _ = catalog_store.rank_band(query, cat, 25, platform)
+        found.rows = [{"ep": ep, "p": None} for ep, _ in page[:25]]
+    elif found.verdict == NAME and found.name:
+        found.rows = [{"ep": ep, "p": None} for ep in name_page(found.name, cat, platform)]
+    elif found.verdict in (STRONG, CLOSEST):
+        ids = sorted({m for c, _ in found.kept for m in c.unit.members})
+        stats = await evidence(ids) if evidence is not None and ids else {}
+        found.rows = expand(found, cat, stats, platform)
+    return found
+
+
+def _candidate_endpoints(cands: list[find_recall.Candidate], cat: catalog_store.Catalog) -> list[dict]:
+    """Every endpoint the recall reaches, units expanded to their members: the pages light the
+    platforms and vendors being read."""
+    out: dict[str, dict] = {}
+    for c in cands:
+        for eid in (c.unit.members or (c.unit.id,)):
+            ep = cat.by_id[eid]
+            out.setdefault(eid, {"id": eid, "platform": ep.get("platform") or "", "provider": ep["provider"]})
+    return list(out.values())
+
+
+def _v2_row(r: dict, cat: catalog_store.Catalog, provider_display) -> dict:
+    row = _row(r["ep"], cat, provider_display, r["p"])
+    if r.get("fit_from"):
+        row["fit_from"] = r["fit_from"]
+    if r.get("children_hidden"):
+        row["children_hidden"] = r["children_hidden"]
+    return row
+
+
+async def _stream_v2(query: str, provider_display, platform: str | None,
+                     evidence: Evidence | None, served: bool = True) -> AsyncIterator[dict]:
+    cat = catalog_store.load()
+
+    def event(cands: list[find_recall.Candidate], reached: list[dict]) -> dict:
+        return {"event": "candidates", "candidates": reached,
+                "units": [{"kind": c.unit.kind, "id": c.unit.id} for c in cands]}
+    # The lexical recall is instant, so it is the first event; the query's vector and the fused
+    # recall follow, as a second `candidates` event when the meaning changed what is read.
+    t0 = time.perf_counter()
+    lexical = recall_v2(query, cat, provider_display, platform)
+    lexical_ms = (time.perf_counter() - t0) * 1000
+    reached = _candidate_endpoints(lexical, cat)
+    yield event(lexical, reached)
+    sem = await find_index.semantic(query, cat, find_recall.index(cat))
+    r = Recalled(lexical, sem, lexical_ms)
+    if sem.scores is not None:
+        t0 = time.perf_counter()
+        r = Recalled(recall_v2(query, cat, provider_display, platform, sem.scores), sem,
+                     (time.perf_counter() - t0) * 1000)
+        if [c.unit.id for c in r.cands] != [c.unit.id for c in lexical]:
+            reached = _candidate_endpoints(r.cands, cat)
+            yield event(r.cands, reached)
+    found = await answer_v2(query, r.cands, cat, provider_display, platform, evidence)
+    yield {"event": "judged", "verdict": found.verdict, "named": found.name.kind if found.name else "",
+           "read": len(r.cands), "high": float(get_settings().search_judge_high),
+           "rows": [_v2_row(row, cat, provider_display) for row in found.rows],
+           "reason": found.reason, "platform": found.platform, "engine": "v2",
+           "embed": {"ms": r.embed.ms, "error": r.embed.error}}
+    _log_v2(query, cat, found, r, reached, served)
+
+
+async def _shadow_v2(query: str, provider_display, platform: str | None, evidence: Evidence | None) -> None:
+    """v2 beside a served v1 answer, for the log only: the v2 stream, its events unread. Never raises."""
+    try:
+        async for _ in _stream_v2(query, provider_display, platform, evidence, served=False):
+            pass
+    except asyncio.CancelledError:
+        raise
+    except Exception:  # noqa: BLE001 - the shadow is a measurement; it never touches the answer
+        log.warning("find shadow failed", exc_info=True)
+
+
+def _log_v2(query: str, cat: catalog_store.Catalog, found: Found, r: Recalled, reached: list[dict],
+            served: bool = True) -> None:
+    """The v2 SearchLog row, and - when v2's answer is the one served - its SearchMiss: a shadow
+    answer never files a miss beside the served engine's, so each find files at most one."""
+    j = found.judgement
+    _, baseline_total = catalog_store.search(query, cat, 0)
+    probs = j.probs or [None] * len(found.cands)
+    plat = found.platform or {}
+    owner = "name" if found.verdict == NAME else "baseline" if found.verdict == KEYWORD else "judged"
+    audit.record_search(
+        query=query, source="web-find", org_id=None, user_email=None,
+        mode="find", arm="judged", engine="v2",
+        baseline_ids=[c["id"] for c in reached],
+        judged=None if j.probs is None else [[c.unit.id, round(p, 3)] for c, p in found.kept],
+        shown=[[r["ep"]["id"], owner] for r in found.rows],
+        baseline_total=int(baseline_total), differs=False,
+        judge_ms=j.ms, judge_tokens_in=j.tokens_in, judge_tokens_out=j.tokens_out, judge_error=j.error,
+        platform_choice=plat.get("choice"), platform_conf=plat.get("confidence"),
+        name_p=None if found.name_p is None else round(found.name_p, 3), recall_ms=round(r.recall_ms),
+        embed_ms=r.embed.ms, embed_error=r.embed.error,
+        units=[[c.unit.kind, c.unit.id, None if p is None else round(p, 3)] for c, p in zip(found.cands, probs)])
+    if served and (found.verdict == NONE or (found.verdict == KEYWORD and not found.rows)):
+        audit.record_search_miss(query=query, source="web-find", engine="v2",
+                                 reason=found.reason or (JUDGE_OFF if found.verdict == KEYWORD else None))

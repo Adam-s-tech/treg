@@ -340,6 +340,12 @@ contract:
   [discovery experiment](../architecture/search-experiment.md) on the MCP search tools; it is also
   its kill switch. Needs `TREG_TYPESAFE_API_KEY`; `TREG_TYPESAFE_TIMEOUT_S` bounds what the judge
   may add to a search. Off by default, and off whenever the key is empty.
+- `TREG_FIND_ENGINE` (`v1` | `v2` | `shadow`) picks what `/catalog/find` answers with (see
+  [find](../architecture/find.md)); `shadow` serves v1 and logs v2 beside it, at a second judge
+  request per find. Rolling back is setting it to `v1`.
+- `TREG_FIND_EMBED_API_KEY` turns on v2's semantic channel; with the default OpenRouter
+  `TREG_FIND_EMBED_URL` an empty value uses `TREG_PLATFORM_KEY_OPENROUTER`. Card vectors are cached in
+  the archive's object store when archive R2 is on, else rebuilt by each process.
 
 Exact treg.to values, funded accounts and rollout instructions live in the private
 [provider-capacity runbook](https://github.com/superdesigndev/treg-internal/blob/main/docs/production/provider-capacity.md).
