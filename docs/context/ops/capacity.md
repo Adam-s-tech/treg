@@ -45,6 +45,13 @@ related:
 
 # Provider capacity
 
+Every platform-key slot is either on `BALANCE_ROUTES` (a free collector reads its balance) or on
+`NO_BALANCE_API` (with the reason none exists), under the slot's spelling;
+`test_every_platform_key_has_a_balance_decision` fails a new slot that is on neither. A sweep
+reading below `EMPTY_BELOW` refuses the provider's shared-key calls, so a collector reports a meter
+that bills overage rather than refusing (SpyFu's monthly allowance) as informational once spent,
+and sums every pool that can pay for a call (Fiber AI's trial and paid pools).
+
 Octen's PAYG balance has no account balance or usage endpoint in its published OpenAPI, so
 `NO_BALANCE_API` reports it as dashboard-only. `_KNOWN` classifies the account as manually funded
 cash. The shared-key rate policy spaces calls at five per second, below the Base plan's displayed
