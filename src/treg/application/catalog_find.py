@@ -542,10 +542,26 @@ def _v2_row(r: dict, cat: catalog_store.Catalog, provider_display) -> dict:
 async def _stream_v2(query: str, provider_display, platform: str | None,
                      evidence: Evidence | None, served: bool = True) -> AsyncIterator[dict]:
     cat = catalog_store.load()
-    r = await recall_with_meaning(query, cat, provider_display, platform)
-    reached = _candidate_endpoints(r.cands, cat)
-    yield {"event": "candidates", "candidates": reached,
-           "units": [{"kind": c.unit.kind, "id": c.unit.id} for c in r.cands]}
+
+    def event(cands: list[find_recall.Candidate], reached: list[dict]) -> dict:
+        return {"event": "candidates", "candidates": reached,
+                "units": [{"kind": c.unit.kind, "id": c.unit.id} for c in cands]}
+    # The lexical recall is instant, so it is the first event; the query's vector and the fused
+    # recall follow, as a second `candidates` event when the meaning changed what is read.
+    t0 = time.perf_counter()
+    lexical = recall_v2(query, cat, provider_display, platform)
+    lexical_ms = (time.perf_counter() - t0) * 1000
+    reached = _candidate_endpoints(lexical, cat)
+    yield event(lexical, reached)
+    sem = await find_index.semantic(query, cat, find_recall.index(cat))
+    r = Recalled(lexical, sem, lexical_ms)
+    if sem.scores is not None:
+        t0 = time.perf_counter()
+        r = Recalled(recall_v2(query, cat, provider_display, platform, sem.scores), sem,
+                     (time.perf_counter() - t0) * 1000)
+        if [c.unit.id for c in r.cands] != [c.unit.id for c in lexical]:
+            reached = _candidate_endpoints(r.cands, cat)
+            yield event(r.cands, reached)
     found = await answer_v2(query, r.cands, cat, provider_display, platform, evidence)
     yield {"event": "judged", "verdict": found.verdict, "named": found.name.kind if found.name else "",
            "read": len(r.cands), "high": float(get_settings().search_judge_high),

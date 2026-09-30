@@ -176,8 +176,11 @@ matches (twelve platforms, forty rows each), a provider's, or every endpoint car
 name by platform, jobs first, unjudged. The evidence (measured success per endpoint) is read by the
 route's `EndpointObservationReader` only for a strong or closest answer, after the judge.
 
-**Events.** `candidates` gains `units: [{kind, id}]` (its `candidates` list is every endpoint the
-units reach, so the pages light the right platforms and vendors); `judged` gains `reason` (on
+**Events.** The first `candidates` event is the lexical recall, sent before the query is embedded,
+so it stays immediate; when the query's vector changes what is read, a second `candidates` event
+carries the fused units (the pages just replace the list), and `judged.read` counts those. It gains
+`units: [{kind, id}]` (its `candidates` list is every endpoint the units reach, so the pages light
+the right platforms and vendors); `judged` gains `reason` (on
 `none`), `platform: {choice, confidence}`, `engine: "v2"`, and rows gain `fit_from` and
 `children_hidden`. `named` is `platform`, `provider` or `product`.
 

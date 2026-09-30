@@ -426,8 +426,12 @@ async def test_v2_with_the_semantic_channel_reports_it_on_the_event_and_the_log(
         _, (_, judged) = await _find(clients, "find a work email")
         assert judged["embed"] == {"ms": None, "error": "not_ready"}
         await find_index._build.task
-        _, (_, judged) = await _find(clients, "find a work email")
-        assert judged["embed"] == {"ms": 3, "error": None}
+        _, events = await _find(clients, "find a work email")
+        first, *rest, judged = events
+        # the lexical candidates come first, before the query's vector; the fused ones follow
+        assert first["event"] == "candidates" and [e["event"] for e in rest] in ([], ["candidates"])
+        assert judged["event"] == "judged" and judged["embed"] == {"ms": 3, "error": None}
+        assert judged["read"] == len((rest or [first])[-1]["units"])
         await audit.drain()
         async with session_maker() as s:
             rows = (await s.execute(select(SearchLog).order_by(SearchLog.id))).scalars().all()
@@ -446,3 +450,31 @@ async def test_shadow_files_one_miss_from_the_engine_it_serves(clients, monkeypa
         logs = (await s.execute(select(SearchLog))).scalars().all()
     assert [(m.engine, m.source) for m in misses] == [("v1", "web-find")]
     assert sorted(r.engine for r in logs) == ["v1", "v2"]
+
+
+async def test_v2_first_event_does_not_wait_for_the_query_vector(clients, monkeypatch):
+    from treg.application import find_index
+    from treg.infra import embed as embed_infra
+
+    _on(monkeypatch, find_engine="v2", find_embed_api_key="embed-key", find_embed_model="test/fake")
+    asked = []
+
+    async def fake_embed(texts, **kw):
+        asked.extend(texts)
+        return embed_infra.Embedding(vectors=[[1.0, float(len(t) % 7), 0.5] for t in texts], ms=3)
+    monkeypatch.setattr(embed_infra, "embed", fake_embed)
+    monkeypatch.setattr(judge_infra, "judge", _fake_v2({}))
+    embed_infra.clear_cache()
+    find_index.reset()
+    find_index.configure(None)
+    try:
+        cat = catalog_store.load()
+        await find_index.prepare(cat, fr.index(cat))
+        asked.clear()
+        stream = F._stream_v2("find a work email", lambda s: s, None, None)
+        first = await stream.__anext__()
+        assert first["event"] == "candidates" and first["units"] and asked == []   # lexical, before the vector
+        rest = [e async for e in stream]
+        assert asked == ["find a work email"] and rest[-1]["event"] == "judged"
+    finally:
+        find_index.reset()
