@@ -813,8 +813,10 @@ Example (an agent calling Intercom with no key on its box):
   (`treg scan/upload clis`), shell mode (`treg shell`), and the local-run security sandbox; and
   [Team access control]({BASE}/tutorial-access.md) - which tools each member may use + the
   local-run on/off dial.
+<!--hosted-->
 - [GTM engineering playbook]({BASE}/gtm-engineering.md): 16 chapters from ICP to rollout, each with a
-  prompt to run, a recorded run with its bill, and the rule to keep. Read it before building a lead list.
+  prompt and a rule; the data steps (lists, enrichment, signals, inbound) were tested on recorded runs.
+<!--/hosted-->
 - [The official Claude skill]({BASE}/skill.md): the 3-persona (consumer/creator/admin) skill —
   save it to `~/.claude/skills/treg/SKILL.md` (install.sh does this automatically).
 - [Web dashboard]({BASE}/): sign in and manage everything in the browser (tools, secrets,

@@ -3311,7 +3311,7 @@ async def llms_txt(request: Request, db: AsyncSession = Depends(get_session)):
     from .hub_gate import hub_visible
     hub_on = (await hub_visible(request, db))[0]
     base = get_settings().public_url.rstrip("/")
-    return PlainTextResponse(_fill_headline(_strip_routed(f.read_text(encoding="utf-8"), hub_on)).replace("{BASE}", base),
+    return PlainTextResponse(_strip_hosted(_fill_headline(_strip_routed(f.read_text(encoding="utf-8"), hub_on))).replace("{BASE}", base),
                              media_type="text/plain; charset=utf-8")
 
 
@@ -3531,6 +3531,15 @@ def _fill_headline(text: str) -> str:
     return text.replace("{ENDPOINTS}", endpoints).replace("{PROVIDERS}", str(providers))
 
 
+def _strip_hosted(text: str) -> str:
+    """`<!--hosted-->…<!--/hosted-->` marks links to pages that exist only on the hosted deployment
+    (`_hosted`). Hosted, the markers go and the content stays; self-hosted, the whole block goes, so a
+    bundled page or agent-facing file never sends a reader to a 404 on the registry serving it."""
+    if _hosted():
+        return re.sub(r"<!--/?hosted-->\n?", "", text)
+    return re.sub(r"<!--hosted-->.*?<!--/hosted-->\n?", "", text, flags=re.S)
+
+
 def _serve_md(name: str, hub_on: bool | None = None) -> PlainTextResponse:
     """Serve a bundled markdown file as inline text (so "open in new tab" shows it, not a download),
     with the serving domain templated in. Backs the 'copy markdown' buttons on the docs pages."""
@@ -3665,7 +3674,7 @@ def _static_page(name: str, request: Request) -> Response:
     if not page.exists():
         raise HTTPException(status_code=404, detail=f"{name} not bundled")
     base = get_settings().public_url.rstrip("/")
-    html = _fill_headline(page.read_text(encoding="utf-8")).replace("{BASE}", base)
+    html = _strip_hosted(_fill_headline(page.read_text(encoding="utf-8"))).replace("{BASE}", base)
     etag = '"' + hashlib.sha256(html.encode("utf-8")).hexdigest()[:32] + '"'
     headers = {"Cache-Control": "no-cache", "ETag": etag}
     # An edge that compresses the body weakens the tag (W/"..."), so compare the opaque part.
@@ -3922,7 +3931,7 @@ async def jev_xboost_judge(request: Request, db: AsyncSession = Depends(get_sess
 _BLOG_LAUNCHES: list[tuple[str, str, str, str]] = [
     # (slug, title, date, one-line blurb)
     ("/gtm-engineering", "The GTM Engineering Playbook", "2026-09-30",
-     "16 chapters from ICP to rollout, each with a prompt to run, a recorded run with its bill, and the rule to keep."),
+     "16 chapters from ICP to rollout: a prompt and a rule in each, and the data steps tested on recorded runs."),
     ("/leads-signals", "Claude for Monitor Leads Signal", "2026-09-28",
      "Your agent checks hiring, funding, job changes and social chatter on a schedule, and reports what's new."),
     ("/jev", "How to use Jev", "2026-09-20",

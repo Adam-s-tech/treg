@@ -60,7 +60,14 @@ async def test_hub_404s_on_a_self_hosted_registry(monkeypatch):
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://registry") as c:
             assert (await c.get(PATH)).status_code == 404
+            assert (await c.get(PATH + ".md")).status_code == 404
             assert f"{PATH}<" not in (await c.get("/sitemap.xml")).text
+            # Nothing served on a self-hosted registry may send a reader (or an agent) to the 404.
+            for page in ("/", "/resources", "/people-search", "/leads-signals", "/grokbot", "/fable",
+                         "/use-cases/lead-enrichment-for-ai-agents", "/llms.txt"):
+                r = await c.get(page)
+                assert "/gtm-engineering" not in r.text, page
+                assert "<!--hosted-->" not in r.text, page
     finally:
         get_settings.cache_clear()
 

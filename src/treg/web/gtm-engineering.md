@@ -3,8 +3,8 @@
 Updated 30 Sep 2026. The page: {BASE}/gtm-engineering
 
 Sixteen chapters, from defining your ICP to rolling automation out safely. Each starts from a problem GTM
-engineers post about on Reddit and LinkedIn, then gives the play, a prompt to run in your agent, what happened
-when we ran it, and the rule to keep. The data steps were run on one ICP: US B2B software, 51-200 staff, selling to
+engineers post about on Reddit and LinkedIn, then gives the play, a prompt to run in your agent, and the rule
+to keep, and for every data step, what happened when we ran it. The data steps were run on one ICP: US B2B software, 51-200 staff, selling to
 sales, marketing, revenue or growth teams or running outbound themselves; the buyer is marketing or growth. Six recorded runs, 502 logged calls,
 $5.03 metered in total. Process chapters (sending, CRM join, rollout) are method, not runs.
 
