@@ -16,6 +16,7 @@ related:
   - interface/seo.md
   - architecture/catalog.md
   - architecture/search-experiment.md
+  - architecture/find.md
 ---
 
 # Web dashboard
@@ -91,7 +92,11 @@ this page keeps what no single file shows. The look follows the root `design.md`
   title (`capability_titles`, [catalog](../architecture/catalog.md)), the full description on hover.
 - A comparison leads with Auto-route when a routed tool exists; its counts are shown in bands, never exact.
 - The tool drawer is not modal; its primary button is the agent's next step (`drawerNext`). Finding
-  tools for a job is [search-experiment](../architecture/search-experiment.md).
+  tools for a job is [find](../architecture/find.md): the answer's events carry `engine`, `reason`
+  and `platform`, and `search_answered` sends `engine`, `reason` and `platform_choice` to PostHog. A
+  job's fit says whether it is the job's or one vendor's (`fit_from`), a folded job reads "4 of 30
+  providers", and an empty answer says whether treg lacks it (`gap`, with a request link) or the text
+  did not read as a job.
 - The `catalog-v2` experiment shows the old ledger (`LegacyPlatformPage.vue`) to its control arm; it
   ends by deleting that page, `state/catalogExperiment.js` and the arm checks.
 

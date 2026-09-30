@@ -27,8 +27,9 @@ unit's id and its capability id; `expect` lists the acceptable verdicts, `|`-sep
 (`platform:<slug>` or `provider:<name>`) is what a name verdict must name. Every gold must still
 match something in the catalog, or the bench refuses to run.
 
-Engines: `v1` is today's `application.catalog_find` (lexical `store.candidates`, one judge request,
-the verdict of `catalog_find.judge`). `logged` scores the verdict and top rows a JSONL case carries
+Engines: `v1` is the endpoint-recall find (lexical `store.candidates`, one judge request, the
+verdict of `catalog_find.judge`); `v2` the job-first one (`recall_v2`, `answer_v2`), whose recall
+tier also counts the vendors its job units reach. `logged` scores the verdict and top rows a JSONL case carries
 from the find log, with no calls: the scorer's check against the production record.
 """
 
@@ -171,6 +172,7 @@ class DiskJudge:
 class Answer:
     candidates: list[str]                 # unit ids the judge reads, in recall order
     recall_ms: float = 0.0
+    reach: list[str] | None = None        # endpoint ids those units reach (v2: a job's members)
     verdict: str = ""
     kept: list[tuple[str, float]] = field(default_factory=list)   # judged rows at or over keep, best first
     shown: list[str] | None = None        # endpoint ids on the page, in order; None = not known
@@ -212,6 +214,37 @@ class V1:
         return a
 
 
+class V2:
+    """Job-first find: `catalog_find.recall_v2` units, one judge request, `decide` and `expand`
+    (no evidence: the rerank orders by core and price)."""
+
+    def __init__(self, cat: store.Catalog):
+        self.cat = cat
+
+    def _recall(self, case: Case):
+        t0 = time.perf_counter()
+        cands = catalog_find.recall_v2(case.q, self.cat, _provider_display)
+        ms = (time.perf_counter() - t0) * 1000
+        reach = [c["id"] for c in catalog_find._candidate_endpoints(cands, self.cat)]
+        return cands, Answer(candidates=[c.unit.id for c in cands], recall_ms=ms, reach=reach)
+
+    def recall(self, case: Case) -> Answer:
+        return self._recall(case)[1]
+
+    async def answer(self, case: Case) -> Answer:
+        cands, a = self._recall(case)
+        found = await catalog_find.answer_v2(case.q, cands, self.cat, _provider_display)
+        j = found.judgement
+        a.verdict = found.verdict
+        a.kept = [(c.unit.id, round(p, 3)) for c, p in found.kept]
+        a.shown = [r["ep"]["id"] for r in found.rows]
+        if found.name:
+            key = found.name.label if found.name.kind == "product" else found.name.keys[0]
+            a.named = f"{found.name.kind}:{key}"
+        a.tokens_in, a.judge_ms, a.error = j.tokens_in, j.ms, j.error
+        return a
+
+
 class Logged:
     """The verdict and top rows the find log recorded for a JSONL case; no recall, no calls."""
 
@@ -230,7 +263,7 @@ class Logged:
                       kept=[(i, 1.0) for i in top], shown=None)
 
 
-ENGINES = {"v1": V1, "logged": Logged}
+ENGINES = {"v1": V1, "v2": V2, "logged": Logged}
 
 
 # ---- scoring -------------------------------------------------------------------------------------
@@ -300,7 +333,7 @@ def summarize(cases: list[Case], answers: dict[str, Answer], tier: str, view: Vi
     recall_ms = [answers[c.id].recall_ms for c in cases if answers[c.id].candidates]
     out["recall_ms"] = {"p50": pct(recall_ms, 0.5), "p95": pct(recall_ms, 0.95)}
     jobs = {c.id: j for c in cases
-            if (j := coverage_job(c, view, answers[c.id].shown if tier == "judge" else answers[c.id].candidates,
+            if (j := coverage_job(c, view, answers[c.id].shown if tier == "judge" else _reach(answers[c.id]),
                                   *(_baseline_ids(baseline, c.id, tier),)))}
     if tier == "recall":
         gold_cases = [c for c in cases if c.gold]
@@ -311,7 +344,7 @@ def summarize(cases: list[Case], answers: dict[str, Answer], tier: str, view: Vi
             by[c.stratum][1] += 1
         out["recall"] = [sum(v[0] for v in by.values()), sum(v[1] for v in by.values())]
         out["by_stratum"] = by
-        out["coverage"] = coverage([(c, answers[c.id].candidates) for c in cases], view, jobs)
+        out["coverage"] = coverage([(c, _reach(answers[c.id])) for c in cases], view, jobs)
         return out
     for c in cases:
         ok, _ = score(c, answers[c.id], view)
@@ -336,11 +369,15 @@ def summarize(cases: list[Case], answers: dict[str, Answer], tier: str, view: Vi
     return out
 
 
+def _reach(a: Answer) -> list[str]:
+    return a.reach if a.reach is not None else a.candidates
+
+
 def _baseline_ids(baseline: dict | None, cid: str, tier: str) -> list[str] | None:
     row = (baseline or {}).get("cases", {}).get(cid)
     if not row:
         return None
-    return row.get("shown") if tier == "judge" else row.get("candidates")
+    return row.get("shown") if tier == "judge" else row.get("reach") or row.get("candidates")
 
 
 # ---- report --------------------------------------------------------------------------------------
@@ -432,6 +469,8 @@ def bench(cases: list[Case], *, engine: str, tier: str, cache: Path | None = Non
     for c in cases:
         a = answers[c.id]
         row = {"q": c.q, "stratum": c.stratum, "candidates": a.candidates}
+        if a.reach is not None:
+            row["reach"] = a.reach
         if tier == "recall":
             row["hit"] = any(view.is_gold(i, c.gold) for i in a.candidates) if c.gold else None
         else:

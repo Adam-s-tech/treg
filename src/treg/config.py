@@ -349,6 +349,19 @@ class Settings(BaseSettings):
     # the wait, so the timeout is looser than an agent's search. Rate limits bound anonymous use.
     find_candidates: int = 60
     find_timeout_s: float = 6.0
+    # Which find answers: `v1` (endpoint recall, above), `v2` (recall by job: a unit per capability,
+    # every vendor listed once the job fits; docs/context/architecture/find.md), or `shadow` (v1 is
+    # served, v2 runs beside it and is only logged). One setting is the rollout and the rollback.
+    find_engine: str = "v1"
+    # v2's seats for the judge: jobs, representatives (a member whose own words fit better than its
+    # job's card), uncatalogued endpoints, and the jobs reserved for a platform the query names.
+    find_jobs: int = 25
+    find_delta: int = 10
+    find_raw: int = 10
+    find_platform_seats: int = 8
+    # The judge's confidence that no platform covers the task at or above which v2 caps the verdict
+    # at closest, and calls it a catalog gap when nothing fits well.
+    find_gap_min: float = 0.5
     # The judge's probability that a find query is only a name ("google", "semrush") at or above
     # which, with no strong fit, the answer is what that platform or provider offers.
     find_name_min: float = 0.8

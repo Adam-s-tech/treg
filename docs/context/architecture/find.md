@@ -1,0 +1,178 @@
+---
+title: Find tools for a job - /catalog/find, recall by job and one judge request
+status: building
+sources:
+  - src/treg/application/catalog_find.py
+  - src/treg/domain/catalog/find_recall.py
+  - src/treg/alembic/versions/0054_find_v2_log.py
+  - scripts/find_bench.py
+  - tests/fixtures/find_bench.yaml
+  - tests/test_find_bench.py
+  - tests/test_find_recall.py
+  - tests/test_catalog_find.py
+  - frontend/src/state/find.js
+  - frontend/src/components/FindAnswer.vue
+  - frontend/src/pages/SearchPage.vue
+related:
+  - architecture/search-experiment.md
+  - architecture/catalog.md
+  - interface/dashboard.md
+---
+
+# Find tools for a job
+
+`GET /catalog/find?q=` (`application/catalog_find.py`) answers a person who describes what they want
+done: the dashboard's Catalog search box (Enter, or a pause in typing) and the public `/search` page.
+It is the discovery experiment's mechanism ([search-experiment](search-experiment.md): a loose
+recall read by one `infra.judge` request, bucketed at `search_judge_keep` / `search_judge_high`)
+served to people. Agents are unaffected: `/catalog/search` and MCP `catalog_search` answer exactly
+as before, and nothing here touches `store.search`, its scoring or the evidence rerank.
+
+## Two engines, one switch
+
+`find_engine` picks the answer, and is the rollout and the rollback:
+
+| value | served | logged |
+|---|---|---|
+| `v1` (default) | endpoint recall (below) | one `SearchLog` row, `engine=v1` |
+| `v2` | job recall (below) | one row, `engine=v2` |
+| `shadow` | v1 | both: v2 runs beside v1, its judge request in parallel, and never reaches the page |
+
+Both stream the same two NDJSON events - `candidates` as soon as recall is computed, `judged` when
+the judge answers - so the pages animate the wait on the first. The judge abstains rather than
+fails; an abstaining judge falls back to the keyword page (`store.rank_band`, 25 rows, unjudged,
+verdict `keyword`), never to an error. `admit` rate limits per IP and per deployment through
+`ratestore` in a session committed and closed before the judge is called, and the evidence read
+(below) happens after the judge has answered: no request holds a connection while Jev thinks.
+
+## v1: endpoint recall
+
+`store.candidates` (every concrete endpoint hitting one required token, lexical order, cut at
+`find_candidates`) read by one judge request; a candidate question carries `FIT_CRITERIA`, whose
+`false` side includes "the task only names a product, company or platform", and the same request
+asks one extra Noul, whether the text is only a name. Verdicts: `strong` (a row at or over high),
+`closest` (kept rows, none strong), `none`, `keyword`, or `name` (no strong fit and the judge reads
+a name, or it is exactly a platform's name: the platforms whose label contains it, else a provider's
+endpoints, unjudged).
+
+Its weakness is the unit. A job sold by thirty vendors either spends thirty of the judge's seats or
+none, and the page lists only the vendors the lexical order happened to reach.
+
+## v2: recall by job
+
+`domain/catalog/find_recall.py`, pure, built once per `Catalog` and cached on it
+(`Catalog._find_index`, the `_search_fields` pattern). Three kinds of unit:
+
+- **job**: a capability. Its card is the id's words, the description, the platform's label and the
+  first names its members go by. One unit carries every vendor.
+- **representative**: a member endpoint whose own card scored higher than its job's in some
+  channel. Judged on its own: the vendor's wording is closer to the query than the job's, so the
+  job may not be what it does (a personal-email finder filed under work email). A one-vendor job
+  has none. The long-term fix for a member that does another job is its own capability.
+- **uncatalogued endpoint**: no capability; its own unit.
+
+Only the browse surface (`store.browsable`, no routed parents). A first-party endpoint may share its
+capability's id, so the index keeps jobs (`job_pos`) and endpoints (`pos`) apart.
+
+**Channels.** A lexical channel scores each unit with the idf of every query word its card holds as
+a whole word: folded (NFKD, diacritics off, CJK kept), stopwords and single letters dropped, lightly
+stemmed (the forms of one verb agree, "scraping" and "scrape"), `aliases.yaml` phrases matching when
+all their words do, a platform's slug counting double. A word of five letters or more may also be
+the prefix of a word in a unit's id, platform or provider names, at half weight ("scrap" starts
+every Scrapecreators row). A semantic channel takes one similarity per unit from the caller and is
+off while none is given. Each channel max-pools a job over its members and remembers which member
+won; ties go to the unit whose own card scored higher, so a common word does not seat the jobs that
+merely have one member mentioning it.
+
+**Fusion and seats.** Each channel's top 300 fuse by reciprocal rank (k=60). Seats: the jobs on a
+platform the query names first (`find_platform_seats`), then the best jobs to `find_jobs`, then the
+representatives of those jobs in fused order (`find_delta`), then uncatalogued endpoints
+(`find_raw`). `?platform=` keeps one shelf's units.
+
+**The judge.** One request (`judge_v2`): a job reads `infra.judge.job_view` (id, description,
+platform, vendor count, a few names) and is asked whether tools that do the job accomplish the task,
+under `JOB_CRITERIA`; an endpoint keeps the v1 question and view. Two extra questions ride along:
+the v1 name Noul, and off a shelf a Choice over the platforms plus `none` (`platform_question`). No
+second model request, ever; the Choice only classifies and records.
+
+**The name table** (`find_recall.name_of`) is string lookup, because a name is a lookup, not a
+judgement: a platform (every query word is, or starts, a word of its label or slug; exact first,
+then one whose name starts with the query, then the shelves' featured order, then most jobs), else
+a provider (its name exactly at any length, "exa"; a prefix from four letters), else a product or
+model name. Product names come from endpoint names on the `AI generation` platforms: words two or
+more of those names share and names elsewhere rarely use ("gemini", "seedance", "flux"; not
+"image"), and adjacent pairs of them ("nano banana"), matched with spaces and hyphens folded away.
+On a shelf only a provider there counts.
+
+## v2: the verdict
+
+`decide`, the first rule that holds:
+
+| # | condition | verdict |
+|---|---|---|
+| 1 | the judge abstained | `keyword` |
+| 2 | the query is exactly a name, or a name's prefix and name p >= `find_name_min` | `name` (a name wins over strong) |
+| 3 | no strong fit, at most three words, the name table matches | `name` (a typed prefix) |
+| 4 | no strong fit, name p >= `find_name_min`, no name matched, nothing kept | `none`, reason `gap` |
+| 5 | the platform Choice is `none` with confidence >= `find_gap_min` | top under 0.6: `none`, `gap`; else `closest`, never strong |
+| 6 | a fit at or over high | `strong` |
+| 7 | a fit at or over keep | `closest` |
+| 8 | otherwise | `none`, reason `not_task` |
+
+Rule 5 sits before the strong rule: a confident "no platform provides this" caps the answer.
+
+**Rows** (`expand`). Units best first. A job at or over high lists every vendor, in the evidence
+rerank's order (`store.rerank`: measured success, core, price), each row carrying the job's fit and
+`fit_from: job`; the pages show a job as one line with its vendor count, so no vendor is cut. A job
+between keep and high shows its first five and stamps `children_hidden` (the rest) on its first
+row. An endpoint unit at or over keep is its own row with its own fit, `fit_from: endpoint`; a
+member judged on its own keeps its own fit inside its job, and is left out when that fit is under
+keep. A name's page (`name_page`) is the named platform's endpoints and those the name also
+matches (twelve platforms, forty rows each), a provider's, or every endpoint carrying the product
+name by platform, jobs first, unjudged. The evidence (measured success per endpoint) is read by the
+route's `EndpointObservationReader` only for a strong or closest answer, after the judge.
+
+**Events.** `candidates` gains `units: [{kind, id}]` (its `candidates` list is every endpoint the
+units reach, so the pages light the right platforms and vendors); `judged` gains `reason` (on
+`none`), `platform: {choice, confidence}`, `engine: "v2"`, and rows gain `fit_from` and
+`children_hidden`. `named` is `platform`, `provider` or `product`.
+
+## What is recorded
+
+`SearchLog` (mode `find`, source `web-find`, no identity) with `engine`; v2 also writes
+`platform_choice`, `platform_conf`, `name_p`, `recall_ms`, and `units` as `[kind, id, p]`;
+`baseline_ids` is every endpoint the units reach, `judged` the kept units. `embed_ms` and
+`embed_error` are reserved for the semantic channel. `SearchMiss` gains `reason` (`gap`,
+`not_task`, `judge_off` for an empty keyword fallback). Migration 0054. Fire-and-forget through
+`audit`, like every row there.
+
+## The pages
+
+`state/find.js` keeps `reason`, `platform` and `engine` from the answer and sends `engine`,
+`reason` and `platform_choice` with `search_answered`. A job group's fit says where it came from
+(`findFitTitle`), its vendor count says "4 of 30" when the server folded the rest
+(`findProvidersText`), and `/search`, which lays vendors out as cards, adds a line for each folded
+job with a way to the whole list on its shelf. An empty answer says which kind it is: a gap ("treg
+does not have this kind of data or action yet"), with a request link, or not a job ("try describing
+the data you want"), without one.
+
+## Measuring it
+
+`scripts/find_bench.py` scores an engine against labeled queries: a gold regex over unit and
+capability ids, the acceptable verdicts, and for a name what it must name. The `recall` tier calls
+nothing (is a gold unit among the candidates; how many of the gold job's vendors the candidates
+reach); the `judge` tier runs the whole answer and reports verdict accuracy by stratum,
+false-strong, false-none, top-1 and MRR, tokens, latency and **job coverage** - of a gold job with
+two or more vendors, how many the page shows (micro, macro, fully covered). Coverage is the first
+number: it measures what a person gets. Judge answers are cached on disk by (model, query, unit
+ids, questions) with the latency and tokens they cost live, `--baseline` diffs two runs case by
+case, and `--engine logged` scores what a JSONL case's find log recorded. CI runs the recall tier on
+the synthetic `tests/fixtures/find_bench.yaml`; a label that no longer matches the catalog stops the
+run. The labeled real queries live outside this repository, and a score on the set the rules were
+settled on is optimistic.
+
+## Not here
+
+- No semantic channel yet: `recall` takes one, nothing supplies it.
+- No generated card expansions, no vectors in the repository, no model loaded in the process.
+- No second model request per find, and no probability shown to agents.

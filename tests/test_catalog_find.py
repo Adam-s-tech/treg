@@ -193,3 +193,166 @@ async def test_an_unknown_shelf_is_a_404(clients, monkeypatch):
     _on(monkeypatch)
     r, _ = await _find_on(clients, "anything at all", "no-such-shelf")
     assert r.status_code == 404
+
+
+# ==== v2: recall by job (find_engine v2 | shadow) =================================================
+from treg.application import catalog_find as F  # noqa: E402
+from treg.domain.catalog import find_recall as fr  # noqa: E402
+from treg.domain.catalog import store as catalog_store  # noqa: E402
+from tests.test_find_recall import _cat  # noqa: E402
+
+
+def _fake_v2(probs_by_id, seen=None, name=0.0, plat=("people", 0.9)):
+    """A judge for units: a job is scored by its capability id, an endpoint by its own id."""
+    async def fake(query, cands, **kw):
+        if seen is not None:
+            seen.append((query, cands, kw))
+        extra = {"name": name}
+        if "plat" in (kw.get("extra") or {}):
+            extra["plat"] = {"choice": plat[0], "confidence": plat[1], "probabilities": {}}
+        return judge_infra.Judgement(probs=[probs_by_id.get(c["id"], 0.0) for c in cands], ms=9,
+                                     tokens_in=90, tokens_out=4, extra=extra)
+    return fake
+
+
+def _judged(cands, probs, name=0.0, plat=None):
+    extra = {"name": name}
+    if plat:
+        extra["plat"] = {"choice": plat[0], "confidence": plat[1], "probabilities": {}}
+    return judge_infra.Judgement(probs=[probs.get(c.unit.id, 0.0) for c in cands], ms=1, extra=extra)
+
+
+def _decide(q, probs, **kw):
+    cat = _cat()
+    ix = fr.build(cat)
+    cands = fr.recall(q, ix, cat.aliases)
+    return F.decide(q, cands, _judged(cands, probs, **kw), ix), cat
+
+
+def test_v2_rules_in_order():
+    abstain = F.decide("x", [], judge_infra.Judgement(probs=None, ms=1), fr.build(_cat()))
+    assert abstain.verdict == F.KEYWORD
+    # exactly a name wins over a strong fit ("zerobounce" is a name page, not email verify)
+    found, _ = _decide("pdl", {"people.search": 0.95})
+    assert found.verdict == F.NAME and found.name.keys == ("pdl",)
+    # a prefix is a name when the judge reads one, or when the query is short and nothing is strong
+    assert _decide("scrapecr", {}, name=0.9)[0].verdict == F.NAME
+    assert _decide("tikt", {"tiktok.video.comments": 0.5})[0].verdict == F.NAME
+    assert _decide("tiktok vid", {"tiktok.video.comments": 0.8})[0].verdict == F.STRONG
+    # a name the catalog does not carry, and nothing kept: a gap
+    gap = _decide("zzqx widgets", {}, name=0.95)[0]
+    assert (gap.verdict, gap.reason, gap.kept) == (F.NONE, F.GAP, [])
+    # no platform, confidently: a gap under 0.6, else capped at closest - never strong
+    q = "find a work email"
+    assert _decide(q, {"people.email.find": 0.5}, plat=("none", 0.8))[0].reason == F.GAP
+    assert _decide(q, {"people.email.find": 0.9}, plat=("none", 0.8))[0].verdict == F.CLOSEST
+    assert _decide(q, {"people.email.find": 0.9}, plat=("none", 0.3))[0].verdict == F.STRONG
+    assert _decide(q, {"people.email.find": 0.5})[0].verdict == F.CLOSEST
+    not_task = _decide(q, {"people.email.find": 0.2})[0]
+    assert (not_task.verdict, not_task.reason) == (F.NONE, F.NOT_TASK)
+
+
+def test_v2_a_strong_job_lists_every_vendor_and_a_judged_member_keeps_its_own_fit():
+    found, cat = _decide("find someone's personal gmail",
+                         {"people.email.find": 0.9, "perso.people.email.find": 0.2})
+    assert found.verdict == F.STRONG and "perso.people.email.find" in [c.unit.id for c in found.cands]
+    rows = F.expand(found, cat, {})
+    # every vendor of the job at its fit, except the member whose own words were judged a miss
+    assert {(r["ep"]["id"], r["p"], r["fit_from"]) for r in rows} == {
+        ("hunter.people.email.find", 0.9, F.FIT_FROM_JOB), ("leadco.people.email.find", 0.9, F.FIT_FROM_JOB)}
+    found, cat = _decide("find someone's personal gmail",
+                         {"people.email.find": 0.9, "perso.people.email.find": 0.8})
+    rows = F.expand(found, cat, {})
+    assert ("perso.people.email.find", 0.8, F.FIT_FROM_ENDPOINT) in {(r["ep"]["id"], r["p"], r["fit_from"]) for r in rows}
+    assert len(rows) == 3 and not any(r.get("children_hidden") for r in rows)
+
+
+def test_v2_a_job_under_high_folds_to_its_first_vendors(monkeypatch):
+    monkeypatch.setattr(F, "FOLDED", 2)
+    found, cat = _decide("work email", {"people.email.find": 0.5})
+    rows = F.expand(found, cat, {"leadco.people.email.find": {"ok_rate": 1.0}})
+    assert [r["ep"]["id"] for r in rows] == ["leadco.people.email.find", "hunter.people.email.find"]  # measured first
+    assert rows[0]["children_hidden"] == 1
+    found, cat = _decide("work email", {"people.email.find": 0.9})
+    assert len(F.expand(found, cat, {})) == 3                    # at high: every vendor
+
+
+def test_v2_name_pages():
+    cat = _cat()
+    ix = fr.build(cat)
+    assert {e["platform"] for e in F.name_page(fr.name_of("tiktok", ix), "tiktok", cat)} == {"tiktok", "tiktok-ads"}
+    assert F.name_page(fr.name_of("tiktok", ix), "tiktok", cat)[0]["platform"] == "tiktok"
+    assert {e["provider"] for e in F.name_page(fr.name_of("hunter", ix), "hunter", cat)} == {"hunter"}
+    assert {e["id"] for e in F.name_page(fr.name_of("flux", ix), "flux", cat)} == {"replicate.flux.schnell", "falco.flux.pro"}
+
+
+async def test_v2_streams_units_and_the_answer_and_logs_its_readings(clients, monkeypatch):
+    seen = []
+    _on(monkeypatch, find_engine="v2")
+    monkeypatch.setattr(judge_infra, "judge", _fake_v2({"people.email.find": 0.92}, seen))
+    q = "find the work email of a hotel manager"
+    r, (first, second) = await _find(clients, q)
+    assert r.status_code == 200
+    units = {(u["kind"], u["id"]) for u in first["units"]}
+    assert ("job", "people.email.find") in units and len(first["units"]) <= 45
+    assert {"id", "platform", "provider"} == set(first["candidates"][0])
+    (_, views, kw), = seen
+    assert kw["job_criteria"] == F.JOB_CRITERIA and set(kw["extra"]) == {"name", "plat"}
+    assert any(v.get("job") for v in views) and [v["id"] for v in views] == [u["id"] for u in first["units"]]
+
+    assert second["verdict"] == "strong" and second["engine"] == "v2" and second["reason"] == ""
+    assert second["platform"] == {"choice": "people", "confidence": 0.9}
+    ix = fr.index(catalog_store.load())
+    members = set(ix.units[ix.job_pos["people.email.find"]].members)
+    assert {row["id"] for row in second["rows"]} == members
+    assert all(row["p"] == 0.92 and row["fit_from"] == "job" for row in second["rows"])
+
+    await audit.drain()
+    async with session_maker() as s:
+        (row,) = (await s.execute(select(SearchLog))).scalars().all()
+    assert row.engine == "v2" and row.platform_choice == "people" and row.platform_conf == 0.9
+    assert row.name_p == 0.0 and row.recall_ms is not None
+    assert ["job", "people.email.find", 0.92] in row.units and dict(row.judged) == {"people.email.find": 0.92}
+
+
+async def test_v2_empty_answers_say_why(clients, monkeypatch):
+    _on(monkeypatch, find_engine="v2")
+    monkeypatch.setattr(judge_infra, "judge", _fake_v2({}, plat=("none", 0.9)))
+    _, (_, judged) = await _find(clients, "book a table for two tonight")
+    assert (judged["verdict"], judged["reason"], judged["rows"]) == ("none", "gap", [])
+    monkeypatch.setattr(judge_infra, "judge", _fake_v2({}))
+    _, (_, judged) = await _find(clients, "book a table for two tonight")
+    assert (judged["verdict"], judged["reason"]) == ("none", "not_task")
+    await audit.drain()
+    async with session_maker() as s:
+        assert [m.reason for m in (await s.execute(select(SearchMiss))).scalars()] == ["gap", "not_task"]
+    monkeypatch.setattr(judge_infra, "judge", _abstain)
+    _, (_, judged) = await _find(clients, "backlinks for a domain")
+    assert judged["verdict"] == "keyword" and judged["rows"] and all(r["p"] is None for r in judged["rows"])
+
+
+async def test_v2_on_a_shelf_reads_that_shelf_and_asks_no_platform(clients, monkeypatch):
+    seen = []
+    _on(monkeypatch, find_engine="v2")
+    monkeypatch.setattr(judge_infra, "judge", _fake_v2({}, seen))
+    _, (first, _) = await _find_on(clients, "enrich a company from its domain", "companies")
+    assert first["units"] and {c["platform"] for c in first["candidates"]} == {"companies"}
+    (_, _, kw), = seen
+    assert set(kw["extra"]) == {"name"}
+
+
+async def test_shadow_serves_v1_and_logs_both_engines(clients, monkeypatch):
+    _on(monkeypatch, find_engine="shadow")
+    judged_v1 = _fake_judge({"tiingo.daily.prices": 0.91})
+    judged_v2 = _fake_v2({"stocks.eod": 0.9})
+
+    async def either(query, cands, **kw):
+        return await (judged_v2 if kw.get("job_criteria") else judged_v1)(query, cands, **kw)
+    monkeypatch.setattr(judge_infra, "judge", either)
+    _, (first, second) = await _find(clients, JOB)
+    assert "units" not in first and "engine" not in second            # the v1 answer, as served today
+    assert [r["id"] for r in second["rows"]] == ["tiingo.daily.prices"]
+    await audit.drain()
+    async with session_maker() as s:
+        rows = (await s.execute(select(SearchLog))).scalars().all()
+    assert sorted(r.engine for r in rows) == ["v1", "v2"]

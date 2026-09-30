@@ -11,7 +11,7 @@ cases:
   - {q: "list product managers at fintech companies in Toronto", stratum: strong, gold: '^people\.search', expect: strong}
   - {q: "which websites link to my competitor's domain", stratum: strong, gold: '^web\.(backlinks|linking_domains)', expect: strong}
   - {q: "monthly search volume for a list of keywords", stratum: strong, gold: '^google\.keywords\.volume', expect: strong}
-  - {q: "get the transcript of a youtube video", stratum: strong, gold: '^youtube\.video\.captions', expect: strong}
+  - {q: "get the transcript of a youtube video", stratum: strong, gold: 'youtube.*(captions|transcript)', expect: strong}
   - {q: "search reddit for posts about standing desks", stratum: strong, gold: '^reddit\.search\.posts', expect: strong|closest}
   - {q: "generate a product photo of a ceramic mug on a wooden table", stratum: strong, gold: 'image-gen|stable-diffusion|flux|text-to-image', expect: strong}
   - {q: "turn a short script into a spoken voiceover", stratum: strong, gold: '^voice-gen', expect: strong|closest}

@@ -340,6 +340,9 @@ contract:
   [discovery experiment](../architecture/search-experiment.md) on the MCP search tools; it is also
   its kill switch. Needs `TREG_TYPESAFE_API_KEY`; `TREG_TYPESAFE_TIMEOUT_S` bounds what the judge
   may add to a search. Off by default, and off whenever the key is empty.
+- `TREG_FIND_ENGINE` (`v1` | `v2` | `shadow`) picks what `/catalog/find` answers with (see
+  [find](../architecture/find.md)); `shadow` serves v1 and logs v2 beside it, at a second judge
+  request per find. Rolling back is setting it to `v1`.
 
 Exact treg.to values, funded accounts and rollout instructions live in the private
 [provider-capacity runbook](https://github.com/superdesigndev/treg-internal/blob/main/docs/production/provider-capacity.md).

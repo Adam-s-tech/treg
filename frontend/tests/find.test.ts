@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { isJobQuery } from '../src/state/find.js'
+import find, { findNoneText, isJobQuery } from '../src/state/find.js'
 import findComputed from '../src/state/findComputed.js'
 
 test('a name filters, a sentence or a question asks', () => {
@@ -28,4 +28,25 @@ test.each(['keyword', 'name'])('unjudged %s rows keep their order and carry no f
   const groups = findComputed.findGroups.call(vm)
   expect(groups.map(g => g.label)).toEqual(['b job', 'a job'])
   expect(findComputed.findStrong.call({ findGroups: groups, find: { high: 0.7 } })).toEqual([])
+})
+
+test('a group knows where its fit came from and how many vendors were folded away', () => {
+  const rows = [
+    { ...row('a.x', 'people.email.find', 0.55, 'people'), fit_from: 'job', children_hidden: 18 },
+    { ...row('b.x', 'people.email.find', 0.55, 'people'), fit_from: 'job' },
+    { ...row('c.x', 'people.email.find', 0.8, 'people'), fit_from: 'endpoint' },
+  ]
+  const [g] = findComputed.findGroups.call({ find: { rows } })
+  expect([g.p, g.fitFrom, g.hidden]).toEqual([0.8, 'endpoint', 18])
+  const vm = { findProviders: find.findProviders }
+  expect(find.findProvidersText.call(vm, { rows: rows.map((r, i) => ({ ...r, provider: 'v' + i })), hidden: 18 }))
+    .toBe('3 of 21 providers')
+  expect(find.findFitTitle.call({}, g)).toBe("Fit of one provider's own tool: 80%")
+  expect(find.findFitTitle.call({}, { p: 0.55, fitFrom: 'job' })).toBe('Fit for this job: 55%')
+})
+
+test('an empty answer says whether treg lacks it or the text is not a job', () => {
+  expect(findNoneText('gap')).toMatch(/does not have this kind of data or action yet/)
+  expect(findNoneText('not_task')).toMatch(/does not read as a job/)
+  expect(findNoneText('')).toMatch(/does not read as a job/)
 })

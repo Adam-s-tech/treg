@@ -31,8 +31,10 @@ export default {
     <button class="fa-link" type="button" @click="findRun(find.q)">Try again</button></p>
 
   <p v-else-if="find.phase==='done' && nothing" class="fa-note">
-    Nothing in the catalog does this yet.
-    <button class="fa-link" type="button" @click="findRequestTool()">Request it</button> and it steers what we add next.</p>
+    <template v-if="find.verdict==='none' && find.reason">{{findNoneText()}}
+      <template v-if="find.reason==='gap'"> <button class="fa-link" type="button" @click="findRequestTool()">Request it</button> to move it up.</template></template>
+    <template v-else>Nothing in the catalog does this yet.
+      <button class="fa-link" type="button" @click="findRequestTool()">Request it</button> and it steers what we add next.</template></p>
 
   <template v-else-if="find.phase==='done'">
     <div class="fa-head">
@@ -56,9 +58,9 @@ export default {
       <template #cell-provs="{ row: g }"><span class="fa-provs" :title="g.rows.map(r=>r.provider_display||r.provider).join(', ')">
         <span class="fa-stack"><img v-for="p in findProviders(g).slice(0,3)" :key="p" :src="'/logos/'+p+'.svg'" alt=""
              @error="$event.target.style.visibility='hidden'"></span>
-        {{findProviders(g).length}} provider{{findProviders(g).length===1?'':'s'}}</span></template>
+        {{findProvidersText(g)}}</span></template>
       <template #cell-price="{ value }"><span class="fa-price">{{value}}</span></template>
-      <template #cell-fit="{ row: g }"><span v-if="g.p!=null" class="fa-fit" :title="'Fit for this job: '+Math.round(g.p*100)+'%'">
+      <template #cell-fit="{ row: g }"><span v-if="g.p!=null" class="fa-fit" :title="findFitTitle(g)">
         <i :style="{width:Math.round(g.p*100)+'%'}"></i></span></template>
       <template #cell-copy="{ row: g }"><button class="fa-copy" type="button" @click.stop="findCopy([g], g.key)" @keydown.enter.stop>
         {{findCopied===g.key ? 'Copied' : 'Copy for agent'}}</button></template>

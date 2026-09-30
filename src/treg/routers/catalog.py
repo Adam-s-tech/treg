@@ -381,7 +381,9 @@ async def catalog_search(request: Request, q: str = "", limit: int = 25,
 
 
 @app.get("/catalog/find")
-async def catalog_find(request: Request, q: str = "", platform: str = ""):
+async def catalog_find(request: Request, q: str = "", platform: str = "",
+                       observations: endpoint_stats.EndpointObservationReader = Depends(
+                           _endpoint_observation_reader)):
     """Open, rate limited: find the endpoints that can do a described JOB (application.catalog_find).
 
     Streams newline-delimited JSON, two events: `candidates` (the lexical recall, immediately) and
@@ -401,7 +403,8 @@ async def catalog_find(request: Request, q: str = "", platform: str = ""):
         raise HTTPException(status_code=429, detail="too many searches from here this hour; try again later or use /catalog/search")
 
     async def lines():
-        async for event in find.stream(query, _provider_display, platform or None):
+        async for event in find.stream(query, _provider_display, platform or None,
+                                       evidence=lambda ids: _observed_or_empty(observations, ids)):
             yield json.dumps(event) + "\n"
 
     return StreamingResponse(lines(), media_type="application/x-ndjson",

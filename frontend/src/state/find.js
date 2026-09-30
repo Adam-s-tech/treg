@@ -5,7 +5,10 @@ import { storageGet, storageSet, storageRemove } from './storage.js'
 // both pages draw the wait on the first one. State lives in `find` (data.js); the in-flight request's
 // AbortController lives in `elements` because it is a handle, not state to render.
 // The state of no search; `high` is the server's strong cut and arrives with each answer.
-export const FIND_EMPTY = {q:'', scope:'', phase:'idle', candidates:[], rows:[], verdict:'', named:'', read:0, high:1, error:'', auto:false}
+// `reason` says why a `none` is empty (gap: the catalog lacks it; not_task), `platform` is the judge's
+// platform pick and `engine` the server's find engine (v2 only; empty on v1).
+export const FIND_EMPTY = {q:'', scope:'', phase:'idle', candidates:[], rows:[], verdict:'', named:'', read:0, high:1, error:'', auto:false,
+  reason:'', platform:null, engine:''}
 const FIND_OPEN = 'treg-find-open'
 // The Catalog box searches by itself once typing pauses this long: people did not discover Enter.
 const FIND_DEBOUNCE_MS = 700
@@ -34,9 +37,23 @@ export function groupBest(items, keyOf, make, field){
 
 // Rows grouped by job: one group per capability on a platform (an uncatalogued endpoint is its own
 // job), its providers in the server's order. Shared by the Catalog list and the /search cards.
+// `hidden` counts the vendors the server folded away (a job under the strong cut shows its first
+// five); `fitFrom` says whether the group's fit is the job's or one vendor's own (`fit_from`).
 export function jobGroups(rows){
   return groupBest(rows, r=>(r.capability||r.id)+'|'+r.platform,
-    (r, key)=>({key, label:r.capability_description||r.name, platform:r.platform, platform_label:r.platform_label}), 'rows');
+    (r, key)=>({key, label:r.capability_description||r.name, platform:r.platform, platform_label:r.platform_label}), 'rows')
+    .map(g=>{
+      const best=g.rows.reduce((b, r)=>r.p!=null && (b==null || r.p>b.p) ? r : b, null);
+      return {...g, hidden:g.rows.reduce((n, r)=>n+(r.children_hidden||0), 0), fitFrom:best?.fit_from||''};
+    });
+}
+
+// Why an answer came back empty, in the person's terms: a gap is something treg does not carry yet;
+// anything else did not read as a job.
+export function findNoneText(reason){
+  return reason==='gap'
+    ? 'treg does not have this kind of data or action yet. We have noted it.'
+    : 'This does not read as a job. Try describing the data you want or the action to take.';
 }
 
 async function* ndjson(res){
@@ -99,9 +116,11 @@ export default {
         if(ctl.signal.aborted) return;
         if(ev.event==='candidates') this.find={...this.find, phase:'reading', candidates:ev.candidates||[]};
         else if(ev.event==='judged'){
-          this.find={...this.find, phase:'done', rows:ev.rows||[], verdict:ev.verdict, named:ev.named||'', read:ev.read||0, high:ev.high??1};
+          this.find={...this.find, phase:'done', rows:ev.rows||[], verdict:ev.verdict, named:ev.named||'', read:ev.read||0, high:ev.high??1,
+            reason:ev.reason||'', platform:ev.platform||null, engine:ev.engine||''};
           this.track('search_answered', {surface:this.findSurface(), verdict:ev.verdict, results:this.find.rows.length,
-            providers:new Set(this.find.rows.map(r=>r.provider)).size, top_fit:this.find.rows[0]?.p ?? null, auto});
+            providers:new Set(this.find.rows.map(r=>r.provider)).size, top_fit:this.find.rows[0]?.p ?? null, auto,
+            engine:this.find.engine||'v1', reason:this.find.reason||null, platform_choice:this.find.platform?.choice ?? null});
         }
       }
       if(this.find.phase!=='done' && !ctl.signal.aborted) this.find={...this.find, phase:'error', error:'The answer was cut off. Try again.'};
@@ -154,6 +173,21 @@ export default {
 
   // The distinct vendors selling one job.
   findProviders(g){ return [...new Set(g.rows.map(r=>r.provider))]; },
+
+  // "5 providers", or "5 of 23 providers" when the server folded the rest away.
+  findProvidersText(g){
+    const n=this.findProviders(g).length, all=n+(g.hidden||0);
+    return (g.hidden ? n+' of '+all : n)+' provider'+(all===1?'':'s');
+  },
+
+  // The fit's hover text: the job's fit, or one vendor's own words judged on their own.
+  findFitTitle(g){
+    if(g.p==null) return '';
+    const pct=Math.round(g.p*100)+'%';
+    return g.fitFrom==='endpoint' ? 'Fit of one provider\'s own tool: '+pct : 'Fit for this job: '+pct;
+  },
+
+  findNoneText(){ return findNoneText(this.find.reason); },
 
   // The cheapest line of a job, priced the way every other catalog price is (`capCheapest`).
   findPrice(g){ return this.capCheapest(g.rows)?.label || ''; },
