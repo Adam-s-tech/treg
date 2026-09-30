@@ -955,9 +955,7 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
 .pl-btn:disabled{opacity:.45;cursor:default;transform:none}
 
 /* Catalog index (pages/CatalogPage.vue): the platform shelf's look, one card per platform. */
-.cat-hero-r{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px 24px}
-.cat-acts{display:flex;flex-wrap:wrap;gap:8px}
-.cat .pl-lede{margin-bottom:26px}
+.cat .pl-hero h1{margin:0 0 26px}
 .cat .mk-tabs-wrap{margin:0 0 34px}
 .cat-hint{margin:-8px 0 16px;font-size:13px;color:var(--muted)}
 .cat-card{position:relative;transition:opacity .3s,box-shadow .3s,transform .2s var(--ease)}

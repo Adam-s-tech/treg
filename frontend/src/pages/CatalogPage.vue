@@ -10,19 +10,10 @@ export default { components: { FindAnswer, CatalogSearch }, setup: useDashboard 
 
 <template>
 <div class="pl cat">
+  <!-- A title and the box: someone here came to look something up. Your own keys have their own page
+       (Connections, in the nav); asking for a tool and listing one sit at the foot. -->
   <header class="pl-hero">
-    <p class="pl-eyebrow"><template v-if="plats.list.length">{{plats.list.length}} platforms<template v-if="toolCountText"> · {{toolCountText}} tools</template></template><template v-else>&nbsp;</template></p>
-    <div class="cat-hero-r">
-      <h1>Tools for agents</h1>
-      <div class="cat-acts">
-        <button class="pl-btn sm ghost" @click="openToolRequest()" title="Missing a tool or provider? Tell us. Requests steer what gets added next">Request a tool</button>
-        <button class="pl-btn sm ghost" @click="vendorAsk=true" title="Sell an API? Get it listed in this catalog">List as vendor</button>
-        <!-- The one header action a paying visitor is looking for: where do I put MY key. -->
-        <button class="pl-btn sm" @click="publicCatalog ? openSignin() : goByok()" title="Register your own provider key. Your key wins over treg's and those calls are never metered">Bring your own key</button>
-      </div>
-    </div>
-    <p class="pl-lede">Every platform an agent can read from or act on. Most tools run on treg's key and are priced per
-      call; connect your own account or key and treg uses yours instead, unmetered.</p>
+    <h1>{{toolCountText ? toolCountText+' tools' : 'Tools'}} for agents</h1>
     <!-- One box, two questions: a platform name filters the shelves as you type, and the finder
          answers whatever is typed once typing pauses, or at once on Enter (state/find.js).
          Clearing the box is how you leave an answer. -->
@@ -92,5 +83,10 @@ export default { components: { FindAnswer, CatalogSearch }, setup: useDashboard 
   <p v-if="!platCatGroups.length && platNameQuery && plats.list.length && !findSoon" class="find-miss">No platform is called that.</p>
   <p v-else-if="plats.settled && !plats.list.length" class="pl-empty">This server has no catalog yet.
     <button v-if="!publicCatalog" class="pl-link" @click="go('connections')">Connect your own accounts</button></p>
+
+  <footer class="cn-foot cat-foot">
+    <p>Missing a tool? <button class="pl-link" @click="openToolRequest()">Request a tool</button>
+      <span aria-hidden="true">·</span> Sell an API? <button class="pl-link" @click="vendorAsk=true">List as vendor</button></p>
+  </footer>
 </div>
 </template>
