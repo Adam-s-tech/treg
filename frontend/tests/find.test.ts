@@ -74,3 +74,30 @@ test('a shelf\'s answer asks the whole catalog with the same words', () => {
   find.findEverywhere.call(vm)
   expect(calls).toEqual([['exit'], ['go', 'catalog', 'verify emails'], ['run', 'verify emails', { scope: '' }]])
 })
+
+test('a result opens its job: the comparison when its shelf has one, else the tool; never the shelf\'s box', async () => {
+  const group = { platform: 'people', rows: [{ id: 'hunter.people.email.find', capability: 'people.email.find', provider: 'hunter' }] }
+  const calls: any[] = []
+  const replaced: any[] = []
+  const history0 = globalThis.history
+  ;(globalThis as any).history = { replaceState: (...a: any[]) => replaced.push(a) }
+  const vm: any = { view: 'catalog', platSlug: '', platQ: '', platComparisons: [] as any[],
+    findTrackClick() {}, platUrl: (slug: string, key: string) => '/catalog/' + slug + '/' + key,
+    async openPlatform(slug: string, fromPop?: boolean, key?: string) {
+      calls.push(['platform', slug, fromPop ?? false, key ?? null]); this.view = 'platform'; this.platSlug = slug },
+    openComparison(key: string) { calls.push(['comparison', key]) }, openTool(id: string) { calls.push(['tool', id]) } }
+  try {
+    vm.platComparisons = [{ key: 'people.email.find', slug: 'email.find' }]
+    await find.findOpen.call(vm, group, 1)                      // from the Catalog page: shelf, then its job
+    expect(calls).toEqual([['platform', 'people', false, null], ['platform', 'people', true, 'email.find']])
+    expect(replaced).toEqual([[{ platform: 'people' }, '', '/catalog/people/email.find']])
+    calls.length = 0
+    await find.findOpen.call(vm, group, 1)                      // already on that shelf: the comparison directly
+    expect(calls).toEqual([['comparison', 'email.find']])
+    calls.length = 0
+    vm.platComparisons = []
+    await find.findOpen.call(vm, group, 1)                      // a job with no comparison: the tool
+    expect(calls).toEqual([['tool', 'hunter.people.email.find']])
+    expect(vm.platQ).toBe('')
+  } finally { (globalThis as any).history = history0 }
+})

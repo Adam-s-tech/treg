@@ -214,20 +214,23 @@ export default {
       signed_in:!!this.authed, ...extra});
   },
 
-  // Open the platform shelf the row lives on, its search box filtered to this job.
-  // On a shelf's own search the answer is already on that shelf: a job several providers do opens its
-  // comparison, anything else opens in the tool drawer.
-  findOpen(group, rank){
+  // Open the job a row is: its comparison on its platform when that shelf compares it (several
+  // providers), else the tool itself in the drawer. From another page the shelf is opened first and
+  // the job chosen once its data is in, the comparison replacing the shelf's history entry so Back
+  // returns to where the answer was. The shelf's own box is never filled with the row's name.
+  async findOpen(group, rank){
     this.findTrackClick('job', group.platform, {provider:group.rows[0]?.provider, rank});
-    if(this.view==='platform' && group.platform===this.platSlug){
-      const cap=group.rows[0]?.capability;
-      const job=cap && this.platComparisons.find(j=>j.key===cap);
-      if(job) this.openComparison(job.slug);
-      else this.openTool(group.rows[0].id);
-      return;
+    const slug=group.platform, cap=group.rows[0]?.capability, id=group.rows[0]?.id;
+    const here=this.view==='platform' && slug===this.platSlug;
+    if(!here){
+      await this.openPlatform(slug);
+      if(this.view!=='platform' || this.platSlug!==slug) return;     // the person moved on meanwhile
     }
-    this.openPlatform(group.platform);
-    this.platQ=group.rows[0]?.name || group.label;
+    const job=cap && this.platComparisons.find(j=>j.key===cap);
+    if(!job){ this.openTool(id); return; }
+    if(here){ this.openComparison(job.slug); return; }
+    this.openPlatform(slug, true, job.slug);
+    history.replaceState({platform:slug}, '', this.platUrl(slug, job.slug));
   },
 
   // From /search into the dashboard: the platform's page. Signed

@@ -30,6 +30,10 @@ export default async function boot(){
       if(d){ this.openDetail(d.kind, d.name, true); return; }
       const rid=(e.state&&e.state.run)||this.runFromPath(location.pathname);
       if(rid){ this.openRun(rid, true); return; }
+      // The first entry of a page opened at a public catalog URL (/catalog, /catalog/<slug>) carries no
+      // state and no hash: resolve it from the path, as the first load did, not as the tools view.
+      const cr=!(e.state&&e.state.view) && !location.hash && this.catalogFromPath(location.pathname);
+      if(cr){ this.openCatalogRoute(cr); return; }
       let v=(e.state&&e.state.view)||(location.hash||'').replace('#','')||'tools';
       if(v==='billing'){ this.orgTab='billing'; v='orgs'; }
       if(['tools','orgs','activity','usage','admin','help','secrets','start','resources','catalog','connections','referrals','hub'].includes(v)) this.go(v, true);

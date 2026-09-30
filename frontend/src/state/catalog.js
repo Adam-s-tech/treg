@@ -86,7 +86,7 @@ openPlatform(slug, fromPop, cap){ this.resetConfirms();
       // Connected/not-connected is a member fact and the endpoint needs a session; a public
       // visitor has none, so skip it rather than fire a guaranteed 401 on every shelf view.
       if(!this.publicCatalog && !this.providers.length) this.loadConnections();
-      this.loadPlatform(); },
+      return this.loadPlatform(); },     // the shelf's data, for a caller that acts on it once loaded
 // Where a provider name leads: the public provider page signed out, the provider's page in the app
     // signed in. Both list every tool the provider serves.
     provUrl(service){ return this.publicCatalog ? '/tools/'+encodeURIComponent(service) : '/app/marketplace/'+encodeURIComponent(service); },

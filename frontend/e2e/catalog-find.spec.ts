@@ -99,3 +99,18 @@ test('an empty answer on a shelf offers the whole catalog, and asks it with the 
   await expect(page.locator('.fa .ui-tbody .ui-tr')).toHaveCount(1)
   expect(asked.at(-1)).toEqual({ q: 'verify an email before sending', platform: null })
 })
+
+test('a result opened from the Catalog page leads to its job, and Back returns to the Catalog page', async ({ page }) => {
+  const asked = await answer(page, { verdict: 'strong', rows: [row('hunter.people.email.find', 0.9)] })
+  await box(page).fill('find a work email')
+  await expect.poll(() => asked).toEqual(['find a work email'])
+  await page.locator('.fa .ui-tbody .ui-tr').first().click()
+  // the job's own comparison on its platform, every provider of it
+  await expect(page).toHaveURL(/\/catalog\/people\/[^/]+$/)
+  await expect(page.locator('h1')).toContainText('work email')
+  await page.goBack()
+  await expect(page).toHaveURL(/\/catalog$/)
+  await expect(page.locator('.pl.cat h1')).toContainText('tools for agents')      // the Catalog page, not "Your own tools"
+  await expect(box(page)).toHaveValue('find a work email')
+  await expect(page.locator('.fa .ui-tbody .ui-tr')).toHaveCount(1)                 // the answer is still there
+})

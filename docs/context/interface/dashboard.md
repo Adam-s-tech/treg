@@ -102,6 +102,11 @@ this page keeps what no single file shows. The look follows the root `design.md`
   name keeps filtering and gets its answer too), and while it reads, or when it is `none` or empty,
   it is one line. Enter (or the suggestion row) asks for the full answer (`findFull`): shelves
   unfiltered and lit where it landed.
+- A find result opens its job (`findOpen`): the job's comparison on its platform when that shelf
+  compares it, else the tool in the drawer; from the Catalog page the shelf loads first and the
+  comparison replaces its history entry. Back returns to the Catalog page with the box, the answer
+  and the filtered shelves as they were: the first entry of a page opened at `/catalog` (or
+  `/catalog/<slug>`) has no history state, so popstate resolves it from the path.
 - A shelf's own box answers from that shelf only. An empty answer there is one line, "Nothing in
   <platform> for …", and "Search all tools" (`findEverywhere`) moves to the Catalog page with the box
   prefilled and the same words asked unscoped. "Request it" appears only on an unscoped gap (and on
