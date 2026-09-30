@@ -139,8 +139,9 @@ _RATE_LIMITS: dict[str, dict] = {
     # documented tier until the shared key's environment is verified. Crawl has the same 100/minute
     # ceiling on both tiers, so this provider-wide pace is safe for all four catalog tools.
     "tavily": {"limit": 100, "window_s": 60, "source": "docs"},
-    # Screenshot has a separate 10/min ceiling; provider-wide smoothing uses that limit.
-    "search1api": {"limit": 10, "window_s": 60, "source": "docs"},
+    # Most routes allow 200/min; screenshot has a separate 10/min ceiling. This provider-wide
+    # spacer is not a strict quota gate, so do not slow every search to screenshot's allowance.
+    "search1api": {"limit": 200, "window_s": 60, "source": "docs"},
     # The free Base plan allows up to 20 QPS. Pace the shared key below that ceiling;
     # endpoint-specific Extract URL limits remain enforced by Octen.
     "octen": {"limit": 5, "window_s": 1, "source": "policy"},
