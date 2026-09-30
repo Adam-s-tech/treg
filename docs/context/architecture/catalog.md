@@ -1927,7 +1927,8 @@ to choose (`docs/CAPABILITY-ROUTING-PLAN.md`). Everything else in the catalog st
   failures may continue under the normal bounded fallback rules.
 - **Hit rate** — `CallRecord.hit` (nullable, alembic `0009`, last column) is the adapter's verdict
   for a completed result. An accepted async submission leaves it NULL; the terminal finalizer
-  classifies the finished body and updates the originating row, including a routed child. A
+  classifies the finished body and queues an audit update for the originating row, including a
+  routed child. The poll response does not wait for that best-effort write. A
   confirmed terminal failure counts as a miss; pending and timed-out jobs remain undecided. Its
   `AsyncTaskRecord.hit` keeps the verdict if polling beats the background audit insert.
   Async endpoints read their `CallRecord` observations live: the daily fold may consume a

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+from contextlib import asynccontextmanager
 
 import httpx
 import pytest
@@ -240,6 +242,64 @@ async def test_wiza_terminal_hit_precedes_audit_insert(clients, monkeypatch, wiz
     await clients.get("/call/wiza.people.reveal.get", params={"id": 9876})
     await clients.get("/call/wiza.people.reveal.get", params={"id": 9876})
     await audit.drain()
+    async with session_maker() as db:
+        original = (await db.execute(select(CallRecord).where(
+            CallRecord.call_ref == call_ref,
+            CallRecord.endpoint_id == "wiza.people.email.find"))).scalar_one()
+        assert original.hit is True
+
+
+async def test_wiza_terminal_poll_does_not_wait_for_audit_writer(
+    clients, monkeypatch, wiza_platform_on,
+):
+    await audit.drain()
+    writer_entered = asyncio.Event()
+    release_writer = asyncio.Event()
+    real_session_maker = audit.background_session_maker
+
+    @asynccontextmanager
+    async def gated_session_maker():
+        writer_entered.set()
+        await release_writer.wait()
+        async with real_session_maker() as session:
+            yield session
+
+    monkeypatch.setattr(audit, "background_session_maker", gated_session_maker)
+
+    async def relay(request, upstream_url, tool, secrets, client, **kwargs):
+        doc = ({"data": {"id": 5432, "status": "queued"}} if request.method == "POST" else
+               {"data": {"id": 5432, "status": "finished", "email": "person@sample.example",
+                         "email_status": "risky", "credits": {"api_credits": {"total": 0}}}})
+        payload = json.dumps(doc).encode()
+
+        async def stream():
+            yield payload
+
+        async def close():
+            return None
+
+        return UpstreamResponse(200, ((b"content-type", b"application/json"),), stream(), close)
+
+    monkeypatch.setattr(call_service, "relay", relay)
+    call_ref = None
+    try:
+        submitted = await asyncio.wait_for(clients.post("/call/wiza.people.email.find", json={
+            "individual_reveal": {"full_name": "Person Example", "domain": "sample.example"},
+            "enrichment_level": "partial",
+            "email_options": {"accept_work": True, "accept_personal": False,
+                              "accept_generic": False},
+        }), timeout=5)
+        assert submitted.status_code == 200
+        call_ref = submitted.headers["x-treg-call-id"]
+        await asyncio.wait_for(writer_entered.wait(), timeout=5)
+        polled = await asyncio.wait_for(clients.get(
+            "/call/wiza.people.reveal.get", params={"id": 5432}), timeout=5)
+        assert polled.status_code == 200
+        async with session_maker() as db:
+            assert (await db.get(AsyncTaskRecord, call_ref)).hit is True
+    finally:
+        release_writer.set()
+        await audit.drain()
     async with session_maker() as db:
         original = (await db.execute(select(CallRecord).where(
             CallRecord.call_ref == call_ref,

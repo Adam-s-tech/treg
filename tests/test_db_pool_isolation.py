@@ -171,7 +171,6 @@ BACKGROUND_SITES = {
     "bootstrap.py:_lifespan.lifespan": "adsconv.worker",
     "bootstrap.py:create_app": "catalog observation refresh",
     "audit.py:_write_batch": "audit._flush",
-    "audit.py:update_async_call_hit": "audit._flush",
     "archive.py:_store_locked": "archive._store/_touch",
     "archive.py:_touch_write": "archive._store/_touch",
     "archive.py:_ignored_matches": "archive._store/_touch",

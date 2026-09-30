@@ -403,7 +403,7 @@ async def _finish_terminal(snapshot: AsyncTaskRecord, outcome: str, document: ob
     expected = asynctasks.SETTLED if outcome in ("success", "billed_failure") else asynctasks.RELEASED
     if result == expected:
         if terminal_hit is not None:
-            await audit.update_async_call_hit(
+            audit.record_async_call_hit(
                 snapshot.call_id, snapshot.endpoint_id, snapshot.org_id, terminal_hit)
         # Only the winning finalizer records evidence; a late poll cannot replace the result
         # whose usage was charged. Archive failure cannot undo the committed money transaction.
