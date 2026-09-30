@@ -8,7 +8,7 @@ import { expect, test, type Page } from '@playwright/test'
 const row = (id: string, p: number) => ({
   id, name: id, provider: id.split('.')[0], provider_display: id.split('.')[0], platform: 'people',
   platform_label: 'People & contact data', capability: 'people.email.find',
-  capability_description: 'Find a work email', cost: null, p, fit_from: 'job' })
+  capability_description: 'Find a work email', cost: { type: 'per_call', usd: 0.01 }, p, fit_from: 'job' })
 
 async function answer(page: Page, judged: object) {
   const asked: string[] = []
@@ -20,6 +20,9 @@ async function answer(page: Page, judged: object) {
   })
   await page.goto('/catalog')
   await expect(page.locator('.pl-sec').first()).toBeVisible()
+  // The shelves paint from inline data before the session check and the connections request
+  // answer; type only once the boot has settled, so what is measured is the box, not the boot.
+  await page.waitForLoadState('networkidle')
   return asked
 }
 
@@ -28,8 +31,13 @@ const box = (page: Page) => page.locator('.cat-find input')
 test('a typing pause answers above the shelves and leaves them in place', async ({ page }) => {
   const asked = await answer(page, { verdict: 'strong', rows: [row('hunter.people.email.find', 0.9)] })
   const shelves = await page.locator('.pl-sec').count()
-  await box(page).pressSequentially('find the work email of a dentist', { delay: 5 })
-  await expect(page.locator('.fa .ui-tbody .ui-tr')).toHaveCount(1)
+  // One input event and then a pause: the gate reads the finished sentence (per-keystroke states
+  // are the third case's business). Each step below fails with its own message.
+  const request = page.waitForRequest(/\/catalog\/find\?/, { timeout: 5000 })
+  await box(page).fill('find the work email of a dentist')
+  await expect(box(page), 'the box holds the whole sentence').toHaveValue('find the work email of a dentist')
+  await request.catch(() => { throw new Error('the typing pause never asked /catalog/find') })
+  await expect(page.locator('.fa .ui-tbody .ui-tr'), 'the answer is drawn above the shelves').toHaveCount(1)
   expect(asked).toEqual(['find the work email of a dentist'])
   await expect(page.locator('.pl-sec')).toHaveCount(shelves)                 // the shelves stay
   await expect(page.locator('.cat-card.find-dim')).toHaveCount(0)            // and are not re-lit
@@ -38,7 +46,7 @@ test('a typing pause answers above the shelves and leaves them in place', async 
 
 test('an empty auto answer is one line, never a page', async ({ page }) => {
   await answer(page, { verdict: 'none', reason: 'gap' })
-  await box(page).pressSequentially('book a table for two tonight', { delay: 5 })
+  await box(page).fill('book a table for two tonight')
   const line = page.locator('.fa .fa-line')
   await expect(line).toContainText('treg does not have this kind of data or action yet')
   await expect(page.locator('.fa .fa-note, .fa .ui-table')).toHaveCount(0)
