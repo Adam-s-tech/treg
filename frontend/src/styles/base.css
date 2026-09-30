@@ -868,12 +868,14 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
 
 /* Section heading: title, a hairline to the edge, the count. */
 .pl-sec{margin:0 0 52px}
-.pl-h{display:flex;align-items:baseline;gap:10px;margin:0 0 18px;font-size:19px;font-weight:600;letter-spacing:-.01em}
+.pl-h{display:flex;align-items:center;gap:14px;margin:0 0 18px;font-size:19px;font-weight:600;letter-spacing:-.01em}
 .pl-h a{color:var(--ink);text-decoration:none}
 .pl-h a:hover{text-decoration:underline;text-underline-offset:4px}
-/* No rule after the heading: space and the cards already part the sections, and a rule per section
-   striped the page. The count sits beside the title. */
-.pl-h i{display:none}
+/* A rule parts a page's main sections. Groups inside one list (a catalog category, a provider
+   category, a quiet heading) get none, the count beside the title: a rule each striped the page. */
+.pl-h i{flex:1;height:1px;background:var(--line)}
+.pl-h-quiet,.cat .pl-h{align-items:baseline;gap:10px}
+.pl-h-quiet i,.cat .pl-h i{display:none}
 .pl-h em{font-style:normal;font-family:var(--mono);font-size:12px;font-weight:400;color:var(--muted2)}
 .pl-h-quiet{font-size:15px;color:var(--muted)}
 
@@ -960,7 +962,7 @@ main.flush,.redesign main.flush{padding:0;max-width:none}
 
 /* Catalog index (pages/CatalogPage.vue): the platform shelf's look, one card per platform. */
 .cat .pl-hero h1{margin:0 0 20px}
-.cat .mk-tabs-wrap{margin:0 0 34px;border-bottom:0}
+.cat .mk-tabs-wrap{margin:0 0 34px}
 .cat-hint{margin:-8px 0 16px;font-size:13px;color:var(--muted)}
 .cat-card{position:relative;transition:opacity .3s,box-shadow .3s,transform .2s var(--ease)}
 /* A find answer lights the platforms it landed on and dims the rest. */
