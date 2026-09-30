@@ -55,9 +55,9 @@ export default { components: { FindAnswer, CatalogSearch }, setup: useDashboard 
             <!-- A member's own credential, and only the positive fact: calls here use your account or
                  key. Neutral, not green: every platform works, on treg's key; a green "Connected" read
                  as "only these do". -->
-            <span v-if="!publicCatalog && platConnected(pl)" class="cn-st cat-own"
-                  :title="'Calls to '+platConnNames(pl)+' use yours, unmetered. The rest run on treg\'s key.'">
-              {{platConnLabel(pl)}}</span></span>
+            <span v-if="!publicCatalog && platConnected(pl)" class="cat-own" role="img"
+                  :title="platConnTitle(pl)" :aria-label="platConnTitle(pl)">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/></svg></span></span>
           <span class="pl-meta">{{pl.endpoints}} tool{{pl.endpoints===1?'':'s'}}<template v-if="platPrice(pl)"> · <span :title="platPriceTitle(pl)">{{platPrice(pl).free ? platPrice(pl).text : 'from '+platPrice(pl).text}}</span></template></span>
         </span>
       </button>
