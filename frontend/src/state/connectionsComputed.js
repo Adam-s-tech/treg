@@ -4,32 +4,43 @@ const byName = new Intl.Collator()
 const RANK = {reconnect:0, second:1, failing:2, setup:3, choose:4, ok:5}
 
 export default {
-connCount(){ const m={}; for(const c of this.connections){ if(c.provider) m[c.provider]=(m[c.provider]||0)+1; } return m; },
+providerIndex(){ return new Map(this.providers.map(p=>[p.service,p])); },
 // A provider key saved as a secret NAMED for the provider (`treg secret add apollo …`, or a
-    // Secrets row) rather than connected. The credential ladder uses it
-    // all the same, so it belongs beside the connections, not among the team's own-tool secrets.
-    // A connected credential for the same provider wins over it, and the card says so.
+    // Secrets row) rather than connected. The credential ladder uses it all the same, so it belongs
+    // beside the connections, not among the team's own-tool secrets. A connected credential for the
+    // same provider outranks it, and its card says so.
     namedKeys(){
       const ids=new Set(this.connections.map(c=>c.id));
-      const pasted=new Map(this.keyNameSuggestions.map(p=>[p.service,p]));
-      return this.secrets.filter(s=>!ids.has(s.id) && pasted.has(s.name))
-        .map(s=>({s, p:pasted.get(s.name), shadowed:!!this.connCount[s.name]}));
+      const tagged=new Set(this.connections.map(c=>c.provider));
+      return this.secrets.flatMap(s=>{ const p=this.providerIndex.get(s.name);
+        return !ids.has(s.id) && this.pastedCredential(p) ? [{s, p, shadowed:tagged.has(s.name)}] : []; });
     },
 // What the Secrets page lists: the credentials the team's own tools use, and nothing Connections shows.
     ownSecrets(){
       const shown=new Set([...this.connections.map(c=>c.id), ...this.namedKeys.map(k=>k.s.id)]);
       return this.secrets.filter(s=>!shown.has(s.id));
     },
-connAccounts(){
-      return this.connections.map(c=>{ const p=this.connProvider(c);
-          return {c, p, name:(p&&p.display_name)||c.provider||c.name, st:this.connState(c)}; })
-        .sort((a,b)=>RANK[a.st.key]-RANK[b.st.key] || byName.compare(a.name, b.name));
+// Every credential the team holds for a catalog provider, as one kind of row whichever way it was
+    // added: a connection (`c`) or a named key (`s`). `pasted` is computed once here because every
+    // card asks it several times.
+    connAccounts(){
+      const conns=this.connections.map(c=>{ const p=this.providerIndex.get(c.provider)||null;
+        return {id:'c'+c.id, service:c.provider, c, p, pasted:this.pastedCredential(p),
+                name:(p&&p.display_name)||c.provider||c.name, st:this.connState(c)}; });
+      const named=this.namedKeys.map(({s, p, shadowed})=>({id:'s'+s.id, service:p.service, s, p, pasted:true,
+        name:p.display_name, st:shadowed
+          ? {key:'ok', tone:'quiet', label:'Not in use', title:'The connected '+p.display_name+' credential is used instead'}
+          : {key:'ok', tone:'ok', label:'Saved', title:'Saved. It is checked on its first call.'}}));
+      return [...conns, ...named].sort((a,b)=>RANK[a.st.key]-RANK[b.st.key] || byName.compare(a.name, b.name));
     },
 connAttention(){ return this.connAccounts.filter(a=>a.st.key!=='ok').length; },
+// How many credentials the team holds per provider, named keys included: the catalog's Connected
+    // mark and a provider card's Add / Replace both mean "calls here already use your key".
+    connCount(){ const m={}; for(const a of this.connAccounts) if(a.service) m[a.service]=(m[a.service]||0)+1; return m; },
 // The providers this server can connect: one it holds no client credentials for could only show a
     // button that does nothing. An account already connected to one still shows under Connected.
     connectable(){ return this.providers.filter(p=>p.configured); },
-// The connectable providers the filter box matches, before the sign-in / key choice.
+// The connectable providers the filter box matches, before the account / key choice.
     connMatches(){
       const q=this.connQ.trim().toLowerCase();
       return q ? this.connectable.filter(p=>[p.display_name, p.service, p.summary, p.category].join(' ').toLowerCase().includes(q))
@@ -51,15 +62,15 @@ connAttention(){ return this.connAccounts.filter(a=>a.st.key!=='ok').length; },
     // the team already holds is the likelier errand than a vendor key, and the sort is stable, so
     // each half keeps the registry's order.
     providerGroups(){
-      const kind=this.connKind, pasted=p=>this.pastedCredential(p);
-      const out=[];
+      const kind=this.connKind, out=[];
       for(const p of this.connMatches){
-        if(kind && (kind==='key')!==pasted(p)) continue;
+        const pasted=this.pastedCredential(p);
+        if(kind && (kind==='key')!==pasted) continue;
         const cat=p.category||'Other';
         if(!out.length || out[out.length-1].category!==cat) out.push({category:cat, items:[]});
-        out[out.length-1].items.push(p);
+        out[out.length-1].items.push({p, pasted, n:this.connCount[p.service]||0});
       }
-      for(const g of out) g.items.sort((a,b)=>pasted(a)-pasted(b));
+      for(const g of out) g.items.sort((a,b)=>a.pasted-b.pasted);
       return out;
     },
 }

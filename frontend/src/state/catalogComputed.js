@@ -17,11 +17,10 @@ export default {
 // The catalog-v2 control arm (state/catalogExperiment.js): the ledger, and no comparison pages anywhere.
     catalogLegacy(){ return this.catalogArm==='control'; },
 mkProvider(){ return this.providers.find(p=>p.service===this.mkService)||null; },
-mkConns(){ return this.connections.filter(c=>c.provider===this.mkService); },
-mkAccounts(){ return this.connAccounts.filter(a=>a.c.provider===this.mkService); },
+mkAccounts(){ return this.connAccounts.filter(a=>a.service===this.mkService); },
 // Which capabilities ANY account here already holds — a page-level "you have this" summary,
     // since the permission list describes the integration, not one account.
-    mkGranted(){ const s=new Set(); for(const c of this.mkConns) for(const cap of (c.capabilities||[])) s.add(cap); return s; },
+    mkGranted(){ const s=new Set(); for(const a of this.mkAccounts) for(const cap of ((a.c&&a.c.capabilities)||[])) s.add(cap); return s; },
 // ---- endpoint catalog ----
     // Platform tiles grouped by the category the catalog assigns each platform. "Other" (the
     // taxonomy's bucket for things like `account`) gets no tile — those capabilities are only

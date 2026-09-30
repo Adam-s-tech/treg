@@ -47,7 +47,7 @@ canRegister(){ return this.activeRole!=='viewer'; },
     // suggesting — a key called APOLLO_API_KEY works as a plain secret but the catalog never sees it.
     keyNameSuggestions(){ return (this.providers||[])
       .filter(p=>this.pastedCredential(p))
-      .slice().sort((a,b)=>a.service.localeCompare(b.service)); },
+      .sort((a,b)=>a.service.localeCompare(b.service)); },
 // ---- detail pages ----
     accessNames(){  // the grantable universe: tool names + recipe-only skill names (an integration
       // skill is reachable through its tool's name; recipe-only bundles need their own entry)

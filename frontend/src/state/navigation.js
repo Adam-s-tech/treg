@@ -11,7 +11,7 @@ go(v, fromPop){ this.resetConfirms(); this.mobileNav=false; this.drawerTool=null
       // working so an existing /app#usage link, and the balance card's deep link, still land right.
       if(v==='usage'){ this.actTab='usage'; v='activity'; this.loadUsage(); }
       else if(v==='activity'){ this.actTab='feed'; }
-      this.detail=null; this.view=v; if(v==='activity')this.loadCalls(); if(v==='admin')this.loadAdmin(); if(v==='orgs'){this.loadOrgAdmin(); this.loadMyUsage(); this.loadBilling();} if(v==='usage')this.loadUsage(); if(v==='secrets'){this.loadSecrets(); this.loadConnections();} if(v==='resources')this.loadTeamResources(); if(v==='catalog')this.loadConnections(); if(v==='connections'){this.loadConnections(); this.loadSecrets();} if(v==='referrals')this.loadReferrals(); if(v==='hub')this.loadHub();
+      this.detail=null; this.view=v; if(v==='activity')this.loadCalls(); if(v==='admin')this.loadAdmin(); if(v==='orgs'){this.loadOrgAdmin(); this.loadMyUsage(); this.loadBilling();} if(v==='usage')this.loadUsage(); if(v==='secrets'){this.loadSecrets(); if(!this.providers.length)this.loadConnections();} if(v==='resources')this.loadTeamResources(); if(v==='catalog')this.loadConnections(); if(v==='connections'){this.loadConnections(); this.loadSecrets();} if(v==='referrals')this.loadReferrals(); if(v==='hub')this.loadHub();
       // push history so browser Back navigates BETWEEN views instead of leaving the app; the '/app'
       // pathname also walks back from a /app/skills/<x> detail URL so reload doesn't reopen the detail
       if(!fromPop) history.pushState({view:v}, '',
@@ -36,10 +36,8 @@ go(v, fromPop){ this.resetConfirms(); this.mobileNav=false; this.drawerTool=null
 goByok(service){
       this.connQ=''; this.connKind='';
       this.byokFocus=service||null; this.closeEpTry();
-      this.go('connections');
+      this.go('connections');  // the page scrolls to the card once it is there (ConnectionsPage.vue)
       if(!service) return;
-      this.$nextTick(()=>{ const el=document.getElementById('prov-'+service);
-        if(el) el.scrollIntoView({block:'center', behavior:'smooth'}); });
       setTimeout(()=>{ if(this.byokFocus===service) this.byokFocus=null; }, 4000);
     },
 openProvider(service, fromPop){ this.resetConfirms();
@@ -49,6 +47,7 @@ openProvider(service, fromPop){ this.resetConfirms();
       // The consent popup can return before /connections has been re-read, and a deep link may
       // arrive before the first load — either way the page needs the data it renders from.
       if(!this.connections.length || !this.providers.length) this.loadConnections();
+      this.loadSecrets();  // a key saved as a secret named for this provider is one of its accounts
       this.loadPlatforms();
       window.scrollTo(0,0); }
 }

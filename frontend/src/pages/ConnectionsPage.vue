@@ -10,8 +10,10 @@ export default {
   components: { ProviderLogo, ConnectionCard },
   setup: useDashboard,
   watch: {
-    // "Bring your own key" for one provider can arrive before the provider list has: scroll once it has.
-    providerGroups() { this.focusProvider() },
+    // The one place a "Bring your own key" jump scrolls: when it lands, and again if the provider list
+    // arrives after it did.
+    byokFocus() { this.focusProvider() },
+    'providers.length'() { this.focusProvider() },
   },
   mounted() { this.focusProvider() },
   methods: {
@@ -26,7 +28,7 @@ export default {
 <template>
 <div class="pl cn">
   <header class="pl-hero">
-    <p class="pl-eyebrow">{{connAccounts.length + namedKeys.length}} connected<template v-if="connAttention"> · {{connAttention}} need{{connAttention===1?'s':''}} you</template> · {{connectable.length}} providers</p>
+    <p class="pl-eyebrow">{{connAccounts.length}} connected<template v-if="connAttention"> · {{connAttention}} need{{connAttention===1?'s':''}} you</template> · {{connectable.length}} providers</p>
     <h1>Connections</h1>
     <p class="pl-lede">Your own accounts and API keys. treg keeps each one server-side and adds it to every call your
       agents make to that provider. Your key always wins over treg's, and those calls are never metered.</p>
@@ -34,27 +36,10 @@ export default {
 
   <div v-if="connErr" class="banner cn-banner"><span>{{connErr}}</span><button class="btn sm ico" @click="connErr=''" aria-label="Dismiss">✕</button></div>
 
-  <section v-if="connAccounts.length || namedKeys.length" class="pl-sec">
-    <h2 class="pl-h"><span>Connected</span><i></i><em>{{connAccounts.length + namedKeys.length}}</em></h2>
+  <section v-if="connAccounts.length" class="pl-sec">
+    <h2 class="pl-h"><span>Connected</span><i></i><em>{{connAccounts.length}}</em></h2>
     <div class="pl-grid pl-grid-t">
-      <ConnectionCard v-for="a in connAccounts" :key="a.c.id" :a="a" manage />
-      <div v-for="k in namedKeys" :key="'s'+k.s.id" class="pl-card cn-card" :class="k.shadowed ? 'cn-quiet' : 'cn-ok'">
-        <div class="cn-top">
-          <ProviderLogo :service="k.p.service" large />
-          <span class="cn-id"><b>{{k.p.display_name}}</b><span class="pl-meta">{{k.s.name}}</span></span>
-          <span class="cn-st" :title="k.shadowed ? 'The connected '+k.p.display_name+' credential is used instead' : 'Saved. It is checked on its first call.'">
-            <i aria-hidden="true"></i>{{k.shadowed ? 'Not in use' : 'Saved'}}</span>
-        </div>
-        <p class="cn-what">{{authLabel(k.p)}}, saved as a secret<template v-if="k.shadowed">. The connected account above is used instead</template><template v-if="k.s.owner"> · added by {{short(k.s.owner)}}</template></p>
-        <div class="cn-acts">
-          <button v-if="!k.shadowed" class="pl-btn sm ghost" :disabled="connBusy" @click="startConnect(k.p)"
-                  title="Check the key against the provider and connect it like any other">Verify and connect</button>
-          <span class="cn-links">
-            <button class="cn-del" :class="{armed:confirmDelSecret===k.s.id}" @click="deleteSecret(k.s)">
-              {{confirmDelSecret===k.s.id ? 'Click again to remove' : 'Remove'}}</button>
-          </span>
-        </div>
-      </div>
+      <ConnectionCard v-for="a in connAccounts" :key="a.id" :a="a" manage />
     </div>
   </section>
 
@@ -63,12 +48,12 @@ export default {
     <div class="cn-filters">
       <div class="cat-find cn-find">
         <svg class="cat-find-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <input v-model="connQ" aria-label="Filter providers" placeholder="Filter providers, e.g. Apollo, Google Ads, video">
+        <input v-model="connQ" aria-label="Filter providers" placeholder="Filter providers, e.g. Apollo, Google Ads, video" @keydown.esc="connQ=''">
         <button v-if="connQ" class="cat-find-x" type="button" aria-label="Clear the filter" @click="connQ=''">×</button>
       </div>
       <!-- Logging in with an account you already have and pasting a key are different errands:
            someone holding a Google Ads login is not scanning for API-key vendors. -->
-      <div class="cn-kinds" role="radiogroup" aria-label="How you connect">
+      <div class="seg cn-kinds" role="radiogroup" aria-label="How you connect">
         <button v-for="k in connKinds" :key="k.key" role="radio" :aria-checked="connKind===k.key"
                 :class="{on:connKind===k.key}" :title="k.hint" @click="connKind=k.key">{{k.label}} <span>{{k.n}}</span></button>
       </div>
@@ -78,16 +63,16 @@ export default {
       <div class="pl-grid pl-grid-t">
         <!-- One line per provider: someone here is looking for an account they already hold, by name.
              The card opens the provider's page (its permissions, its tools); the button connects from here. -->
-        <div v-for="p in g.items" :key="p.service" :id="'prov-'+p.service" class="pl-card pl-tool cn-prov" :class="{focus:byokFocus===p.service}"
+        <div v-for="{p, pasted, n} in g.items" :key="p.service" :id="'prov-'+p.service" class="pl-card pl-tool cn-prov" :class="{on:byokFocus===p.service}"
              role="button" tabindex="0" :aria-label="'Open '+p.display_name" :title="p.summary"
              @click="openProvider(p.service)" @keydown.enter.self="openProvider(p.service)">
           <ProviderLogo :service="p.service" large />
           <span class="pl-tool-b"><b>{{p.display_name}}</b>
-            <span class="pl-meta">{{authLabel(p)}}<template v-if="connCount[p.service]"> · {{connCount[p.service]}} connected</template></span></span>
+            <span class="pl-meta">{{authLabel(p)}}<template v-if="n"> · {{n}} connected</template></span></span>
           <span class="cn-prov-a" @click.stop>
             <button class="pl-btn sm ghost" :disabled="connBusy"
-                    @click="startConnect(p)" :title="pastedCredential(p) ? 'Paste your own '+p.display_name+' key; treg keeps it server-side' : 'Log in to '+p.display_name+' and approve access'">
-              {{pastedCredential(p) ? (connCount[p.service] ? 'Replace key' : 'Add key') : (connCount[p.service] ? 'Add account' : 'Connect account')}}</button>
+                    @click="startConnect(p)" :title="pasted ? 'Paste your own '+p.display_name+' key; treg keeps it server-side' : 'Log in to '+p.display_name+' and approve access'">
+              {{connectLabel(p, n)}}</button>
           </span>
         </div>
       </div>

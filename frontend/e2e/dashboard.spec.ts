@@ -158,5 +158,5 @@ test('Bring your own key lands on Connections, the provider it names in view', a
   await page.getByRole('table').getByRole('row').filter({ hasText: 'Ocean' }).first().click()
   await page.getByRole('complementary', { name: 'Tool details' }).getByRole('button', { name: /^Add your .+ key$/ }).click()
   await expect(page).toHaveURL(/#connections$/)
-  await expect(page.locator('.cn-prov.focus')).toBeInViewport()
+  await expect(page.locator('.cn-prov.on')).toBeInViewport()
 })

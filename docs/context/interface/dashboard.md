@@ -694,16 +694,18 @@ tile was noise. A server with no catalog says so and points to Connections.
 **Connections** has two sections. **Connected** (`connAccounts`, `namedKeys` in
 `state/connectionsComputed.js`) is one `ConnectionCard` per credential, the ones that need a person
 first. The card's status (`connState` in `state/connections.js`) is the one place the page spends
-colour: green *Working*/*Connected*, amber *Expires soon*/*Needs a second credential*/*Setup
-required*/*Choose an account*, red *Expired*/*Failing*. When a card is not callable, the step that fixes
+colour: green *Working*/*Connected*, amber *Expires soon*/*Needs a second credential* (the server's
+`needs_extra_credential`, false once it is supplied)/*Setup required*/*Choose an account*, red
+*Expired*/*Failing*. When a card is not callable, the step that fixes
 it is its primary button (Reconnect, Replace key, Add *developer token* — which opens `saveExtraCred`'s
 field in place — or Choose *account*); Manage opens the provider's page and Disconnect/Remove
 inline-confirms. The nav's **Connections** entry carries the count of cards needing a person
 (`connAttention`), since the banners that used to say so on the Catalog are gone. A provider key saved
 as a secret named for the provider (`namedKeys`: `treg secret add apollo …`, or a Secrets row) is a
-card too — the credential ladder treats it as that provider's key — marked *Saved*, or *Not in use*
-when a connected credential for the same provider outranks it, with **Verify and connect** to run it
-through the connect probe. **Add a connection** is every provider this server can connect
+row of `connAccounts` too, on Connections and on its provider's page, and counts in `connCount` — the
+credential ladder treats it as that provider's key — marked *Saved*, or *Not in use* when a connected
+credential for the same provider outranks it, with **Verify and connect** to run it through the
+connect probe. **Add a connection** is every provider this server can connect
 (`connectable`: `configured` ones only — a provider it holds no client credentials for could only
 show a dead button; an account already connected to one still shows above), in `providerGroups`
 (grouped by the registry's category, filtered by `connQ` and by `connKind` — the **All · Your

@@ -5,8 +5,9 @@ export default {
       this.connErr=''; const live=this.ticket('connections');
       this.loadPlatforms();  // fire-and-forget, and first: the catalog must neither hold up nor wait for the connect UI
       try{
+        // The provider list is the deployment's, fixed for the session: fetched once, not per view.
         const [ps, cs]=await Promise.all([
-          fetch('/oauth/providers').then(r=>r.json()).catch(()=>[]),
+          this.providers.length ? this.providers : fetch('/oauth/providers').then(r=>r.json()).catch(()=>[]),
           this.api('/connections').catch(()=>[]),
         ]);
         if(!live()) return;
@@ -123,7 +124,7 @@ methodCapability(p, method){
 startConnect(p, conn){
       // A pasted-secret provider has no consent screen — the user brings their own bot token (Slack)
       // or API key (Apollo, TikHub, …), so setup is a form, not a redirect.
-      if(p.auth_kind==='token' || p.auth_kind==='key') return void (this.tokenAsk={provider:p, token:'', err:'', busy:false, conn});
+      if(this.pastedCredential(p)) return void (this.tokenAsk={provider:p, token:'', err:'', busy:false, conn});
       // Several separate grants are one Add-account decision. Providers with zero or one method
       // keep the old one-click behavior, so LinkedIn and every existing single-method flow do not
       // inherit an extra dialog. Reconnects also stay pinned to their stored method.
@@ -157,12 +158,12 @@ async chooseCapability(cap){
       const p=this.capAsk.provider, conn=this.capAsk.conn; this.capAsk=null;
       await this.connectProvider(p, cap, conn);
     },
-connProvider(c){ return (this.providers||[]).find(p=>p.service===c.provider)||null; },
+connProvider(c){ return this.providerIndex.get(c.provider)||null; },
 // The one thing a connection needs from a person, if anything: the card's status and its action.
     connState(c){
       if(c.expiry_state==='expired') return {key:'reconnect', tone:'bad', label:'Expired', title:'This credential has expired. Reconnect to keep calling.'};
       if(c.needs_reconnect) return {key:'reconnect', tone:'warn', label:'Expires soon', title:'treg cannot renew this one. Reconnect before '+(c.expires_at||'it expires')+'.'};
-      if(c.extra_credential_note) return {key:'second', tone:'warn', label:'Needs a second credential', title:c.extra_credential_note};
+      if(c.needs_extra_credential) return {key:'second', tone:'warn', label:'Needs a second credential', title:c.extra_credential_note};
       if(c.health==='invalid') return {key:'failing', tone:'bad', label:'Failing', title:c.last_error||'The last call with this credential failed.'};
       if(c.health==='setup_required') return {key:'setup', tone:'warn', label:'Setup required', title:c.health_detail||'The account needs setting up upstream.'};
       if(c.supports_discovery && !c.resource_ref) return {key:'choose', tone:'warn', label:'Choose '+(c.resource_label||'an account'), title:'Nothing to call yet: pick which '+(c.resource_label||'account')+' this connection uses.'};
@@ -174,6 +175,10 @@ connProvider(c){ return (this.providers||[]).find(p=>p.service===c.provider)||nu
     // already say whose account, and the catalog calls it "your account" too).
     authLabel(p){ return this.pastedCredential(p) ? (p.token_label || 'API key') : 'Your account'; },
 pastedCredential(p){ return !!p && (p.auth_kind==='key' || p.auth_kind==='token'); },
+// A provider's connect button: a pasted key is one per team, so a second one replaces it.
+    connectLabel(p, connected){ return this.pastedCredential(p) ? (connected ? 'Replace key' : 'Add key') : (connected ? 'Add account' : 'Connect account'); },
+// Renew a connection the way it was made: re-consent for an account, a fresh paste for a key.
+    renewConnection(a){ return a.pasted ? this.startConnect(a.p, a.c) : this.reconnect(a.c); },
 async saveExtraCred(c){
       const v=(this.extraCred[c.id]||'').trim(); if(!v) return;
       this.extraBusy=c.id; this.connErr='';
