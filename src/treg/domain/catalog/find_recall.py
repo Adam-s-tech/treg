@@ -418,13 +418,17 @@ def name_of(query: str, ix: Index, platform: str | None = None,
                 exact_hits.append(rank)
             elif long_enough and (all(any(h == w or h.startswith(w) for h in hay) for w in qwords)
                                   or any(slug.startswith(f) for f in forms)):
-                loose.append(rank)
-        # A name, or a typed prefix of exactly one platform's. A word several platforms share
-        # ("video", "search", "ads") names none of them: the judged answer reads it.
+                loose.append((rank, not rank[0] and q not in hay))
+        # A name, or a typed prefix of exactly one platform's: the only match, or the only platform
+        # whose own name the query starts without being a whole word of it ("instagra" is Instagram,
+        # though Meta Ads mentions Instagram). A word several platforms share ("video", "search",
+        # "ads") names none of them: the judged answer reads it.
         if exact_hits:
-            return NameHit("platform", tuple(h[-1] for h in sorted(exact_hits) + sorted(loose)), exact=True)
-        if len(loose) == 1:
-            return NameHit("platform", (loose[0][-1],), exact=False)
+            return NameHit("platform", tuple(h[-1] for h in sorted(exact_hits) + sorted(r for r, _ in loose)),
+                           exact=True)
+        typed = [r for r, is_typed in loose if is_typed]
+        if len(loose) == 1 or len(typed) == 1:
+            return NameHit("platform", ((loose[0][0] if len(loose) == 1 else typed[0])[-1],), exact=False)
     providers = ix.providers if platform is None else sorted(ix.providers_on.get(platform, ()))
     prefixed: list[str] = []
     for prov in providers:

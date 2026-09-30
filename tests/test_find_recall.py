@@ -169,7 +169,8 @@ def test_the_index_is_built_once_per_catalog():
 def _platforms_cat() -> store.Catalog:
     plats = {"tiktok": "TikTok", "tiktok-ads": "TikTok Ads", "meta-ads": "Meta Ads (Facebook & Instagram)",
              "search-console": "Google Search Console", "google-analytics": "Google Analytics (GA4)",
-             "google": "Google Keyword Data"}
+             "google": "Google Keyword Data", "instagram": "Instagram", "video-gen": "Video generation",
+             "youtube": "YouTube video data"}
     eps = [_ep(f"p.{slug}.report", f"{slug}.report", slug, "p", "Report", "A report") for slug in plats]
     return store.Catalog(platforms={s: {"label": label, "category": "Other"} for s, label in plats.items()},
                          capabilities={f"{s}.report": "Get a report" for s in plats},
@@ -188,6 +189,10 @@ def test_a_platform_is_named_by_its_whole_name_longest_first():
     assert named("google analytics sessions") == {"google-analytics"}
     assert named("google keyword data") == {"google"}             # the label's short form
     assert named("ads library") == set()
+    # a typed prefix of one platform's own name is that platform, though another label mentions it;
+    # a whole word several platforms share names none
+    assert fr.name_of("instagra", ix) == fr.NameHit("platform", ("instagram",), exact=False)
+    assert fr.name_of("video", ix) is None
     # a named platform's words count double, and its jobs take the reserved seats
     cat = _platforms_cat()
     lex = fr.lexical("tiktok ads report", ix, cat.aliases)

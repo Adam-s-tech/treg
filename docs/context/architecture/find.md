@@ -111,7 +111,9 @@ catalog gap or not a task instead of defaulting to `not_task`.
 **The name table** (`find_recall.name_of`) is string lookup, because a name is a lookup, not a
 judgement: a platform (exactly its name or slug, listed with the others the name matches: exact
 first, then one whose name starts with the query, then the shelves' featured order, then most jobs;
-or, from four letters, a prefix of exactly one platform's name), else a provider (its name exactly
+or, from four letters, a prefix of exactly one platform's name - the only match, or the only
+platform whose own name the query starts without being a whole word of it: "instagra" is Instagram
+though Meta Ads' label mentions Instagram), else a provider (its name exactly
 at any length, "exa"; or, from four letters, a prefix of exactly one provider's), else a product or
 model name. A word several platforms or providers share ("video", "search", "ads", "goog") names
 none of them, and the judged answer reads it. Product names come from endpoint names on the `AI generation` platforms: words two or
