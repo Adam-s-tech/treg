@@ -3017,6 +3017,47 @@ def test_apify_call_fee_multiplies_by_each_query_the_actor_starts(body, fee):
     assert call_settle._observed_cost_micro(mk, b'[{}]') == 1_000 + fee
 
 
+# Enrichlayer settles from this call's returned result count.
+
+
+@pytest.fixture
+def enrichlayer_platform_on(monkeypatch):
+    monkeypatch.setenv("TREG_PLATFORM_KEY_ENRICHLAYER", "PLATFORM-ENRICHLAYER")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "enrichlayer")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+async def test_enrichlayer_result_count_and_own_key_ladder(
+    clients, monkeypatch, enrichlayer_platform_on,
+):
+    seen = []
+
+    def serve(request):
+        assert request.url.path == "/api/v2/search/person"
+        seen.append(request.headers["authorization"])
+        return _dropleads_response(200, {"results": [{"profile_url": "https://example.com/p"}]})
+
+    params = {"current_company_name": "Microsoft", "page_size": "1",
+              "enrich_profiles": "enrich", "use_cache": "if-recent"}
+    async with httpx.AsyncClient(transport=httpx.MockTransport(serve)) as upstream:
+        monkeypatch.setattr(A.app.state, "http", upstream)
+        before = await _balance(clients)
+        response = await clients.get("/call/enrichlayer.people.search", params=params)
+        assert response.status_code == 200, response.text
+        assert response.headers["x-treg-cost-micro"] == "600000"
+        assert before - await _balance(clients) == 600000
+
+        await clients.post("/secrets", json={"name": "enrichlayer", "value": "OWN-ENRICHLAYER"})
+        before = await _balance(clients)
+        own = await clients.get("/call/enrichlayer.people.search", params=params)
+        assert own.status_code == 200, own.text
+        assert "x-treg-cost-micro" not in own.headers
+        assert before == await _balance(clients)
+    assert seen == ["Bearer PLATFORM-ENRICHLAYER", "Bearer OWN-ENRICHLAYER"]
+
+
 # Octen reserves a maximum before relay and settles from this response's usage.
 
 

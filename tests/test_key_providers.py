@@ -60,6 +60,21 @@ async def test_search1api_key_uses_free_usage_probe(clients, monkeypatch):
     assert response.status_code == 200, response.text
 
 
+async def test_enrichlayer_key_uses_free_balance_probe(clients, monkeypatch):
+    def probe(request):
+        assert request.method == "GET"
+        assert request.url.path == "/api/v2/credit-balance"
+        assert request.headers["authorization"] == "Bearer own-key"
+        return httpx.Response(200, json={"credit_balance": 100})
+
+    async with AsyncClient(transport=httpx.MockTransport(probe)) as upstream:
+        monkeypatch.setattr(app.state, "http", upstream)
+        response = await clients.post(
+            "/connections/token", json={"provider": "enrichlayer", "token": "own-key"},
+        )
+    assert response.status_code == 200, response.text
+
+
 async def test_perplexity_key_uses_free_model_list_probe(clients, monkeypatch):
     def probe(request):
         assert request.method == "GET"

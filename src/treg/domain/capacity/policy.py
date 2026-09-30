@@ -19,6 +19,7 @@ AGGREGATORS = ("orthogonal", "monid")
 # capacity_type / funding_mode / source. Anything not listed imports as unknown/unknown and is
 # flagged by the sweep — a policy row must be classified by a person, never guessed by code.
 _KNOWN: dict[str, tuple[str, str, str]] = {
+    "enrichlayer": ("credits", "auto_recharge", "api"),
     "adyntel": ("credits", "manual", "manual"),
     "dropleads": ("credits", "manual", "api"),
     "trykitt": ("cash", "manual", "api"),
@@ -105,6 +106,7 @@ _QUOTAS: dict[str, dict] = {
     "aiark": {"limit": 15000, "period": "billing", "resets_at_rule": "monthly subscription; date not reported by API"},
 }
 _RATE_LIMITS: dict[str, dict] = {
+    "enrichlayer": {"limit": 300, "window_s": 60, "source": "docs"},
     # Agent's entry-tier limit is one request per second. Shared-key smoothing is provider-wide,
     # so Search also uses this conservative pace even though its own allowance is higher.
     "perplexity": {"limit": 1, "window_s": 1, "source": "docs"},

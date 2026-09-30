@@ -2381,6 +2381,19 @@ LEADMAGIC = OAuthProvider(
     probe_path="/v1/credits",  # free — no credits consumed
 )
 
+ENRICHLAYER = OAuthProvider(
+    service="enrichlayer", display_name="Enrichlayer", auth_kind="key",
+    token_label="API key", token_placeholder="your Enrichlayer API key",
+    token_header="Authorization", token_format="Bearer {secret}",
+    setup_url="https://enrichlayer.com/", setup_action_label="Get your Enrichlayer API key",
+    setup_steps=("Sign in to Enrichlayer and copy your API key.",),
+    auth_uri="", token_uri="", scopes={}, client_id_setting="", client_secret_setting="",
+    category="Enrichment",
+    summary="Search and enrich people and companies; resolve profiles, contact data and jobs.",
+    base_url="https://enrichlayer.com", docs_url="https://enrichlayer.com/docs",
+    probe_path="/api/v2/credit-balance",
+)
+
 
 FIBER_AI = OAuthProvider(
     service="fiber-ai",
@@ -3831,7 +3844,7 @@ REGISTRY: dict[str, OAuthProvider] = {
         DATAFORSEO, SERANKING, MOZ, MAJESTIC, SERPSTAT, EXA, SEARCH1API, TAVILY, OCTEN, LINKUP, YOU, VALYU, KEENABLE, OLOSTEP, FIRECRAWL, SPIDERCLOUD, PERPLEXITY,
         SCRAPEGRAPHAI, SERPER, LITESCRAPE, CLORO,
         # more Enrichment API-key providers
-        LUSHA, CORESIGNAL, DIFFBOT, THECOMPANIESAPI, LEADMAGIC, FIBER_AI, CRUSTDATA, AVIATO,
+        LUSHA, CORESIGNAL, DIFFBOT, THECOMPANIESAPI, LEADMAGIC, ENRICHLAYER, FIBER_AI, CRUSTDATA, AVIATO,
         COMPANYENRICH, OCEANIO, ADYNTEL, TOMBA, TRESTLEIQ, PREDICTLEADS, FINDYMAIL, BRANDDEV, ICYPEAS, LEADSFORGE,
         INFLUENCERSCLUB,
         # Market data API-key providers

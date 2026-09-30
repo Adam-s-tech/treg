@@ -20,6 +20,9 @@ sources:
   - src/treg/routers/provider_resources.py
   - src/treg/catalog/tavily.yaml
   - src/treg/application/call/octen.py
+  - src/treg/application/call/enrichlayer.py
+  - src/treg/catalog/enrichlayer.yaml
+  - src/treg/web/logos/enrichlayer.svg
   - src/treg/catalog/linkup.yaml
   - src/treg/catalog/you.yaml
   - src/treg/catalog/examples/you.web.search.json

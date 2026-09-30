@@ -139,6 +139,26 @@ async def test_search1api_capacity_uses_free_usage_balance():
     assert row == {"value": 20050, "unit": "credits", "note": "prepaid account balance"}
 
 
+async def test_enrichlayer_capacity_uses_free_credit_balance():
+    def probe(request):
+        assert request.method == "GET"
+        assert request.url == "https://enrichlayer.com/api/v2/credit-balance"
+        assert request.headers["authorization"] == "Bearer test"
+        return httpx.Response(200, json={"credit_balance": 3870})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(probe)) as client:
+        row = await collectors._enrichlayer(client, "test")
+    assert row == {"value": 3870, "unit": "credits", "note": "pay-as-you-go balance"}
+
+
+@pytest.mark.parametrize("balance", [None, True, "100", -1])
+async def test_enrichlayer_capacity_rejects_invalid_balance(balance):
+    async with httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda _: httpx.Response(200, json={"credit_balance": balance}))) as client:
+        with pytest.raises(ValueError, match="Enrichlayer returned no valid credit balance"):
+            await collectors._enrichlayer(client, "test")
+
+
 @pytest.mark.parametrize("balance", [None, True, "100", -1])
 async def test_search1api_capacity_rejects_invalid_balance(balance):
     async with httpx.AsyncClient(transport=httpx.MockTransport(

@@ -1189,7 +1189,7 @@ async def test_search_survives_missing_a_few_words_of_an_agent_sentence(clients)
     from treg.domain.catalog import store as cs
     cat = cs.load()
     # the two logged SearchMiss queries, verbatim
-    rows, total = cs.search("company job postings hiring open jobs linkedin", cat, 8)
+    rows, total = cs.search("company job postings hiring open jobs linkedin", cat, 9)
     assert total > 0
     assert {"apollo.companies.jobs", "apify.linkedin.search.jobs",
             "leadmagic.x.jobs-search-v3"} <= {ep["id"] for ep, _ in rows}
@@ -1221,7 +1221,7 @@ async def test_search_survives_missing_a_few_words_of_an_agent_sentence(clients)
     rows, total = cs.search("K&L Gates company lookup", cat, 8)
     # Provider growth can add a few legitimate company-lookup rows. Keep the guard tight enough
     # to reject single-letter noise without treating new lookup providers as false positives.
-    assert 0 < total < 35 and rows[0][0]["capability"].startswith("companies.")
+    assert 0 < total < 40 and rows[0][0]["capability"].startswith("companies.")
     # the jobs rows must survive an industry qualifier the catalog never says ("law firm"), via
     # the openings->postings and firm->company aliases (logged miss, 2026-08-20)
     rows, total = cs.search("law firm job openings hiring signal", cat, 8)

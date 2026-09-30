@@ -522,6 +522,11 @@ def _observed_cost_micro(mk: MarketplaceCall, body: bytes, headers=None) -> int 
             return None
         return octen.observed_micro(
             mk.endpoint_id, rates, mk.request_data, doc, mk.estimate_micro)
+    if provider == "enrichlayer" and mk.settlement_basis.get("enrichlayer_rule"):
+        from . import enrichlayer
+        return enrichlayer.observed_micro(
+            mk.settlement_basis["enrichlayer_rule"],
+            mk.settlement_basis["enrichlayer_unit_micro"], doc, mk.estimate_micro)
     if provider == "aviato" and mk.endpoint_id == "aviato.people.enrich.bulk":
         if isinstance(doc, list) and mk.unit_micro > 0:
             return sum(item is not None for item in doc) * mk.unit_micro

@@ -698,6 +698,28 @@ def test_octen_rate_table_matches_displayed_base_and_requires_every_meter():
         assert errors
 
 
+def test_enrichlayer_result_rule_requires_bounded_declared_credit_price():
+    schema = {"queryParams": {"page_size": {"type": "string"},
+                              "use_cache": {"type": "string"}}}
+    base = {"type": "per_result", "currency": "credit", "value": 3, "per": 1,
+            "enrichlayer": {"field": "results", "max_page": 100,
+                            "extra_per_result": {"use_cache": {"if-recent": 2}}}}
+    errors = []
+    validator.check_enrichlayer_rule(base, schema, "test", errors)
+    assert errors == []
+    for broken in (
+        {**base, "enrichlayer": {"field": "results", "max_page": 0}},
+        {**base, "enrichlayer": {"field": "wrong", "max_page": 100}},
+        {**base, "enrichlayer": {"field": "results", "max_page": 100,
+                                  "extra_per_result": {"missing": {"on": 2}}}},
+        {**base, "enrichlayer": {"field": "results", "max_page": 100,
+                                  "extra_per_result": {"use_cache": {"if-recent": -1}}}},
+    ):
+        errors = []
+        validator.check_enrichlayer_rule(broken, schema, "test", errors)
+        assert errors
+
+
 # ---- ContactOut ----
 
 
