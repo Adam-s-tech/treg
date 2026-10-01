@@ -2,6 +2,7 @@
 title: Discovery experiment — a relevance judge behind catalog search, measured on what the caller does next
 status: building
 sources:
+  - src/treg/application/catalog_search.py
   - src/treg/application/search_experiment.py
   - src/treg/domain/catalog/interleave.py
   - src/treg/infra/judge.py
@@ -41,10 +42,16 @@ Three layers, imports pointing inward:
   confidence and every option's probability); a candidate in `job_view`'s shape is asked about a
   whole job, under `job_criteria` ([find](find.md)). The experiment passes none of these, so its
   question and its cache key are unchanged while it runs.
-- **`application/search_experiment.py`** — the use case. Judges the candidates, builds the judged
+- **`application/catalog_search.py`** — the search use case behind MCP `catalog_search` on both
+  surfaces: the shipped ranker's page (`store.rank_band` over a band wider than the page, the
+  evidence rerank, listed hub tools merged by score, routed groups, cut to the page), then the
+  experiment's say over it, then the records (`audit.record_search` while the experiment is on,
+  `record_search_miss` whenever the LEXICAL page is empty). The hub read holds its own session and
+  closes it before any judge request. The MCP layer resolves who is asking and shapes the rows.
+- **`application/search_experiment.py`** — the experiment. Judges the candidates, builds the judged
   page with the SAME finishing steps the baseline had (evidence rerank, routed grouping, cut to the
-  page — the MCP layer passes that function in), deals the caller an arm, decides what is shown, and
-  hands the MCP layer a row for `audit.record_search`.
+  page — the use case passes that function in), deals the caller an arm, decides what is shown, and
+  hands back a row for `audit.record_search`.
 
 The judged page is **bucketed, not sorted by probability**: rows under `search_judge_keep` (0.4)
 are dropped, rows at or over `search_judge_high` (0.7) go first, and inside a bucket the lexical

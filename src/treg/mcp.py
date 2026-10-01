@@ -54,6 +54,7 @@ from mcp.shared.exceptions import MCPError
 from mcp.types import AudioContent, CallToolResult, METHOD_NOT_FOUND, TextContent, ToolAnnotations
 
 from . import analytics, audit, hints
+from .application import catalog_search as search_app
 from .application import search_experiment
 from .domain.catalog import store as catalog_store
 from .config import PUBLIC_HOST_ALIASES, get_settings
@@ -715,69 +716,30 @@ async def _search_identity(ctx: Context | None) -> tuple[str | None, int | None,
 async def _catalog_search_impl(
     query: str, limit: int = 8, *, ctx: Context | None = None, surface: _SurfacePolicy
 ) -> SearchOut:
+    """The use case is `application.catalog_search`: the shipped ranker's page, the discovery
+    experiment's say over it, and the records. This layer resolves who is asking (the hub's lists
+    and the experiment's log both need it) and shapes the rows for an agent."""
     cat = catalog_store.load()
     limit = max(1, min(limit, 25))
-    # Score, then let the evidence break the ties. Token scoring produces ties by the dozen — every
-    # one of the 24 "ad library" matches scores 6 — so with a default limit of 8 the rows an agent
-    # actually sees were decided by file order. That handed back seven tikhub rows (one of them
-    # uncallable) and hid the cheapest endpoint with a perfect measured record.
-    # The band is widened only so routed groups can collapse below without starving the page; with
-    # steering off there is no collapsing, so the original band is the right one.
-    _steering = str(get_settings().routed_discovery).strip().lower() not in ("off", "0", "false", "no")
-    ranked, total, tie_truncated = catalog_store.rank_band(
-        query, cat, min(100, limit * 4) if _steering else limit)
-    stats = await _observed_stats([ep["id"] for ep, _ in ranked])
-    ranked = catalog_store.rerank(ranked, stats, cat)
-    # Listed hub tools ride in by score, no boost (docs/hub-listing-decisions.md, decision 2).
-    from .application import hub as hub_app
-    from .infra.db import session_maker
     # While a list limits the hub, only a caller in it (by team or by email) sees hub rows.
     hub_slug = hub_email = None
     if get_settings().hub_enabled and get_settings().hub_limited:
         token = _bearer(ctx) if ctx is not None else ""
         if token:
             hub_slug, hub_email = await _hub_reader(token)
-    async with session_maker() as _s:
-        hub_ranked, hub_stats = await hub_app.search_listed(_s, query, cat, org_slug=hub_slug, email=hub_email)
-    if hub_ranked:
-        stats = {**stats, **hub_stats}
-        ranked = catalog_store.merge_by_score(ranked, hub_ranked)
-        total += len(hub_ranked)
-    results = []
-    # Same order the HTTP route serves: a capability with a ROUTED row shows the parent first and
-    # its children right under it (catalog_store.group_routed), so an agent sees "let treg choose"
-    # before the specific providers.
-    grouped = catalog_store.group_routed(
-        [{"ep": ep, "score": score, "capability": ep.get("capability"), "kind": ep.get("kind")} for ep, score in ranked],
-        max_children=catalog_store.MAX_ROUTED_CHILDREN)
-    hidden = {r["ep"]["id"]: r["children_hidden"] for r in grouped if r.get("children_hidden")}
-    ranked = [(r["ep"], r["score"]) for r in grouped][:limit]
-    baseline_page = ranked
-    if query.strip() and search_experiment.mode() != "off":
-        # The discovery experiment (application.search_experiment): a relevance judge over a wider
-        # recall, compared with the page above on what the caller does next. `shadow` serves this
-        # page unchanged and only logs; `interleave` may serve a merge. Whatever the judge does,
-        # `ranked` stays a page — an abstaining judge leaves the baseline in place.
-        async def _finish(rows):
-            st = await _observed_stats([ep["id"] for ep, _ in rows])
-            rows = catalog_store.rerank(rows, st, cat)
-            g = catalog_store.group_routed(
-                [{"ep": ep, "score": sc, "capability": ep.get("capability"), "kind": ep.get("kind")}
-                 for ep, sc in rows], max_children=catalog_store.MAX_ROUTED_CHILDREN)
-            return [(r["ep"], r["score"]) for r in g][:limit], st
-        key, org_id, email = await _search_identity(ctx)
-        exp = await search_experiment.run(query, cat, baseline=baseline_page, baseline_total=total,
-                                          limit=limit, caller=key, finish=_finish)
-        stats = {**exp.stats, **stats}
-        ranked = exp.shown
-        audit.record_search(query=query.strip(), source=surface.event_source, org_id=org_id,
-                            user_email=email, **exp.log)
-        analytics.capture(key or "anonymous", "catalog_search_judged", {
-            "source": surface.event_source, "mode": exp.log["mode"], "arm": exp.arm,
-            "baseline_total": total, "baseline_empty": not baseline_page,
-            "differs": exp.log["differs"], "judge_ms": exp.log["judge_ms"],
-            "judge_error": exp.log["judge_error"], "judge_tokens_in": exp.log["judge_tokens_in"],
+    page = await search_app.search(
+        query, limit, cat=cat, source=surface.event_source,
+        caller=search_app.Caller(hub_slug=hub_slug, hub_email=hub_email),
+        observed=_observed_stats, identify=lambda: _search_identity(ctx))
+    ranked, stats, hidden, total, _steering = page.rows, page.stats, page.hidden, page.total, page.steering
+    if page.arm is not None:
+        analytics.capture(page.caller_key or "anonymous", "catalog_search_judged", {
+            "source": surface.event_source, "mode": page.log["mode"], "arm": page.arm,
+            "baseline_total": total, "baseline_empty": page.lexical_empty,
+            "differs": page.log["differs"], "judge_ms": page.log["judge_ms"],
+            "judge_error": page.log["judge_error"], "judge_tokens_in": page.log["judge_tokens_in"],
             "shown": len(ranked)})
+    results = []
     for ep, score in ranked:
         obs = stats.get(ep["id"]) or {}
         cost = (ep.get("cost") if ep.get("kind") == "hub" else cat.cost_view(ep.get("cost"), ep.get("provider"))) or {}
@@ -811,18 +773,12 @@ async def _catalog_search_impl(
             "samples": obs.get("samples") or 0,
         })
     out = {"query": query, "count": len(results), "total_matches": total, "results": results}
-    if tie_truncated:
+    if page.tie_truncated:
         # No silent caps: past this many equally-scoring rows the evidence sort never saw the rest,
         # so the tail is ordered by nothing in particular and must not read as a ranked answer.
         out["ranking_note"] = (f"{query!r} matches too broadly to rank on measured reliability past "
                                f"the first {catalog_store.RERANK_BAND} equally-scoring rows — "
                                f"add a word to narrow it")
-    if not baseline_page and query.strip():
-        # Same miss log as GET /catalog/search (see models.SearchMiss) — this tool reads the catalog
-        # in-process, so the HTTP route's logging never sees an MCP agent's empty search. Judged by
-        # the LEXICAL page: the miss log measures the shipped ranker's coverage, and a judged page
-        # that found something is the experiment's result, not a reason to stop recording the gap.
-        audit.record_search_miss(query=query.strip(), source=surface.event_source)
     if not results:
         # the zero-result answer carries the rows that JUST missed the gate and which words they
         # missed — the caller is an LLM, and told exactly what to drop it re-queries correctly
