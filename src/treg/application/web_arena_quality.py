@@ -25,6 +25,8 @@ async def _take_budget(user_id: int) -> bool:
     settings = get_settings()
     if not settings.ai_gateway_api_key:
         return False
+    if settings.local_dev:
+        return True
     day = datetime.now(timezone.utc).date().isoformat()
     async with session_maker() as db:
         dialect = db.bind.dialect.name

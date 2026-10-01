@@ -36,10 +36,30 @@ benchmark publication with 30 search, 20 fetch, and 10 sitemap cases. Brand is v
 and Sitemap asks for up to 100 URLs. `route.build_plan` supplies verified, scoped catalog
 adapters and the team's current credential tier. A task that needs a limit drops an adapter that
 cannot send that limit. Sitemap also drops shared-key Tavily Map, whose limit is below 100.
+Brand.dev's fixed ten-result search can join a Search quote because it enforces that limit in
+its adapter. The Web Arena quote checks this after planning the scoped provider candidates.
+The public task response shows verified adapter previews, so the provider lineup and logos appear
+before sign-in. The lineup is a catalog preview; a signed-in team quote removes providers it
+cannot call. A changed input, mode, Jev choice, or provider selection refreshes the quote after
+a short pause. The lineup keeps selected fighters first and has controls to scroll through providers.
+Opening a saved run restores its selected fighters from the saved attempts. Failed, empty, and
+downvoted attempts use the fallen fighter pose; other available providers stay excluded.
+The current quote appears on the Run button without a separate price step.
+The run form uses one quality switch with Jev and treg details in an info tooltip. A focused query has one outer
+border. Results show provider logos, time and cost, thumbs ratings, and plain failure states.
+While a run is live, the lineup shows only its selected providers, uses Enrich Arena's fight and
+win animation, and puts Stop beside the fighters.
+Completed Battle runs mark the fastest and cheapest successful results when all compared values
+are known, both on result cards and on provider fighters. Search results describe freshness from
+known source dates in words. A result with no usable dates shows no freshness label; a completed
+check can say that recent sources are not needed. The fighter lineup shows the state of each
+attempted provider after a run.
+An unavailable search match check leaves the score line empty.
 One endpoint per provider joins the quote. Battle selects all by default, with a fresh quote
 after a provider switch. Waterfall sorts by quoted cost and stops before its quoted spend exceeds
 $10. Providers without direct capacity do not join a comparison. A quote freezes endpoint and adapter
 hashes; `start` checks them again, locks the user for admission, and checks team credits.
+Valyu is excluded from the Web Search lineup and quote until its web search price cap is verified.
 
 Every leg in `_run` creates a direct `CallInput` for `service.execute_call`. Each child uses the
 ordinary credential, hold, settle, and cancellation path. The run reads and closes the full
@@ -57,7 +77,7 @@ retry an ambiguous provider call. Ratings live in the private run payload and do
 automatic check.
 
 `web_arena_quality.search` sends the first five links, titles, and snippets to Jev and shows the
-answer as an estimated match. It reads dates only when present. Freshness uses a disclosed 30-day
+answer as an Intent match estimate, with the scoring scope in help text. It reads dates only when present. Freshness uses a disclosed 30-day
 window over dated links when the query needs recent information; missing dates remain unknown.
 Fetch counts words and symbols with the fixed `word-or-symbol-v1` tokenizer. For at least two
 provider texts, a bounded LLM request lists up to 12 facts from their union. Jev tests retention
@@ -66,6 +86,8 @@ missed. Sitemap checks URL syntax, exact host, and duplicates without Jev. It sh
 when a separate known URL list exists. Results save before checks; a check failure leaves the
 provider data visible. `WebArenaJudgeBudget` admits external quality calls under a daily user
 and operations cap before network I/O. Treg pays those calls separately from provider charges.
+Local development with a SQLite database and loopback public URL skips the quality-call caps
+for testing. It still needs an AI gateway key.
 
 `web_arena_publications.refresh_live` is worker work. It reads completed Battle runs only, then
 saves content-free totals in `WebArenaPublication`. The public page reads that one publication.

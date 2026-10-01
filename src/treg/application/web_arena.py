@@ -17,7 +17,7 @@ from sqlmodel import select
 from ..config import get_settings
 from ..domain import money, web_arena as rules
 from ..domain.catalog.routing.contracts import declared_miss
-from ..domain.catalog.routing.plan import _used_keys
+from ..domain.catalog.routing.plan import _used_keys, candidates_for, unscoped
 from ..domain.catalog import store as catalog_store
 from ..infra.db import session_maker
 from ..models import LedgerEntry, User, WebArenaRun
@@ -62,8 +62,32 @@ async def _prune(db):
 
 def tasks():
     _check_enabled()
-    return [{"id": key, "label": label, "enabled": key != "brand"} for key, label in
-            (("search", "Web Search"), ("fetch", "Web Fetch"), ("sitemap", "Sitemap"), ("brand", "Brand"))]
+    cat = catalog_store.load()
+    result = []
+    for task, label in (("search", "Web Search"), ("fetch", "Web Fetch"),
+                        ("sitemap", "Sitemap"), ("brand", "Brand")):
+        previews = []
+        if task != "brand":
+            capability = rules.TASKS[task]
+            contract = cat.contracts[capability]
+            identity = rules.input_for(task, "example query" if task == "search" else "https://example.com")
+            candidates, _ = candidates_for(contract, cat.for_capability(capability), cat.adapters, identity)
+            seen = set()
+            for ep, adapter, _ in candidates:
+                provider = ep["provider"]
+                if task == "search" and provider == "valyu":
+                    continue
+                if (provider in seen or provider == "treg" or ep.get("async") or ".bulk" in ep["id"]
+                        or unscoped(adapter, contract, identity)):
+                    continue
+                if task in {"search", "sitemap"} and "limit" not in _used_keys(adapter) and not (
+                        task == "search" and ep["id"] == "branddev.web.search"):
+                    continue
+                seen.add(provider)
+                previews.append({"provider": provider, "endpoint_id": ep["id"]})
+        result.append({"id": task, "label": label, "enabled": task != "brand",
+                       "provider_previews": sorted(previews, key=lambda p: p["provider"])})
+    return result
 
 
 async def quote(caller, *, task: str, value: str, mode: str = "battle", providers: list[str] | None = None,
@@ -79,8 +103,10 @@ async def quote(caller, *, task: str, value: str, mode: str = "battle", provider
         raise rules.WebArenaError("Choose Battle or Waterfall.")
     identity = rules.input_for(task, value)
     capability = rules.TASKS[task]
+    # Check limits below so fixed ten-result adapters can join without letting an
+    # unbounded adapter into a run. These tasks supply no other optional filters.
     plan = await route.build_plan({"id": "web-arena." + task, "capability": capability}, identity, caller,
-                                  route.RouteOptions(strict_filters=True))
+                                  route.RouteOptions(strict_filters=False))
     cat = catalog_store.load()
     chosen, dropped, seen = [], list(plan.dropped), set()
     requested = set(providers) if providers is not None else None
@@ -89,6 +115,8 @@ async def quote(caller, *, task: str, value: str, mode: str = "battle", provider
     for c in plan.candidates:
         ep, adapter = c.endpoint, c.adapter
         provider = ep["provider"]
+        if task == "search" and provider == "valyu":
+            continue
         if provider in seen or provider == "treg" or ep.get("async") or ".bulk" in ep["id"]:
             continue
         if c.exhausted or c.note:
