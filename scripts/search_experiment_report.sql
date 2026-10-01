@@ -5,11 +5,22 @@
 -- each row's owner; `callrecord` (audit) carries the call. No labels anywhere — the join IS the label.
 --
 -- Run against the read replica:  psql "$TREG_READ_DATABASE_URL" -f scripts/search_experiment_report.sql
--- (`-v mode=v2` reads another mode's arms). Postgres only (jsonb functions). Every block is read-only.
+-- `-v mode=v2` reads another mode's arms, `-v window='7 days'` another window (the defaults below
+-- apply only where the variable was not given). Postgres only (jsonb functions). Every block is
+-- read-only.
 
+\if :{?window}
+\else
 \set window '30 days'
+\endif
+\if :{?followup}
+\else
 \set followup '10 minutes'
+\endif
+\if :{?mode}
+\else
 \set mode 'interleave'
+\endif
 
 -- 1. Volume and health: how many searches, how often the pages differ, what the judge cost.
 --    `differs` is the population the experiment can say anything about; an identical page is a
@@ -61,10 +72,11 @@ GROUP BY 1, 2 ORDER BY 2, 1;
 --     endpoint does is read from the rows that carried it on any page in the window. The verdict
 --     on a `baseline` row is v2's reading of a query that caller answered from the lexical page:
 --     a `none` there that still converted is a false none, read directly.
-WITH jobs AS (
+WITH jobs AS MATERIALIZED (
   SELECT DISTINCT e->>0 AS endpoint_id, e->>2 AS capability
   FROM searchlog s, jsonb_array_elements(s.shown::jsonb) e
-  WHERE s.created_at > now() - :'window'::interval AND jsonb_array_length(e) > 2 AND e->>2 IS NOT NULL
+  WHERE s.created_at > now() - :'window'::interval AND s.mode = :'mode'
+    AND jsonb_array_length(e) > 2 AND e->>2 IS NOT NULL
 ),
 pages AS (
   SELECT s.id, s.arm, coalesce(s.verdict, 'v1') AS verdict, s.org_id, s.user_email, s.created_at,
@@ -75,13 +87,14 @@ pages AS (
   WHERE s.created_at > now() - :'window'::interval AND s.mode = :'mode' AND s.org_id IS NOT NULL
 ),
 converted AS (
-  SELECT p.id, bool_or(c.id IS NOT NULL) AS converted
+  -- one correlated probe per page, on the (org, email, created_at) index, like 2c; a hash of
+  -- callrecord against the jobs table would scan the window's calls once per block instead
+  SELECT p.id, EXISTS (
+    SELECT 1 FROM callrecord c JOIN jobs j ON j.endpoint_id = c.endpoint_id
+    WHERE c.org_id = p.org_id AND c.user_email = p.user_email
+      AND c.created_at BETWEEN p.created_at AND p.created_at + :'followup'::interval
+      AND j.capability = ANY (p.shown_jobs)) AS converted
   FROM pages p
-  LEFT JOIN (callrecord c JOIN jobs j ON j.endpoint_id = c.endpoint_id)
-    ON c.org_id = p.org_id AND c.user_email = p.user_email
-   AND c.created_at BETWEEN p.created_at AND p.created_at + :'followup'::interval
-   AND j.capability = ANY (p.shown_jobs)
-  GROUP BY p.id
 )
 SELECT p.arm, p.verdict, p.baseline_empty,
        count(*) AS searches,
