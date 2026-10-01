@@ -1847,7 +1847,8 @@ to choose (`docs/CAPABILITY-ROUTING-PLAN.md`). Everything else in the catalog st
   rule is per candidate, so `{q, company_domain}` also drops the `q`-only providers.
 - **Adapters** — `adapters.yaml`, one per endpoint: `accepts` (identity variants), `in` (contract
   field → `queryParams.x` / `body.x`), `const` (fixed provider params), `out` (core field →
-  expression over the body), `miss`. The expression language (`domain/catalog/routing/paths.py`)
+  expression over the body), `miss`, and `route: false` for an adapter that only judges hit/miss
+  evidence (results, stats, cache admission) and never joins routing or the arena. The expression language (`domain/catalog/routing/paths.py`)
   is deliberately tiny: dotted paths with `[i]` (root `[0]`, `.` = the whole body), `coalesce`
   (first non-empty argument, else the last one),
   `/ N`, `==`/`!=` against literals, and named transforms (`split_first`, `split_last`, `join`,
