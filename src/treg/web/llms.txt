@@ -570,6 +570,12 @@ A small tool set, the same for every client:
     my_tools         what your team registered that you can call without the key
     catalog_request  request a missing capability
     feedback         share a problem or suggestion (omit private information)
+
+`catalog_search` answers a described job with the endpoints that do it, every provider of that
+job ranked by measured success (a provider or platform name lists what it offers). Read its
+`verdict`: `strong` means these do the job; `closest` means the nearest, read `catalog_get`
+before relying on one; `none` means the catalog has no tool for it, so file `catalog_request`
+instead of rephrasing; `keyword` means ranked by words alone.
 <!--hub-->
 - `hub_create` · `hub_update` · `hub_mine` — publish a tool made of tools (the four files as fields; the check runs once on your balance; live on pass).
 <!--/hub-->

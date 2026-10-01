@@ -1545,7 +1545,8 @@ class SearchLog(SQLModel, table=True):
     baseline_ids: list | None = Field(default=None, sa_column=Column("baseline_ids", JSON, nullable=True))
     # [[endpoint_id, probability], ...] — the judge's kept rows, in the order the judged arm shows
     judged: list | None = Field(default=None, sa_column=Column("judged", JSON, nullable=True))
-    # [[endpoint_id, owner], ...] — the page actually served; owner is baseline | judged | both
+    # [[endpoint_id, owner, job], ...] — the page actually served; owner is baseline | judged | both
+    # (| name | hub), job the row's capability so a later call to any vendor of it can be credited
     shown: list | None = Field(default=None, sa_column=Column("shown", JSON, nullable=True))
     baseline_total: int = 0                                  # lexical matches before the page cut
     differs: bool = False                                    # the two pages are not the same set+order

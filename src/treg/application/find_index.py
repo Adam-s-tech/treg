@@ -102,21 +102,23 @@ def encode(key: str, vector: list[float]) -> bytes:
     return MAGIC + struct.pack("<I", len(vector)) + bytes.fromhex(key) + struct.pack(f"<{len(vector)}f", *vector)
 
 
-def decode(key: str, body: bytes | None) -> list[float] | None:
-    """A stored vector, or None when it is missing, damaged, or another card's."""
+def decode(key: str, body: bytes | None):
+    """A stored vector as a float32 array, or None when it is missing, damaged, or another card's."""
+    import numpy as np
+
     if not body or len(body) < 40 or body[:4] != MAGIC:
         return None
     (dim,) = struct.unpack("<I", body[4:8])
     if body[8:40] != bytes.fromhex(key) or len(body) != 40 + 4 * dim or dim == 0:
         return None
-    return list(struct.unpack(f"<{dim}f", body[40:]))
+    return np.frombuffer(body, dtype="<f4", offset=40)
 
 
-async def _read(model: str, keys: list[str]) -> dict[str, list[float]]:
+async def _read(model: str, keys: list[str]) -> dict:
     if _store is None:
         return {}
     sem = asyncio.Semaphore(READ_CONCURRENCY)
-    found: dict[str, list[float]] = {}
+    found: dict = {}
 
     async def one(key: str) -> None:
         async with sem:
@@ -159,7 +161,7 @@ async def build(ix: find_recall.Index, *, transport=None) -> Vectors:
         have, dims = {}, set()
     dim = dims.pop() if dims else None
     missing = sorted({k for k in keys if k not in have})
-    made: dict[str, list[float]] = {}
+    made: dict = {}
     for i in range(0, len(missing), BATCH):
         batch = missing[i:i + BATCH]
         for attempt in range(BATCH_RETRIES + 1):
@@ -230,16 +232,16 @@ async def _run(b: _Build, ix: find_recall.Index, transport=None) -> None:
 
 
 async def warm() -> None:
-    """Build this process's card vectors now rather than on its first find. The catalog is parsed
-    lazily and synchronously (seconds), so that happens off the event loop; the cached catalog is
-    then re-read on the loop, so a request that parsed it meanwhile and this task agree on the one
-    object the vectors are keyed by. Awaits the build so cancelling this task cancels it; a failed
-    build is logged by `_run` and retried by the next find."""
+    """Build this process's card vectors now rather than on its first find. The catalog's parse
+    (seconds, normally already done at import) and the index's build (under a second) run off the
+    event loop; both are cached on the one object the vectors are keyed by. Awaits the build so
+    cancelling this task cancels it; a failed build is logged by `_run` and retried by the next
+    find."""
     if not enabled():
         return
-    await asyncio.to_thread(catalog_store.load)
-    cat = catalog_store.load()
-    ready(cat, find_recall.index(cat))
+    cat = await asyncio.to_thread(catalog_store.load)
+    ix = await asyncio.to_thread(find_recall.index, cat)
+    ready(cat, ix)
     b = _build
     if b is not None and b.cat is cat and b.task is not None:
         await b.task

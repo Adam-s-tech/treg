@@ -269,8 +269,8 @@ def _log(query: str, *, source: str, baseline_total: int, cands: list[tuple[dict
         mode="find", arm="judged", engine="v1",
         baseline_ids=[ep["id"] for ep, _ in cands],
         judged=None if judged.kept is None else [[ep["id"], round(p, 3)] for ep, p in judged.kept],
-        shown=[[ep["id"], "judged" if p is not None else "name" if judged.verdict == NAME else "baseline"]
-               for ep, p in judged.rows],
+        shown=[[ep["id"], "judged" if p is not None else "name" if judged.verdict == NAME else "baseline",
+                ep.get("capability")] for ep, p in judged.rows],
         baseline_total=int(baseline_total), differs=False,
         judge_ms=j.ms, judge_tokens_in=j.tokens_in, judge_tokens_out=j.tokens_out, judge_error=j.error)
     if judged.verdict == NONE or (judged.verdict == KEYWORD and not judged.rows):
@@ -286,6 +286,8 @@ GAP = "gap"
 NOT_TASK = "not_task"
 JUDGE_OFF = "judge_off"
 SCOPE = "scope"
+
+JUDGED = (STRONG, CLOSEST, NAME)  # verdicts whose rows are the judge's answer, not the keyword page's
 
 FIT_FROM_JOB = "job"            # the row carries its job's fit
 FIT_FROM_ENDPOINT = "endpoint"  # the row was judged on its own words
@@ -325,6 +327,19 @@ def _unit_view(unit: find_recall.Unit, cat: catalog_store.Catalog) -> dict:
 
 
 @dataclass
+class Group:
+    """One job's rows on a v2 answer (or an endpoint's, on its own): a strong job's every vendor, a
+    closest job's first `FOLDED`, a name page's rows of that job; `providers` is the vendors doing
+    the job as the judge was told (on a name page, those on it), `hidden` the vendors a fold left
+    out of `rows`."""
+    capability: str
+    p: float | None
+    rows: list[dict]                 # {"ep", "p", "fit_from"} in evidence order
+    providers: int = 0
+    hidden: int = 0
+
+
+@dataclass
 class Found:
     """One v2 answer: the verdict, why a `none` is empty, what a name named, and the rows."""
     verdict: str
@@ -334,6 +349,7 @@ class Found:
     reason: str = ""
     name: find_recall.NameHit | None = None
     rows: list[dict] = field(default_factory=list)   # {"ep", "p", "fit_from", "children_hidden"}
+    groups: list[Group] = field(default_factory=list)   # the same rows by job (strong, closest, name)
 
     @property
     def platform(self) -> dict | None:
@@ -374,38 +390,43 @@ async def recall_with_meaning(query: str, cat: catalog_store.Catalog, provider_d
 
 
 async def judge_v2(query: str, cands: list[find_recall.Candidate], cat: catalog_store.Catalog,
-                   provider_display, platform: str | None = None) -> judge_infra.Judgement:
+                   provider_display, platform: str | None = None,
+                   timeout_s: float | None = None) -> judge_infra.Judgement:
     """One request: a fit per unit, "is it only a name?", and (off a shelf) which platform. With no
     units the two extra questions are still asked, so an empty recall can still be told apart as a
-    catalog gap or not a task."""
+    catalog gap or not a task. `timeout_s` defaults to find's (`find_timeout_s`); an agent's search
+    passes its own budget."""
     s = get_settings()
     extra = {"name": NAME_QUESTION}
     if platform is None:
         extra["plat"] = platform_question(find_recall.index(cat))
     return await judge_infra.judge(
         query, [_unit_view(c.unit, cat) for c in cands], api_key=s.typesafe_api_key,
-        model=s.typesafe_model, url=s.typesafe_url, timeout_s=float(s.find_timeout_s),
+        model=s.typesafe_model, url=s.typesafe_url,
+        timeout_s=float(s.find_timeout_s if timeout_s is None else timeout_s),
         criteria=FIT_CRITERIA, job_criteria=JOB_CRITERIA, extra=extra)
 
 
 def decide(query: str, cands: list[find_recall.Candidate], j: judge_infra.Judgement,
-           ix: find_recall.Index, platform: str | None = None, provider_display=lambda s: s) -> Found:
+           ix: find_recall.Index, platform: str | None = None, provider_display=lambda s: s,
+           not_task: str = NONE) -> Found:
     """The verdict, the first rule that holds (docs/context/architecture/find.md):
 
-    1. the judge abstained: keyword
+    1. the judge abstained: keyword, with the judge's reason
     2. the query is exactly a name, or a name's prefix the judge reads as a name: name
     3. no strong fit, a short query, a name matches: name (a typed prefix)
     4. no strong fit, the judge reads a name, the name table has none and nothing is kept: none/gap
     5. the judge picks no platform with confidence: none/gap under `CAPPED_TOP`, else closest (never strong)
     6. a fit at or over high: strong
     7. a fit at or over keep: closest
-    8. otherwise: none/not_task
+    8. otherwise: `not_task` (none for a person; an agent's search passes keyword, since its input
+       always means something and the keyword page serves it), reason not_task
 
     On a shelf (`platform`) any `none` is `scope`: that find read one shelf.
     """
     s = get_settings()
     if j.probs is None:
-        return Found(KEYWORD, j, cands)
+        return Found(KEYWORD, j, cands, reason=j.error or "")
     keep, high = float(s.search_judge_keep), float(s.search_judge_high)
     scored = sorted(zip(cands, j.probs), key=lambda t: -t[1])
     top = scored[0][1] if scored else 0.0
@@ -429,57 +450,93 @@ def decide(query: str, cands: list[find_recall.Candidate], j: judge_infra.Judgem
     elif kept:
         found.verdict = CLOSEST
     else:
-        found.reason = NOT_TASK
-    if found.verdict == NONE:
+        found.verdict, found.reason = not_task, NOT_TASK
+    if found.verdict in (NONE, KEYWORD):
         found.kept = []
-        if platform:
+        if platform and found.verdict == NONE:
             found.reason = SCOPE
     return found
 
 
-def expand(found: Found, cat: catalog_store.Catalog, stats: dict, platform: str | None = None) -> list[dict]:
-    """The rows of a strong or closest answer, best unit first. A job at or over high lists every
-    vendor in the evidence rerank's order (measured success, then core, then price), all of them
-    carrying the job's fit: the pages show a job as one line with its vendor count, so cutting
-    vendors here would only hide them. A job under high shows one row for each of its first `FOLDED`
-    providers, the first row counting the job's other providers in `children_hidden`. An endpoint judged on its own carries its own fit, also
-    where its job was expanded, and is left out when its own fit is under keep."""
+def verdict_label(verdict: str, reason: str = "") -> str:
+    """The verdict as recorded: the reason after a colon where there is one (`none:gap`)."""
+    return f"{verdict}:{reason}" if reason else verdict
+
+
+def expand_groups(found: Found, cat: catalog_store.Catalog, stats: dict, platform: str | None = None) -> list[Group]:
+    """The rows of a strong or closest answer by kept unit, best first. A job at or over high lists
+    every vendor in the evidence rerank's order (measured success, then core, then price), all of
+    them carrying the job's fit: the pages show a job as one line with its vendor count, so cutting
+    vendors here would only hide them. A job under high shows one row for each of its first
+    `FOLDED` providers and counts the job's other providers in `hidden`. An endpoint judged on its
+    own carries its own fit, also where its job was expanded, and is left out when its own fit is
+    under keep."""
     s = get_settings()
     keep, high = float(s.search_judge_keep), float(s.search_judge_high)
     own = {c.unit.id: p for c, p in zip(found.cands, found.judgement.probs or [])
            if c.unit.kind == find_recall.ENDPOINT}
-    rows: list[dict] = []
+    groups: list[Group] = []
     placed: set[str] = set()
     for c, p in found.kept:
         if c.unit.kind == find_recall.ENDPOINT:
             if c.unit.id not in placed:
                 placed.add(c.unit.id)
-                rows.append({"ep": cat.by_id[c.unit.id], "p": p, "fit_from": FIT_FROM_ENDPOINT})
+                groups.append(Group("", p, [{"ep": cat.by_id[c.unit.id], "p": p, "fit_from": FIT_FROM_ENDPOINT}]))
             continue
         members = [cat.by_id[m] for m in c.unit.members if not platform or cat.by_id[m]["platform"] == platform]
-        group: list[dict] = []
+        rows: list[dict] = []
         for ep, _ in catalog_store.rerank([(ep, 0.0) for ep in members], stats, cat):
             if ep["id"] in placed:
                 continue
             if ep["id"] in own:
                 if own[ep["id"]] >= keep:
-                    group.append({"ep": ep, "p": own[ep["id"]], "fit_from": FIT_FROM_ENDPOINT})
+                    rows.append({"ep": ep, "p": own[ep["id"]], "fit_from": FIT_FROM_ENDPOINT})
             else:
-                group.append({"ep": ep, "p": p, "fit_from": FIT_FROM_JOB})
+                rows.append({"ep": ep, "p": p, "fit_from": FIT_FROM_JOB})
+        hidden = 0
         if p < high:
             # Folded by provider: the first row of each of the first `FOLDED` providers. The count
             # is of providers, the job's own (what the judge was told it has), less those on the page.
             firsts: dict[str, dict] = {}
-            for r in group:
+            for r in rows:
                 firsts.setdefault(r["ep"]["provider"], r)
-            group = list(firsts.values())[:FOLDED]
-            on_page = {r["ep"]["provider"] for r in (*rows, *group) if r["ep"]["capability"] == c.unit.id}
+            rows = list(firsts.values())[:FOLDED]
+            on_page = {r["ep"]["provider"] for g in groups for r in g.rows if r["ep"]["capability"] == c.unit.id}
+            on_page |= {r["ep"]["provider"] for r in rows}
             hidden = len({ep["provider"] for ep in members} - on_page)
-            if group and hidden:
-                group[0]["children_hidden"] = hidden
-        placed.update(r["ep"]["id"] for r in group)
-        rows.extend(group)
+        placed.update(r["ep"]["id"] for r in rows)
+        groups.append(Group(c.unit.id, p, rows, len(c.unit.providers), hidden))
+    return groups
+
+
+def flatten(groups: list[Group]) -> list[dict]:
+    """The groups as one list of rows, a folded job's first row carrying `children_hidden`."""
+    rows: list[dict] = []
+    for g in groups:
+        if g.rows and g.hidden:
+            g.rows[0]["children_hidden"] = g.hidden
+        rows.extend(g.rows)
     return rows
+
+
+def expand(found: Found, cat: catalog_store.Catalog, stats: dict, platform: str | None = None) -> list[dict]:
+    return flatten(expand_groups(found, cat, stats, platform))
+
+
+def name_groups(rows: list[dict]) -> list[Group]:
+    """A name page's rows by job, in the page's order (a job across platforms is one group); an
+    uncatalogued endpoint is its own. `providers` counts the vendors of the job on the page."""
+    by: dict[str, Group] = {}
+    for r in rows:
+        cap = r["ep"].get("capability") or ""
+        key = cap or r["ep"]["id"]
+        g = by.get(key)
+        if g is None:
+            g = by[key] = Group(cap, None, [])
+        g.rows.append(r)
+    for g in by.values():
+        g.providers = len({r["ep"]["provider"] for r in g.rows})
+    return list(by.values())
 
 
 def name_page(hit: find_recall.NameHit, cat: catalog_store.Catalog, platform: str | None = None) -> list[dict]:
@@ -501,22 +558,41 @@ def name_page(hit: find_recall.NameHit, cat: catalog_store.Catalog, platform: st
     return sorted(jobs_first([e for e in shown if e["id"] in ids]), key=lambda e: e["platform"])
 
 
-async def answer_v2(query: str, cands: list[find_recall.Candidate], cat: catalog_store.Catalog,
-                    provider_display, platform: str | None = None,
-                    evidence: Evidence | None = None) -> Found:
-    """Judge the units, decide, and lay out the rows. Never raises."""
-    j = await judge_v2(query, cands, cat, provider_display, platform)
-    found = decide(query, cands, j, find_recall.index(cat), platform, provider_display)
+async def judge_and_decide(query: str, cands: list[find_recall.Candidate], cat: catalog_store.Catalog,
+                           provider_display, platform: str | None = None, timeout_s: float | None = None,
+                           not_task: str = NONE) -> Found:
+    """The verdict, with no rows yet: one judge request, then `decide`. Never raises."""
+    j = await judge_v2(query, cands, cat, provider_display, platform, timeout_s)
+    return decide(query, cands, j, find_recall.index(cat), platform, provider_display, not_task)
+
+
+async def lay_out(found: Found, query: str, cat: catalog_store.Catalog, platform: str | None = None,
+                  evidence: Evidence | None = None, keyword_rows: bool = True) -> Found:
+    """The rows of a decided answer (and, for a judged one, the same rows by job in `groups`). A
+    keyword verdict's rows are the keyword page, read here only for a consumer that shows it
+    (`keyword_rows`; an agent's search already holds its own lexical page)."""
     if found.verdict == KEYWORD:
-        page, _, _ = catalog_store.rank_band(query, cat, 25, platform)
-        found.rows = [{"ep": ep, "p": None} for ep, _ in page[:25]]
+        if keyword_rows:
+            page, _, _ = catalog_store.rank_band(query, cat, 25, platform)
+            found.rows = [{"ep": ep, "p": None} for ep, _ in page[:25]]
     elif found.verdict == NAME and found.name:
         found.rows = [{"ep": ep, "p": None} for ep in name_page(found.name, cat, platform)]
+        found.groups = name_groups(found.rows)
     elif found.verdict in (STRONG, CLOSEST):
         ids = sorted({m for c, _ in found.kept for m in c.unit.members})
         stats = await evidence(ids) if evidence is not None and ids else {}
-        found.rows = expand(found, cat, stats, platform)
+        found.groups = expand_groups(found, cat, stats, platform)
+        found.rows = flatten(found.groups)
     return found
+
+
+async def answer_v2(query: str, cands: list[find_recall.Candidate], cat: catalog_store.Catalog,
+                    provider_display, platform: str | None = None,
+                    evidence: Evidence | None = None, timeout_s: float | None = None,
+                    not_task: str = NONE, keyword_rows: bool = True) -> Found:
+    """Judge the units, decide, and lay out the rows. Never raises."""
+    found = await judge_and_decide(query, cands, cat, provider_display, platform, timeout_s, not_task)
+    return await lay_out(found, query, cat, platform, evidence, keyword_rows)
 
 
 def _candidate_endpoints(cands: list[find_recall.Candidate], cat: catalog_store.Catalog) -> list[dict]:
@@ -582,28 +658,56 @@ async def _shadow_v2(query: str, provider_display, platform: str | None, evidenc
         log.warning("find shadow failed", exc_info=True)
 
 
-def _log_v2(query: str, cat: catalog_store.Catalog, found: Found, r: Recalled, reached: list[dict],
-            served: bool = True) -> None:
-    """The v2 SearchLog row, and - when v2's answer is the one served - its SearchMiss: a shadow
-    answer never files a miss beside the served engine's, so each find files at most one."""
+def row_owner(verdict: str) -> str:
+    """Who put a v2 answer's rows on the page, for `SearchLog.shown`."""
+    return "name" if verdict == NAME else "judged" if verdict in JUDGED else "baseline"
+
+
+def shown_rows(rows: list[dict], owner: str) -> list[list]:
+    """`SearchLog.shown`: each served row as [endpoint id, owner, job], the job so the report can
+    credit a call to any vendor of a job the page showed."""
+    return [[ep["id"], "hub" if ep.get("kind") == "hub" else owner, ep.get("capability")] for ep in rows]
+
+
+def log_fields_v2(found: Found, r: Recalled) -> dict:
+    """What a v2 answer records about itself (`SearchLog`, docs/context/architecture/find.md), the
+    same for a find and for an agent's search: the judge's readings, the recall's, the verdict with
+    its reason after a colon, and every unit read as [kind, id, p]."""
     j = found.judgement
-    _, baseline_total = catalog_store.search(query, cat, 0)
     probs = j.probs or [None] * len(found.cands)
     plat = found.platform or {}
-    owner = "name" if found.verdict == NAME else "baseline" if found.verdict == KEYWORD else "judged"
-    audit.record_search(
-        query=query, source="web-find", org_id=None, user_email=None,
-        mode="find", arm="judged", engine="v2",
-        baseline_ids=[c["id"] for c in reached],
+    return dict(
+        engine="v2",
         judged=None if j.probs is None else [[c.unit.id, round(p, 3)] for c, p in found.kept],
-        shown=[[r["ep"]["id"], owner] for r in found.rows],
-        baseline_total=int(baseline_total), differs=False,
         judge_ms=j.ms, judge_tokens_in=j.tokens_in, judge_tokens_out=j.tokens_out, judge_error=j.error,
         platform_choice=plat.get("choice"), platform_conf=plat.get("confidence"),
         name_p=None if found.name_p is None else round(found.name_p, 3), recall_ms=round(r.recall_ms),
         embed_ms=r.embed.ms, embed_error=r.embed.error,
-        verdict=f"{found.verdict}:{found.reason}" if found.reason else found.verdict,
+        verdict=verdict_label(found.verdict, found.reason),
         units=[[c.unit.kind, c.unit.id, None if p is None else round(p, 3)] for c, p in zip(found.cands, probs)])
+
+
+def _log_v2(query: str, cat: catalog_store.Catalog, found: Found, r: Recalled, reached: list[dict],
+            served: bool = True) -> None:
+    """The v2 SearchLog row, and - when v2's answer is the one served - its SearchMiss: a shadow
+    answer never files a miss beside the served engine's, so each find files at most one."""
+    _, baseline_total = catalog_store.search(query, cat, 0)
+    audit.record_search(
+        query=query, source="web-find", org_id=None, user_email=None,
+        mode="find", arm="judged",
+        baseline_ids=[c["id"] for c in reached],
+        shown=shown_rows([row["ep"] for row in found.rows], row_owner(found.verdict)),
+        baseline_total=int(baseline_total), differs=False,
+        **log_fields_v2(found, r))
     if served and (found.verdict == NONE or (found.verdict == KEYWORD and not found.rows)):
         audit.record_search_miss(query=query, source="web-find", engine="v2",
-                                 reason=found.reason or (JUDGE_OFF if found.verdict == KEYWORD else None))
+                                 reason=miss_reason(found.verdict, found.reason))
+
+
+def miss_reason(verdict: str, reason: str) -> str | None:
+    """Why a v2 answer's empty page was empty, for `SearchMiss`: a none's reason; `not_task` where
+    the keyword page served in its place and was empty too; `judge_off` where the judge did not
+    answer (a timeout, an error, a cap) and the keyword page was empty."""
+    if verdict == KEYWORD:
+        return NOT_TASK if reason == NOT_TASK else JUDGE_OFF
+    return reason or None

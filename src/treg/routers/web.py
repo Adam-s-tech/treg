@@ -3491,10 +3491,8 @@ async def selfhost_sh():
 
 
 def routed_discovery_on() -> bool:
-    """`TREG_ROUTED_DISCOVERY` — see catalog_store.group_routed. The agent-facing files honour it
-    too: a deployment that hides routed rows from search must not keep TEACHING agents to call
-    them, or the docs and the catalog disagree and the agent trusts the docs."""
-    return str(get_settings().routed_discovery).strip().lower() not in ("off", "0", "false", "no")
+    """`TREG_ROUTED_DISCOVERY` — the one switch, read in catalog_store (see group_routed)."""
+    return catalog_store.routed_discovery_on()
 
 
 def _hub_app_visible(slug: str | None) -> bool:

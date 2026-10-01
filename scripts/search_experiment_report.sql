@@ -54,6 +54,57 @@ SELECT p.arm, p.baseline_empty,
 FROM pages p JOIN converted cv USING (id)
 GROUP BY 1, 2 ORDER BY 2, 1;
 
+-- 2b. Conversion by JOB, per arm and verdict (`v2` mode, where every served row carries its job as
+--     `shown`'s third element). A v2 answer's hint sends an agent to catalog_get and to any vendor
+--     of a fitting job, on the page or not, so counting only calls to rows on the page undercounts
+--     it; here a call converts when the called endpoint does a job the page showed. Which job an
+--     endpoint does is read from the rows that carried it on any page in the window. The verdict
+--     on a `baseline` row is v2's reading of a query that caller answered from the lexical page:
+--     a `none` there that still converted is a false none, read directly.
+WITH jobs AS (
+  SELECT DISTINCT e->>0 AS endpoint_id, e->>2 AS capability
+  FROM searchlog s, jsonb_array_elements(s.shown::jsonb) e
+  WHERE s.created_at > now() - :'window'::interval AND jsonb_array_length(e) > 2 AND e->>2 IS NOT NULL
+),
+pages AS (
+  SELECT s.id, s.arm, coalesce(s.verdict, 'v1') AS verdict, s.org_id, s.user_email, s.created_at,
+         (s.baseline_total = 0) AS baseline_empty,
+         ARRAY(SELECT DISTINCT e->>2 FROM jsonb_array_elements(s.shown::jsonb) e
+               WHERE jsonb_array_length(e) > 2 AND e->>2 IS NOT NULL) AS shown_jobs
+  FROM searchlog s
+  WHERE s.created_at > now() - :'window'::interval AND s.mode = :'mode' AND s.org_id IS NOT NULL
+),
+converted AS (
+  SELECT p.id, bool_or(c.id IS NOT NULL) AS converted
+  FROM pages p
+  LEFT JOIN (callrecord c JOIN jobs j ON j.endpoint_id = c.endpoint_id)
+    ON c.org_id = p.org_id AND c.user_email = p.user_email
+   AND c.created_at BETWEEN p.created_at AND p.created_at + :'followup'::interval
+   AND j.capability = ANY (p.shown_jobs)
+  GROUP BY p.id
+)
+SELECT p.arm, p.verdict, p.baseline_empty,
+       count(*) AS searches,
+       sum(cv.converted::int) AS converted,
+       round(100.0 * avg(cv.converted::int), 1) AS job_conversion_pct
+FROM pages p JOIN converted cv USING (id)
+GROUP BY 1, 2, 3 ORDER BY 1, 2, 3;
+
+-- 2c. After an empty answer (verdict none), did the caller call anything in the catalog at all?
+--     The page was empty, so there is no row to credit; a call right after a `none` is the agent
+--     finding its way by other means, which a true gap would not allow.
+WITH empties AS (
+  SELECT s.id, s.arm, s.verdict, s.org_id, s.user_email, s.created_at
+  FROM searchlog s
+  WHERE s.created_at > now() - :'window'::interval AND s.mode = :'mode' AND s.org_id IS NOT NULL
+    AND s.verdict LIKE 'none%'
+)
+SELECT arm, verdict, count(*) AS searches,
+       round(100.0 * avg((EXISTS (SELECT 1 FROM callrecord c WHERE c.org_id = e.org_id AND c.user_email = e.user_email
+                                   AND c.created_at BETWEEN e.created_at AND e.created_at + :'followup'::interval))::int), 1)
+         AS called_anyway_pct
+FROM empties e GROUP BY 1, 2 ORDER BY 1, 2;
+
 -- 3. Interleaving credit (the paired comparison). For each interleaved search whose caller went on
 --    to call a shown endpoint, the point goes to the ranker that put it there — only where the
 --    pages DISAGREE: a row only one page carried, or one they ranked differently (the higher rank
@@ -102,14 +153,15 @@ SELECT sum((credit = 'judged')::int)   AS judged_wins,
 FROM points;
 
 -- 4. Re-query rate: a second search by the same caller within two minutes with no call in between
---    is a page that did not do its job. Lower is better; compare across arms.
+--    is a page that did not do its job. Lower is better; compare across arms, and read a v2 `none`
+--    with 2c: an answer that tells the agent to stop lowers this number whether or not it was right.
 WITH s1 AS (
   SELECT s.*, lead(s.created_at) OVER (PARTITION BY s.org_id, s.user_email ORDER BY s.created_at) AS next_search
   FROM searchlog s
   WHERE s.created_at > now() - :'window'::interval AND s.mode = :'mode' AND s.org_id IS NOT NULL
 )
-SELECT arm, count(*) AS searches,
+SELECT arm, coalesce(verdict, 'v1') AS verdict, count(*) AS searches,
        round(100.0 * avg((next_search IS NOT NULL AND next_search < created_at + interval '2 minutes'
               AND NOT EXISTS (SELECT 1 FROM callrecord c WHERE c.org_id = s1.org_id AND c.user_email = s1.user_email
                               AND c.created_at BETWEEN s1.created_at AND s1.next_search))::int), 1) AS requery_pct
-FROM s1 GROUP BY 1 ORDER BY 1;
+FROM s1 GROUP BY 1, 2 ORDER BY 1, 2;
