@@ -166,7 +166,8 @@ The key is `find_embed_api_key`; left empty with the OpenRouter URL, treg's own 
 | 5 | the platform Choice is `none` with confidence >= `find_gap_min` | top under 0.6: `none`, `gap`; else `closest`, never strong |
 | 6 | a fit at or over high | `strong` |
 | 7 | a fit at or over keep | `closest` |
-| 8 | otherwise | `none`, reason `not_task` (`decide`'s `not_task` names the verdict: an agent's search asks for `keyword`, [search-experiment](search-experiment.md)) |
+| 8 | nothing kept, the platform Choice names a platform with confidence >= `find_gap_min` | `none`, reason `gap`: the catalog has the platform, not this job on it (posting to Threads where only reading it is listed) |
+| 9 | otherwise | `none`, reason `not_task` (`decide`'s `not_task` names the verdict: an agent's search asks for `keyword`, [search-experiment](search-experiment.md)) |
 
 Rule 5 sits before the strong rule: a confident "no platform provides this" caps the answer. On a
 shelf (`?platform=`) the platform Choice is not asked and any `none` is reason `scope`: that find read

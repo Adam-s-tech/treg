@@ -90,7 +90,7 @@ reports, and a low share means little to win as much as it means slow convergenc
 ## The job-first answer, served to agents (`v2`)
 
 The engine behind `/catalog/find` ([find](find.md): recall by job and by meaning, one judge request
-with the platform Choice, eight rules, every vendor of a fitting job) answers an agent's search in
+with the platform Choice, nine rules, every vendor of a fitting job) answers an agent's search in
 `v2` mode. `application/catalog_search.py` runs `catalog_find.recall_with_meaning` and `answer_v2`
 under the agent's budget (`typesafe_timeout_s` for the judge, `find_embed_timeout_s` for the
 query's vector), then lays the answer out for a page (`agent_page`):
@@ -116,10 +116,11 @@ query's vector), then lays the answer out for a page (`agent_page`):
   `catalog_get` on its routed row where it has one, else on its first row, which lists the others
   doing the job. A `none` for a catalog **gap** is served as an empty page with `reason: gap` and
   a hint to file `catalog_request`, with no near misses (whose advice, drop a word and retry, is
-  the opposite): that is the answer that stops an agent re-querying. "Not a task" is not served as
-  a `none`: an agent's input always means something and that rule was settled on people's
-  queries, so `decide` is asked for `keyword` there (`not_task`), and the lexical page is served
-  under it (recorded `keyword:not_task`). An abstaining judge (`keyword:<its error>`), a failed
+  the opposite): that is the answer that stops an agent re-querying. Where the judge named the
+  platform the task needs, the hint names it: the catalog has Threads, not posting to it. "Not a
+  task" is not served as a `none`: an agent's input always means something and that rule was
+  settled on people's queries, so `decide` is asked for `keyword` there (`not_task`), and the
+  lexical page is served under it (recorded `keyword:not_task`). An abstaining judge (`keyword:<its error>`), a failed
   answer, or a caller past the per-caller cap also serve the lexical page as `keyword`.
 - **The per-caller cap.** A search is not metered, so `search_judge_max_per_caller_hour` (a
   `ratestore` window under `catalog_search`) is the only bound on what an agent in a loop can

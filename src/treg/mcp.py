@@ -805,8 +805,12 @@ async def _catalog_search_impl(
                                f"add a word to narrow it")
     if page.verdict == find_app.NONE:
         # a catalog gap, read by the judge: the answer that stops an agent re-querying is to say
-        # so and name the way to file it - no near misses, whose advice is the opposite
-        out["hint"] = (f"the catalog has no tool for {query!r}; file it with catalog_request(capability=...) — "
+        # so and name the way to file it - no near misses, whose advice is the opposite. Where the
+        # judge read which platform the task needs, the gap is that platform's: it is in the
+        # catalog, this job on it is not.
+        label = (cat.platforms.get(page.platform) or {}).get("label", page.platform) if page.platform else None
+        has = f"the catalog has {label} but no tool for" if label else "the catalog has no tool for"
+        out["hint"] = (f"{has} {query!r}; file it with catalog_request(capability=...) — "
                        "requests steer which provider gets added next")
     elif not results:
         # the zero-result answer carries the rows that JUST missed the gate and which words they
