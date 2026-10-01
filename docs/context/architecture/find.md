@@ -6,6 +6,7 @@ sources:
   - src/treg/domain/catalog/find_recall.py
   - src/treg/application/find_index.py
   - src/treg/infra/embed.py
+  - src/treg/bootstrap.py
   - tests/test_find_index.py
   - tests/test_embed.py
   - src/treg/alembic/versions/0055_find_v2_log.py
@@ -131,8 +132,10 @@ in-process by model and folded text for an hour, `find_embed_timeout_s`), one ma
 `recall` fuses it with the lexical channel. The client never raises: a timeout, a non-200, a
 malformed body or a vector of the wrong size is an `embed_error`, and the find goes on lexical.
 
-The first v2 find on a catalog starts a background build and answers lexically until it is done:
-each card's vector is read from the archive's object store under
+The build starts with the process (`warm`, a background task of the lifespan on every role,
+cancelled with it; the catalog is parsed off the event loop), or, where that did not finish, with the
+first v2 find on a catalog; a find answers lexically until it is done. Each card's vector is read
+from the archive's object store under
 `find-vectors/<model slug>/<sha256 of the card>`, only the missing cards are embedded (batches of
 96), and those are written back. The store is content-addressed everywhere else; these named
 objects are the one exception, their names built by treg from a validated slug and a digest, and

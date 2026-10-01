@@ -22,7 +22,7 @@ from starlette.routing import BaseRoute, Mount
 
 from . import adsconv, analytics, archive, audit
 from .application.call import route as routed_call
-from .application import arena
+from .application import arena, find_index
 from . import bootstrap_handlers
 from .bootstrap_http import (
     _BodyDecodeMiddleware,
@@ -654,6 +654,9 @@ def _lifespan(role: AppRole):
                 if ROLE_BACKGROUND_TASKS[role] and archive.prune_enabled()
                 else None
             )
+            # Find's card vectors (docs/context/architecture/find.md): built now, in the background,
+            # instead of by the first find after a deploy; off without an embedding key.
+            find_task = asyncio.create_task(find_index.warm()) if find_index.enabled() else None
             endpoint_observations = app.state.endpoint_observation_reader
             routed_call.configure_endpoint_observation_reader(endpoint_observations)
             mcp_reader_bound = role != "control" and _mcp is not None
@@ -673,7 +676,7 @@ def _lifespan(role: AppRole):
             finally:
                 try:
                     workers = [task for task in (
-                        gauge_task, ads_task, archive_task, prune_task,
+                        gauge_task, ads_task, archive_task, prune_task, find_task,
                     ) if task is not None]
                     for task in workers:
                         task.cancel()

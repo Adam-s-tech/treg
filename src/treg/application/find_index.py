@@ -14,6 +14,9 @@ which is cheap enough to need no lock. A new model is a new prefix, so vectors o
 never meet.
 
 Never holds a database connection: this is object-store and HTTP I/O only.
+
+`warm` starts the build at startup (a background task of the lifespan, cancelled with it) so the
+first find after a deploy does not pay for it; otherwise the first find on a catalog starts it.
 """
 from __future__ import annotations
 
@@ -224,6 +227,22 @@ async def _run(b: _Build, ix: find_recall.Index, transport=None) -> None:
     except Exception as exc:  # noqa: BLE001 - the lexical channel carries find until a retry succeeds
         b.failed_at, b.error = time.monotonic(), str(exc)[:80]
         log.warning("find vectors unavailable: %s", b.error)
+
+
+async def warm() -> None:
+    """Build this process's card vectors now rather than on its first find. The catalog is parsed
+    lazily and synchronously (seconds), so that happens off the event loop; the cached catalog is
+    then re-read on the loop, so a request that parsed it meanwhile and this task agree on the one
+    object the vectors are keyed by. Awaits the build so cancelling this task cancels it; a failed
+    build is logged by `_run` and retried by the next find."""
+    if not enabled():
+        return
+    await asyncio.to_thread(catalog_store.load)
+    cat = catalog_store.load()
+    ready(cat, find_recall.index(cat))
+    b = _build
+    if b is not None and b.cat is cat and b.task is not None:
+        await b.task
 
 
 async def prepare(cat: catalog_store.Catalog, ix: find_recall.Index, *, transport=None) -> Vectors | None:
