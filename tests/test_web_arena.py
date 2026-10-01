@@ -58,7 +58,7 @@ def test_public_task_previews_show_verified_search_providers(monkeypatch):
     try:
         tasks = {row["id"]: row for row in app.tasks()}
         search = {row["provider"] for row in tasks["search"]["provider_previews"]}
-        assert {"exa", "firecrawl", "tavily"} <= search
+        assert {"exa", "firecrawl", "tavily", "tinyfish", "serper", "spidercloud", "octen"} <= search
         assert "valyu" not in search
         assert not tasks["brand"]["enabled"]
         assert tasks["brand"]["provider_previews"] == []
@@ -117,5 +117,62 @@ async def test_fixed_ten_result_search_can_join_quote(clients, monkeypatch):
             "providers": ["branddev"], "jev": False})
         assert response.status_code == 200, response.text
         assert response.json()["providers"][0]["endpoint_id"] == "branddev.web.search"
+    finally:
+        get_settings.cache_clear()
+
+
+async def test_tinyfish_first_page_is_capped_for_comparison(clients, monkeypatch):
+    monkeypatch.setenv("TREG_WEB_ARENA_ENABLED", "true")
+    monkeypatch.setenv("TREG_PLATFORM_KEY_TINYFISH", "TEST-TINYFISH")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "tinyfish")
+    get_settings.cache_clear()
+    async def reviewed():
+        return True
+    monkeypatch.setattr(web_arena_publications, "ready", reviewed)
+    seen = []
+    rows = [{"url": f"https://example.com/{index}", "title": str(index)} for index in range(11)]
+    monkeypatch.setattr(service, "relay", _relay_by_provider({"tinyfish": [(200, {
+        "results": rows, "total_results": 11, "page": 0})]}, seen))
+    try:
+        response = await clients.post("/web-arena/api/quotes", json={
+            "task": "search", "value": "example query", "mode": "battle",
+            "providers": ["tinyfish"], "jev": False})
+        assert response.status_code == 200, response.text
+        quote = response.json()
+        assert quote["providers"][0]["estimate_micro"] == 0
+        started = await clients.post(f"/web-arena/api/runs/{quote['id']}/start")
+        assert started.status_code == 200, started.text
+        worker = app._owners.get(quote["id"])
+        if worker:
+            await asyncio.wait_for(asyncio.shield(worker), 15)
+        finished = await clients.get(f"/web-arena/api/runs/{quote['id']}")
+        assert finished.status_code == 200, finished.text
+        output = finished.json()["attempts"][0]["output"]
+        assert len(output["results"]) == output["count"] == 10
+        assert len(seen) == 1
+        assert "limit" not in seen[0][2]
+    finally:
+        get_settings.cache_clear()
+
+
+async def test_new_search_providers_join_one_ten_link_quote(clients, monkeypatch):
+    monkeypatch.setenv("TREG_WEB_ARENA_ENABLED", "true")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "tinyfish,serper,spidercloud,octen")
+    for provider in ("TINYFISH", "SERPER", "SPIDERCLOUD", "OCTEN"):
+        monkeypatch.setenv("TREG_PLATFORM_KEY_" + provider, "TEST-" + provider)
+    get_settings.cache_clear()
+    async def reviewed():
+        return True
+    monkeypatch.setattr(web_arena_publications, "ready", reviewed)
+    try:
+        response = await clients.post("/web-arena/api/quotes", json={
+            "task": "search", "value": "IANA example domains", "mode": "battle",
+            "providers": ["tinyfish", "serper", "spidercloud", "octen"], "jev": False})
+        assert response.status_code == 200, response.text
+        quote = response.json()
+        assert {p["provider"] for p in quote["providers"]} == {
+            "tinyfish", "serper", "spidercloud", "octen"}
+        assert next(p for p in quote["providers"] if p["provider"] == "tinyfish")["estimate_micro"] == 0
+        assert quote["required_micro"] == quote["estimate_micro"]
     finally:
         get_settings.cache_clear()

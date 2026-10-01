@@ -32,6 +32,12 @@ log = logging.getLogger(__name__)
 _owners: dict[str, asyncio.Task] = {}
 MAX_RESULT_BYTES = 256_000
 RUN_SECONDS = 180
+FIXED_PAGE_SEARCH = {"branddev.web.search", "tinyfish.web.search"}
+
+
+def _supports_result_limit(task: str, endpoint_id: str, adapter) -> bool:
+    return task not in {"search", "sitemap"} or "limit" in _used_keys(adapter) or (
+        task == "search" and endpoint_id in FIXED_PAGE_SEARCH)
 
 
 def enabled() -> bool:
@@ -80,8 +86,7 @@ def tasks():
                 if (provider in seen or provider == "treg" or ep.get("async") or ".bulk" in ep["id"]
                         or unscoped(adapter, contract, identity)):
                     continue
-                if task in {"search", "sitemap"} and "limit" not in _used_keys(adapter) and not (
-                        task == "search" and ep["id"] == "branddev.web.search"):
+                if not _supports_result_limit(task, ep["id"], adapter):
                     continue
                 seen.add(provider)
                 previews.append({"provider": provider, "endpoint_id": ep["id"]})
@@ -124,12 +129,11 @@ async def quote(caller, *, task: str, value: str, mode: str = "battle", provider
             continue
         if requested is not None and provider not in requested:
             continue
-        # The limit must reach the upstream request. Trimming an unbounded response later
-        # changes the comparison and can change the bill.
-        if task in {"search", "sitemap"}:
-            if "limit" not in _used_keys(adapter) and not (task == "search" and ep["id"] == "branddev.web.search"):
-                dropped.append({"endpoint_id": ep["id"], "why": "cannot enforce the result limit"})
-                continue
+        # Counted providers send the limit upstream. TinyFish alone uses its free first page,
+        # and the run compares only its first ten links.
+        if not _supports_result_limit(task, ep["id"], adapter):
+            dropped.append({"endpoint_id": ep["id"], "why": "cannot enforce the result limit"})
+            continue
         if task == "sitemap" and ep["id"] == "tavily.web.map" and c.tier == "platform":
             dropped.append({"endpoint_id": ep["id"], "why": "shared key limit is below 100 URLs"})
             continue
@@ -284,6 +288,10 @@ async def _run(run_id, task, mode, payload, snapshot, client, client_ip):
                     outcome, output = "error", {}
                 else:
                     output = ad.from_upstream(doc)
+                    if a["endpoint_id"] == "tinyfish.web.search" and isinstance(output.get("results"), list):
+                        # TinyFish has no count input; compare only the first page's first ten links.
+                        output["results"] = output["results"][:payload["identity"]["limit"]]
+                        output["count"] = len(output["results"])
                     outcome = "miss" if ad.is_miss(doc) or any(output.get(k) in (None, "", [], {}) for k in contract.required_output) else "hit"
                 a["state"] = outcome
                 a["output"] = output if outcome == "hit" else {}

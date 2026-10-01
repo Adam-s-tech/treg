@@ -38,6 +38,10 @@ adapters and the team's current credential tier. A task that needs a limit drops
 cannot send that limit. Sitemap also drops shared-key Tavily Map, whose limit is below 100.
 Brand.dev's fixed ten-result search can join a Search quote because it enforces that limit in
 its adapter. The Web Arena quote checks this after planning the scoped provider candidates.
+TinyFish is the one exception without a count request field. A Search quote can include its
+first page; Web Arena compares at most the first ten returned links. Every other Search provider
+must send the ten-result limit upstream. Spider Search uses listing-only mode so its search
+does not fetch the result pages.
 The public task response shows verified adapter previews, so the provider lineup and logos appear
 before sign-in. The lineup is a catalog preview; a signed-in team quote removes providers it
 cannot call. A changed input, mode, Jev choice, or provider selection refreshes the quote after
