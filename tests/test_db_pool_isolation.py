@@ -38,6 +38,10 @@ EXPECTED_MAKERS: dict[str, set[str]] = {
     "application/provider_resources.py": {API},
     # Interactive paid runs: short transactions between legs, never across upstream waits.
     "application/arena.py": {API},
+    "application/web_arena.py": {API},
+    "application/web_arena_quality.py": {API},
+    "application/web_arena_publications.py": {API},
+    "application/web_arena_benchmark.py": {API},
     # `/table/`: one short read of a hub tool's manifest, after the call's answer is fully read.
     "application/table.py": {API},
     # Snapshot read on the request path; the collector runs in the `treg-worker` process (see
