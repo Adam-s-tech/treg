@@ -1564,6 +1564,9 @@ class SearchLog(SQLModel, table=True):
     embed_ms: int | None = Field(default=None)
     embed_error: str | None = Field(default=None)
     units: list | None = Field(default=None, sa_column=Column("units", JSON, nullable=True))
+    # the verdict a v2 answer ended on, the reason after a colon where there is one
+    # (strong | closest | name | none:gap | keyword | keyword:not_task ...); None for v1
+    verdict: str | None = Field(default=None)
 
 
 class CapacityPolicy(SQLModel, table=True):

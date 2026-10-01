@@ -5,10 +5,11 @@
 -- each row's owner; `callrecord` (audit) carries the call. No labels anywhere — the join IS the label.
 --
 -- Run against the read replica:  psql "$TREG_READ_DATABASE_URL" -f scripts/search_experiment_report.sql
--- Postgres only (jsonb functions). Every block is read-only.
+-- (`-v mode=v2` reads another mode's arms). Postgres only (jsonb functions). Every block is read-only.
 
 \set window '30 days'
 \set followup '10 minutes'
+\set mode 'interleave'
 
 -- 1. Volume and health: how many searches, how often the pages differ, what the judge cost.
 --    `differs` is the population the experiment can say anything about; an identical page is a
@@ -19,8 +20,9 @@ SELECT mode, arm,
        round(100.0 * avg(differs::int), 1)             AS differs_pct,
        round(100.0 * avg((baseline_total = 0)::int), 1) AS baseline_empty_pct,
        round(100.0 * avg((judge_error IS NOT NULL)::int), 1) AS judge_error_pct,
-       percentile_cont(0.5) WITHIN GROUP (ORDER BY judge_ms) AS judge_ms_p50,
-       percentile_cont(0.95) WITHIN GROUP (ORDER BY judge_ms) AS judge_ms_p95,
+       -- a judge answer served from the in-process cache costs 0 ms; the latency is the live one's
+       percentile_cont(0.5) WITHIN GROUP (ORDER BY judge_ms) FILTER (WHERE judge_ms > 0)  AS judge_ms_p50,
+       percentile_cont(0.95) WITHIN GROUP (ORDER BY judge_ms) FILTER (WHERE judge_ms > 0) AS judge_ms_p95,
        sum(judge_tokens_in)                            AS judge_tokens_in
 FROM searchlog
 WHERE created_at > now() - :'window'::interval
@@ -34,7 +36,7 @@ WITH pages AS (
   SELECT s.id, s.arm, s.org_id, s.user_email, s.created_at, (s.baseline_total = 0) AS baseline_empty,
          ARRAY(SELECT jsonb_array_elements(s.shown::jsonb)->>0) AS shown_ids
   FROM searchlog s
-  WHERE s.created_at > now() - :'window'::interval AND s.mode = 'interleave' AND s.org_id IS NOT NULL
+  WHERE s.created_at > now() - :'window'::interval AND s.mode = :'mode' AND s.org_id IS NOT NULL
 ),
 converted AS (
   SELECT p.id, bool_or(c.id IS NOT NULL) AS converted
@@ -63,7 +65,7 @@ WITH il AS (
          ARRAY(SELECT jsonb_array_elements(s.judged::jsonb)->>0)        AS judged_ids,
          ARRAY(SELECT jsonb_array_elements(s.shown::jsonb)->>0)         AS shown_ids
   FROM searchlog s
-  WHERE s.created_at > now() - :'window'::interval AND s.mode = 'interleave' AND s.arm = 'interleave'
+  WHERE s.created_at > now() - :'window'::interval AND s.mode = :'mode' AND s.arm = 'interleave'
     AND s.judged IS NOT NULL AND s.differs AND s.org_id IS NOT NULL
 ),
 first_call AS (
@@ -95,8 +97,8 @@ SELECT sum((credit = 'judged')::int)   AS judged_wins,
        sum((credit = 'tie')::int)      AS ties,
        (SELECT count(*) FROM il)       AS interleaved_searches_with_disagreement,
        round(
-         (sum((credit = 'judged')::int) - sum((credit = 'baseline')::int))
-         / sqrt(nullif(sum((credit IN ('judged', 'baseline'))::int), 0)), 2) AS z
+         ((sum((credit = 'judged')::int) - sum((credit = 'baseline')::int))
+         / sqrt(nullif(sum((credit IN ('judged', 'baseline'))::int), 0)))::numeric, 2) AS z
 FROM points;
 
 -- 4. Re-query rate: a second search by the same caller within two minutes with no call in between
@@ -104,7 +106,7 @@ FROM points;
 WITH s1 AS (
   SELECT s.*, lead(s.created_at) OVER (PARTITION BY s.org_id, s.user_email ORDER BY s.created_at) AS next_search
   FROM searchlog s
-  WHERE s.created_at > now() - :'window'::interval AND s.mode = 'interleave' AND s.org_id IS NOT NULL
+  WHERE s.created_at > now() - :'window'::interval AND s.mode = :'mode' AND s.org_id IS NOT NULL
 )
 SELECT arm, count(*) AS searches,
        round(100.0 * avg((next_search IS NOT NULL AND next_search < created_at + interval '2 minutes'

@@ -47,6 +47,7 @@ sources:
   - src/treg/alembic/versions/0033_signup_promo_eligibility.py
   - src/treg/alembic/versions/0041_searchlog.py
   - src/treg/alembic/versions/0055_find_v2_log.py
+  - src/treg/alembic/versions/0056_searchlog_verdict.py
   - src/treg/timeutil.py
   - src/treg/infra/db.py
   - src/treg/domain/referrals.py
@@ -366,7 +367,8 @@ uses this metadata, never the encrypted token's shape.
   Nothing is written while `search_experiment` is `off`.
   `/catalog/find` writes the same row with `mode=find`, `source=web-find` and no identity; 0055 adds
   `engine` (v1 | v2) and v2's readings: `platform_choice`, `platform_conf`, `name_p`, `recall_ms`,
-  `embed_ms`, `embed_error`, and `units` as `[kind, id, p]` rows ([find](find.md)).
+  `embed_ms`, `embed_error`, and `units` as `[kind, id, p]` rows ([find](find.md)); 0056 adds
+  `verdict`, the verdict a v2 answer ended on with its reason after a colon (`none:gap`).
 - **`RunRecord`** - the **server-side run** audit row (a `treg run --server` CLI execution - the "kind"
   `server_run` in usage rollups): `org_id`, `user_email`, `bundle_name` (holds the **tool** name since the
   tool-side run unification; column name is historical), `argv` (JSON - never carries a secret value;

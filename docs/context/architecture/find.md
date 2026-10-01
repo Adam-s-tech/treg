@@ -10,6 +10,7 @@ sources:
   - tests/test_find_index.py
   - tests/test_embed.py
   - src/treg/alembic/versions/0055_find_v2_log.py
+  - src/treg/alembic/versions/0056_searchlog_verdict.py
   - scripts/find_bench.py
   - tests/fixtures/find_bench.yaml
   - tests/test_find_bench.py
@@ -192,13 +193,14 @@ the right platforms and vendors); `judged` gains `reason` (on
 ## What is recorded
 
 `SearchLog` (mode `find`, source `web-find`, no identity) with `engine`; v2 also writes
-`platform_choice`, `platform_conf`, `name_p`, `recall_ms`, and `units` as `[kind, id, p]`;
+`verdict` (the reason after a colon: `none:gap`), `platform_choice`, `platform_conf`, `name_p`,
+`recall_ms`, and `units` as `[kind, id, p]`;
 `baseline_ids` is every endpoint the units reach, `judged` the kept units. `embed_ms` and
 `embed_error` record the query's vector (`off` without a key, `not_ready` while the card vectors
 build, else the client's reason). The `judged` event carries the same as `embed: {ms, error}`. `SearchMiss` gains `reason` (`gap`,
 `not_task`, `judge_off` for an empty keyword fallback, `scope` for a shelf's `none`) and `engine`.
 Only the served engine files a miss: in `shadow` v1 does, and v2's empty answers show in its
-SearchLog row only, so a find never counts twice in the misses. Migration 0055. Fire-and-forget through
+SearchLog row only, so a find never counts twice in the misses. Migrations 0055 and 0056. Fire-and-forget through
 `audit`, like every row there.
 
 ## The pages

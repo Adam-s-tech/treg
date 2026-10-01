@@ -333,7 +333,7 @@ async def test_v2_streams_units_and_the_answer_and_logs_its_readings(clients, mo
     async with session_maker() as s:
         (row,) = (await s.execute(select(SearchLog))).scalars().all()
     assert row.engine == "v2" and row.platform_choice == "people" and row.platform_conf == 0.9
-    assert row.name_p == 0.0 and row.recall_ms is not None
+    assert row.name_p == 0.0 and row.recall_ms is not None and row.verdict == "strong"
     assert ["job", "people.email.find", 0.92] in row.units and dict(row.judged) == {"people.email.find": 0.92}
 
 
@@ -449,7 +449,7 @@ async def test_shadow_files_one_miss_from_the_engine_it_serves(clients, monkeypa
         misses = (await s.execute(select(SearchMiss))).scalars().all()
         logs = (await s.execute(select(SearchLog))).scalars().all()
     assert [(m.engine, m.source) for m in misses] == [("v1", "web-find")]
-    assert sorted(r.engine for r in logs) == ["v1", "v2"]
+    assert sorted((r.engine, r.verdict) for r in logs) == [("v1", None), ("v2", "none:gap")]
 
 
 async def test_v2_first_event_does_not_wait_for_the_query_vector(clients, monkeypatch):

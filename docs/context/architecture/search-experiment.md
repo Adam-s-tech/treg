@@ -102,8 +102,9 @@ the database.
 
 ## Reading it
 
-`scripts/search_experiment_report.sql` (Postgres, read-only) joins `searchlog` to `callrecord` by
-team + email within ten minutes of the search, on endpoints that were on the served page:
+`scripts/search_experiment_report.sql` (Postgres, read-only; `-v mode=` picks the mode whose arms
+it reads) joins `searchlog` to `callrecord` by team + email within ten minutes of the search, on
+endpoints that were on the served page:
 
 1. volume and health per arm — differs share, empty-baseline share, judge error rate, p50/p95 judge
    latency, tokens;

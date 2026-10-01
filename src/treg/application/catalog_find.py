@@ -602,6 +602,7 @@ def _log_v2(query: str, cat: catalog_store.Catalog, found: Found, r: Recalled, r
         platform_choice=plat.get("choice"), platform_conf=plat.get("confidence"),
         name_p=None if found.name_p is None else round(found.name_p, 3), recall_ms=round(r.recall_ms),
         embed_ms=r.embed.ms, embed_error=r.embed.error,
+        verdict=f"{found.verdict}:{found.reason}" if found.reason else found.verdict,
         units=[[c.unit.kind, c.unit.id, None if p is None else round(p, 3)] for c, p in zip(found.cands, probs)])
     if served and (found.verdict == NONE or (found.verdict == KEYWORD and not found.rows)):
         audit.record_search_miss(query=query, source="web-find", engine="v2",
