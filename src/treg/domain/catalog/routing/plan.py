@@ -168,8 +168,8 @@ def candidates_for(contract: Contract, endpoints: list[dict], adapters: dict[str
         if ep.get("status"):
             continue
         ad = adapters.get(ep["id"])
-        if ad is None:
-            continue  # no adapter → not a router candidate, silently (still callable via /call/)
+        if ad is None or not ad.route:
+            continue  # no routing adapter → not a router candidate, silently (still callable via /call/)
         if not ad.verified:
             dropped.append({"endpoint_id": ep["id"], "why": f"adapter unverified: {ad.verify_note}"})
             continue

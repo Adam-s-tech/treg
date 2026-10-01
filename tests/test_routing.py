@@ -111,6 +111,28 @@ def test_expression_language():
         P.evaluate("nope(a)", doc)
 
 
+def test_a_stats_only_adapter_judges_misses_but_is_never_routed():
+    from dataclasses import replace
+    from treg.domain.catalog.routing import contracts as C, plan, synthetic
+
+    assert C.parse_adapters({"adapters": {"x.y": {"route": False}}})["x.y"].route is False
+    assert C.parse_adapters({"adapters": {"x.y": {}}})["x.y"].route is True
+    cat = catalog_store.load()
+    contract = cat.contracts["people.search"]
+    endpoints = cat.for_capability("people.search")
+    identity = {"company_domain": "stripe.com", "title": "head of marketing"}
+    routed = [ep["id"] for ep, _, _ in plan.candidates_for(contract, endpoints, cat.adapters, identity)[0]]
+    assert "quickenrich.people.search" in routed
+    adapters = {**cat.adapters, "quickenrich.people.search":
+                replace(cat.adapters["quickenrich.people.search"], route=False)}
+    assert adapters["quickenrich.people.search"].verified
+    assert adapters["quickenrich.people.search"].is_miss({"data": []})
+    after = [ep["id"] for ep, _, _ in plan.candidates_for(contract, endpoints, adapters, identity)[0]]
+    assert after == [i for i in routed if i != "quickenrich.people.search"]
+    row = synthetic.routed_endpoint(contract, endpoints, adapters, cat.cost_view)
+    assert "quickenrich.people.search" not in row["routed_children"]
+
+
 def test_every_shipped_adapter_round_trips_its_fixture():
     cat = catalog_store.load()
     bad = {eid: a.verify_note for eid, a in cat.adapters.items() if not a.verified}
@@ -1467,6 +1489,7 @@ def _make_throwing_adapter(real, throw_on: str):
             self.in_expr = getattr(real, 'in_expr', {})
             self.body_array = getattr(real, 'body_array', False)
             self.test_identity = getattr(real, 'test_identity', {})
+            self.route = real.route
             self.cost_units = getattr(real, 'cost_units', '')
             self.additional_capabilities = getattr(real, 'additional_capabilities', ())
             self.verified_capabilities = getattr(real, 'verified_capabilities', ())

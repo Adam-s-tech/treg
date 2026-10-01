@@ -7,6 +7,8 @@
 #   predicates   x == null · x != null · x == [] · x == 'literal'
 #   named        split_first(full_name) · join(a, b) · has_type(emails, 'work')
 # `accepts` lists the contract identity variants (by their keys) this endpoint can serve.
+# `route: false` keeps a verified adapter out of routing and the arena; its `miss` still judges
+# hit/miss evidence for this endpoint's own calls.
 #
 # Every adapter is VERIFIED at catalog load against the endpoint's `test_request` (in) and its
 # captured `example_response` (out): one that cannot round-trip its fixture does not become a

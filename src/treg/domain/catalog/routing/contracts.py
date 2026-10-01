@@ -60,6 +60,7 @@ class Adapter:
     test_identity: dict[str, Any] = field(default_factory=dict)  # what the endpoint's test_request stands for, when `in` cannot read it back
     cost_units: str = ""                      # optional upper-bound chargeable units for a routed request
     additional_capabilities: tuple[str, ...] = ()  # opt-in reuse of the same request/output mapping
+    route: bool = True                        # False: hit/miss evidence only, never a router candidate
     verified_capabilities: tuple[str, ...] = ()
     verified: bool = False
     verify_note: str = ""
@@ -150,6 +151,7 @@ def parse_adapters(doc: dict) -> dict[str, Adapter]:
             test_identity=dict(a.get("test_identity") or {}),
             cost_units=str(a.get("cost_units") or ""),
             additional_capabilities=tuple(a.get("additional_capabilities") or ()),
+            route=a.get("route", True) is not False,
             const=dict(a.get("const") or {}), out_map=dict(a.get("out") or {}), miss=str(a.get("miss") or ""))
     return out
 
