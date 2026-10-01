@@ -1,0 +1,402 @@
+{
+  "version": "draft-1",
+  "status": "needs-human-review",
+  "tasks": {
+    "search": [
+      {
+        "id": "S01",
+        "input": "What is the capital of Bhutan?",
+        "label": "What is the capital of Bhutan?",
+        "reviewed": false
+      },
+      {
+        "id": "S02",
+        "input": "Who wrote The Left Hand of Darkness?",
+        "label": "Who wrote The Left Hand of Darkness?",
+        "reviewed": false
+      },
+      {
+        "id": "S03",
+        "input": "What year was the first iPhone released?",
+        "label": "What year was the first iPhone released?",
+        "reviewed": false
+      },
+      {
+        "id": "S04",
+        "input": "What is the boiling point of water at sea level?",
+        "label": "What is the boiling point of water at sea level?",
+        "reviewed": false
+      },
+      {
+        "id": "S05",
+        "input": "Who discovered penicillin?",
+        "label": "Who discovered penicillin?",
+        "reviewed": false
+      },
+      {
+        "id": "S06",
+        "input": "What is the largest moon of Saturn?",
+        "label": "What is the largest moon of Saturn?",
+        "reviewed": false
+      },
+      {
+        "id": "S07",
+        "input": "What does HTTP 429 mean?",
+        "label": "What does HTTP 429 mean?",
+        "reviewed": false
+      },
+      {
+        "id": "S08",
+        "input": "How does a DNS CNAME record work?",
+        "label": "How does a DNS CNAME record work?",
+        "reviewed": false
+      },
+      {
+        "id": "S09",
+        "input": "What is the Python GIL?",
+        "label": "What is the Python GIL?",
+        "reviewed": false
+      },
+      {
+        "id": "S10",
+        "input": "What is the current version of PostgreSQL?",
+        "label": "What is the current version of PostgreSQL?",
+        "reviewed": false
+      },
+      {
+        "id": "S11",
+        "input": "Latest FDA drug approvals this month",
+        "label": "Latest FDA drug approvals this month",
+        "reviewed": false
+      },
+      {
+        "id": "S12",
+        "input": "Recent NASA Artemis mission update",
+        "label": "Recent NASA Artemis mission update",
+        "reviewed": false
+      },
+      {
+        "id": "S13",
+        "input": "Today's weather in Dhaka",
+        "label": "Today's weather in Dhaka",
+        "reviewed": false
+      },
+      {
+        "id": "S14",
+        "input": "Current CEO of Microsoft",
+        "label": "Current CEO of Microsoft",
+        "reviewed": false
+      },
+      {
+        "id": "S15",
+        "input": "Latest quarterly earnings for Nvidia",
+        "label": "Latest quarterly earnings for Nvidia",
+        "reviewed": false
+      },
+      {
+        "id": "S16",
+        "input": "New research on CRISPR gene editing in 2026",
+        "label": "New research on CRISPR gene editing in 2026",
+        "reviewed": false
+      },
+      {
+        "id": "S17",
+        "input": "Recent PubMed study about mRNA vaccines",
+        "label": "Recent PubMed study about mRNA vaccines",
+        "reviewed": false
+      },
+      {
+        "id": "S18",
+        "input": "Latest SEC 10-K for Apple",
+        "label": "Latest SEC 10-K for Apple",
+        "reviewed": false
+      },
+      {
+        "id": "S19",
+        "input": "How to file a FOIA request in the United States",
+        "label": "How to file a FOIA request in the United States",
+        "reviewed": false
+      },
+      {
+        "id": "S20",
+        "input": "What are the official Web Content Accessibility Guidelines?",
+        "label": "What are the official Web Content Accessibility Guidelines?",
+        "reviewed": false
+      },
+      {
+        "id": "S21",
+        "input": "What is the latest Python release?",
+        "label": "What is the latest Python release?",
+        "reviewed": false
+      },
+      {
+        "id": "S22",
+        "input": "Current interest rate from the US Federal Reserve",
+        "label": "Current interest rate from the US Federal Reserve",
+        "reviewed": false
+      },
+      {
+        "id": "S23",
+        "input": "Which countries joined BRICS most recently?",
+        "label": "Which countries joined BRICS most recently?",
+        "reviewed": false
+      },
+      {
+        "id": "S24",
+        "input": "Latest climate report from the IPCC",
+        "label": "Latest climate report from the IPCC",
+        "reviewed": false
+      },
+      {
+        "id": "S25",
+        "input": "Who won the most recent Nobel Prize in Physics?",
+        "label": "Who won the most recent Nobel Prize in Physics?",
+        "reviewed": false
+      },
+      {
+        "id": "S26",
+        "input": "What are the entry requirements for Japan tourism?",
+        "label": "What are the entry requirements for Japan tourism?",
+        "reviewed": false
+      },
+      {
+        "id": "S27",
+        "input": "What is the official Rust language book?",
+        "label": "What is the official Rust language book?",
+        "reviewed": false
+      },
+      {
+        "id": "S28",
+        "input": "When is the next total solar eclipse?",
+        "label": "When is the next total solar eclipse?",
+        "reviewed": false
+      },
+      {
+        "id": "S29",
+        "input": "How many people live in Bangladesh according to the latest census?",
+        "label": "How many people live in Bangladesh according to the latest census?",
+        "reviewed": false
+      },
+      {
+        "id": "S30",
+        "input": "What are the latest WHO malaria guidelines?",
+        "label": "What are the latest WHO malaria guidelines?",
+        "reviewed": false
+      }
+    ],
+    "fetch": [
+      {
+        "id": "F01",
+        "input": "https://www.iana.org/domains/reserved",
+        "label": "https://www.iana.org/domains/reserved",
+        "checked_facts": [],
+        "reviewed": false
+      },
+      {
+        "id": "F02",
+        "input": "https://www.rfc-editor.org/rfc/rfc9110",
+        "label": "https://www.rfc-editor.org/rfc/rfc9110",
+        "checked_facts": [],
+        "reviewed": false
+      },
+      {
+        "id": "F03",
+        "input": "https://www.rfc-editor.org/rfc/rfc3986",
+        "label": "https://www.rfc-editor.org/rfc/rfc3986",
+        "checked_facts": [],
+        "reviewed": false
+      },
+      {
+        "id": "F04",
+        "input": "https://www.w3.org/TR/WCAG22/",
+        "label": "https://www.w3.org/TR/WCAG22/",
+        "checked_facts": [],
+        "reviewed": false
+      },
+      {
+        "id": "F05",
+        "input": "https://www.w3.org/TR/html52/",
+        "label": "https://www.w3.org/TR/html52/",
+        "checked_facts": [],
+        "reviewed": false
+      },
+      {
+        "id": "F06",
+        "input": "https://www.python.org/about/",
+        "label": "https://www.python.org/about/",
+        "checked_facts": [],
+        "reviewed": false
+      },
+      {
+        "id": "F07",
+        "input": "https://docs.python.org/3/library/json.html",
+        "label": "https://docs.python.org/3/library/json.html",
+        "checked_facts": [],
+        "reviewed": false
+      },
+      {
+        "id": "F08",
+        "input": "https://docs.python.org/3/library/asyncio.html",
+        "label": "https://docs.python.org/3/library/asyncio.html",
+        "checked_facts": [],
+        "reviewed": false
+      },
+      {
+        "id": "F09",
+        "input": "https://www.postgresql.org/docs/current/index.html",
+        "label": "https://www.postgresql.org/docs/current/index.html",
+        "checked_facts": [],
+        "reviewed": false
+      },
+      {
+        "id": "F10",
+        "input": "https://www.sqlite.org/lang.html",
+        "label": "https://www.sqlite.org/lang.html",
+        "checked_facts": [],
+        "reviewed": false
+      },
+      {
+        "id": "F11",
+        "input": "https://www.rust-lang.org/learn",
+        "label": "https://www.rust-lang.org/learn",
+        "checked_facts": [],
+        "reviewed": false
+      },
+      {
+        "id": "F12",
+        "input": "https://doc.rust-lang.org/book/",
+        "label": "https://doc.rust-lang.org/book/",
+        "checked_facts": [],
+        "reviewed": false
+      },
+      {
+        "id": "F13",
+        "input": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "label": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "checked_facts": [],
+        "reviewed": false
+      },
+      {
+        "id": "F14",
+        "input": "https://developer.mozilla.org/en-US/docs/Web/JavaScript",
+        "label": "https://developer.mozilla.org/en-US/docs/Web/JavaScript",
+        "checked_facts": [],
+        "reviewed": false
+      },
+      {
+        "id": "F15",
+        "input": "https://www.who.int/about",
+        "label": "https://www.who.int/about",
+        "checked_facts": [],
+        "reviewed": false
+      },
+      {
+        "id": "F16",
+        "input": "https://www.nasa.gov/about/",
+        "label": "https://www.nasa.gov/about/",
+        "checked_facts": [],
+        "reviewed": false
+      },
+      {
+        "id": "F17",
+        "input": "https://www.sec.gov/about",
+        "label": "https://www.sec.gov/about",
+        "checked_facts": [],
+        "reviewed": false
+      },
+      {
+        "id": "F18",
+        "input": "https://www.fda.gov/about-fda",
+        "label": "https://www.fda.gov/about-fda",
+        "checked_facts": [],
+        "reviewed": false
+      },
+      {
+        "id": "F19",
+        "input": "https://www.gnu.org/licenses/gpl-3.0.en.html",
+        "label": "https://www.gnu.org/licenses/gpl-3.0.en.html",
+        "checked_facts": [],
+        "reviewed": false
+      },
+      {
+        "id": "F20",
+        "input": "https://www.openstreetmap.org/about",
+        "label": "https://www.openstreetmap.org/about",
+        "checked_facts": [],
+        "reviewed": false
+      }
+    ],
+    "sitemap": [
+      {
+        "id": "M01",
+        "input": "https://www.iana.org",
+        "label": "https://www.iana.org",
+        "known_urls": [],
+        "reviewed": false
+      },
+      {
+        "id": "M02",
+        "input": "https://www.rfc-editor.org",
+        "label": "https://www.rfc-editor.org",
+        "known_urls": [],
+        "reviewed": false
+      },
+      {
+        "id": "M03",
+        "input": "https://www.w3.org",
+        "label": "https://www.w3.org",
+        "known_urls": [],
+        "reviewed": false
+      },
+      {
+        "id": "M04",
+        "input": "https://www.python.org",
+        "label": "https://www.python.org",
+        "known_urls": [],
+        "reviewed": false
+      },
+      {
+        "id": "M05",
+        "input": "https://www.sqlite.org",
+        "label": "https://www.sqlite.org",
+        "known_urls": [],
+        "reviewed": false
+      },
+      {
+        "id": "M06",
+        "input": "https://www.rust-lang.org",
+        "label": "https://www.rust-lang.org",
+        "known_urls": [],
+        "reviewed": false
+      },
+      {
+        "id": "M07",
+        "input": "https://www.postgresql.org",
+        "label": "https://www.postgresql.org",
+        "known_urls": [],
+        "reviewed": false
+      },
+      {
+        "id": "M08",
+        "input": "https://www.gnu.org",
+        "label": "https://www.gnu.org",
+        "known_urls": [],
+        "reviewed": false
+      },
+      {
+        "id": "M09",
+        "input": "https://www.nasa.gov",
+        "label": "https://www.nasa.gov",
+        "known_urls": [],
+        "reviewed": false
+      },
+      {
+        "id": "M10",
+        "input": "https://www.fda.gov",
+        "label": "https://www.fda.gov",
+        "known_urls": [],
+        "reviewed": false
+      }
+    ]
+  }
+}

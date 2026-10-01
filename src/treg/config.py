@@ -506,6 +506,11 @@ class Settings(BaseSettings):
     # default so every merge along the way changes nothing users see; production flips it once
     # the whole hub has landed on main.
     hub_enabled: bool = False
+    # Web Arena is shown only after reviewed tests exist for all live tasks.
+    web_arena_enabled: bool = False
+    web_arena_jev_user_daily_cap: int = 20
+    web_arena_jev_ops_daily_cap: int = 1000
+    web_arena_fact_model: str = "openai/gpt-4o-mini"
     # With the hub on, a comma-separated list of team slugs that may use it; EMPTY means every
     # team. The middle stage between "off" and "open": the owner's own team tries the live hub on
     # production first (decided 2026-09-24). Pages that have no caller (the share page, the

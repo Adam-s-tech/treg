@@ -132,6 +132,7 @@ Regenerate via `scripts/build-map.py`.
 | `src/treg/alembic/versions/0054_callrecord_org_id_id.py` | architecture/data-model.md |
 | `src/treg/alembic/versions/0055_find_v2_log.py` | architecture/data-model.md, architecture/find.md |
 | `src/treg/alembic/versions/0056_searchlog_verdict.py` | architecture/data-model.md, architecture/find.md, architecture/search-experiment.md |
+| `src/treg/alembic/versions/0057_web_arena.py` | interface/web-arena.md |
 | `src/treg/analytics.py` | architecture/data-model.md |
 | `src/treg/api.py` | architecture/archive.md, architecture/money.md, architecture/multi-tenancy.md, architecture/proxy-model.md, architecture/super-admin.md, interface/api.md, interface/landing-sandbox.md, interface/seo.md |
 | `src/treg/application/__init__.py` | architecture/import-boundaries.md |
@@ -181,10 +182,14 @@ Regenerate via `scripts/build-map.py`.
 | `src/treg/application/search_experiment.py` | architecture/search-experiment.md |
 | `src/treg/application/signup.py` | architecture/ads-conversions.md, architecture/money.md, architecture/multi-tenancy.md, interface/api.md |
 | `src/treg/application/table.py` | architecture/table.md |
+| `src/treg/application/web_arena.py` | interface/web-arena.md |
+| `src/treg/application/web_arena_benchmark.py` | interface/web-arena.md |
+| `src/treg/application/web_arena_publications.py` | interface/web-arena.md |
+| `src/treg/application/web_arena_quality.py` | interface/web-arena.md |
 | `src/treg/archive.py` | architecture/archive.md |
 | `src/treg/archive_bodies.py` | architecture/archive.md |
 | `src/treg/audit.py` | architecture/data-model.md, ops/deploy.md |
-| `src/treg/bootstrap.py` | architecture/archive.md, architecture/composition.md, architecture/find.md, interface/enrich-arena.md |
+| `src/treg/bootstrap.py` | architecture/archive.md, architecture/composition.md, architecture/find.md, interface/enrich-arena.md, interface/web-arena.md |
 | `src/treg/bootstrap_handlers.py` | architecture/composition.md, architecture/data-model.md, interface/api.md |
 | `src/treg/bootstrap_http.py` | architecture/composition.md, interface/api.md |
 | `src/treg/call_surface.py` | architecture/composition.md, architecture/proxy-model.md, architecture/table.md, interface/api.md |
@@ -316,7 +321,7 @@ Regenerate via `scripts/build-map.py`.
 | `src/treg/cli.py` | architecture/hub.md, architecture/instagram-oauth.md, interface/cli.md, interface/onboarding.md, interface/shell.md |
 | `src/treg/cli_analytics.py` | interface/cli.md |
 | `src/treg/client_identity.py` | architecture/import-boundaries.md, architecture/proxy-model.md, interface/api.md |
-| `src/treg/config.py` | architecture/archive.md, architecture/auth-secrets.md, architecture/feedback.md, architecture/super-admin.md, architecture/table.md, guides/expanding-a-category.md, ops/deploy.md |
+| `src/treg/config.py` | architecture/archive.md, architecture/auth-secrets.md, architecture/feedback.md, architecture/super-admin.md, architecture/table.md, guides/expanding-a-category.md, interface/web-arena.md, ops/deploy.md |
 | `src/treg/convert.py` | interface/cli.md |
 | `src/treg/crypto.py` | architecture/auth-secrets.md |
 | `src/treg/domain/__init__.py` | architecture/import-boundaries.md |
@@ -380,6 +385,8 @@ Regenerate via `scripts/build-map.py`.
 | `src/treg/domain/tools/__init__.py` | architecture/auth-secrets.md |
 | `src/treg/domain/tools/bindings.py` | architecture/auth-secrets.md |
 | `src/treg/domain/tools/bundles.py` | architecture/auth-secrets.md, architecture/multi-tenancy.md |
+| `src/treg/domain/web_arena.py` | interface/web-arena.md |
+| `src/treg/domain/web_arena_scores.py` | interface/web-arena.md |
 | `src/treg/egress.py` | architecture/local-run.md |
 | `src/treg/email.py` | interface/api.md, ops/deploy.md |
 | `src/treg/feedback_contract.py` | architecture/feedback.md |
@@ -411,7 +418,7 @@ Regenerate via `scripts/build-map.py`.
 | `src/treg/maintenance.py` | architecture/data-model.md, ops/deploy.md |
 | `src/treg/mcp.py` | architecture/catalog.md, architecture/hub.md, architecture/instagram-oauth.md, architecture/mcp-oauth.md |
 | `src/treg/mcp_install.py` | interface/skill.md |
-| `src/treg/models.py` | architecture/data-model.md, architecture/hub.md, architecture/media.md, architecture/money.md, architecture/multi-tenancy.md, interface/enrich-arena.md |
+| `src/treg/models.py` | architecture/data-model.md, architecture/hub.md, architecture/media.md, architecture/money.md, architecture/multi-tenancy.md, interface/enrich-arena.md, interface/web-arena.md |
 | `src/treg/oauth.py` | architecture/auth-secrets.md |
 | `src/treg/oauth_providers.py` | architecture/auth-secrets.md, guides/expanding-a-category.md |
 | `src/treg/providers.py` | interface/env-import.md |
@@ -440,6 +447,7 @@ Regenerate via `scripts/build-map.py`.
 | `src/treg/routers/signup_cookies.py` | interface/api.md |
 | `src/treg/routers/table.py` | architecture/table.md |
 | `src/treg/routers/web.py` | architecture/composition.md, architecture/hub.md, interface/api.md, interface/dashboard.md, interface/landing-sandbox.md, interface/seo.md, interface/skill.md |
+| `src/treg/routers/web_arena.py` | interface/web-arena.md |
 | `src/treg/runner.py` | interface/api.md |
 | `src/treg/sandbox.py` | interface/landing-sandbox.md |
 | `src/treg/sandbox_identity.py` | architecture/proxy-model.md, interface/landing-sandbox.md |
@@ -459,6 +467,7 @@ Regenerate via `scripts/build-map.py`.
 | `src/treg/web/feedback.md` | architecture/feedback.md |
 | `src/treg/web/grokbot.html` | interface/seo.md |
 | `src/treg/web/gtag.js` | architecture/ads-conversions.md |
+| `src/treg/web/gtm-engineering.html` | interface/seo.md |
 | `src/treg/web/index.html` | architecture/hub.md |
 | `src/treg/web/install.sh` | interface/landing-sandbox.md |
 | `src/treg/web/jev.html` | interface/seo.md |
@@ -521,7 +530,11 @@ Regenerate via `scripts/build-map.py`.
 | `src/treg/web/usecase-seo.html` | interface/seo.md |
 | `src/treg/web/usecase-social.html` | interface/seo.md |
 | `src/treg/web/usecase.css` | interface/seo.md |
-| `src/treg/worker.py` | architecture/hub.md, ops/capacity.md, ops/deploy.md |
+| `src/treg/web/web-arena.html` | interface/web-arena.md |
+| `src/treg/web/web-arena/arena.css` | interface/web-arena.md |
+| `src/treg/web/web-arena/arena.js` | interface/web-arena.md |
+| `src/treg/web_arena_cases.json` | interface/web-arena.md |
+| `src/treg/worker.py` | architecture/hub.md, interface/web-arena.md, ops/capacity.md, ops/deploy.md |
 | `tests/callmatrix/test_hub_run.py` | architecture/hub.md |
 | `tests/fake_object_store.py` | architecture/archive.md |
 | `tests/fixtures/find_bench.yaml` | architecture/find.md |
@@ -594,6 +607,7 @@ Regenerate via `scripts/build-map.py`.
 | `tests/test_team_limit.py` | architecture/multi-tenancy.md |
 | `tests/test_tinyfish.py` | architecture/catalog.md, architecture/money.md, ops/capacity.md |
 | `tests/test_token_revocation.py` | architecture/multi-tenancy.md |
+| `tests/test_web_arena.py` | interface/web-arena.md |
 | `tests/test_wiza.py` | architecture/catalog.md |
 
 ## Fragment → sources
@@ -631,11 +645,12 @@ Regenerate via `scripts/build-map.py`.
 | `interface/env-import.md` | `providers.py`, `skills.py` |
 | `interface/landing-sandbox.md` | `sandbox.py`, `sandbox_identity.py`, `pubfeed.py`, `sandbox.py`, `__init__.py`, `sandbox.py`, `api.py`, `onboard.py`, `web.py`, `boot.js`, `SignedOutPage.vue`, `install.sh` |
 | `interface/onboarding.md` | `auth.py`, `__init__.py`, `demo.py`, `cli.py`, `auth.py`, `onboard.py`, `onboarding.js`, `WelcomeDialog.vue`, `GettingStartedPage.vue` |
-| `interface/seo.md` | `api.py`, `web.py`, `agent_pages.py`, `robots.txt`, `catalog.css`, `usecase.css`, `index.html`, `App.vue`, `PublicNavigation.vue`, `boot.js`, `landing.html`, `product-theme.css`, `refinement.css`, `gateway.css`, `hero-opening.js`, `refinement.js`, `catalog-drum.js`, `gateway.js`, `gateway-loader.js`, `gateway-3d.js`, `gateway-model.js`, `gateway-intro.js`, `hero-particles.js`, `command-beam.js`, `SOURCES.md`, `landing.spec.ts`, `terms.html`, `usecase-seo.html`, `usecase-company.html`, `usecase-enrichment.html`, `usecase-social.html`, `usecase-ads.html`, `people-search.html`, `leads-signals.html`, `grokbot.html`, `fable-gtm.html`, `ugc.html`, `jev.html`, `jev_xboost.py`, `xboost-seed.json`, `triage.json`, `signals.json`, `astra.html`, `page.css`, `page.js`, `llms.txt`, `indexnow_submit.py`, `support.html`, `og-card.html` |
+| `interface/seo.md` | `api.py`, `web.py`, `agent_pages.py`, `robots.txt`, `catalog.css`, `usecase.css`, `index.html`, `App.vue`, `PublicNavigation.vue`, `boot.js`, `landing.html`, `product-theme.css`, `refinement.css`, `gateway.css`, `hero-opening.js`, `refinement.js`, `catalog-drum.js`, `gateway.js`, `gateway-loader.js`, `gateway-3d.js`, `gateway-model.js`, `gateway-intro.js`, `hero-particles.js`, `command-beam.js`, `SOURCES.md`, `landing.spec.ts`, `terms.html`, `usecase-seo.html`, `usecase-company.html`, `usecase-enrichment.html`, `usecase-social.html`, `usecase-ads.html`, `people-search.html`, `leads-signals.html`, `gtm-engineering.html`, `grokbot.html`, `fable-gtm.html`, `ugc.html`, `jev.html`, `jev_xboost.py`, `xboost-seed.json`, `triage.json`, `signals.json`, `astra.html`, `page.css`, `page.js`, `llms.txt`, `indexnow_submit.py`, `support.html`, `og-card.html` |
 | `interface/shell.md` | `shell.py`, `cli.py` |
 | `interface/skill-openai-test-cases.md` | _(no source files — narrative/reference)_ |
 | `interface/skill-openai-tool-justifications.md` | _(no source files — narrative/reference)_ |
 | `interface/skill.md` | `skill.md`, `SKILL.md`, `SKILL.md`, `web.py`, `mcp_install.py`, `build_plugin.py`, `plugin.json`, `marketplace.json`, `plugin.json`, `plugin.json`, `package.json`, `cordis.patch.yml`, `index.js`, `plugin.json`, `minimax_plugin.py` |
+| `interface/web-arena.md` | `web_arena.py`, `web_arena_scores.py`, `web_arena.py`, `web_arena_quality.py`, `web_arena_publications.py`, `web_arena_benchmark.py`, `web_arena_cases.json`, `web_arena.py`, `models.py`, `0057_web_arena.py`, `config.py`, `bootstrap.py`, `worker.py`, `web-arena.html`, `arena.js`, `arena.css`, `test_web_arena.py` |
 | `ops/capacity.md` | `__init__.py`, `collectors.py`, `policy.py`, `sweep.py`, `view.py`, `routes.py`, `signatures.py`, `verify.py`, `marks.py`, `test_capacity_protect.py`, `limiter.py`, `overflow_spend.py`, `routes_view.py`, `overflow.py`, `0007_overflow_spend.py`, `test_capacity_overflow.py`, `test_capacity_overflow_spend.py`, `0008_org_platform_overflow_disabled.py`, `test_capacity_smoothing.py`, `overflow_seed.json`, `__init__.py`, `orthogonal.py`, `monid.py`, `catalogs.py`, `0006_overflow_route.py`, `test_capacity_overflow_routes.py`, `test_influencersclub_overflow.py`, `worker.py`, `provider_balances.py`, `0005_capacity_policy_snapshot.py`, `test_capacity_know.py`, `test_capacity_collectors.py`, `test_financialdatasets.py`, `test_tinyfish.py` |
 | `ops/deploy.md` | `pyproject.toml`, `hatch_build.py`, `build-dashboard.sh`, `build-web.sh`, `frontend-e2e-server.sh`, `__main__.py`, `maintenance.py`, `env.py`, `0034_managed_api_keys.py`, `0035_default_key_generation.py`, `0036_activity_key_indexes.py`, `worker.py`, `selfhost.sh`, `config.py`, `db.py`, `email.py`, `audit.py`, `dev-local.sh`, `render.example.yaml` |
 | `reference/glossary.md` | `2026-06-30-jason-tools-registry.md` |

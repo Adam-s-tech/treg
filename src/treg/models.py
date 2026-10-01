@@ -1835,6 +1835,36 @@ class ArenaRun(SQLModel, table=True):
     revealed_at: NaiveUTC | None = None
 
 
+class WebArenaRun(SQLModel, table=True):
+    """Private Web Arena quote, attempts, and result checks in one encrypted payload."""
+    id: str = Field(primary_key=True)
+    org_id: int = Field(foreign_key="org.id", index=True)
+    user_id: int = Field(index=True)
+    task: str
+    mode: str
+    state: str
+    payload: str
+    created_at: NaiveUTC = Field(default_factory=_now, index=True)
+    deadline_at: NaiveUTC
+    expires_at: NaiveUTC = Field(index=True)
+    cancel_requested: bool = False
+
+
+class WebArenaPublication(SQLModel, table=True):
+    """Reviewed benchmark or content-free live totals, read without running providers."""
+    id: str = Field(primary_key=True)
+    kind: str = Field(index=True)
+    version: str
+    payload: dict = Field(sa_type=JSON)
+    created_at: NaiveUTC = Field(default_factory=_now)
+
+
+class WebArenaJudgeBudget(SQLModel, table=True):
+    """Daily Jev admission counter; one global row and one row per user."""
+    id: str = Field(primary_key=True)
+    calls: int = 0
+
+
 class ArenaEvaluation(SQLModel, table=True):
     """One immutable preference for a run's creator, including its exposure context."""
     __table_args__ = (UniqueConstraint("run_id", name="uq_arena_evaluation"),)

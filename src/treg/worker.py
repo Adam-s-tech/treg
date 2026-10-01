@@ -305,6 +305,30 @@ async def _arena_insights(args) -> int:
     return 1 if result["failed"] else 0
 
 
+async def _web_arena_totals(args) -> int:
+    from .infra.db import verify_db
+    from .application.web_arena_publications import refresh_live
+    await verify_db()
+    print(json.dumps(await refresh_live(), sort_keys=True))
+    return 0
+
+
+async def _web_arena_publish(args) -> int:
+    from .infra.db import verify_db
+    from .application.web_arena_publications import publish_file
+    await verify_db()
+    print(json.dumps(await publish_file(args.file), sort_keys=True))
+    return 0
+
+
+async def _web_arena_benchmark(args) -> int:
+    from .infra.db import verify_db
+    from .application.web_arena_benchmark import run
+    await verify_db()
+    print(json.dumps(await run(args.output, confirm_spend=args.confirm_spend), sort_keys=True))
+    return 0
+
+
 async def _catalog_stats(args) -> int:
     from .infra.db import verify_db
     from .application.catalog_stats import refresh
@@ -394,6 +418,17 @@ def main(argv: list[str] | None = None) -> int:
     insights.add_argument("--max-seconds", type=float, default=110.0,
                           help="stop after this long even with backlog left; the next run resumes")
     insights.set_defaults(fn=_arena_insights)
+    web_arena = sub.add_parser("web-arena", help="Web Arena saved totals and reviewed test results")
+    websub = web_arena.add_subparsers(dest="cmd", required=True)
+    totals = websub.add_parser("totals", help="publish content-free Battle totals")
+    totals.set_defaults(fn=_web_arena_totals)
+    publish = websub.add_parser("publish", help="publish a reviewed benchmark JSON file")
+    publish.add_argument("file")
+    publish.set_defaults(fn=_web_arena_publish)
+    benchmark = websub.add_parser("test", help="buy the fixed cases for human review")
+    benchmark.add_argument("--output", required=True, help="private JSON path outside this checkout")
+    benchmark.add_argument("--confirm-spend", action="store_true")
+    benchmark.set_defaults(fn=_web_arena_benchmark)
     catalog = sub.add_parser("catalog", help="catalog read models derived from the audit table")
     catalogsub = catalog.add_subparsers(dest="cmd", required=True)
     stats = catalogsub.add_parser("stats", help="fold new audit rows into per-endpoint, per-day reliability stats")

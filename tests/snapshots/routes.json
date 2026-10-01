@@ -2705,6 +2705,119 @@
   {
     "kind": "APIRoute",
     "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "web_arena_page",
+    "path": "/web-arena/benchmark"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "web_arena_page",
+    "path": "/web-arena/leaderboard"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "web_arena_page",
+    "path": "/web-arena"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "web_arena_asset",
+    "path": "/web-arena/{asset}"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "web_arena_tasks",
+    "path": "/web-arena/api/tasks"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "web_arena_leaderboard",
+    "path": "/web-arena/api/leaderboard"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "web_arena_benchmark",
+    "path": "/web-arena/api/benchmark"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "POST"
+    ],
+    "name": "web_arena_quote",
+    "path": "/web-arena/api/quotes"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "POST"
+    ],
+    "name": "web_arena_start",
+    "path": "/web-arena/api/runs/{run_id}/start"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "web_arena_history",
+    "path": "/web-arena/api/runs"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "web_arena_run",
+    "path": "/web-arena/api/runs/{run_id}"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "POST"
+    ],
+    "name": "web_arena_cancel",
+    "path": "/web-arena/api/runs/{run_id}/cancel"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "POST"
+    ],
+    "name": "web_arena_rating",
+    "path": "/web-arena/api/runs/{run_id}/attempts/{attempt_id}/rating"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
       "POST"
     ],
     "name": "run_tool_server",
