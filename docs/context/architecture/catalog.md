@@ -1696,6 +1696,10 @@ Five rules worth keeping:
 
 ### Search scoring — most words must match, and the rare ones decide
 
+This is the shipped ranker: what `/catalog/search` and the CLI answer, the lexical page the
+discovery experiment measures against, and the page an agent's MCP search falls back to when the
+job-first answer abstains ([search-experiment](search-experiment.md)).
+
 `catalog_store.search` demanded EVERY query token match (AND). Right for the 2–3 word refinement
 ("tiktok comments" must not return every tiktok endpoint), and fatal for how agents actually query:
 the day the SearchMiss log shipped it recorded "company job postings hiring open jobs linkedin" → 0

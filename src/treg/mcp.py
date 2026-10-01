@@ -41,7 +41,7 @@ import json
 import logging
 import os
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Annotated, Any, TypedDict
 from urllib.parse import parse_qsl, urlsplit
 
@@ -54,6 +54,8 @@ from mcp.shared.exceptions import MCPError
 from mcp.types import AudioContent, CallToolResult, METHOD_NOT_FOUND, TextContent, ToolAnnotations
 
 from . import analytics, audit, hints
+from .application import catalog_find as find_app
+from .application import catalog_search as search_app
 from .application import search_experiment
 from .domain.catalog import store as catalog_store
 from .config import PUBLIC_HOST_ALIASES, get_settings
@@ -260,11 +262,20 @@ class SearchResult(TypedDict, total=False):
     kind: str | None             # "hub" for a listed hub tool (docs/hub-listing-decisions.md); absent otherwise
     name: str | None
     provider: str | None
+    routed: str | None           # a routed row: what treg picks among, and where the rest are
+    job: str | None              # a judged answer: the job (capability) this row does
+    more_providers: int | None   # a judged answer, on a job's first row: vendors of it the page left out
     usd_per_call: float | None
     no_key_needed: bool | None
-    score: float | None
+    score: float | None          # the lexical score; null on a judged answer (no probability is shown)
     works: float | None          # measured success rate, or null when there isn't enough evidence
     samples: int | None          # how many real calls that rate stands on
+
+
+class SearchJob(TypedDict, total=False):
+    capability: str | None
+    providers: int | None        # vendors doing the job
+    shown: int | None            # rows of it on this page
 
 
 class SearchOut(TypedDict, total=False):
@@ -272,6 +283,9 @@ class SearchOut(TypedDict, total=False):
     count: int | None
     total_matches: int | None
     results: list[SearchResult] | None
+    verdict: str | None          # judged answers: strong | closest | name | none | keyword (ranked by words alone)
+    reason: str | None           # on none: gap (the catalog has no tool for it)
+    jobs: list[SearchJob] | None  # the jobs on the page, page order
     ranking_note: str | None     # set when the tie group outran what the evidence sort could weigh
     near: list[dict] | None      # zero results only: the rows just under the gate + the words they miss
     hint: str | None
@@ -677,11 +691,12 @@ async def _whose_grant(client: httpx.AsyncClient, slug: str | None, *, oauth: bo
 
 @mcp.tool(
     description=(
-        f"Search {_ENDPOINTS} API endpoints by WHAT YOU WANT TO DO, not by vendor. Use plain task words: "
-        "'work email', 'backlinks for a domain', 'tiktok comments', 'keyword search volume'. "
-        "Returns each endpoint's id, provider, price per call, and whether treg can serve it "
-        "without you owning an API key. Call this FIRST when a task needs data or an API you have "
-        "no key for."
+        f"Search {_ENDPOINTS} API endpoints by WHAT YOU WANT TO DO. Use plain task words: "
+        "'work email', 'backlinks for a domain', 'tiktok comments', 'keyword search volume'; a "
+        "provider or platform name lists what it offers. Returns each endpoint's id, provider, price "
+        "per call, and whether treg can serve it without you owning an API key. Read `verdict`: "
+        "strong = these do it; closest = nearest, check catalog_get; none = not in the catalog, file "
+        "catalog_request. Call this FIRST when a task needs data or an API you have no key for."
     ),
     annotations=_READS,
     structured_output=True
@@ -715,69 +730,31 @@ async def _search_identity(ctx: Context | None) -> tuple[str | None, int | None,
 async def _catalog_search_impl(
     query: str, limit: int = 8, *, ctx: Context | None = None, surface: _SurfacePolicy
 ) -> SearchOut:
+    """The use case is `application.catalog_search`: the shipped ranker's page, the discovery
+    experiment's say over it, and the records. This layer resolves who is asking (the hub's lists
+    and the experiment's log both need it) and shapes the rows for an agent."""
     cat = catalog_store.load()
     limit = max(1, min(limit, 25))
-    # Score, then let the evidence break the ties. Token scoring produces ties by the dozen — every
-    # one of the 24 "ad library" matches scores 6 — so with a default limit of 8 the rows an agent
-    # actually sees were decided by file order. That handed back seven tikhub rows (one of them
-    # uncallable) and hid the cheapest endpoint with a perfect measured record.
-    # The band is widened only so routed groups can collapse below without starving the page; with
-    # steering off there is no collapsing, so the original band is the right one.
-    _steering = str(get_settings().routed_discovery).strip().lower() not in ("off", "0", "false", "no")
-    ranked, total, tie_truncated = catalog_store.rank_band(
-        query, cat, min(100, limit * 4) if _steering else limit)
-    stats = await _observed_stats([ep["id"] for ep, _ in ranked])
-    ranked = catalog_store.rerank(ranked, stats, cat)
-    # Listed hub tools ride in by score, no boost (docs/hub-listing-decisions.md, decision 2).
-    from .application import hub as hub_app
-    from .infra.db import session_maker
     # While a list limits the hub, only a caller in it (by team or by email) sees hub rows.
     hub_slug = hub_email = None
     if get_settings().hub_enabled and get_settings().hub_limited:
         token = _bearer(ctx) if ctx is not None else ""
         if token:
             hub_slug, hub_email = await _hub_reader(token)
-    async with session_maker() as _s:
-        hub_ranked, hub_stats = await hub_app.search_listed(_s, query, cat, org_slug=hub_slug, email=hub_email)
-    if hub_ranked:
-        stats = {**stats, **hub_stats}
-        ranked = catalog_store.merge_by_score(ranked, hub_ranked)
-        total += len(hub_ranked)
+    from .routers.catalog import _provider_display
+    page = await search_app.search(
+        query, limit, cat=cat, source=surface.event_source,
+        caller=search_app.Caller(hub_slug=hub_slug, hub_email=hub_email),
+        observed=_observed_stats, identify=lambda: _search_identity(ctx), provider_display=_provider_display)
+    ranked, stats, hidden, total, _steering = page.rows, page.stats, page.hidden, page.total, page.steering
+    if page.arm is not None:
+        analytics.capture(page.caller_key or "anonymous", "catalog_search_judged", {
+            "source": surface.event_source, "mode": page.log["mode"], "arm": page.arm,
+            "baseline_total": total, "baseline_empty": page.lexical_empty,
+            "differs": page.log.get("differs"), "judge_ms": page.log.get("judge_ms"),
+            "judge_error": page.log.get("judge_error"), "judge_tokens_in": page.log.get("judge_tokens_in"),
+            "verdict": page.log.get("verdict"), "shown": len(ranked)})
     results = []
-    # Same order the HTTP route serves: a capability with a ROUTED row shows the parent first and
-    # its children right under it (catalog_store.group_routed), so an agent sees "let treg choose"
-    # before the specific providers.
-    grouped = catalog_store.group_routed(
-        [{"ep": ep, "score": score, "capability": ep.get("capability"), "kind": ep.get("kind")} for ep, score in ranked],
-        max_children=catalog_store.MAX_ROUTED_CHILDREN)
-    hidden = {r["ep"]["id"]: r["children_hidden"] for r in grouped if r.get("children_hidden")}
-    ranked = [(r["ep"], r["score"]) for r in grouped][:limit]
-    baseline_page = ranked
-    if query.strip() and search_experiment.mode() != "off":
-        # The discovery experiment (application.search_experiment): a relevance judge over a wider
-        # recall, compared with the page above on what the caller does next. `shadow` serves this
-        # page unchanged and only logs; `interleave` may serve a merge. Whatever the judge does,
-        # `ranked` stays a page — an abstaining judge leaves the baseline in place.
-        async def _finish(rows):
-            st = await _observed_stats([ep["id"] for ep, _ in rows])
-            rows = catalog_store.rerank(rows, st, cat)
-            g = catalog_store.group_routed(
-                [{"ep": ep, "score": sc, "capability": ep.get("capability"), "kind": ep.get("kind")}
-                 for ep, sc in rows], max_children=catalog_store.MAX_ROUTED_CHILDREN)
-            return [(r["ep"], r["score"]) for r in g][:limit], st
-        key, org_id, email = await _search_identity(ctx)
-        exp = await search_experiment.run(query, cat, baseline=baseline_page, baseline_total=total,
-                                          limit=limit, caller=key, finish=_finish)
-        stats = {**exp.stats, **stats}
-        ranked = exp.shown
-        audit.record_search(query=query.strip(), source=surface.event_source, org_id=org_id,
-                            user_email=email, **exp.log)
-        analytics.capture(key or "anonymous", "catalog_search_judged", {
-            "source": surface.event_source, "mode": exp.log["mode"], "arm": exp.arm,
-            "baseline_total": total, "baseline_empty": not baseline_page,
-            "differs": exp.log["differs"], "judge_ms": exp.log["judge_ms"],
-            "judge_error": exp.log["judge_error"], "judge_tokens_in": exp.log["judge_tokens_in"],
-            "shown": len(ranked)})
     for ep, score in ranked:
         obs = stats.get(ep["id"]) or {}
         cost = (ep.get("cost") if ep.get("kind") == "hub" else cat.cost_view(ep.get("cost"), ep.get("provider"))) or {}
@@ -792,6 +769,10 @@ async def _catalog_search_impl(
                           + (f" — {hidden[ep['id']]} more than shown here; catalog_get('{ep['id']}') ranks them all"
                              if ep["id"] in hidden else " below")}
                if _steering and ep.get("kind") == "routed" else {}),
+            # a judged answer: the job this row does, and (on a job's first row) how many of its
+            # vendors the page left out; no probability is shown
+            **({"job": ep["capability"]} if page.judged and ep.get("capability") else {}),
+            **({"more_providers": hidden[ep["id"]]} if page.judged and ep["id"] in hidden else {}),
             "usd_per_call": cat.advertised_usd(cost),
             # BOTH halves of tier 4's own truth, not just the price side: `platform_eligible` says
             # the row is priceable, `platform_key_for` says this deploy actually holds an enabled
@@ -803,7 +784,7 @@ async def _catalog_search_impl(
                 and any(get_settings().platform_key_for((cat.by_id.get(i) or {}).get("provider"))
                         for i in ep.get("routed_children") or [])
                 or bool(get_settings().platform_key_for(ep.get("provider")))),
-            "score": score,
+            "score": None if page.judged else score,
             # The measured half of the answer, at the step where the agent is choosing. Without it
             # the "your agent picks on evidence" story only came true at catalog_get — one endpoint
             # at a time, after the shortlist had already been cut blind.
@@ -811,19 +792,23 @@ async def _catalog_search_impl(
             "samples": obs.get("samples") or 0,
         })
     out = {"query": query, "count": len(results), "total_matches": total, "results": results}
-    if tie_truncated:
+    if page.verdict is not None:
+        out["verdict"] = page.verdict
+        if page.verdict == find_app.NONE:
+            out["reason"] = page.reason
+        out["jobs"] = [asdict(j) for j in page.jobs]
+    if page.tie_truncated and not page.judged:
         # No silent caps: past this many equally-scoring rows the evidence sort never saw the rest,
         # so the tail is ordered by nothing in particular and must not read as a ranked answer.
         out["ranking_note"] = (f"{query!r} matches too broadly to rank on measured reliability past "
                                f"the first {catalog_store.RERANK_BAND} equally-scoring rows — "
                                f"add a word to narrow it")
-    if not baseline_page and query.strip():
-        # Same miss log as GET /catalog/search (see models.SearchMiss) — this tool reads the catalog
-        # in-process, so the HTTP route's logging never sees an MCP agent's empty search. Judged by
-        # the LEXICAL page: the miss log measures the shipped ranker's coverage, and a judged page
-        # that found something is the experiment's result, not a reason to stop recording the gap.
-        audit.record_search_miss(query=query.strip(), source=surface.event_source)
-    if not results:
+    if page.verdict == find_app.NONE:
+        # a catalog gap, read by the judge: the answer that stops an agent re-querying is to say
+        # so and name the way to file it - no near misses, whose advice is the opposite
+        out["hint"] = (f"the catalog has no tool for {query!r}; file it with catalog_request(capability=...) — "
+                       "requests steer which provider gets added next")
+    elif not results:
         # the zero-result answer carries the rows that JUST missed the gate and which words they
         # missed — the caller is an LLM, and told exactly what to drop it re-queries correctly
         near = catalog_store.near_misses(query, cat)
@@ -843,9 +828,37 @@ async def _catalog_search_impl(
                 "requests steer which provider gets added next"
             )
     else:
+        hint = _verdict_hint(page, cat)
+        if hint:
+            out["hint"] = hint
         out["next"] = ("catalog_get(endpoint_id) for parameters and the exact price, then "
                        f"{surface.next_call}")
     return out
+
+
+def _verdict_hint(page, cat: catalog_store.Catalog) -> str | None:
+    """What to do next with a v2 answer, in one line; the facts (each job's vendor count, what the
+    page left out) are on `jobs` and the rows. A fitting job: where the rest of its vendors are
+    (`catalog_get` on its routed row where it has one, else on its first row, which lists the
+    others doing the job). Nearest matches: check before relying on one. A name: search by the
+    job. A keyword page: ranked by words alone."""
+    if page.verdict is None:
+        return None
+    if page.verdict == find_app.STRONG and page.jobs:
+        first = page.jobs[0]
+        parent = catalog_store.routed_parent(cat, first.capability)
+        at = parent["id"] if parent is not None else next(
+            ep["id"] for ep, _ in page.rows if ep.get("capability") == first.capability)
+        rest = ", ".join(j.capability for j in page.jobs[1:4])
+        return (f"{first.capability} does this; catalog_get('{at}') ranks every provider of it"
+                + (f". Also on this page: {rest}" if rest else ""))
+    if page.verdict == find_app.CLOSEST:
+        return "no exact fit; read catalog_get before relying on one of these, or say the task differently"
+    if page.verdict == find_app.NAME:
+        return "this names a provider or platform; search by the job to compare providers"
+    if page.verdict == find_app.KEYWORD:
+        return "ranked by keywords only" + (" (the judge did not answer)" if page.reason and page.reason != find_app.NOT_TASK else "")
+    return None
 
 
 @mcp.tool(
@@ -1625,7 +1638,8 @@ for _name in ("httpx", "httpx2", "httpcore", "httpcore2"):
     title="Search Treg Catalog",
     description=(
         "Searches Treg's catalog by capability or task words and returns matching endpoint ids, "
-        "providers, prices and measured reliability."
+        "providers, prices and measured reliability; `verdict` says whether they do the task "
+        "(strong), are the nearest (closest) or the catalog has no tool for it (none)."
     ),
     annotations=_DIRECTORY_SEARCH,
     structured_output=True,

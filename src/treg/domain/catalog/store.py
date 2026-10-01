@@ -863,6 +863,20 @@ def endpoint_view(ep: dict, provider_display: str, cat: Catalog | None = None) -
 MAX_ROUTED_CHILDREN = 5  # children shown under a routed parent in discovery; the rest are in `catalog get`
 
 
+def routed_discovery_on() -> bool:
+    """`TREG_ROUTED_DISCOVERY`: whether search leads a capability with its routed row (the one
+    switch every surface reads, see `group_routed`). Off, the agent-facing files stop teaching
+    routed ids too, or the docs and the catalog disagree and the agent trusts the docs."""
+    from ...config import get_settings
+    return str(get_settings().routed_discovery).strip().lower() not in ("off", "0", "false", "no")
+
+
+def routed_parent(cat: Catalog, capability: str | None) -> dict | None:
+    """The routed row (`treg.<capability>`) a job leads with, or None where the job has none."""
+    parent = cat.by_id.get(f"treg.{capability}") if capability else None
+    return parent if parent is not None and parent.get("kind") == "routed" else None
+
+
 def group_routed(rows: list[dict], key=lambda r: r, max_children: int | None = None) -> list[dict]:
     """Discovery order with routed parents FIRST: a capability that has a routed row in `rows` is
     shown as a group — the parent at the position its best member earned, its children (same
@@ -879,8 +893,7 @@ def group_routed(rows: list[dict], key=lambda r: r, max_children: int | None = N
     endpoints stay callable, priced and reachable by id — search simply stops leading with them, as
     it did before routing shipped. Whether the router answers well and whether every agent should
     be pointed at it by default are different questions; this is the switch for the second one."""
-    from ...config import get_settings
-    if str(get_settings().routed_discovery).strip().lower() in ("off", "0", "false", "no"):
+    if not routed_discovery_on():
         # Not merely "do not group": before routing shipped these rows did not exist, and a routed
         # row still MATCHES a keyword search on its own summary, so leaving it in would keep
         # steering by the back door. Off means search never surfaces one; `catalog get <id>` and
@@ -1206,17 +1219,12 @@ def with_routed_parents(scored: list[tuple[dict, float]], cat: Catalog) -> list[
     every provider — which contains no word of that query (2026-08-28). Shared by `search` and the
     judged page (`candidates` deliberately holds no routed rows), so both pages steer alike."""
     present = {ep["id"] for ep, _ in scored}
-    best_child: dict[str, float] = {}
+    best_child: dict[str, tuple[dict, float]] = {}
     for ep, score in scored:
-        parent_id = f"treg.{ep.get('capability')}" if ep.get("capability") else None
-        if parent_id and parent_id not in present and ep.get("kind") != "routed":
-            best_child[parent_id] = max(best_child.get(parent_id, 0.0), score)
-    out = list(scored)
-    for parent_id, score in best_child.items():
-        parent = cat.by_id.get(parent_id)
-        if parent is not None and parent.get("kind") == "routed":
-            out.append((parent, score))
-    return out
+        parent = routed_parent(cat, ep.get("capability")) if ep.get("kind") != "routed" else None
+        if parent is not None and parent["id"] not in present:
+            best_child[parent["id"]] = (parent, max(best_child.get(parent["id"], (parent, 0.0))[1], score))
+    return [*scored, *best_child.values()]
 
 
 def candidates(query: str, cat: Catalog, limit: int = 30, platform: str | None = None) -> list[tuple[dict, float]]:

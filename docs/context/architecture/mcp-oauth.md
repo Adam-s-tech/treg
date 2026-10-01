@@ -138,7 +138,7 @@ same-named team tool. A change is incomplete if only one relevant MCP test file 
 
 | Tool | Job |
 |---|---|
-| `catalog_search` | find endpoints by what you want to DO, with prices |
+| `catalog_search` | find endpoints by what you want to DO, with prices; in the experiment's `v2` mode a verdict and the jobs on the page ([search-experiment](search-experiment.md)) |
 | `catalog_get` | one endpoint in full: params, cost, reliability, sibling providers |
 | `call` | a catalog endpoint by id, or `<tool-name>/<path>` for the team's own tool |
 | `call_media` | the same `/call/` path for audio endpoints, returned as native `AudioContent` plus structured call/cost metadata |

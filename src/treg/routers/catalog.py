@@ -124,7 +124,7 @@ async def catalog_platform(slug: str, include_hidden: int = 0,
     # The BROWSE view steers too — it sorts the routed parent to the top of its capability group —
     # so it honours the same switch as search. Otherwise a deployment with routed discovery off
     # would hide the row in search and still lead with it one click later.
-    if str(get_settings().routed_discovery).strip().lower() in ("off", "0", "false", "no"):
+    if not catalog_store.routed_discovery_on():
         eps = [e for e in eps if e.get("kind") != "routed"]
     grouped: dict[str, list[dict]] = {}
     extended: list[dict] = []

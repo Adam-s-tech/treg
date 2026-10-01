@@ -17,7 +17,8 @@ Two tiers:
     person; verdict accuracy measures the verdict.
 
 Judge answers are cached on disk under `--cache` by (model, query, unit ids, questions), so a rerun
-of the same recall costs nothing, and a changed question is a new key rather than a stale answer.
+of the same recall costs nothing, and a changed question is a new key rather than a stale answer;
+the query's vector is cached beside them, so a rerun reads the same recall.
 The cache stores the original latency and tokens, so a cached run reports what the live one cost.
 `--baseline` names an earlier run file; the report ends with every case that flipped between them.
 
@@ -45,6 +46,7 @@ import statistics
 import sys
 import time
 from collections.abc import Awaitable, Callable
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -55,6 +57,7 @@ import yaml  # noqa: E402
 from treg.application import catalog_find, find_index  # noqa: E402
 from treg.config import get_settings  # noqa: E402
 from treg.domain.catalog import store  # noqa: E402
+from treg.infra import embed as embed_infra  # noqa: E402
 from treg.infra import judge as judge_infra  # noqa: E402
 
 TASK_VERDICTS = ("strong", "closest")
@@ -361,11 +364,7 @@ def summarize(cases: list[Case], answers: dict[str, Answer], tier: str, view: Vi
     ranks = [gold_rank(c, answers[c.id], view) for c in task]
     out["top1"] = [sum(r == 1 for r in ranks), len(task)]
     out["mrr"] = round(sum(1 / r for r in ranks if r) / len(task), 4) if task else None
-    toks = [a.tokens_in for a in answers.values() if a.tokens_in]
-    ms = [a.judge_ms for a in answers.values() if a.judge_ms]
-    out["tokens_in"] = {"p50": pct(toks, 0.5), "p95": pct(toks, 0.95)}
-    out["judge_ms"] = {"p50": pct(ms, 0.5), "p95": pct(ms, 0.95)}
-    out["abstained"] = sum(1 for a in answers.values() if a.error)
+    out.update(judge_cost(answers.values()))
     shown = [(c, answers[c.id].shown) for c in cases if answers[c.id].shown is not None]
     out["coverage"] = coverage(shown, view, jobs) if shown else {"n": 0}
     return out
@@ -453,14 +452,72 @@ class DirStore:
         path.write_bytes(body)
 
 
+async def warm_semantic(cat: store.Catalog, cache: Path | None) -> dict:
+    """Build the card vectors before scoring (cached under `<cache>/find-vectors/` when there is a
+    cache) and say how the channel stands: off (no key), on (with what was reused or computed),
+    or failed."""
+    if not find_index.enabled():
+        return {"channel": "off"}
+    find_index.configure(DirStore(cache) if cache else None)
+    vectors = await find_index.prepare(cat, _index(cat))
+    return ({"channel": "on", "model": vectors.model, "dim": vectors.dim, "reused": vectors.reused,
+             "computed": vectors.computed} if vectors else {"channel": "failed"})
+
+
+class DiskEmbed:
+    """Wraps `infra.embed.embed_query`: a query's vector already on disk (by model, size and folded
+    text) is served from there, so a rerun embeds nothing and reads the same recall as the run
+    before it, which is what keeps the judge's disk cache hitting."""
+
+    def __init__(self, directory: Path | None, live):
+        self.dir = directory
+        self.live = live
+        if directory:
+            directory.mkdir(parents=True, exist_ok=True)
+
+    async def __call__(self, text: str, **kw) -> embed_infra.Embedding:
+        key = hashlib.sha256(json.dumps([kw.get("model"), kw.get("dim"), embed_infra._fold(text)]).encode()).hexdigest()
+        path = self.dir / f"{key}.json" if self.dir else None
+        if path and path.exists():
+            return embed_infra.Embedding(vectors=[json.loads(path.read_text())], ms=0, cached=True)
+        e = await self.live(text, **kw)
+        if path and e.vector is not None:
+            path.write_text(json.dumps(e.vector))
+        return e
+
+
+@contextmanager
+def cached_apis(cache: Path | None):
+    """The judge key from the environment, and the judge and the query embedding served from
+    disk for the block (`infra.judge.judge` and `infra.embed.embed_query` wrapped, restored after),
+    so a rerun costs nothing it already paid for; yields the judge wrapper for its hit and miss
+    counts."""
+    s = get_settings()
+    if not s.typesafe_api_key:
+        s.typesafe_api_key = os.environ.get("TYPESAFE_API_KEY", "")
+    if not s.typesafe_api_key:
+        raise SystemExit("the judge needs TYPESAFE_API_KEY (or TREG_TYPESAFE_API_KEY)")
+    disk = DiskJudge(cache / "jev" if cache else None, judge_infra.judge)
+    embed = DiskEmbed(cache / "embed" if cache else None, embed_infra.embed_query)
+    judge_infra.judge, embed_infra.embed_query = disk, embed
+    try:
+        yield disk
+    finally:
+        judge_infra.judge, embed_infra.embed_query = disk.live, embed.live
+
+
+def judge_cost(answers) -> dict:
+    """Tokens and latency over the answers the judge gave live or from disk, and the abstentions."""
+    toks = [a.tokens_in for a in answers if a.tokens_in]
+    ms = [a.judge_ms for a in answers if a.judge_ms]
+    return {"tokens_in": {"p50": pct(toks, 0.5), "p95": pct(toks, 0.95)},
+            "judge_ms": {"p50": pct(ms, 0.5), "p95": pct(ms, 0.95)},
+            "abstained": sum(1 for a in answers if a.error)}
+
+
 async def run_all(engine, cases: list[Case], tier: str, concurrency: int,
                   cache: Path | None = None) -> tuple[dict[str, Answer], dict]:
-    embed = {"channel": "off"}
-    if isinstance(engine, V2) and find_index.enabled():
-        find_index.configure(DirStore(cache) if cache else None)
-        vectors = await find_index.prepare(engine.cat, _index(engine.cat))
-        embed = ({"channel": "on", "model": vectors.model, "dim": vectors.dim, "reused": vectors.reused,
-                  "computed": vectors.computed} if vectors else {"channel": "failed"})
+    embed = await warm_semantic(engine.cat, cache) if isinstance(engine, V2) else {"channel": "off"}
     if tier == "recall":
         return {c.id: await engine.recall(c) for c in cases}, embed
     sem = asyncio.Semaphore(concurrency)
@@ -487,17 +544,10 @@ def bench(cases: list[Case], *, engine: str, tier: str, cache: Path | None = Non
     s = get_settings()
     disk = None
     if tier == "judge" and engine != "logged":
-        if not s.typesafe_api_key:
-            s.typesafe_api_key = os.environ.get("TYPESAFE_API_KEY", "")
-        if not s.typesafe_api_key:
-            raise SystemExit("the judge tier needs TYPESAFE_API_KEY (or TREG_TYPESAFE_API_KEY)")
-        disk = DiskJudge(cache / "jev" if cache else None, judge_infra.judge)
-        judge_infra.judge = disk
-    try:
+        with cached_apis(cache) as disk:
+            answers, embed = asyncio.run(run_all(ENGINES[engine](cat), cases, tier, concurrency, cache))
+    else:
         answers, embed = asyncio.run(run_all(ENGINES[engine](cat), cases, tier, concurrency, cache))
-    finally:
-        if disk:
-            judge_infra.judge = disk.live
     rows = {}
     for c in cases:
         a = answers[c.id]

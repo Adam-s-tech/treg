@@ -6,9 +6,11 @@ sources:
   - src/treg/domain/catalog/find_recall.py
   - src/treg/application/find_index.py
   - src/treg/infra/embed.py
+  - src/treg/bootstrap.py
   - tests/test_find_index.py
   - tests/test_embed.py
   - src/treg/alembic/versions/0055_find_v2_log.py
+  - src/treg/alembic/versions/0056_searchlog_verdict.py
   - scripts/find_bench.py
   - tests/fixtures/find_bench.yaml
   - tests/test_find_bench.py
@@ -31,8 +33,10 @@ related:
 done: the dashboard's Catalog search box (Enter, or a pause in typing) and the public `/search` page.
 It is the discovery experiment's mechanism ([search-experiment](search-experiment.md): a loose
 recall read by one `infra.judge` request, bucketed at `search_judge_keep` / `search_judge_high`)
-served to people. Agents are unaffected: `/catalog/search` and MCP `catalog_search` answer exactly
-as before, and nothing here touches `store.search`, its scoring or the evidence rerank.
+served to people. The v2 engine below also answers MCP `catalog_search` in the experiment's `v2`
+mode, laid out for an agent by `application/catalog_search.py`
+([search-experiment](search-experiment.md)); `/catalog/search` answers from the shipped ranker, and
+nothing here touches `store.search`, its scoring or the evidence rerank.
 
 ## Two engines, one switch
 
@@ -131,8 +135,10 @@ in-process by model and folded text for an hour, `find_embed_timeout_s`), one ma
 `recall` fuses it with the lexical channel. The client never raises: a timeout, a non-200, a
 malformed body or a vector of the wrong size is an `embed_error`, and the find goes on lexical.
 
-The first v2 find on a catalog starts a background build and answers lexically until it is done:
-each card's vector is read from the archive's object store under
+The build starts with the process (`warm`, a background task of the lifespan on every role,
+cancelled with it; the catalog's parse and the index's build run off the event loop), or, where that
+did not finish, with the first v2 find on a catalog; a find answers lexically until it is done. Each card's vector is read
+from the archive's object store under
 `find-vectors/<model slug>/<sha256 of the card>`, only the missing cards are embedded (batches of
 96), and those are written back. The store is content-addressed everywhere else; these named
 objects are the one exception, their names built by treg from a validated slug and a digest, and
@@ -153,20 +159,20 @@ The key is `find_embed_api_key`; left empty with the OpenRouter URL, treg's own 
 
 | # | condition | verdict |
 |---|---|---|
-| 1 | the judge abstained | `keyword` |
+| 1 | the judge abstained | `keyword`, reason the judge's error |
 | 2 | the query is exactly a name, or a name's prefix and name p >= `find_name_min` | `name` (a name wins over strong) |
 | 3 | no strong fit, at most three words, the name table matches | `name` (a typed prefix) |
 | 4 | no strong fit, name p >= `find_name_min`, no name matched, nothing kept | `none`, reason `gap` |
 | 5 | the platform Choice is `none` with confidence >= `find_gap_min` | top under 0.6: `none`, `gap`; else `closest`, never strong |
 | 6 | a fit at or over high | `strong` |
 | 7 | a fit at or over keep | `closest` |
-| 8 | otherwise | `none`, reason `not_task` |
+| 8 | otherwise | `none`, reason `not_task` (`decide`'s `not_task` names the verdict: an agent's search asks for `keyword`, [search-experiment](search-experiment.md)) |
 
 Rule 5 sits before the strong rule: a confident "no platform provides this" caps the answer. On a
 shelf (`?platform=`) the platform Choice is not asked and any `none` is reason `scope`: that find read
 one shelf, so it cannot say the catalog lacks anything, and its SearchMiss row says `scope`.
 
-**Rows** (`expand`). Units best first. A job at or over high lists every vendor, in the evidence
+**Rows** (`expand_groups`, one group per kept unit; `expand` flattens them). Units best first. A job at or over high lists every vendor, in the evidence
 rerank's order (`store.rerank`: measured success, core, price), each row carrying the job's fit and
 `fit_from: job`; the pages show a job as one line with its vendor count, so no vendor is cut. A job
 between keep and high is folded by provider: one row for each of its first five providers, and
@@ -189,13 +195,14 @@ the right platforms and vendors); `judged` gains `reason` (on
 ## What is recorded
 
 `SearchLog` (mode `find`, source `web-find`, no identity) with `engine`; v2 also writes
-`platform_choice`, `platform_conf`, `name_p`, `recall_ms`, and `units` as `[kind, id, p]`;
+`verdict` (the reason after a colon: `none:gap`), `platform_choice`, `platform_conf`, `name_p`,
+`recall_ms`, and `units` as `[kind, id, p]`;
 `baseline_ids` is every endpoint the units reach, `judged` the kept units. `embed_ms` and
 `embed_error` record the query's vector (`off` without a key, `not_ready` while the card vectors
 build, else the client's reason). The `judged` event carries the same as `embed: {ms, error}`. `SearchMiss` gains `reason` (`gap`,
 `not_task`, `judge_off` for an empty keyword fallback, `scope` for a shelf's `none`) and `engine`.
 Only the served engine files a miss: in `shadow` v1 does, and v2's empty answers show in its
-SearchLog row only, so a find never counts twice in the misses. Migration 0055. Fire-and-forget through
+SearchLog row only, so a find never counts twice in the misses. Migrations 0055 and 0056. Fire-and-forget through
 `audit`, like every row there.
 
 ## The pages
@@ -224,7 +231,7 @@ reach); the `judge` tier runs the whole answer and reports verdict accuracy by s
 false-strong, false-none, top-1 and MRR, tokens, latency and **job coverage** - of a gold job with
 two or more vendors, how many the page shows (micro, macro, fully covered). Coverage is the first
 number: it measures what a person gets. Judge answers are cached on disk by (model, query, unit
-ids, questions) with the latency and tokens they cost live, `--baseline` diffs two runs case by
+ids, questions) with the latency and tokens they cost live, and query vectors beside them, `--baseline` diffs two runs case by
 case, `--engine v2` builds the card vectors first when an embedding key is set (cached under
 `<cache>/find-vectors/`), and `--engine logged` scores what a JSONL case's find log recorded. CI runs the recall tier on
 the synthetic `tests/fixtures/find_bench.yaml`; a label that no longer matches the catalog stops the

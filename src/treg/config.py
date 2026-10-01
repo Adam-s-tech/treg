@@ -325,10 +325,17 @@ class Settings(BaseSettings):
     # behaviour — did the caller go on to `call` something from the page. `off` (default) leaves
     # search exactly as it is. `shadow` computes and logs both pages, serves the baseline.
     # `interleave` serves a team-draft merge of both pages to most callers and a pure page to two
-    # holdouts. Any value here is also the kill switch: a bad judge is one env change from off.
+    # holdouts. `v2` serves the job-first answer (application.catalog_find, the engine behind
+    # /catalog/find) to most callers and the same two pure holdouts. Any value here is also the
+    # kill switch: a bad judge is one env change from off.
     search_experiment: str = "off"
-    # Per-caller share (each) of the two pure arms in `interleave` mode; the rest is interleaved.
+    # Per-caller share (each) of the two pure arms in `interleave` and `v2` mode; the rest is
+    # interleaved, or served v2.
     search_experiment_holdout_percent: int = 10
+    # Judged searches one caller gets per hour in `v2` mode; past it the hour's searches answer
+    # from the shipped ranker. A search is not metered, so this is the only bound on what an
+    # agent in a loop can spend on the judge.
+    search_judge_max_per_caller_hour: int = 300
     # Stirs the caller→arm hash, so a rerun of the experiment re-deals the arms.
     search_experiment_salt: str = ""
     # Rows the judge sees per query (widened recall), and the probability cut that keeps a row on

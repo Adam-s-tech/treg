@@ -89,7 +89,10 @@ apply to you. You have `catalog_search`, `catalog_get`, `call`, `call_media`, `r
 `balance`, `my_tools`, `catalog_request`, `feedback`, and `review`.
 Everything in this document maps onto them:
 
-- "search the catalog" → `catalog_search`, then `catalog_get` for the exact price and parameters
+- "search the catalog" → `catalog_search`, then `catalog_get` for the exact price and parameters.
+  Its `verdict` says what you got: `strong` (these do the job, every provider of it by measured
+  success), `closest` (nearest, check `catalog_get`), `none` (not in the catalog: file
+  `catalog_request`, do not rephrase), `keyword` (ranked by words alone)
 - "call it" → `call` with the endpoint id, or `<tool-name>/<path>` for one of the team's own tools
 - "check the balance" → `balance`
 - "share feedback" → `feedback`

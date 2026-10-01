@@ -3,6 +3,8 @@ card in the object store, recomputed only where missing, and off - never failing
 API or the store is down."""
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from tests.fake_object_store import MemoryObjectStore
@@ -10,6 +12,7 @@ from tests.test_find_recall import _cat
 from treg.application import find_index
 from treg.config import get_settings
 from treg.domain.catalog import find_recall as fr
+from treg.domain.catalog import store as catalog_store
 from treg.infra import embed as embed_infra
 
 TOPICS = (("image", "picture", "photo"), ("email", "mail"), ("comment",), ("people", "person"))
@@ -141,7 +144,7 @@ async def test_the_semantic_channel_reaches_a_job_no_word_of_the_query_names(api
 def test_stored_vectors_carry_their_card_and_size():
     key = find_index.card_key("a card")
     body = find_index.encode(key, [0.5, -1.0])
-    assert find_index.decode(key, body) == [0.5, -1.0]
+    assert list(find_index.decode(key, body)) == [0.5, -1.0]
     assert find_index.decode(find_index.card_key("another"), body) is None
     assert find_index.decode(key, body[:-1]) is None and find_index.decode(key, None) is None
     assert find_index.model_slug("VoyageAI/voyage-4-lite") == "voyageai-voyage-4-lite"
@@ -196,3 +199,40 @@ async def test_a_failed_batch_is_retried_before_the_build_gives_up(api, monkeypa
     with pytest.raises(RuntimeError, match="http_401"):
         await find_index.build(fr.build(_cat()))
     assert fails["calls"] == 2
+
+
+async def test_warm_builds_the_shipped_catalog_at_startup_and_a_cancel_reaches_the_build(api, monkeypatch):
+    """`warm` is the lifespan's background task: it parses the catalog off the loop, builds on the
+    one cached object, and awaits the build so cancelling the task cancels the build too."""
+    cat = _cat()
+    monkeypatch.setattr(catalog_store, "load", lambda **kw: cat)
+    await find_index.warm()
+    assert find_index._build is not None and find_index._build.cat is cat
+    assert find_index._build.vectors is not None and api["texts"]
+    assert (await find_index.semantic("make a picture", cat, fr.index(cat))).error is None
+
+    find_index.reset()
+    api["texts"].clear()
+    gate = asyncio.Event()
+
+    async def slow_embed(texts, **kw):
+        await gate.wait()
+        return embed_infra.Embedding(vectors=[_vector(t) for t in texts], ms=5)
+    monkeypatch.setattr(embed_infra, "embed", slow_embed)
+    task = asyncio.create_task(find_index.warm())
+    await asyncio.sleep(0)
+    while find_index._build is None or find_index._build.task is None:
+        await asyncio.sleep(0)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert find_index._build.task.cancelled()
+    assert find_index._build.vectors is None
+
+
+async def test_warm_is_a_no_op_without_an_embedding_key(monkeypatch):
+    monkeypatch.setattr(get_settings(), "find_embed_api_key", "", raising=False)
+    monkeypatch.setattr(get_settings(), "platform_key_openrouter", "", raising=False)
+    find_index.reset()
+    await find_index.warm()
+    assert find_index._build is None
