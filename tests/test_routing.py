@@ -111,26 +111,19 @@ def test_expression_language():
         P.evaluate("nope(a)", doc)
 
 
-def test_a_stats_only_adapter_judges_misses_but_is_never_routed():
-    from dataclasses import replace
+def test_a_route_false_adapter_is_never_routed():
     from treg.domain.catalog.routing import contracts as C, plan, synthetic
 
-    assert C.parse_adapters({"adapters": {"x.y": {"route": False}}})["x.y"].route is False
-    assert C.parse_adapters({"adapters": {"x.y": {}}})["x.y"].route is True
-    cat = catalog_store.load()
-    contract = cat.contracts["people.search"]
-    endpoints = cat.for_capability("people.search")
-    identity = {"company_domain": "stripe.com", "title": "head of marketing"}
-    routed = [ep["id"] for ep, _, _ in plan.candidates_for(contract, endpoints, cat.adapters, identity)[0]]
-    assert "quickenrich.people.search" in routed
-    adapters = {**cat.adapters, "quickenrich.people.search":
-                replace(cat.adapters["quickenrich.people.search"], route=False)}
-    assert adapters["quickenrich.people.search"].verified
-    assert adapters["quickenrich.people.search"].is_miss({"data": []})
-    after = [ep["id"] for ep, _, _ in plan.candidates_for(contract, endpoints, adapters, identity)[0]]
-    assert after == [i for i in routed if i != "quickenrich.people.search"]
-    row = synthetic.routed_endpoint(contract, endpoints, adapters, cat.cost_view)
-    assert "quickenrich.people.search" not in row["routed_children"]
+    contract = C.Contract(capability="x.find", summary="", identity=(("q",),), identity_types={"q": "str"},
+                          derive={}, filters={}, output={"rows": {"required": True}}, miss="rows == []")
+    adapters = {eid: C.Adapter(eid, (("q",),), {"q": "body.q"}, {"rows": "rows"}, "rows == []",
+                               route=eid != "c.find", verified=True) for eid in ("a.find", "b.find", "c.find")}
+    endpoints = [{"id": eid, "provider": eid.split(".")[0]} for eid in adapters]
+    routed = plan.candidates_for(contract, endpoints, adapters, {"q": "x"})[0]
+    assert [ep["id"] for ep, _, _ in routed] == ["a.find", "b.find"]
+    row = synthetic.routed_endpoint(contract, endpoints, adapters, lambda cost, provider: None)
+    assert row["routed_children"] == ["a.find", "b.find"]
+    assert C.parse_adapters({"adapters": {"c.find": {"route": False}}})["c.find"].route is False
 
 
 def test_every_shipped_adapter_round_trips_its_fixture():
