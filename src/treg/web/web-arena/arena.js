@@ -105,9 +105,23 @@
       invalidate(){this.remember();this.scheduleQuote();},
       chooseTask(task){this.task=task;this.value='';this.run=null;this.showPreview();this.invalidate();},
       setMode(mode){if(this.mode===mode)return;this.mode=mode;this.invalidate();},
-      toggleProvider(provider){if(this.running)return;this.selectionTouched=true;
+      toggleProvider(provider){if(this.running)return;
+        const host=this.$refs.fighterRoster;
+        const left=host?.scrollLeft||0;
+        const bounds=host?.getBoundingClientRect();
+        const anchor=host&&[...host.children].find(el=>el.dataset.provider&&el.dataset.provider!==provider&&
+          el.getBoundingClientRect().right>bounds.left&&el.getBoundingClientRect().left<bounds.right);
+        const anchorLeft=anchor?.getBoundingClientRect().left;
+        const anchorProvider=anchor?.dataset.provider;
+        this.selectionTouched=true;
         this.selected=this.selected.includes(provider)?this.selected.filter(p=>p!==provider):[...this.selected,provider];
-        this.error=this.selected.length?'':'Select at least one provider.';this.invalidate();this.resetRoster();},
+        this.error=this.selected.length?'':'Select at least one provider.';this.invalidate();
+        this.$nextTick(()=>{
+          if(!host)return;
+          const moved=[...host.children].find(el=>el.dataset.provider===anchorProvider);
+          host.scrollLeft=moved?host.scrollLeft+moved.getBoundingClientRect().left-anchorLeft:left;
+          this.updateRoster();
+        });},
       async loadIdentity(){
         try{this.user=await this.api('/auth/me',{},'');}
         catch(e){if(e.status!==401)throw e;this.user=null;this.teams=[];this.team='';this.balance=null;return;}
