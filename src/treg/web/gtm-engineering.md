@@ -1,0 +1,174 @@
+# The GTM engineering playbook (2026), with Claude Code and AI agents
+
+Updated 30 Sep 2026. The page: {BASE}/gtm-engineering
+
+Sixteen chapters, from defining your ICP to rolling automation out safely. Each starts from a problem GTM
+engineers post about on Reddit and LinkedIn, then gives the play, a prompt to run in your agent, and the rule
+to keep, and for every data step, what happened when we ran it. The data steps were run on one ICP: US B2B software, 51-200 staff, selling to
+sales, marketing, revenue or growth teams or running outbound themselves; the buyer is marketing or growth. Six recorded runs, 502 logged calls,
+$5.03 metered in total. Process chapters (sending, CRM join, rollout) are method, not runs.
+
+Set up once, in Claude Code, Codex or Cursor: `set up treg - {BASE}/llms.txt`
+
+## Where to start (symptoms and chapters)
+
+- The enrichment bill keeps surprising you: chapters 5 and 2.
+- Lists come back thin for your market: chapters 7 and 1.
+- Too many emails bounce, or "valid" means catch-all: chapter 8.
+- Reps ignore the intent or signal feed: chapters 9 and 10.
+- Outreach reads like a template: chapter 11.
+- You reach one person per account, and they are not the buyer: chapter 6.
+- Nobody can say what the agent may do on its own: chapters 3 and 16.
+- You cannot say which list, signal or provider produced pipeline: chapters 14 and 15.
+- Automations stop and you find out days later: chapter 16.
+
+## What is a GTM engineer, and what tools and data providers do they need in 2026?
+
+A GTM engineer builds the machine that finds, qualifies and reaches buyers. In 2026 more of it runs from an agent.
+The stack: an agent (Claude Code, Codex, Cursor, Hermes); a data layer (company and people search, enrichment, email
+finding and verification, hiring, funding, news, social; treg.to is one, one key, priced per call, your own keys
+first); skills (the method); a sending tool; a CRM.
+
+## Write your ICP as fields a provider can filter on
+
+Split the ICP into filters (country, headcount, category, funding, technology) and checks (judgement per row). Write
+the buyer as a function, not a title. Keep exclusions explicit.
+
+Prompt: "Using treg, turn the ICP in icp.md into filters for two company-search providers. Use their free count
+endpoints only. For each provider show the exact filter object and the count it returns."
+
+Rule: if a part of the ICP cannot be a filter, it is a check, and it runs before any expensive step.
+
+## Count the market for free before you pay for a single row
+
+Recorded 30 Sep 2026, US, 51-200 staff, free counts: CompanyEnrich B2B+SaaS 10,403; the same with funded 2024 or later
+1,357; the same with funding round series_a 25 (each adds one filter to the first). Dropleads: industry "IT & Services" 15,873; keyword "saas" 5,395; industry
+"Computer Software" 21. Apollo's Series A filter matched 958 (a paid list page, 23 Sep).
+
+Rule: no list is bought until two free counts roughly agree and ten sample rows look right.
+
+## Write down the rules the agent follows, and who can stop it
+
+At a 50% ICP threshold 27 of 48 companies passed; at 60%, 14 would have. Put thresholds, drops, spend caps and the
+owner of the stop in a rules file.
+
+Rule: every threshold is a number in the prompt, every drop has a reason, and one person owns the stop.
+
+## Lookalikes of your best accounts are candidates, not leads
+
+Recorded 30 Sep 2026: 71 unique lookalikes from 3 best-fit accounts ($0.006), enriched ($0.20, four providers,
+cheapest first; the one cheap enrichment comes first because lookalike rows are too thin to judge), same model check
+at 50%: 8 of 71 passed (11%), and only 5 of those were in the 51-200 band. 13 of 71 were in the band; 53 had 50 staff
+or fewer.
+
+Rule: a lookalike goes through the same size filter and ICP check as any other row.
+
+## Qualify on the fields you already have before any expensive lookup
+
+Recorded 23 Sep 2026: 50 companies, 48 with a usable domain, 27 passed the ICP check (jev on the team's own key, unmetered), 21 dropped before any
+paid step, 20 verified deliverable. $2.33 metered, $0.12 per deliverable lead; enriching all 48 would have cost an
+estimated $4.12. Details: {BASE}/workflows/find-and-verify-a-lead-list
+
+Rule: no expensive lookup (people, emails, news) runs on a row that has not passed the check; if a row lacks the
+fields to judge, one cheap enrichment comes first.
+
+## Which people search APIs work inside an AI agent? Search by role, not "decision makers"
+
+Recorded 30 Sep 2026 on 8 accounts: a "decision makers" endpoint returned 45 senior people at 5 accounts, mapped by hand: 10 sales,
+revenue and partnerships; 7 ops and strategy; 6 product, engineering and design; 5 customer success; 5 people and HR;
+4 finance; 4 founders and assistants; 1 growth; 3 unclear. No title contained "marketing". 3 accounts were
+rate-limited. Routed people search by title "marketing" returned 20 people at all 8 accounts, $0.00
+metered (names and titles; contact details are a separate paid step).
+
+Rule: search for the buyer's function; a "decision makers" list is a map of the company, not your committee.
+
+## The cheapest way to run waterfall email enrichment from an AI agent
+
+Bench, 16 Sep 2026, 292 people: cost per correct work email $0.0056 treg.to, $0.0257 Monid, $0.0395 Clay, $0.0427
+Freckle, $0.0924 Deepline; exact match 90.4%, 79.8%, 89.7%, 90.1%, 86.6%. A routed finder tries providers cheapest
+first and does not bill misses on per-success providers. Method: {BASE}/blog/work-email-finding-bench
+
+Rule: pick providers per segment from a test on your own rows, and re-test when the segment changes.
+
+## Find, then verify, and keep the unknowns apart
+
+23 Sep run: 27 named people, 21 emails found, 20 deliverable, 1 unknown, 0 invalid; the verifier returned no
+catch-all flag. A blank catch-all field means unknown, not safe.
+
+Rule: only a verified-deliverable address goes into the main sequence.
+
+## How to set up signal-based outbound: use signals you can open and date
+
+Recorded 30 Sep 2026 on 27 accounts: 16 had open sales, marketing or growth roles posted or first seen in the last 60
+days; 355 of 675 postings returned were already closed; the funding provider returned no round from the last 12
+months (latest May 2025). Both checks cost $1.35. Install the signals skill:
+`npx skills add superdesigndev/treg --skill lead-signals`
+
+Rule: no source link, no signal. No "why now", no outreach.
+
+## Score fit and timing together, then work the top tier first
+
+Tiers on the 27 accounts: A (fit at least 60% and 2+ open GTM roles in 60 days) 8, B (1+) 8, C 11.
+
+Rule: work tier A this week; tier C gets nothing until a signal moves it.
+
+## Let the agent research. Let a person write, or at least approve.
+
+23 Sep run: 19 companies had a news event; scored as a first line on a 0 to 3 scale, 4 of 19 were decent or better
+(mean 1.79).
+
+Rule: nothing is sent that a person has not read.
+
+## Sending infrastructure and replies: what practitioners recommend
+
+Not treg. Conservative volume, bounces and complaints watched per domain; classify replies, route with context, a
+person approves, outcome written back to the row.
+
+## Enrich an inbound lead from its email domain and route it in seconds
+
+Recorded 30 Sep 2026, 20 domains not looked up before: median 2.2 s (p90 4.5 s), $0.053 total, three providers. Fill:
+employees 20/20, location 20/20, industry 16/20, description 13/20. Repeat lookups of already-enriched domains: median
+1.15 s, about a fifth of the price. This measures the lookup, not a full routing flow.
+`treg call treg.companies.enrich --method POST --data '{"domain":"acme.com"}'`
+
+Rule: every inbound lead is enriched and routed before a person opens it.
+
+## Tag every row, so you can tell which list, signal and provider paid off
+
+Store per row: source list, signal, the provider that found the email, the verifier's verdict. Join to CRM outcomes
+monthly.
+
+Rule: a row without its source and provider does not go into a sequence.
+
+## The metric stack: system health, performance, efficiency
+
+System health: counts agree, enrichment fill rate, share deliverable. Performance: replies, meetings, opportunities
+by source, signal and tier. Efficiency: cost per usable result ($0.12 per deliverable lead in our run), share dropped
+before paying (21 of 48), time to first touch (2.2 s median to enrich a new domain).
+
+## Roll automation out like software: shadow, small segment, human gate, then autonomy
+
+What broke in our runs without stopping them: a finder out of capacity, a buying-group endpoint out of capacity, 3
+accounts rate-limited, and our own parser bug ($1.08 re-run). Alert on expected counts per stage; store raw
+responses; cap spend per run.
+
+Rule: nothing goes autonomous until it has run in shadow, and every stage reports its row count.
+
+## The best Claude Code skills for GTM engineering, and the data step each leaves to you
+
+coreyhaines31/marketingskills (cold email, competitor profiling), mvanhorn/last30days-skill (topic research),
+AgriciDaniel/claude-seo (SEO), zubair-trabzada/geo-seo-claude (AI visibility), phuryn/pm-skills (battlecards),
+swan-gtm/gtm-skills (account research), superdesigndev/treg (buyer signals). Not yet run with treg end to end.
+
+## Clay alternatives for GTM engineers who work in Claude Code or Codex
+
+Keep Clay for a shared visual table. Work in the agent with a per-call data layer when you want the playbook in
+prompts. Cost per correct email on the same 292 people: see the waterfall chapter above.
+
+## Every recorded run behind this playbook
+
+30 Sep playbook runs ($2.70, including a $1.08 re-run after our own parsing bug), 23 Sep lead list ($2.33), 16 Sep work-email bench, and the workflows at {BASE}/workflows
+
+## Glossary and questions
+
+ICP, TAM, check, waterfall, catch-all, signal, tier, shadow mode: defined on the page.

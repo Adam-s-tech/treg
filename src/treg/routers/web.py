@@ -197,6 +197,7 @@ def _page(title: str, description: str, path: str, body: str, ld: list[dict],
     # The job, workflow and agent pages exist on the hosted deployment only (`_hosted`): a
     # self-hosted registry must not put three 404s in its own footer.
     hub_links = ('<a href="/use-cases">Use cases</a><a href="/workflows">Workflows</a>'
+                 '<a href="/gtm-engineering">GTM engineering</a>'
                  '<a href="/agents">Agents</a><a href="/blog">Blog</a>' if _hosted() else "")
     return HTMLResponse(f"""<!doctype html>
 <html lang="en">
@@ -1664,7 +1665,8 @@ async def use_cases_hub():
         '</div>' + blocks
         + '<section class="cat"><h2>Everything else</h2><div class="cap"><p style="margin:0">These are the jobs '
           'written up so far. The full menu is on the agent pages, and the whole catalog is at '
-          '<a href="/catalog">/catalog</a>. The multi-step versions are at <a href="/workflows">/workflows</a>.'
+          '<a href="/catalog">/catalog</a>. The multi-step versions are at <a href="/workflows">/workflows</a>, '
+          'and the whole sequence, chapter by chapter, is the <a href="/gtm-engineering">GTM engineering playbook</a>.'
           '</p></div></section></main>')
     ld = [{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
         {"@type": "ListItem", "position": 1, "name": "treg.to", "item": base + "/"},
@@ -2003,7 +2005,8 @@ async def workflows_hub(observations: endpoint_stats.EndpointObservationReader =
         f'</div><section class="cat"><div class="grid">{"".join(cards)}</div></section>'
         '<section class="cat"><h2>Everything else</h2><div class="cap"><p style="margin:0">The single-job '
         'versions are at <a href="/use-cases">/use-cases</a>, and the whole catalog is at '
-        '<a href="/catalog">/catalog</a>.</p></div></section></main>')
+        '<a href="/catalog">/catalog</a>. How the workflows fit together is the '
+        '<a href="/gtm-engineering">GTM engineering playbook</a>.</p></div></section></main>')
     ld = [{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
         {"@type": "ListItem", "position": 1, "name": "treg.to", "item": base + "/"},
         {"@type": "ListItem", "position": 2, "name": "Workflows", "item": base + "/workflows"}]}]
@@ -3308,7 +3311,7 @@ async def llms_txt(request: Request, db: AsyncSession = Depends(get_session)):
     from .hub_gate import hub_visible
     hub_on = (await hub_visible(request, db))[0]
     base = get_settings().public_url.rstrip("/")
-    return PlainTextResponse(_fill_headline(_strip_routed(f.read_text(encoding="utf-8"), hub_on)).replace("{BASE}", base),
+    return PlainTextResponse(_strip_hosted(_fill_headline(_strip_routed(f.read_text(encoding="utf-8"), hub_on))).replace("{BASE}", base),
                              media_type="text/plain; charset=utf-8")
 
 
@@ -3445,6 +3448,8 @@ async def sitemap_xml():
         add("/workflows", copy_day, "0.8")
         for w in agent_pages.WORKFLOWS:
             add(f"/workflows/{w}", copy_day, "0.7")
+        hub = _WEB_DIR / "gtm-engineering.html"
+        add("/gtm-engineering", _iso_day(hub.stat().st_mtime) if hub.exists() else "", "0.8")
     out.append("</urlset>")
     return Response("\n".join(out), media_type="application/xml; charset=utf-8",
                     headers={"Cache-Control": "max-age=3600"})
@@ -3524,6 +3529,15 @@ def _fill_headline(text: str) -> str:
     was always stale (see `catalog_store.headline_counts`)."""
     endpoints, providers = catalog_store.headline_counts(catalog_store.load())
     return text.replace("{ENDPOINTS}", endpoints).replace("{PROVIDERS}", str(providers))
+
+
+def _strip_hosted(text: str) -> str:
+    """`<!--hosted-->…<!--/hosted-->` marks links to pages that exist only on the hosted deployment
+    (`_hosted`). Hosted, the markers go and the content stays; self-hosted, the whole block goes, so a
+    bundled page or agent-facing file never sends a reader to a 404 on the registry serving it."""
+    if _hosted():
+        return re.sub(r"<!--/?hosted-->\n?", "", text)
+    return re.sub(r"<!--hosted-->.*?<!--/hosted-->\n?", "", text, flags=re.S)
 
 
 def _serve_md(name: str, hub_on: bool | None = None) -> PlainTextResponse:
@@ -3660,7 +3674,7 @@ def _static_page(name: str, request: Request) -> Response:
     if not page.exists():
         raise HTTPException(status_code=404, detail=f"{name} not bundled")
     base = get_settings().public_url.rstrip("/")
-    html = _fill_headline(page.read_text(encoding="utf-8")).replace("{BASE}", base)
+    html = _strip_hosted(_fill_headline(page.read_text(encoding="utf-8"))).replace("{BASE}", base)
     etag = '"' + hashlib.sha256(html.encode("utf-8")).hexdigest()[:32] + '"'
     headers = {"Cache-Control": "no-cache", "ETag": etag}
     # An edge that compresses the body weakens the tag (W/"..."), so compare the opaque part.
@@ -3806,6 +3820,31 @@ async def leads_signals_page(request: Request):
     return _static_page("leads-signals.html", request)
 
 
+@app.get("/gtm-engineering", include_in_schema=False)
+async def gtm_engineering_page(request: Request):
+    """The GTM-engineering hub: the seven jobs a GTM engineer runs, each linked to its existing
+    page, the workflows as playbooks with their receipts, and the GitHub skills people install
+    next to the catalog job that covers their data step. Hand-written like the launch pages, so it
+    loads sitetrack.js and its reading is measurable; the facts on it are dated in the copy.
+    Hosted only, like the workflows it links to: its runs and credit describe treg.to itself."""
+    if not _hosted():
+        raise HTTPException(status_code=404, detail="not found")
+    return _static_page("gtm-engineering.html", request)
+
+
+@app.get("/gtm-engineering.md", include_in_schema=False)
+async def gtm_engineering_md():
+    """The playbook as Markdown, for agents and answer engines that read text rather than render
+    pages. Hand-kept beside the HTML; `tests/test_gtm_engineering_page.py` fails if a chapter
+    heading on one is missing from the other. `noindex`: the HTML page is the indexed copy and
+    names this one with `rel=alternate`."""
+    if not _hosted():
+        raise HTTPException(status_code=404, detail="not found")
+    resp = _serve_md("gtm-engineering.md")
+    resp.headers["X-Robots-Tag"] = "noindex"
+    return resp
+
+
 @app.get("/jev", include_in_schema=False)
 async def jev_page(request: Request):
     """Landing page for jev + treg ("jev for GTM engineers"): three agent recipes, each with a prompt
@@ -3891,6 +3930,8 @@ async def jev_xboost_judge(request: Request, db: AsyncSession = Depends(get_sess
 # chronological (newest first), not alphabetical.
 _BLOG_LAUNCHES: list[tuple[str, str, str, str]] = [
     # (slug, title, date, one-line blurb)
+    ("/gtm-engineering", "The GTM Engineering Playbook", "2026-09-30",
+     "16 chapters from ICP to rollout: a prompt and a rule in each, and the data steps tested on recorded runs."),
     ("/leads-signals", "Claude for Monitor Leads Signal", "2026-09-28",
      "Your agent checks hiring, funding, job changes and social chatter on a schedule, and reports what's new."),
     ("/jev", "How to use Jev", "2026-09-20",
