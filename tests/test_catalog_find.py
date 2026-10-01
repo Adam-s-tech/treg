@@ -251,8 +251,19 @@ def test_v2_rules_in_order():
     assert _decide(q, {"people.email.find": 0.9}, plat=("none", 0.8))[0].verdict == F.CLOSEST
     assert _decide(q, {"people.email.find": 0.9}, plat=("none", 0.3))[0].verdict == F.STRONG
     assert _decide(q, {"people.email.find": 0.5})[0].verdict == F.CLOSEST
-    not_task = _decide(q, {"people.email.find": 0.2})[0]
+    # nothing kept: a gap when the judge named a platform with confidence (the catalog has the
+    # platform, not this job on it), else not a task - which an agent's search asks to be keyword
+    platform_gap = _decide(q, {"people.email.find": 0.2}, plat=("people", 0.9))[0]
+    assert (platform_gap.verdict, platform_gap.reason) == (F.NONE, F.GAP)
+    not_task = _decide(q, {"people.email.find": 0.2}, plat=("people", 0.3))[0]
     assert (not_task.verdict, not_task.reason) == (F.NONE, F.NOT_TASK)
+    cat = _cat()
+    ix = fr.build(cat)
+    cands = fr.recall(q, ix, cat.aliases)
+    agent = F.decide(q, cands, _judged(cands, {"people.email.find": 0.2}, plat=("people", 0.3)), ix, not_task=F.KEYWORD)
+    assert (agent.verdict, agent.reason) == (F.KEYWORD, F.NOT_TASK)
+    agent_gap = F.decide(q, cands, _judged(cands, {"people.email.find": 0.2}, plat=("people", 0.9)), ix, not_task=F.KEYWORD)
+    assert (agent_gap.verdict, agent_gap.reason) == (F.NONE, F.GAP)
 
 
 def test_v2_a_strong_job_lists_every_vendor_and_a_judged_member_keeps_its_own_fit():
@@ -342,12 +353,17 @@ async def test_v2_empty_answers_say_why(clients, monkeypatch):
     monkeypatch.setattr(judge_infra, "judge", _fake_v2({}, plat=("none", 0.9)))
     _, (_, judged) = await _find(clients, "book a table for two tonight")
     assert (judged["verdict"], judged["reason"], judged["rows"]) == ("none", "gap", [])
-    monkeypatch.setattr(judge_infra, "judge", _fake_v2({}))
+    # the judge names a platform with confidence and keeps nothing: the catalog has the platform,
+    # not this job on it, which is a gap worth recording too
+    monkeypatch.setattr(judge_infra, "judge", _fake_v2({}, plat=("threads", 0.9)))
+    _, (_, judged) = await _find(clients, "publish a post to threads")
+    assert (judged["verdict"], judged["reason"]) == ("none", "gap")
+    monkeypatch.setattr(judge_infra, "judge", _fake_v2({}, plat=("people", 0.3)))
     _, (_, judged) = await _find(clients, "book a table for two tonight")
     assert (judged["verdict"], judged["reason"]) == ("none", "not_task")
     await audit.drain()
     async with session_maker() as s:
-        assert [m.reason for m in (await s.execute(select(SearchMiss))).scalars()] == ["gap", "not_task"]
+        assert [m.reason for m in (await s.execute(select(SearchMiss))).scalars()] == ["gap", "gap", "not_task"]
     monkeypatch.setattr(judge_infra, "judge", _abstain)
     _, (_, judged) = await _find(clients, "backlinks for a domain")
     assert judged["verdict"] == "keyword" and judged["rows"] and all(r["p"] is None for r in judged["rows"])
@@ -373,7 +389,7 @@ async def test_v2_with_no_units_still_tells_a_gap_from_not_a_task(clients, monke
     assert first["units"] == [] and (judged["verdict"], judged["reason"]) == ("none", "gap")
     (_, views, kw), = seen
     assert views == [] and set(kw["extra"]) == {"name", "plat"}
-    monkeypatch.setattr(judge_infra, "judge", _fake_v2({}, plat=("people", 0.9)))
+    monkeypatch.setattr(judge_infra, "judge", _fake_v2({}, plat=("people", 0.3)))
     _, (_, judged) = await _find(clients, q)
     assert (judged["verdict"], judged["reason"]) == ("none", "not_task")
 

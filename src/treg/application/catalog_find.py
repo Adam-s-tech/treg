@@ -20,7 +20,7 @@ page, labelled as such, never to an error.
 
 Two engines behind `find_engine` (docs/context/architecture/find.md). v1, above: endpoint recall.
 v2: recall by JOB (`domain.catalog.find_recall`), so one judge seat carries every vendor of a job,
-the same single request also asks which platform the task needs, eight rules decide the verdict
+the same single request also asks which platform the task needs, nine rules decide the verdict
 (`decide`), and a fitting job lists all its vendors (`expand`). `shadow` serves v1 and logs v2.
 
 Session discipline: `admit` opens, commits and closes its own session BEFORE the judge's upstream
@@ -221,7 +221,7 @@ async def stream(query: str, provider_display, platform: str | None = None,
     rows and the verdict, when the judge answers). Logged once the answer is out. `high` rides
     along so the pages draw the strong cut from this server's setting, not a copy.
 
-    `find_engine` picks the answer: `v1` (endpoint recall), `v2` (job recall and the eight rules),
+    `find_engine` picks the answer: `v1` (endpoint recall), `v2` (job recall and the nine rules),
     or `shadow` - v1 is served and v2 runs beside it, its judge request in parallel, for the log
     only. `platform` scopes the whole find to one shelf. `evidence` reads the measured success of
     endpoint ids (the evidence rerank's input) once the judge has answered; None = unmeasured."""
@@ -278,7 +278,7 @@ def _log(query: str, *, source: str, baseline_total: int, cands: list[tuple[dict
                                  reason=JUDGE_OFF if judged.verdict == KEYWORD else None)
 
 
-# ==== v2: recall by job, one judge request, eight rules ===========================================
+# ==== v2: recall by job, one judge request, nine rules ============================================
 # Why a `none` has nothing to show: the catalog lacks it (a gap, worth recording), or the text is
 # not a task the page can read; `judge_off` is the keyword fallback that found nothing. A shelf's
 # find reads that shelf only, so its `none` is `scope`: it cannot say the catalog lacks anything.
@@ -419,7 +419,9 @@ def decide(query: str, cands: list[find_recall.Candidate], j: judge_infra.Judgem
     5. the judge picks no platform with confidence: none/gap under `CAPPED_TOP`, else closest (never strong)
     6. a fit at or over high: strong
     7. a fit at or over keep: closest
-    8. otherwise: `not_task` (none for a person; an agent's search passes keyword, since its input
+    8. nothing kept and the judge picked a platform with confidence: none/gap (the catalog has the
+       platform, not this job on it: a gap worth recording)
+    9. otherwise: `not_task` (none for a person; an agent's search passes keyword, since its input
        always means something and the keyword page serves it), reason not_task
 
     On a shelf (`platform`) any `none` is `scope`: that find read one shelf.
@@ -449,6 +451,8 @@ def decide(query: str, cands: list[find_recall.Candidate], j: judge_infra.Judgem
         found.verdict = STRONG
     elif kept:
         found.verdict = CLOSEST
+    elif plat and plat["choice"] != "none" and plat["confidence"] >= float(s.find_gap_min):
+        found.reason = GAP        # the platform is in the catalog; this job on it is not
     else:
         found.verdict, found.reason = not_task, NOT_TASK
     if found.verdict in (NONE, KEYWORD):

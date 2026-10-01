@@ -162,6 +162,20 @@ async def test_a_gap_is_an_empty_page_that_says_so(clients, monkeypatch):
     assert [(m.reason, m.engine, m.source) for m in misses] == [("gap", "v2", "mcp")]
 
 
+async def test_a_gap_on_a_platform_the_catalog_has_names_the_platform(clients, monkeypatch):
+    """The judge names the platform with confidence and keeps no job: the catalog has Threads, not
+    posting to it. An empty page that says so, recorded as a gap, not the lexical page of Threads
+    search rows the words would match."""
+    _v2(monkeypatch)
+    monkeypatch.setattr(judge_infra, "judge", _fake_v2({}, plat=("threads", 0.92)))
+    out = await _search("publish post to Threads", limit=5)
+    assert out["count"] == 0 and out["verdict"] == "none" and out["reason"] == "gap"
+    assert out["hint"].startswith("the catalog has Threads but no tool for 'publish post to Threads'")
+    logs, misses = await _rows()
+    assert logs[0].verdict == "none:gap" and logs[0].platform_choice == "threads"
+    assert [(m.reason, m.engine) for m in misses] == [("gap", "v2")]
+
+
 async def test_not_a_task_serves_the_lexical_page_under_keyword(clients, monkeypatch):
     """An agent's input always means something; rule 8 was settled on people's queries."""
     _v2(monkeypatch)

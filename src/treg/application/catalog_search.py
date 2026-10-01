@@ -11,7 +11,7 @@ What the caller sees is the discovery experiment's say (`search_experiment`, one
 - `off`: the lexical page, nothing recorded.
 - `shadow` / `interleave`: the v1 judged page beside it, served by arm (`search_experiment.run`).
 - `v2`: the job-first answer, the engine behind /catalog/find (`catalog_find`: recall by job and
-  by meaning, one judge request, eight rules, every vendor of a fitting job), laid out for an agent
+  by meaning, one judge request, nine rules, every vendor of a fitting job), laid out for an agent
   by `agent_page`. Two holdouts keep the pure lexical page and the pure v1 judged page, so v2 is
   read against what it replaces. An agent's input always means something, so the judge's "not a
   task" serves the lexical page under verdict `keyword` (`decide`'s `not_task`); a `none` for a
@@ -83,6 +83,7 @@ class Page:
     log: dict = field(default_factory=dict)    # the experiment's SearchLog fields, when it ran
     verdict: str | None = None                 # v2's verdict when v2 answered (keyword: the lexical page under it)
     reason: str = ""                           # why a none is empty, or a keyword page served
+    platform: str | None = None                # the platform the judge read the task as needing, when it did
     jobs: list[Job] = field(default_factory=list)
 
     @property
@@ -243,6 +244,8 @@ async def _v2(query: str, cat: catalog_store.Catalog, limit: int, *, page: Page,
             return st
         await find.lay_out(found, query, cat, evidence=evidence, keyword_rows=False)
         page.verdict, page.reason = found.verdict, found.reason
+        choice = (found.platform or {}).get("choice")
+        page.platform = choice if choice and choice != "none" else None
         served = serve(found, cat, limit, hub=hub, steer=page.steering)
         if served is not None:
             rows, page.total, page.jobs, page.hidden = served
