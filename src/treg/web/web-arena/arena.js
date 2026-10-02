@@ -102,19 +102,6 @@
             date:firstText(['publishedDate','published_at','published_date','datePublished','date','published','last_updated','updated_at'])}];
         });
       },
-      tablePreview(a){
-        if(a.state!=='hit')return null;
-        if(this.task==='search')return this.searchResults(a)[0]||null;
-        if(this.task==='fetch'){
-          const page=a.output?.pages?.[0];
-          const value=typeof page==='string'?page:page&&['markdown','text','raw_content','content'].map(key=>page[key]).find(text=>typeof text==='string'&&text.trim());
-          return value?{text:value.trim().slice(0,180)}:null;
-        }
-        const item=a.quality?.urls?.[0]||a.output?.results?.[0];
-        const rawUrl=typeof item==='string'?item:item?.url;
-        if(typeof rawUrl!=='string')return null;
-        try{const url=new URL(rawUrl);return ['http:','https:'].includes(url.protocol)?{url:url.href,title:url.href}:null;}catch{return null;}
-      },
       attemptMessage(a){if(a.state==='miss')return ({search:'No matching results returned.',fetch:'No usable page text returned.',sitemap:'No valid site URLs returned.'})[this.run?.task]||'No usable result returned.';return ({error:'This service could not complete the request.',timeout:'This service did not finish within the deadline.',running:'Waiting for the provider response…',queued:'Waiting for its turn.',not_attempted:'This provider was not called.',cancelled:'The attempt was stopped.',interrupted:'No complete result was recorded.'})[a.state]||'';},
       freshnessLabel(quality){
         const value=quality?.freshness_percent;
