@@ -585,27 +585,29 @@ def _observed_cost_micro(mk: MarketplaceCall, body: bytes, headers=None) -> int 
         # Missing or invalid charge evidence leaves the normal miss/base rules in force.
     if provider == "sumble":
         credits = doc.get("credits_used")
-        # The request-time unit freezes the credit rate, including legitimate zero usage.
+        # The request-time credit freezes the rate, including legitimate zero usage. Not
+        # `unit_micro`: on a per_success row that is the whole call (50 credits for a brief).
         if type(credits) is int and credits >= 0:
-            return credits * mk.unit_micro
+            return credits * mk.reported_charge_unit_micro
         return None
     if provider == "scrubby":
         credits = doc.get("credits_used")
         # Scrubby reports the exact per-call charge, including zero for a cached retry.
-        # The request-time unit freezes the supplied $/credit acquisition rate.
+        # The request-time credit freezes the supplied $/credit acquisition rate.
         if type(credits) is int and credits >= 0:
-            return credits * mk.unit_micro
+            return credits * mk.reported_charge_unit_micro
         return None
     if provider == "datagma":
         # Datagma returns the exact charge as a numeric string, including zero for cached repeats
-        # and misses. Use the request-time unit so a later catalog price edit cannot change a call
-        # already in flight.
+        # and misses. Use the request-time credit so a later catalog price edit cannot change a
+        # call already in flight. Not `unit_micro`: on phone find that is all 30 credits, which
+        # billed `creditBurn: 30` as 900.
         raw = doc.get("creditBurn")
         if isinstance(raw, (int, float, str)) and not isinstance(raw, bool):
             try:
                 credits = Decimal(str(raw))
                 if credits.is_finite() and credits >= 0:
-                    return int((credits * mk.unit_micro).quantize(
+                    return int((credits * mk.reported_charge_unit_micro).quantize(
                         Decimal("1"), rounding=ROUND_HALF_UP))
             except (InvalidOperation, ValueError, OverflowError):
                 pass

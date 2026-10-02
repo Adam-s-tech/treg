@@ -223,10 +223,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/facebook.ads_search
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/facebook/ads-search
-  note: AnyAPI slug `facebook.ads_search`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (588 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.018 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `facebook.ads_search`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (588 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. 4 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.018 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       country: US
@@ -356,10 +356,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/facebook.company_ads
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/facebook/company-ads
-  note: 'AnyAPI slug `facebook.company_ads`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (1063 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. That p90 is capped here at $0.0012, the dearest price any source can charge for this request today: the dearer source it measured has since been withdrawn, so no call can settle at the p90 any more. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.'
+  note: 'AnyAPI slug `facebook.company_ads`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (1063 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. That p90 is capped here at $0.0012, the dearest price any source can charge for this request today: the dearer source it measured has since been withdrawn, so no call can settle at the p90 any more. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.'
   test_request:
     body:
       companyName: nike
@@ -525,7 +525,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.132
+    value: 0.12
     currency: USD
     unit: call
     reported_charge:
@@ -533,10 +533,10 @@ endpoints:
       unit: usd
     source: rate_card_api
     source_url: https://api.getanyapi.com/v1/apis/facebook.followers
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/facebook/followers
-  note: AnyAPI slug `facebook.followers`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.132 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `facebook.followers`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.132 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       limit: 3
@@ -845,10 +845,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/facebook.post_comments
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/facebook/post-comments
-  note: AnyAPI slug `facebook.post_comments`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (65 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `facebook.post_comments`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (65 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0067 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       url: https://www.facebook.com/reel/2166091230582141/
@@ -1001,10 +1001,10 @@ endpoints:
       unit: usd
     source: rate_card_api
     source_url: https://api.getanyapi.com/v1/apis/facebook.profile_reels
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/facebook/profile-reels
-  note: AnyAPI slug `facebook.profile_reels`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `facebook.profile_reels`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0067 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       url: https://www.facebook.com/nike
@@ -1029,7 +1029,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.0012
+    value: 0.002
     currency: USD
     unit: call
     reported_charge:
@@ -1037,10 +1037,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/facebook.search_companies
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/facebook/search-companies
-  note: 'AnyAPI slug `facebook.search_companies`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (99 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. That p90 is capped here at $0.0012, the dearest price any source can charge for this request today: the dearer source it measured has since been withdrawn, so no call can settle at the p90 any more. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.'
+  note: AnyAPI slug `facebook.search_companies`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (99 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.004 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       query: nike
@@ -1140,10 +1140,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/facebook.search_posts
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/facebook/search-posts
-  note: AnyAPI slug `facebook.search_posts`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (443 charged calls, $0.03306 median), not a list price; roughly one call in ten settles above it. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0661 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `facebook.search_posts`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (443 charged calls, $0.03306 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0661 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       limit: 3
@@ -1169,7 +1169,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.00336
+    value: 0.0007
     currency: USD
     unit: call
     reported_charge:
@@ -1177,10 +1177,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/google.ai_mode
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/google/ai-mode
-  note: AnyAPI slug `google.ai_mode`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (8 charged calls, $0.00126 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.00336 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: 'AnyAPI slug `google.ai_mode`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (8 charged calls, $0.00126 median), not a list price; roughly one call in ten settles above it. That p90 is capped here at $0.0007, the dearest price any source can charge for this request today: the dearer source it measured has since been withdrawn, so no call can settle at the p90 any more. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0007 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.'
   test_request:
     body:
       prompt: What is AnyAPI at getanyapi.com, and what does it offer?
@@ -1624,10 +1624,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/maps.contacts
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/maps/contacts
-  note: AnyAPI slug `maps.contacts`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (475 charged calls, $0.03966 median), not a list price; roughly one call in ten settles above it. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0991 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `maps.contacts`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (475 charged calls, $0.03966 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0991 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       limit: 3
@@ -1660,7 +1660,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.0012
+    value: 0.0011
     currency: USD
     unit: call
     reported_charge:
@@ -1668,10 +1668,10 @@ endpoints:
       unit: usd
     source: rate_card_api
     source_url: https://api.getanyapi.com/v1/apis/instagram.audio_reels
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/instagram/audio-reels
-  note: AnyAPI slug `instagram.audio_reels`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `instagram.audio_reels`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       audioId: '1392969992841787'
@@ -1704,10 +1704,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/instagram.basic_profile
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/instagram/basic-profile
-  note: AnyAPI slug `instagram.basic_profile`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (440 charged calls, $0.0012 median), not a list price; roughly one call in ten settles above it. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `instagram.basic_profile`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (440 charged calls, $0.0012 median), not a list price; roughly one call in ten settles above it. 5 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       userId: '314216'
@@ -1741,7 +1741,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.0012
+    value: 0.0011
     currency: USD
     unit: call
     reported_charge:
@@ -1749,10 +1749,10 @@ endpoints:
       unit: usd
     source: rate_card_api
     source_url: https://api.getanyapi.com/v1/apis/instagram.comment_replies
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/instagram/comment-replies
-  note: AnyAPI slug `instagram.comment_replies`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0024 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `instagram.comment_replies`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 4 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0024 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       commentId: '18126632131325044'
@@ -1910,10 +1910,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/instagram.hashtag_top_posts
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/instagram/hashtag-top-posts
-  note: AnyAPI slug `instagram.hashtag_top_posts`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (72 charged calls, $0.0015 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.018 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `instagram.hashtag_top_posts`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (72 charged calls, $0.0015 median), not a list price; roughly one call in ten settles above it. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.018 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       hashtag: skincare
@@ -2101,10 +2101,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/instagram.profile
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/instagram/profile
-  note: AnyAPI slug `instagram.profile`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (7379 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0024 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `instagram.profile`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (7379 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. 4 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0024 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       handle: nasa
@@ -2137,10 +2137,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/instagram.profile_contact
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/instagram/profile-contact
-  note: AnyAPI slug `instagram.profile_contact`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (2379 charged calls, $0.00721 median), not a list price; roughly one call in ten settles above it. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.00721 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `instagram.profile_contact`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (2379 charged calls, $0.00721 median), not a list price; roughly one call in ten settles above it. 4 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.00721 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       handle: eminenceorganics
@@ -2179,10 +2179,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/instagram.reel_transcript
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/instagram/reel-transcript
-  note: AnyAPI slug `instagram.reel_transcript`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (80 charged calls, $0.0308 median), not a list price; roughly one call in ten settles above it. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0308 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `instagram.reel_transcript`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (80 charged calls, $0.0308 median), not a list price; roughly one call in ten settles above it. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0995 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       url: https://www.instagram.com/reel/DWzrfE2kaY8/
@@ -2259,7 +2259,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.0024
+    value: 0.0011
     currency: USD
     unit: call
     reported_charge:
@@ -2267,10 +2267,10 @@ endpoints:
       unit: usd
     source: rate_card_api
     source_url: https://api.getanyapi.com/v1/apis/instagram.search_locations
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/instagram/search-locations
-  note: AnyAPI slug `instagram.search_locations`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0024 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `instagram.search_locations`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0024 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       query: Eiffel Tower
@@ -2335,7 +2335,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.0024
+    value: 0.00175
     currency: USD
     unit: call
     reported_charge:
@@ -2343,10 +2343,10 @@ endpoints:
       unit: usd
     source: rate_card_api
     source_url: https://api.getanyapi.com/v1/apis/instagram.similar_profiles
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/instagram/similar-profiles
-  note: AnyAPI slug `instagram.similar_profiles`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0024 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `instagram.similar_profiles`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.027 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       handle: nasa
@@ -2371,7 +2371,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.0024
+    value: 0.0022
     currency: USD
     unit: call
     reported_charge:
@@ -2379,10 +2379,10 @@ endpoints:
       unit: usd
     source: rate_card_api
     source_url: https://api.getanyapi.com/v1/apis/instagram.stories_full
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/instagram/stories-full
-  note: AnyAPI slug `instagram.stories_full`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0024 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `instagram.stories_full`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0024 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       username: natgeo
@@ -2415,10 +2415,10 @@ endpoints:
       unit: usd
     source: rate_card_api
     source_url: https://api.getanyapi.com/v1/apis/instagram.stories_thin
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/instagram/stories-thin
-  note: AnyAPI slug `instagram.stories_thin`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.018 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `instagram.stories_thin`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.018 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       username: natgeo
@@ -2455,10 +2455,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/instagram.tagged_posts
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/instagram/tagged-posts
-  note: AnyAPI slug `instagram.tagged_posts`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (50 charged calls, $0.0024 median), not a list price; roughly one call in ten settles above it. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.018 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `instagram.tagged_posts`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (50 charged calls, $0.0024 median), not a list price; roughly one call in ten settles above it. 4 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.018 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       handle: nasa
@@ -2520,10 +2520,10 @@ endpoints:
       unit: usd
     source: rate_card_api
     source_url: https://api.getanyapi.com/v1/apis/instagram.user_highlights
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/instagram/user-highlights
-  note: AnyAPI slug `instagram.user_highlights`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0015 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `instagram.user_highlights`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0022 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       handle: nasa
@@ -2552,7 +2552,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.0012
+    value: 0.0011
     currency: USD
     unit: call
     reported_charge:
@@ -2560,10 +2560,10 @@ endpoints:
       unit: usd
     source: rate_card_api
     source_url: https://api.getanyapi.com/v1/apis/instagram.user_reposts
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/instagram/user-reposts
-  note: AnyAPI slug `instagram.user_reposts`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `instagram.user_reposts`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       userId: '787132'
@@ -2764,7 +2764,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.0042
+    value: 0.00253
     currency: USD
     unit: call
     reported_charge:
@@ -2772,10 +2772,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/linkedin.company
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/linkedin/company
-  note: AnyAPI slug `linkedin.company`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (170 charged calls, $0.0042 median), not a list price; roughly one call in ten settles above it. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0044 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: 'AnyAPI slug `linkedin.company`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (170 charged calls, $0.0042 median), not a list price; roughly one call in ten settles above it. That p90 is capped here at $0.00253, the dearest price any source can charge for this request today: the dearer source it measured has since been withdrawn, so no call can settle at the p90 any more. 4 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.00253 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.'
   test_request:
     body:
       url: https://www.linkedin.com/company/stripe
@@ -2915,10 +2915,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/linkedin.company_thin
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/linkedin/company-thin
-  note: AnyAPI slug `linkedin.company_thin`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (29 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.00253 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `linkedin.company_thin`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (29 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.00253 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       url: https://www.linkedin.com/company/stripe
@@ -3051,10 +3051,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/linkedin.post_reactions
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/linkedin/post-reactions
-  note: AnyAPI slug `linkedin.post_reactions`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (42 charged calls, $0.005 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.22 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `linkedin.post_reactions`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (42 charged calls, $0.005 median), not a list price; roughly one call in ten settles above it. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.22 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       limit: 5
@@ -3405,7 +3405,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.189
+    value: 0.18
     currency: USD
     unit: call
     reported_charge:
@@ -3413,10 +3413,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/linkedin.search_profiles
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/linkedin/search-profiles
-  note: AnyAPI slug `linkedin.search_profiles`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (43 charged calls, $0.1848 median), not a list price; roughly one call in ten settles above it. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.198 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: 'AnyAPI slug `linkedin.search_profiles`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (43 charged calls, $0.1848 median), not a list price; roughly one call in ten settles above it. That p90 is capped here at $0.18, the dearest price any source can charge for this request today: the dearer source it measured has since been withdrawn, so no call can settle at the p90 any more. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.18 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.'
   test_request:
     body:
       currentCompanies: *id001
@@ -3670,7 +3670,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.002
+    value: 0.0012
     currency: USD
     unit: call
     reported_charge:
@@ -3678,10 +3678,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/reddit.post_comments
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/reddit/post-comments
-  note: AnyAPI slug `reddit.post_comments`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (4598 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.018 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: 'AnyAPI slug `reddit.post_comments`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (4598 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. That p90 is capped here at $0.0012, the dearest price any source can charge for this request today: the dearer source it measured has since been withdrawn, so no call can settle at the p90 any more. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.'
   test_request:
     body:
       url: https://www.reddit.com/r/IAmA/comments/z1c9z/i_am_barack_obama_president_of_the_united_states/
@@ -3746,7 +3746,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.00225
+    value: 0.0012
     currency: USD
     unit: call
     reported_charge:
@@ -3754,10 +3754,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/reddit.profile
-    checked: '2026-09-19'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/reddit/profile
-  note: Listed at $0.00225, the charge treg's own verify run metered on 2026-09-19 against a $0.0012 p90. AnyAPI slug `reddit.profile`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (188 charged calls, $0.0012 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.00225 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `reddit.profile`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (188 charged calls, $0.0012 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.00225 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       username: spez
@@ -3815,10 +3815,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/reddit.search
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/reddit/search
-  note: AnyAPI slug `reddit.search`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (6418 charged calls, $0.0009 median), not a list price; roughly one call in ten settles above it. 4 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `reddit.search`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (6418 charged calls, $0.0009 median), not a list price; roughly one call in ten settles above it. 4 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       query: mechanical keyboard
@@ -3843,7 +3843,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.002
+    value: 0.0012
     currency: USD
     unit: call
     reported_charge:
@@ -3851,10 +3851,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/reddit.subreddit_details
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/reddit/subreddit-details
-  note: AnyAPI slug `reddit.subreddit_details`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (368 charged calls, $0.0012 median), not a list price; roughly one call in ten settles above it. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: 'AnyAPI slug `reddit.subreddit_details`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (368 charged calls, $0.0012 median), not a list price; roughly one call in ten settles above it. That p90 is capped here at $0.0012, the dearest price any source can charge for this request today: the dearer source it measured has since been withdrawn, so no call can settle at the p90 any more. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.'
   test_request:
     body:
       subreddit: programming
@@ -3923,10 +3923,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/reddit.subreddit_posts
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/reddit/subreddit-posts
-  note: 'AnyAPI slug `reddit.subreddit_posts`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (2675 charged calls, $0.0009 median), not a list price; roughly one call in ten settles above it. That p90 is capped here at $0.0012, the dearest price any source can charge for this request today: the dearer source it measured has since been withdrawn, so no call can settle at the p90 any more. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.'
+  note: 'AnyAPI slug `reddit.subreddit_posts`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (2675 charged calls, $0.0009 median), not a list price; roughly one call in ten settles above it. That p90 is capped here at $0.0012, the dearest price any source can charge for this request today: the dearer source it measured has since been withdrawn, so no call can settle at the p90 any more. 4 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.'
   test_request:
     body:
       limit: 5
@@ -3969,7 +3969,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.002
+    value: 0.0012
     currency: USD
     unit: call
     reported_charge:
@@ -3977,10 +3977,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/reddit.subreddit_search
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/reddit/subreddit-search
-  note: AnyAPI slug `reddit.subreddit_search`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (3244 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. 4 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: 'AnyAPI slug `reddit.subreddit_search`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (3244 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. That p90 is capped here at $0.0012, the dearest price any source can charge for this request today: the dearer source it measured has since been withdrawn, so no call can settle at the p90 any more. 5 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.'
   test_request:
     body:
       query: push ups
@@ -4077,10 +4077,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/reddit.user_comments
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/reddit/user-comments
-  note: AnyAPI slug `reddit.user_comments`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (22 charged calls, $0.0012 median), not a list price; roughly one call in ten settles above it. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `reddit.user_comments`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (22 charged calls, $0.0012 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       username: spez
@@ -4126,10 +4126,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/reddit.user_posts
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/reddit/user-posts
-  note: AnyAPI slug `reddit.user_posts`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (16 charged calls, $0.0012 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `reddit.user_posts`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (16 charged calls, $0.0012 median), not a list price; roughly one call in ten settles above it. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       username: spez
@@ -4326,10 +4326,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/tiktok.ad_library_search
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/tiktok/ad-library-search
-  note: 'AnyAPI slug `tiktok.ad_library_search`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (26 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. That p90 is capped here at $0.0012, the dearest price any source can charge for this request today: the dearer source it measured has since been withdrawn, so no call can settle at the p90 any more. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.'
+  note: 'AnyAPI slug `tiktok.ad_library_search`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (26 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. That p90 is capped here at $0.0012, the dearest price any source can charge for this request today: the dearer source it measured has since been withdrawn, so no call can settle at the p90 any more. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.'
   test_request:
     body:
       limit: 20
@@ -4480,7 +4480,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.0012
+    value: 0.0009
     currency: USD
     unit: call
     reported_charge:
@@ -4488,10 +4488,10 @@ endpoints:
       unit: usd
     source: rate_card_api
     source_url: https://api.getanyapi.com/v1/apis/tiktok.comment_replies
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/tiktok/comment-replies
-  note: AnyAPI slug `tiktok.comment_replies`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `tiktok.comment_replies`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 4 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       commentId: '7623828115408274207'
@@ -4529,10 +4529,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/tiktok.followers
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/tiktok/followers
-  note: AnyAPI slug `tiktok.followers`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (9 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `tiktok.followers`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (9 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       handle: stoolpresidente
@@ -4569,10 +4569,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/tiktok.following
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/tiktok/following
-  note: AnyAPI slug `tiktok.following`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (110 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `tiktok.following`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (110 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       handle: stoolpresidente
@@ -4825,7 +4825,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.0012
+    value: 0.0009
     currency: USD
     unit: call
     reported_charge:
@@ -4833,10 +4833,10 @@ endpoints:
       unit: usd
     source: rate_card_api
     source_url: https://api.getanyapi.com/v1/apis/tiktok.song
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/tiktok/song
-  note: AnyAPI slug `tiktok.song`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `tiktok.song`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 4 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       clipId: '7439295283975702544'
@@ -4865,7 +4865,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.0012
+    value: 0.0009
     currency: USD
     unit: call
     reported_charge:
@@ -4873,10 +4873,10 @@ endpoints:
       unit: usd
     source: rate_card_api
     source_url: https://api.getanyapi.com/v1/apis/tiktok.song_videos
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/tiktok/song-videos
-  note: AnyAPI slug `tiktok.song_videos`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `tiktok.song_videos`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 4 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       clipId: '7439295283975702544'
@@ -5167,7 +5167,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.002
+    value: 0.0012
     currency: USD
     unit: call
     reported_charge:
@@ -5175,10 +5175,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/tiktok.video
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/tiktok/video
-  note: AnyAPI slug `tiktok.video`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (276 charged calls, $0.0009 median), not a list price; roughly one call in ten settles above it. 4 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: 'AnyAPI slug `tiktok.video`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (276 charged calls, $0.0009 median), not a list price; roughly one call in ten settles above it. That p90 is capped here at $0.0012, the dearest price any source can charge for this request today: the dearer source it measured has since been withdrawn, so no call can settle at the p90 any more. 5 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.'
   test_request:
     body:
       url: https://www.tiktok.com/@mrbeast/video/7654638524729216287?_r=1&u_code=elgjf3ff8cajhk&preview_pb=0&sharer_language=en&_d=elh6737j6kjl71&share_item_id=7654638524729216287&source=h5_m
@@ -5211,10 +5211,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/tiktok.video_download
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/tiktok/video-download
-  note: AnyAPI slug `tiktok.video_download`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (5 charged calls, $0.0012 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `tiktok.video_download`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (5 charged calls, $0.0012 median), not a list price; roughly one call in ten settles above it. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       url: https://www.tiktok.com/@mrbeast/video/7654638524729216287
@@ -5247,10 +5247,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/tiktok.video_transcript_full
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/tiktok/video-transcript-full
-  note: AnyAPI slug `tiktok.video_transcript_full`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (6 charged calls, $0.0176 median), not a list price; roughly one call in ten settles above it. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0176 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `tiktok.video_transcript_full`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (6 charged calls, $0.0176 median), not a list price; roughly one call in ten settles above it. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0995 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       url: https://www.tiktok.com/@thatdudecancook/video/7649086431641521421
@@ -5409,10 +5409,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/tiktok_shop.product
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/tiktok-shop/product
-  note: AnyAPI slug `tiktok_shop.product`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (696 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `tiktok_shop.product`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (696 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       url: https://www.tiktok.com/shop/pdp/goli-ashwagandha-gummies-with-vitamin-d-ksm-66-vegan-non-gmo/1729587769570529799
@@ -5483,7 +5483,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.0012
+    value: 0.00095
     currency: USD
     unit: call
     reported_charge:
@@ -5491,10 +5491,10 @@ endpoints:
       unit: usd
     source: rate_card_api
     source_url: https://api.getanyapi.com/v1/apis/tiktok_shop.product_reviews
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/tiktok-shop/product-reviews
-  note: AnyAPI slug `tiktok_shop.product_reviews`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `tiktok_shop.product_reviews`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       url: https://www.tiktok.com/shop/pdp/cat-nail-clipper-by-potaroma-adjustable-sizes-built-in-file-safe-for-kittens-cats/1731578642912612516
@@ -5555,10 +5555,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/tiktok_shop.search
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/tiktok-shop/search
-  note: AnyAPI slug `tiktok_shop.search`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (3758 charged calls, $0.0012 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `tiktok_shop.search`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (3758 charged calls, $0.0012 median), not a list price; roughly one call in ten settles above it. 4 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0015 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       limit: 3
@@ -5603,10 +5603,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/tiktok_shop.search_suggestions
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/tiktok-shop/search-suggestions
-  note: AnyAPI slug `tiktok_shop.search_suggestions`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (639 charged calls, $0.0012 median), not a list price; roughly one call in ten settles above it. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `tiktok_shop.search_suggestions`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (639 charged calls, $0.0012 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       country: US
@@ -5736,7 +5736,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.00495
+    value: 0.0045
     currency: USD
     unit: call
     reported_charge:
@@ -5744,10 +5744,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/web.crawl
-    checked: '2026-09-19'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/web/crawl
-  note: Listed at $0.00495, the charge treg's own verify run metered on 2026-09-19 against a $0.0045 p90. AnyAPI slug `web.crawl`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (23 charged calls, $0.0045 median), not a list price; roughly one call in ten settles above it. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0347 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `web.crawl`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (23 charged calls, $0.0045 median), not a list price; roughly one call in ten settles above it. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0347 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       limit: 3
@@ -5871,7 +5871,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.001
+    value: 0.0009
     currency: USD
     unit: call
     reported_charge:
@@ -5879,10 +5879,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/web.scrape
-    checked: '2026-09-19'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/web/scrape
-  note: Listed at $0.001, the charge treg's own verify run metered on 2026-09-19 against a $0.0009 p90. AnyAPI slug `web.scrape`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (14360 charged calls, $0.0007 median), not a list price; roughly one call in ten settles above it. 4 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0015 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `web.scrape`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (14360 charged calls, $0.0007 median), not a list price; roughly one call in ten settles above it. 5 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0015 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       formats: *id003
@@ -6022,7 +6022,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.0005
+    value: 0.00045
     currency: USD
     unit: call
     reported_charge:
@@ -6030,7 +6030,7 @@ endpoints:
       unit: usd
     source: rate_card_api
     source_url: https://api.getanyapi.com/v1/apis/twitter.community_tweets
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/twitter/community-tweets
   note: AnyAPI slug `twitter.community_tweets`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 4 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
@@ -6078,10 +6078,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/twitter.followers
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/twitter/followers
-  note: AnyAPI slug `twitter.followers`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (78 charged calls, $0.00075 median), not a list price; roughly one call in ten settles above it. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.00075 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `twitter.followers`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (78 charged calls, $0.00075 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.00075 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       limit: 200
@@ -6127,10 +6127,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/twitter.following
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/twitter/following
-  note: AnyAPI slug `twitter.following`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (154 charged calls, $0.00075 median), not a list price; roughly one call in ten settles above it. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.00075 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `twitter.following`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (154 charged calls, $0.00075 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       limit: 200
@@ -6208,10 +6208,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/twitter.search_users
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/twitter/search-users
-  note: AnyAPI slug `twitter.search_users`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (36 charged calls, $0.00075 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0021 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `twitter.search_users`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (36 charged calls, $0.00075 median), not a list price; roughly one call in ten settles above it. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0021 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       query: ai agents
@@ -6236,7 +6236,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.005
+    value: 0.00375
     currency: USD
     unit: call
     reported_charge:
@@ -6244,10 +6244,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/twitter.thread
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/twitter/thread
-  note: AnyAPI slug `twitter.thread`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (237 charged calls, $0.005 median), not a list price; roughly one call in ten settles above it. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.005 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: 'AnyAPI slug `twitter.thread`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (237 charged calls, $0.005 median), not a list price; roughly one call in ten settles above it. That p90 is capped here at $0.00375, the dearest price any source can charge for this request today: the dearer source it measured has since been withdrawn, so no call can settle at the p90 any more. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.00375 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.'
   test_request:
     body:
       url: https://x.com/SpaceX/status/1732824684683784516
@@ -6325,10 +6325,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/twitter.tweet
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/twitter/tweet
-  note: AnyAPI slug `twitter.tweet`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (324 charged calls, $0.0003 median), not a list price; roughly one call in ten settles above it. 5 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `twitter.tweet`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (324 charged calls, $0.0003 median), not a list price; roughly one call in ten settles above it. 4 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       url: https://x.com/SpaceX/status/1732824684683784516
@@ -6401,10 +6401,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/youtube.channel
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/youtube/channel
-  note: AnyAPI slug `youtube.channel`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (549 charged calls, $0.0009 median), not a list price; roughly one call in ten settles above it. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `youtube.channel`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (549 charged calls, $0.0009 median), not a list price; roughly one call in ten settles above it. 4 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       handle: '@mkbhd'
@@ -6485,10 +6485,10 @@ endpoints:
       unit: usd
     source: rate_card_api
     source_url: https://api.getanyapi.com/v1/apis/youtube.channel_contact
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/youtube/channel-contact
-  note: AnyAPI slug `youtube.channel_contact`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 1 source can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0718 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `youtube.channel_contact`. Too few charged calls in the 60 days to 2026-09-09 to measure, so the price is the live rate card's cheapest source at the input maximum. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.2038 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       handle: '@mkbhd'
@@ -6835,7 +6835,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.002
+    value: 0.0012
     currency: USD
     unit: call
     reported_charge:
@@ -6843,10 +6843,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/youtube.search
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/youtube/search
-  note: AnyAPI slug `youtube.search`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (3091 charged calls, $0.0009 median), not a list price; roughly one call in ten settles above it. 4 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: 'AnyAPI slug `youtube.search`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (3091 charged calls, $0.0009 median), not a list price; roughly one call in ten settles above it. That p90 is capped here at $0.0012, the dearest price any source can charge for this request today: the dearer source it measured has since been withdrawn, so no call can settle at the p90 any more. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.'
   test_request:
     body:
       query: how to cook rice
@@ -7003,7 +7003,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.00125
+    value: 0.0012
     currency: USD
     unit: call
     reported_charge:
@@ -7011,10 +7011,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/youtube.video
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/youtube/video
-  note: AnyAPI slug `youtube.video`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (6218 charged calls, $0.0012 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.00125 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: 'AnyAPI slug `youtube.video`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (6218 charged calls, $0.0012 median), not a list price; roughly one call in ten settles above it. That p90 is capped here at $0.0012, the dearest price any source can charge for this request today: the dearer source it measured has since been withdrawn, so no call can settle at the p90 any more. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0012 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.'
   test_request:
     body:
       url: https://www.youtube.com/watch?v=dQw4w9WgXcQ
@@ -7055,10 +7055,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/youtube.video_comments
-    checked: '2026-09-11'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/youtube/video-comments
-  note: AnyAPI slug `youtube.video_comments`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (6345 charged calls, $0.0012 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `youtube.video_comments`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (6345 charged calls, $0.0012 median), not a list price; roughly one call in ten settles above it. 3 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.0036 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       url: https://www.youtube.com/watch?v=dQw4w9WgXcQ
@@ -7127,7 +7127,7 @@ endpoints:
     bodyType: json
   cost:
     type: per_success
-    value: 0.011
+    value: 0.002
     currency: USD
     unit: call
     reported_charge:
@@ -7135,10 +7135,10 @@ endpoints:
       unit: usd
     source: observed
     source_url: https://api.getanyapi.com/v1/apis/youtube.video_transcript
-    checked: '2026-09-19'
+    checked: '2026-10-02'
     confidence: verified
   docs_url: https://getanyapi.com/api/youtube/video-transcript
-  note: Listed at $0.011, the charge treg's own verify run metered on 2026-09-19 against a $0.002 p90. AnyAPI slug `youtube.video_transcript`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (1032 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. 2 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.011 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
+  note: AnyAPI slug `youtube.video_transcript`. Price is the p90 of what AnyAPI really charged for this endpoint over the 60 days to 2026-09-09 (1032 charged calls, $0.002 median), not a list price; roughly one call in ten settles above it. 5 sources can serve it; the cheapest serves first and a failed attempt is retried on the next, up to a $0.011 ceiling per request. `costUsd` on the response is the exact charge, which is what reported_charge settles. Send `max_cost_usd` to refuse any source dearer than a price you name.
   test_request:
     body:
       url: https://www.youtube.com/watch?v=dQw4w9WgXcQ

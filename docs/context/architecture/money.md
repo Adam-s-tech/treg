@@ -554,6 +554,10 @@ Provider-specific calculation stays outside the faithful relay.
 Bright Data snapshot downloads are billable per result, including repeat downloads. Gzip or a
 buffer-truncated response falls back to the estimate because the record count is unknown.
 `MarketplaceCall.unit_micro` carries the raw per-row price on every credential tier.
+That is one credit on a credit-priced `per_result` row but the whole call on a `per_success` row,
+so a response-reported credit COUNT (Datagma `creditBurn`, Sumble and Scrubby `credits_used`)
+settles against `reported_charge_unit_micro`, one frozen credit, frozen for every credit-priced row.
+Multiplying it by `unit_micro` billed a 30-credit Datagma phone lookup as 900 credits.
 
 The row-count signal for that estimate (`resolve._LIMIT_PARAMS` / `_body_limit`) reads the caller's
 `limit`/`count`/`size`/`per_page`… in the query or body, the camelCase spellings (`pageSize`,

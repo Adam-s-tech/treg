@@ -2113,9 +2113,12 @@ async def _resolve_marketplace_call(
         # re-price a task already in flight.
         usage_unit_micro = _usd_to_micro(cat.unit_rates.get(service, {}).get(usage_unit))
     reported_charge_unit_micro = 0
-    if (raw_cost.get("reported_charge") or {}).get("unit") == "credit":
+    if raw_cost.get("currency") == "credit" or \
+            (raw_cost.get("reported_charge") or {}).get("unit") == "credit":
         # Freeze one provider credit's replacement cost so a later fx edit cannot re-price a call
         # already in flight. USD reported charges use their fixed micro-USD conversion directly.
+        # Body-reported credit counts (datagma, sumble, scrubby) settle against this, never against
+        # `unit_micro`, which is a whole call on a per_success row.
         reported_charge_unit_micro = _usd_to_micro(cat.credit_rates.get(service))
     basis = settlement_basis.derive_basis(
         raw_cost, request=request_data, input_schema=ep.get("input") or {},
