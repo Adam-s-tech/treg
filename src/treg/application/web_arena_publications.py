@@ -7,6 +7,7 @@ from datetime import timedelta
 from pathlib import Path
 from statistics import mean, median
 
+from cryptography.fernet import InvalidToken
 from sqlmodel import select
 
 from ..domain import web_arena_scores as scores
@@ -114,7 +115,17 @@ async def _live_rows():
 
 async def live_now() -> dict:
     """Compute content-free totals directly for local development."""
-    return summarize_live(await _live_rows(), catalog_store.load())
+    try:
+        return summarize_live(await _live_rows(), catalog_store.load())
+    except InvalidToken:
+        # A local preview may outlive its encryption key. Keep the last saved,
+        # content-free totals visible instead of presenting a failed request as
+        # an empty leaderboard. The snapshot is explicitly marked as older data.
+        snapshot = await published("live")
+        if snapshot.get("status") != "live":
+            raise
+        return {**snapshot, "source": "Last saved Battle totals; older local runs could not be read.",
+                "stale": True}
 
 
 async def refresh_live():

@@ -133,7 +133,9 @@ read that one publication. The scheduled `treg-worker arena insights` command re
 when Web Arena is enabled and the reviewed benchmark is published. The standalone
 `treg-worker web-arena totals` command remains available for manual refresh. Local development
 computes the same content-free totals on the leaderboard request so new test runs appear
-without a cron worker.
+without a cron worker. If an older local run cannot be decrypted after its key changes, the
+leaderboard returns the last saved live publication with a stale-data label instead of showing
+an empty table. Without a saved publication, the read fails visibly.
 Quality win rate stays unknown until 20 comparable checked runs. Sitemap needs a known reference
 URL list before any live quality win can exist. `publish_file` accepts a reviewed, versioned
 benchmark with the fixed sample counts and formula. The benchmark page only reads that saved

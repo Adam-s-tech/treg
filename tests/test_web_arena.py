@@ -2,6 +2,7 @@
 import asyncio
 from types import SimpleNamespace
 import pytest
+from cryptography.fernet import InvalidToken
 
 from treg.domain import web_arena, web_arena_scores
 from treg.application import web_arena as app, web_arena_quality, web_arena_publications
@@ -85,6 +86,26 @@ def test_live_provider_stats_need_distinct_checked_inputs(monkeypatch):
     assert row["metric_sample_count"] == 20
     assert row["metric_percent"] == 80
     assert "query 1" not in str(doc)
+
+
+async def test_local_leaderboard_uses_saved_totals_if_old_runs_cannot_decrypt(monkeypatch):
+    async def rows():
+        return [SimpleNamespace(payload="old ciphertext")]
+
+    async def saved(kind):
+        assert kind == "live"
+        return {"status": "live", "task_results": {"search": [{"provider": "exa", "runs": 3}]}}
+
+    def cannot_decrypt(rows, catalog):
+        raise InvalidToken
+
+    monkeypatch.setattr(web_arena_publications, "_live_rows", rows)
+    monkeypatch.setattr(web_arena_publications, "published", saved)
+    monkeypatch.setattr(web_arena_publications, "summarize_live", cannot_decrypt)
+    result = await web_arena_publications.live_now()
+    assert result["task_results"]["search"][0]["runs"] == 3
+    assert result["stale"] is True
+    assert "Last saved" in result["source"]
 
 
 def test_public_task_previews_show_verified_search_providers(monkeypatch):
