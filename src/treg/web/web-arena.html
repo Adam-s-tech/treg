@@ -118,7 +118,7 @@
           {{view.label}}
         </button>
       </div>
-      <p class="leaderboard-source">From completed Web Arena Battles<span>Last 30 days · distinct inputs · UTC</span><span v-if="live?.updated_at">Updated {{leaderboardDate(live.updated_at)}}</span><span v-if="live?.stale">Showing the last saved totals; newer local runs could not be read.</span></p>
+      <p class="leaderboard-source">From completed Web Arena Battles<span>Last 30 days · distinct inputs · UTC</span><span v-if="live?.updated_at">Updated {{leaderboardDate(live.updated_at)}}</span><span v-if="live?.stale||live?.stale_tasks?.includes(task)">Showing the last saved totals for this task; older local runs could not be read.</span><span v-else-if="live?.partial">Showing readable recent runs; some older local runs could not be read.</span></p>
     </aside>
     <div class="vendor-chart web-leaderboard-chart" aria-label="Web provider performance chart">
       <div class="chart-heading"><div><h3>{{leaderboardViews.find(v=>v.id===leaderboardView)?.label}}</h3><p>{{leaderboardSubtitle}}</p></div><span class="chart-source">{{leaderboardView==='price'?'Catalog prices':'Observed Battles'}}</span></div>

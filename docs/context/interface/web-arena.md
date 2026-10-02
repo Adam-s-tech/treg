@@ -136,9 +136,11 @@ read that one publication. The scheduled `treg-worker arena insights` command re
 when Web Arena is enabled and the reviewed benchmark is published. The standalone
 `treg-worker web-arena totals` command remains available for manual refresh. Local development
 computes the same content-free totals on the leaderboard request so new test runs appear
-without a cron worker. If an older local run cannot be decrypted after its key changes, the
-leaderboard returns the last saved live publication with a stale-data label instead of showing
-an empty table. Without a saved publication, the read fails visibly.
+without a cron worker. If older local runs cannot be decrypted after a key change, the local
+leaderboard uses readable recent runs for each task and labels that data as partial. A task with
+no readable runs keeps its last saved live totals with a stale-data label. If no run is readable
+and no saved publication exists, the read fails visibly. The hosted worker still fails on an
+unreadable payload.
 The live leaderboard uses Enrich Arena's task pills, comparison rail, provider logos, and hover or
 selection details. Search offers hit rate, Jev relevance, catalog price, and price vs hit rate;
 Fetch adds fact coverage, token efficiency, and fact coverage vs token efficiency; Sitemap uses

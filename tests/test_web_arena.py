@@ -116,16 +116,43 @@ async def test_local_leaderboard_uses_saved_totals_if_old_runs_cannot_decrypt(mo
         assert kind == "live"
         return {"status": "live", "task_results": {"search": [{"provider": "exa", "runs": 3}]}}
 
-    def cannot_decrypt(rows, catalog):
+    def cannot_decrypt(payload):
         raise InvalidToken
 
     monkeypatch.setattr(web_arena_publications, "_live_rows", rows)
     monkeypatch.setattr(web_arena_publications, "published", saved)
-    monkeypatch.setattr(web_arena_publications, "summarize_live", cannot_decrypt)
+    monkeypatch.setattr(web_arena_publications.arena, "_unpack", cannot_decrypt)
     result = await web_arena_publications.live_now()
     assert result["task_results"]["search"][0]["runs"] == 3
     assert result["stale"] is True
     assert "Last saved" in result["source"]
+
+
+async def test_local_leaderboard_keeps_readable_runs_when_old_runs_cannot_decrypt(monkeypatch):
+    current = {"input": "https://example.com", "attempts": [{
+        "provider": "search1api", "state": "hit", "duration_ms": 100,
+        "quality": {"unique_valid_urls": 10}}]}
+    async def rows():
+        return [SimpleNamespace(task="sitemap", payload=current),
+                SimpleNamespace(task="sitemap", payload="old ciphertext")]
+
+    async def saved(kind):
+        assert kind == "live"
+        return {"status": "live", "task_results": {"fetch": [{"provider": "exa", "runs": 2}]}}
+
+    def unpack(payload):
+        if isinstance(payload, str):
+            raise InvalidToken
+        return payload
+
+    monkeypatch.setattr(web_arena_publications, "_live_rows", rows)
+    monkeypatch.setattr(web_arena_publications, "published", saved)
+    monkeypatch.setattr(web_arena_publications.arena, "_unpack", unpack)
+    result = await web_arena_publications.live_now()
+    assert result["task_results"]["sitemap"][0]["provider"] == "search1api"
+    assert result["task_results"]["fetch"][0]["provider"] == "exa"
+    assert result["partial"] is True
+    assert result["stale_tasks"] == ["fetch"]
 
 
 def test_public_task_previews_show_verified_search_providers(monkeypatch):

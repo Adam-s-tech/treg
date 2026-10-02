@@ -115,17 +115,35 @@ async def _live_rows():
 
 async def live_now() -> dict:
     """Compute content-free totals directly for local development."""
-    try:
-        return summarize_live(await _live_rows(), catalog_store.load())
-    except InvalidToken:
-        # A local preview may outlive its encryption key. Keep the last saved,
-        # content-free totals visible instead of presenting a failed request as
-        # an empty leaderboard. The snapshot is explicitly marked as older data.
-        snapshot = await published("live")
+    rows = await _live_rows()
+    readable = []
+    unreadable = 0
+    for row in rows:
+        try:
+            arena._unpack(row.payload)
+        except InvalidToken:
+            unreadable += 1
+        else:
+            readable.append(row)
+    if not unreadable:
+        return summarize_live(rows, catalog_store.load())
+
+    # A local preview may outlive its encryption key. Older ciphertext must not
+    # hide newer, readable Battles; retain saved totals only for tasks with no
+    # readable runs. Production refreshes still fail on an unreadable payload.
+    snapshot = await published("live")
+    if not readable:
         if snapshot.get("status") != "live":
-            raise
+            raise InvalidToken
         return {**snapshot, "source": "Last saved Battle totals; older local runs could not be read.",
                 "stale": True}
+    doc = summarize_live(readable, catalog_store.load())
+    saved_tasks = snapshot.get("task_results", {}) if snapshot.get("status") == "live" else {}
+    stale_tasks = sorted(set(saved_tasks) - set(doc["task_results"]))
+    for task in stale_tasks:
+        doc["task_results"][task] = saved_tasks[task]
+    return {**doc, "source": "Readable Battle totals; older local runs could not be read.",
+            "partial": True, "stale_tasks": stale_tasks}
 
 
 async def refresh_live():
