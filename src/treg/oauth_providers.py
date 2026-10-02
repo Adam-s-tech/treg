@@ -979,9 +979,15 @@ FACEBOOK = OAuthProvider(
     discover_label_field="name",
     discover_extra_path="/me/businesses?fields=owned_pages{id,name},client_pages{id,name}",
     discover_extra_list_paths=_META_BIZ_PAGE_LISTS,
-    # /me returns the person, not the Page, and needs no extra scope — so it keeps working even for
-    # a connection whose Page was later unassigned, which is exactly when you want the probe to
-    # still distinguish "credential dead" from "asset gone".
+    # Every Page edge rejects the user token (code 190 / subcode 2069032). Picking the Page derives
+    # its Page token from the same listings, and calls inject that; the user token stays for the
+    # picker. One connection therefore acts on one Page.
+    call_token_field="page_access_token",
+    resource_token_path="/me/accounts?fields=id,access_token",
+    resource_token_extra_path="/me/businesses?fields=owned_pages{id,access_token},client_pages{id,access_token}",
+    resource_token_extra_list_paths=_META_BIZ_PAGE_LISTS,
+    # /me needs no extra scope. It returns the person before a Page is selected and the Page after,
+    # so it answers for whichever token the tool injects.
     probe_path="/me?fields=id,name",
 )
 

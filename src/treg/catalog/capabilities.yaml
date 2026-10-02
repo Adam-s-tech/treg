@@ -229,7 +229,6 @@ capabilities:
   facebook.page.insights: "Your Page's reach & engagement"
   facebook.page.post.create: "Publish a post to your Page"
   facebook.page.posts: "List your Page's posts with engagement"
-  facebook.pages.list: "List the Pages you manage"
   google-ads.accounts: "List the ad accounts you can reach"
   google-ads.budget.update: "Change a campaign's daily budget"
   google-ads.query: "Query your own account with GAQL"
