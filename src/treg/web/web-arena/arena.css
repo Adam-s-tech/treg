@@ -148,10 +148,12 @@
 .web-leaderboard-grid{display:grid;grid-template-columns:200px minmax(0,1fr);gap:24px;align-items:start;margin:0 0 26px}
 .web-leaderboard-filters{min-width:0}
 .web-leaderboard-filters .stats-views{display:grid;gap:4px;margin:0 0 26px}
-.web-leaderboard-filters .stats-views button{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border:0;border-radius:7px;background:transparent;color:var(--muted);font-size:13px;text-align:left;cursor:pointer}
-.web-leaderboard-filters .stats-views button:hover,.web-leaderboard-filters .stats-views button:focus-visible{background:#f0f3f0;color:var(--ink)}
-.web-leaderboard-filters .stats-views button.active{background:#e9ece9;color:#365c52}
-.web-leaderboard-filters .stats-views button svg{width:17px;height:17px;flex:none}
+.web-leaderboard-option.web-info-wrap{display:flex;align-items:center;min-width:0}
+.web-leaderboard-filters .stats-views .web-view-select{display:flex;align-items:center;gap:10px;flex:1;min-width:0;padding:11px 12px;border:0;border-radius:7px;background:transparent;color:var(--muted);font-size:13px;text-align:left;cursor:pointer}
+.web-leaderboard-filters .stats-views .web-view-select:hover,.web-leaderboard-filters .stats-views .web-view-select:focus-visible{background:#f0f3f0;color:var(--ink)}
+.web-leaderboard-filters .stats-views .web-view-select.active{background:#e9ece9;color:#365c52}
+.web-leaderboard-filters .stats-views .web-view-select svg{width:17px;height:17px;flex:none}
+.web-leaderboard-option .web-info-tooltip{top:50%;bottom:auto;left:calc(100% + 8px);transform:translateY(-50%)}
 .web-leaderboard-filters .leaderboard-source{margin:0 12px;color:var(--muted);font-size:11px;line-height:1.6}
 .web-leaderboard-filters .leaderboard-source span{display:block;margin-top:5px;font-size:10px}
 .web-leaderboard-chart{min-width:0;padding:24px 24px 18px;border:1px solid var(--line);border-radius:12px;background:#fff}
@@ -173,7 +175,7 @@
 .web-leaderboard-benchmark{margin-top:0}
 .web-leaderboard-benchmark p{margin:6px 0 0;font-size:12px}
 @media(max-width:800px){.web-layout .session-sidebar{display:none}.result-grid{grid-template-columns:1fr}.masthead{flex-wrap:wrap}.masthead .arena-page-tabs{order:3;width:100%;justify-content:center}.web-layout{padding:0 12px}.web-layout main{padding:0 0 50px}.web-controls .run-button{margin-left:0}}
-@media(max-width:720px){.web-leaderboard-grid{grid-template-columns:minmax(0,1fr);gap:16px}.web-leaderboard-filters .stats-views{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px}.web-leaderboard-filters .stats-views button{width:auto;padding:9px 12px}.web-leaderboard-filters .leaderboard-source{margin:0 4px 6px}.web-leaderboard-chart{padding:18px 14px 14px}.web-horizontal-chart .price-comparison-row{grid-template-columns:minmax(0,1fr) 110px;gap:8px 10px}.web-horizontal-chart .price-vendor{grid-column:1;grid-row:1}.web-horizontal-chart .price-amount{grid-column:2;grid-row:1}.web-horizontal-chart .price-track{grid-column:1/-1;grid-row:2}}
+@media(max-width:720px){.web-leaderboard-grid{grid-template-columns:minmax(0,1fr);gap:16px}.web-leaderboard-filters .stats-views{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px}.web-leaderboard-filters .stats-views .web-view-select{padding:9px 12px}.web-leaderboard-option .web-info-tooltip{top:auto;bottom:calc(100% + 8px);left:0;transform:none}.web-leaderboard-filters .leaderboard-source{margin:0 4px 6px}.web-leaderboard-chart{padding:18px 14px 14px}.web-horizontal-chart .price-comparison-row{grid-template-columns:minmax(0,1fr) 110px;gap:8px 10px}.web-horizontal-chart .price-vendor{grid-column:1;grid-row:1}.web-horizontal-chart .price-amount{grid-column:2;grid-row:1}.web-horizontal-chart .price-track{grid-column:1/-1;grid-row:2}}
 @media(max-width:800px){.web-table-detail ol{grid-template-columns:1fr}}
 @media(max-width:540px){.web-task-tabs.composer-tabs{padding:12px 12px 0}.web-task-tabs.composer-tabs button{padding:7px 9px;min-height:44px}.web-roster-nav{grid-template-columns:29px minmax(0,1fr) 29px;padding:0 4px}.web-info-tooltip,.web-intent-info .web-info-tooltip{left:-130px;right:auto}.web-result-actions .rating-button{min-width:44px;min-height:44px}}
 @media(prefers-reduced-motion:reduce){.web-info-tooltip{transition:none}}

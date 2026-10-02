@@ -168,8 +168,9 @@ Fetch adds fact coverage, token efficiency, and fact coverage vs token efficienc
 hit rate and price. Single metrics can appear as vertical or horizontal bars. Comparison plots
 show both axes and scroll horizontally inside the chart when needed. Price values retain their
 catalog unit, and the UI warns when units differ. Hit rate is visible with its decided-call
-count; quality metrics appear after 20 checked inputs per provider. Quality option tooltips
-explain what each score measures and that it comes from checked Web Arena runs. Fetch live publications
+count; quality metrics appear after 20 checked inputs per provider. Hovering or focusing a
+quality option shows an Arena-style tooltip explaining the score and its checked Web Arena
+source. Fetch live publications
 aggregate token efficiency separately from fact coverage, using the same checked-input threshold.
 Quality win rate stays unknown until 20 comparable checked runs. Sitemap needs a known reference
 URL list before any live quality win can exist. `publish_file` accepts a reviewed, versioned
