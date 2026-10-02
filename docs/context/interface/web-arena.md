@@ -52,6 +52,8 @@ The public task response shows verified adapter previews, so the provider lineup
 before sign-in. The lineup is a catalog preview; a signed-in team quote removes providers it
 cannot call. A changed input, mode, Jev choice, or provider selection refreshes the quote after
 a short pause. The lineup keeps selected fighters first and has controls to scroll through providers.
+The signup and team dialogs use Enrich Arena's layout, OAuth availability from `/meta`, email-code
+step, local development code notice, and legal links. The draft survives an OAuth redirect.
 Opening a saved run restores its selected fighters from the saved attempts. Failed, empty, and
 downvoted attempts use the fallen fighter pose; other available providers stay excluded.
 The current quote appears on the Run button without a separate price step.

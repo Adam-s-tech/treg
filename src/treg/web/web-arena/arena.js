@@ -10,8 +10,8 @@
   const readDraft=()=>{try{return JSON.parse(sessionStorage.getItem(draftKey)||'null');}catch{return null;}};
   Vue.createApp({
     data:()=>({page,tasks:[{id:'search',label:'Web Search',enabled:true},{id:'fetch',label:'Web Fetch',enabled:true},{id:'sitemap',label:'Sitemap',enabled:true},{id:'brand',label:'Brand',enabled:false}],task:'search',value:'',query:'',mode:'battle',jev:true,
-      user:null,teams:[],team:'',balance:null,quote:null,availableProviders:[],selected:[],run:null,resultView:readResultView(),history:[],live:null,bench:null,insightsTimer:null,
-      busy:false,pricing:false,running:false,error:'',authError:'',email:'',code:'',authStep:'email',devCode:'',newTeamName:'',poller:null,
+      user:null,teams:[],team:'',balance:null,quote:null,availableProviders:[],selected:[],run:null,resultView:readResultView(),history:[],live:null,bench:null,insightsTimer:null,meta:{},
+      busy:false,pricing:false,running:false,error:'',authError:'',authBusy:false,email:'',code:'',authStep:'email',devCode:'',newTeamName:'',poller:null,
       quoteTimer:null,quoteSequence:0,quotedKey:'',selectionTouched:false,rosterLeft:false,rosterRight:false,rosterObserver:null,expandedResults:{},expandedRows:{}}),
     computed:{
       liveRows(){return this.live?.task_results?.[this.task]||[];},
@@ -177,11 +177,12 @@
       async reloadTeam(){this.run=null;this.showPreview();this.scheduleQuote(0);await this.loadBalance();await this.loadHistory();},
       async loadInsights(){try{this.live=await this.api('/web-arena/api/leaderboard',{cache:'no-store'},'');}catch{this.live=null;}},
       async loadHistory(){if(this.user&&this.team)this.history=await this.api('/web-arena/api/runs');},
-      openLogin(){this.remember();this.$refs.login.showModal();},
+      async openLogin(){this.remember();this.authError='';this.authStep='email';this.code='';this.devCode='';await this.$nextTick();this.$refs.login.showModal();},
       closeLogin(){this.$refs.login.close();},
-      async sendCode(){this.busy=true;this.authError='';try{const r=await this.api('/auth/email/start',{method:'POST',body:JSON.stringify({email:this.email})},'');this.authStep='code';this.devCode=r.dev_code||'';}catch(e){this.authError=e.message;}finally{this.busy=false;}},
-      async verifyCode(){this.busy=true;this.authError='';try{await this.api('/auth/email/verify',{method:'POST',body:JSON.stringify({email:this.email,code:this.code})},'');this.closeLogin();await this.loadIdentity();if(!this.teams.length)this.$refs.teamDialog.showModal();}catch(e){this.authError=e.message;}finally{this.busy=false;}},
-      async createTeam(){this.busy=true;try{await this.api('/orgs',{method:'POST',body:JSON.stringify({name:this.newTeamName})},'');this.$refs.teamDialog.close();await this.loadIdentity();}catch(e){this.error=e.message;}finally{this.busy=false;}},
+      socialLogin(provider){this.remember();const target=(location.pathname||'/web-arena')+(location.search||'');location.assign('/auth/'+provider+'?return_to='+encodeURIComponent(target));},
+      async sendCode(){this.authBusy=true;this.authError='';try{const r=await this.api('/auth/email/start',{method:'POST',body:JSON.stringify({email:this.email})},'');this.authStep='code';this.devCode=r.dev_code||'';}catch(e){this.authError=e.message;}finally{this.authBusy=false;}},
+      async verifyCode(){this.authBusy=true;this.authError='';try{await this.api('/auth/email/verify',{method:'POST',body:JSON.stringify({email:this.email,code:this.code})},'');this.closeLogin();await this.loadIdentity();if(!this.teams.length)this.$refs.teamDialog.showModal();}catch(e){this.authError=e.message;}finally{this.authBusy=false;}},
+      async createTeam(){this.authBusy=true;this.authError='';try{await this.api('/orgs',{method:'POST',body:JSON.stringify({name:this.newTeamName})},'');this.$refs.teamDialog.close();await this.loadIdentity();}catch(e){this.authError=e.message;}finally{this.authBusy=false;}},
       async logout(){try{await this.api('/auth/logout',{method:'POST'});this.user=null;this.teams=[];this.team='';this.balance=null;this.quote=null;this.run=null;this.history=[];this.showPreview();this.scheduleQuote();}catch(e){this.error=e.message;}},
       async prepare(quiet=false){
         clearTimeout(this.quoteTimer);
@@ -233,7 +234,7 @@
       if(page==='arena'&&this.$refs.fighterRoster){this.rosterObserver=new ResizeObserver(()=>this.updateRoster());this.rosterObserver.observe(this.$refs.fighterRoster);}
       const draft=readDraft();if(draft&&Date.now()-draft.at<600000){this.task=draft.task||'search';this.value=draft.value||'';this.query=draft.query||'';this.mode=draft.mode==='waterfall'?'waterfall':'battle';this.jev=draft.jev!==false;}
       try{
-        this.tasks=await this.api('/web-arena/api/tasks',{},'');
+        [this.tasks,this.meta]=await Promise.all([this.api('/web-arena/api/tasks',{},''),this.api('/meta',{},'').catch(()=>({}))]);
         this.showPreview();
         if(draft&&Date.now()-draft.at<600000&&Array.isArray(draft.selected)&&draft.selected.length){
           const visible=new Set(this.availableProviders.map(p=>p.provider));
