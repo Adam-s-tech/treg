@@ -63,7 +63,9 @@ Search result cards show the first three provider links with titles, available d
 and a control to reveal the remaining links. The raw provider response stays in a footer disclosure
 opposite the thumbs ratings. The quality check's internal link list is not displayed separately.
 The Results heading has an icon toggle for card and compact table views with tooltips. The table
-keeps provider status, quality, links, raw response, cost, time, and ratings available.
+shows a provider's first result directly, with Fastest and Cheapest badges below its name. Its
+plus action expands the full links or provider output; thumbs, cost, time, and quality stay in
+the row.
 While a run is live, the lineup shows only its selected providers, uses Enrich Arena's fight and
 win animation, and puts Stop beside the fighters.
 Completed Battle runs mark the fastest and cheapest successful results when all compared values

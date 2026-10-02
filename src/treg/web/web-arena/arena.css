@@ -112,20 +112,28 @@
 .web-results-table thead th{color:var(--muted);font:11px var(--mono)}
 .web-results-table tbody th{min-width:130px;white-space:normal}
 .web-table-provider{display:flex;align-items:center;gap:8px;white-space:nowrap}
-.web-results-table tbody th .award-badge{display:inline-block;margin:5px 4px 0 0}
+.web-table-awards{display:flex;gap:4px;margin:5px 0 0 32px}
 .web-results-table .web-table-result{min-width:260px;width:42%;white-space:normal;overflow-wrap:anywhere}
 .web-table-result>span{display:block;margin-bottom:5px;color:var(--muted)}
 .web-table-result>span.web-metric-chip{display:inline-flex;margin:4px 0 6px}
-.web-table-result details{margin-top:8px}
-.web-table-result summary{color:var(--ink)}
-.web-table-result ol{list-style:none;padding:0;display:grid;gap:10px}
-.web-table-result li a{display:block;font-weight:500}
-.web-table-result li span,.web-table-result li small{color:var(--muted)}
-.web-table-result li p{margin:3px 0;color:var(--muted);line-height:1.4}
-.web-table-result li small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.web-table-result pre{max-width:430px;max-height:260px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--card);padding:10px;border-radius:9px;font:11px var(--mono)}
+.web-table-result-preview{margin-bottom:5px;line-height:1.4}
+.web-table-result-preview a{display:block;font-weight:500}
+.web-table-result-preview>span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.web-table-result-preview small{display:block;color:var(--muted)}
+.web-results-table .web-result-actions{align-items:center;gap:2px}
+.web-results-table .web-row-expand{cursor:pointer}
+.web-table-detail td{background:#fafbf9;white-space:normal;padding:16px 20px}
+.web-table-detail h4{font-size:12px;margin:0 0 12px}
+.web-table-detail ol{list-style:none;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 24px}
+.web-table-detail li{min-width:0;overflow-wrap:anywhere}
+.web-table-detail li a{display:block;font-weight:500}
+.web-table-detail li span,.web-table-detail li small{display:block;color:var(--muted)}
+.web-table-detail li p{margin:3px 0;color:var(--muted);line-height:1.4}
+.web-table-detail li small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.web-table-detail pre{max-height:320px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--card);padding:10px;border-radius:9px;font:11px var(--mono)}
 .web-table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse}th,td{padding:12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}th{font-weight:500}td small{color:var(--muted)}
 .web-card details{margin-top:16px}.web-card details summary{cursor:pointer}.web-card ol{margin-top:12px}
 @media(max-width:800px){.web-layout .session-sidebar{display:none}.result-grid{grid-template-columns:1fr}.masthead{flex-wrap:wrap}.masthead .arena-page-tabs{order:3;width:100%;justify-content:center}.web-layout{padding:0 12px}.web-layout main{padding:0 0 50px}.web-controls .run-button{margin-left:0}}
+@media(max-width:800px){.web-table-detail ol{grid-template-columns:1fr}}
 @media(max-width:540px){.web-task-tabs.composer-tabs{padding:12px 12px 0}.web-task-tabs.composer-tabs button{padding:7px 9px;min-height:44px}.web-roster-nav{grid-template-columns:29px minmax(0,1fr) 29px;padding:0 4px}.web-info-tooltip,.web-intent-info .web-info-tooltip{left:-130px;right:auto}.web-result-actions .rating-button{min-width:44px;min-height:44px}}
 @media(prefers-reduced-motion:reduce){.web-info-tooltip{transition:none}}
