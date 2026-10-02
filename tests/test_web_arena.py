@@ -33,6 +33,19 @@ def test_search_dates_stay_unknown_when_sources_have_no_dates():
     assert web_arena_quality._recent_share([{"source_date": None}])["freshness_percent"] is None
 
 
+def test_fetch_reads_nested_markdown_and_markdown_content_from_catalog_adapters():
+    adapters = catalog_store.load().adapters
+    examples = (
+        ("branddev.web.scrape", {"url": "https://example.com", "markdown": {
+            "requested": True, "success": True, "data": "# Example Domain"}}),
+        ("olostep.web.scrape", {"result": {"markdown_content": "# Example Domain"}}),
+    )
+    for endpoint, response in examples:
+        output = adapters[endpoint].from_upstream(response)
+        assert web_arena.fetch_text(output) == "# Example Domain"
+        assert web_arena.valid_result("fetch", output, "https://example.com")
+
+
 async def test_local_web_arena_quality_skips_daily_caps(monkeypatch):
     monkeypatch.setattr(web_arena_quality, "get_settings", lambda: SimpleNamespace(
         ai_gateway_api_key="test", local_dev=True))

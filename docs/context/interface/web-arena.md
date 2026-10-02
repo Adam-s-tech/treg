@@ -101,7 +101,10 @@ window over dated links when the query needs recent information; missing dates r
 Fetch counts words and symbols with the fixed `word-or-symbol-v1` tokenizer. For at least two
 provider texts, a bounded LLM request lists up to 12 facts from their union. Jev tests retention
 of each fact in each text. This is relative coverage and cannot detect facts every provider
-missed. Sitemap checks URL syntax, exact host, and duplicates without Jev. It shows coverage only
+missed. Web Arena reads plain page text, Olostep's `markdown_content`, and Brand.dev's nested
+`markdown.data` before deciding whether a Fetch returned usable text. Card and table views both
+call the fetch metric Relative coverage. Sitemap checks URL syntax, exact host, and duplicates
+without Jev. It shows coverage only
 when a separate known URL list exists. Results save before checks; a check failure leaves the
 provider data visible. `WebArenaJudgeBudget` admits external quality calls under a daily user
 and operations cap before network I/O. Treg pays those calls separately from provider charges.
