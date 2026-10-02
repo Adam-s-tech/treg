@@ -47,6 +47,10 @@
           const best=Math.min(...results.map(a=>a[field]));
           for(const a of results)if(a[field]===best)(awards[a.id]||=[]).push(label);
         }
+        if(this.run.task==='search'&&results.every(a=>Number.isFinite(a.quality?.estimated_match)&&a.quality.estimated_match>=0&&a.quality.estimated_match<=100)){
+          const best=Math.max(...results.map(a=>a.quality.estimated_match));
+          for(const a of results)if(a.quality.estimated_match===best)(awards[a.id]||=[]).push('Most Relevant');
+        }
         return awards;
       },
       runButtonLabel(){if(this.running)return 'Running…';if(this.busy)return 'Starting…';if(!this.user)return 'Sign up to run';if(this.pricing)return 'Updating price…';
@@ -74,6 +78,8 @@
       attemptFor(provider){return this.run?.attempts?.find(a=>a.provider===provider);},
       fighterIncluded(provider){return this.selected.includes(provider)||(this.running&&!!this.attemptFor(provider));},
       fighterAwards(provider){return this.battleAwards[this.attemptFor(provider)?.id]||[];},
+      awardClass(badge){return badge.toLowerCase().replaceAll(' ','-');},
+      awardDescription(badge){return ({Fastest:'Lowest provider time among successful, non-downvoted results',Cheapest:'Lowest actual charge among successful, non-downvoted results','Most Relevant':'Highest estimated intent match among successful, non-downvoted results'})[badge]||badge;},
       fighterState(provider){
         if(!this.fighterIncluded(provider))return 'excluded';
         const attempt=this.attemptFor(provider);

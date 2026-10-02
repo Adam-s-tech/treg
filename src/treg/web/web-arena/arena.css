@@ -58,6 +58,9 @@
 .web-lineup .fighter{cursor:pointer}
 .web-lineup .fighter:disabled{cursor:default}
 .web-lineup .fighter-verdict{white-space:nowrap}
+.web-lineup .fighter-awards.triple-belt{top:25px}
+.web-lineup .fighter-awards .award-badge.most-relevant{background:#f5da94;color:#785218}
+.web-results .award-badge.most-relevant{background:#fff1cc;color:#825c15}
 .web-empty-lineup{margin:20px auto;color:var(--muted);font-size:12px}
 .web-lineup-warning{padding:0 20px 14px;text-align:center;color:#a35028;font-size:12px}
 .web-provider-preview{padding:0;overflow:hidden}
@@ -113,6 +116,7 @@
 .web-results-table tbody th{min-width:130px;white-space:normal}
 .web-table-provider{display:flex;align-items:center;gap:8px;white-space:nowrap}
 .web-table-awards{display:flex;gap:4px;margin:5px 0 0 32px}
+.web-table-awards .award-badge.most-relevant{background:#fff1cc;color:#825c15}
 .web-results-table .web-table-result{min-width:260px;width:42%;white-space:normal;overflow-wrap:anywhere}
 .web-table-result>span{display:block;margin-bottom:5px;color:var(--muted)}
 .web-table-result>span.web-metric-chip{display:inline-flex;margin:4px 0 6px}

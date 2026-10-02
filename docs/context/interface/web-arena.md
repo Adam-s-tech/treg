@@ -63,12 +63,14 @@ Search result cards show the first three provider links with titles, available d
 and a control to reveal the remaining links. The raw provider response stays in a footer disclosure
 opposite the thumbs ratings. The quality check's internal link list is not displayed separately.
 The Results heading has an icon toggle for card and compact table views with tooltips. The table
-keeps Fastest and Cheapest badges below the provider name. Its plus action expands the full links
+keeps Fastest, Cheapest, and Most Relevant badges below the provider name. Its plus action expands the full links
 or provider output; thumbs, cost, time, and quality stay in the row.
 While a run is live, the lineup shows only its selected providers, uses Enrich Arena's fight and
 win animation, and puts Stop beside the fighters.
 Completed Battle runs mark the fastest and cheapest successful results when all compared values
-are known, both on result cards and on provider fighters. Search results describe freshness from
+are known. Search Battles also mark the highest estimated intent match when every compared result
+has a usable score. Ties receive the same badge. These badges appear on result cards, table rows,
+and provider fighters. Search results describe freshness from
 known source dates in words. A result with no usable dates shows no freshness label. The fighter lineup shows the state of each
 attempted provider after a run.
 An unavailable search match check leaves the score line empty.
