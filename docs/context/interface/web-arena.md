@@ -134,7 +134,7 @@ for testing. It still needs an AI gateway key.
 saves content-free totals in `WebArenaPublication`. The Arena preview and public leaderboard
 read that one publication. The scheduled `treg-worker arena insights` command refreshes it
 when Web Arena is enabled and the reviewed benchmark is published, at most once every 30
-minutes. The cron still starts every two minutes; `refresh_live_if_due` skips the full
+minutes. The cron can run more often; `refresh_live_if_due` skips the full
 rolling-window read while the saved totals are fresh and retries on the next run after a
 failed refresh. The standalone
 `treg-worker web-arena totals` command remains available for manual refresh. Local development
