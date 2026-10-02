@@ -3651,7 +3651,7 @@ endpoints:
   scope: any_account
   method: POST
   path: /api/web/fetch
-  name: Fetch rendered web content with browser options
+  name: "Web extraction with browser options"
   summary: Fetch a public HTTP(S) page and return LLM-ready content
   input:
     queryParams:
@@ -4048,7 +4048,7 @@ endpoints:
   scope: any_account
   method: POST
   path: /api/web/screenshot
-  name: Capture a web page screenshot with browser options
+  name: "Screenshot with browser options"
   platform_blocked: The image download needs the same key and treg cannot assign the returned URL to one organization on a shared account. Connect your own Litescrape key.
   summary: Capture a public HTTP(S) page as a PNG
   input:

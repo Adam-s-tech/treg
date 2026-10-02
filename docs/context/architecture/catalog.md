@@ -523,8 +523,10 @@ Rules:
   descriptions in different files, is an error; and a proposal that endpoints of two providers use
   is a warning to promote it here, deleting it from every provider file.
 - `capability_titles:` maps an id to a short title people scan on a platform shelf, only where the
-  description runs long. The description stays whole, because agents read it and search ranks on it;
-  the shelf shows it on hover. A title naming no capability fails the catalog load.
+  description runs long. The full description stays available on the comparison page and to agents.
+  Both title and description are indexed by the platform shelf filter, catalog search, and find
+  recall, so shortening a title does not discard the longer search vocabulary. A title naming no
+  capability fails the catalog load.
 - One job, one id. Two ids of one platform with the same description are a validator warning: they
   split one comparison row in two. Rename the losing id on its rows (endpoint ids do not change) and
   check `contracts.yaml` and `adapters.yaml`, which are keyed by capability. Count-only search

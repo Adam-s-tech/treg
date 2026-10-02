@@ -61,7 +61,7 @@ endpoints:
     scope: any_account
     method: POST
     path: /broad-search
-    name: Search multiple web angles by question — grouped pages
+    name: "Multi-angle web search"
     summary: Generate subqueries from a question and return ranked web results grouped by subquery.
     input:
       bodyType: json

@@ -122,7 +122,7 @@ endpoints:
     host: api.diffbot.com
     method: GET
     path: /v3/article
-    name: "Extract article text, author and date from a URL"
+    name: "Extract article text"
     summary: "Extracts clean article text, author, date, images, tags, sentiment and NLP facts from a news or blog page"
     input:
       queryParams:
@@ -166,7 +166,7 @@ endpoints:
     host: api.diffbot.com
     method: GET
     path: /v3/product
-    name: "Extract product name, price and reviews from a URL"
+    name: "Extract product details"
     summary: "Extracts product name, price, SKU, images, specs and reviews from an e-commerce page"
     input:
       queryParams:
@@ -204,7 +204,7 @@ endpoints:
     host: api.diffbot.com
     method: GET
     path: /v3/image
-    name: "Extract a page's images by URL, with dimensions"
+    name: "Extract page images"
     summary: "Extracts the primary and secondary images from a page, with dimensions and metadata"
     input:
       queryParams:
@@ -241,7 +241,7 @@ endpoints:
     host: api.diffbot.com
     method: GET
     path: /v3/video
-    name: "Extract video title, duration and embed URL from a page"
+    name: "Extract video page details"
     summary: "Extracts title, embed/player URL, duration, thumbnail and metadata from a video page"
     input:
       queryParams:
@@ -278,7 +278,7 @@ endpoints:
     host: api.diffbot.com
     method: GET
     path: /v3/discussion
-    name: "Extract forum posts and comments from a thread URL"
+    name: "Extract forum discussion"
     summary: "Extracts individual posts, authors, dates and sentiment from a forum thread or comment section"
     input:
       queryParams:
@@ -317,7 +317,7 @@ endpoints:
     host: api.diffbot.com
     method: GET
     path: /v3/job
-    name: "Extract a job posting page by URL — title, salary"
+    name: "Extract job posting"
     summary: "Extracts job title, employer, location, salary and description from a job posting page"
     input:
       queryParams:
@@ -354,7 +354,7 @@ endpoints:
     host: api.diffbot.com
     method: GET
     path: /v3/list
-    name: "Extract linked items from an index page by URL"
+    name: "Extract index-page links"
     summary: "Extracts the list of linked items (with titles, dates, images) from an index or category page"
     input:
       queryParams:
@@ -391,7 +391,7 @@ endpoints:
     host: api.diffbot.com
     method: GET
     path: /v3/event
-    name: "Extract event name, date and venue from a page URL"
+    name: "Extract event details"
     summary: "Extracts event name, date, venue, price and organizer from an event listing page"
     input:
       queryParams:
@@ -566,7 +566,7 @@ endpoints:
     host: nl.diffbot.com
     method: POST
     path: /v1/
-    name: "Extract entities, sentiment and facts from text"
+    name: "Extract entities and sentiment"
     summary: "Runs a pre-trained classifier, named-entity recognizer, sentence tokenizer and sentiment analyzer over submitted text or a URL"
     input:
       bodyType: json
@@ -603,7 +603,7 @@ endpoints:
     host: api.diffbot.com
     method: GET
     path: /v4/account
-    name: "Check plan, usage and credit balance"
+    name: "Diffbot plan and usage"
     summary: "Retrieves account plan tier, monthly credit allowance, token status, child tokens and a daily usage breakdown by API"
     input:
       queryParams:

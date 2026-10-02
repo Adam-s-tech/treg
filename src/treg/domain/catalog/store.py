@@ -1118,6 +1118,7 @@ def _haystacks(ep: dict, cat: Catalog) -> list[tuple[int, str]]:
     plat = cat.platforms.get(ep["platform"], {})
     return [
         (W_CAPABILITY, " ".join((ep["capability"], cat.capabilities.get(ep["capability"], ""),
+                                 cat.capability_titles.get(ep["capability"], ""),
                                  plat.get("label", ""), ep["platform"])).lower()),
         # `name` is OURS to word (summary stays the provider's, verbatim) — it is the one
         # per-endpoint field curation may write search vocabulary into, so it must be searched
