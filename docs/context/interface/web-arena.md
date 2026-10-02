@@ -167,5 +167,7 @@ The worker entry points are `treg-worker web-arena test --output PRIVATE.json --
 draft. Fetch facts and sitemap known URL lists need human checks before publication. The test
 runner uses an operator team token from `TREG_WEB_ARENA_BENCHMARK_TOKEN`, buys each case through
 the same direct call path, and writes its private review file outside this public checkout. It
-skips cases already in that file after an interruption. Production settings belong in the paired
+skips cases already in that file after an interruption. The test cases save Battle runs, so
+they can seed the live 30-day totals; the benchmark scores remain a separate reviewed
+publication. Production settings belong in the paired
 private repository after public code merges.
