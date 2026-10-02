@@ -134,6 +134,7 @@ Regenerate via `scripts/build-map.py`.
 | `src/treg/alembic/versions/0055_find_v2_log.py` | architecture/data-model.md, architecture/find.md |
 | `src/treg/alembic/versions/0056_searchlog_verdict.py` | architecture/data-model.md, architecture/find.md, architecture/search-experiment.md |
 | `src/treg/alembic/versions/0057_web_arena.py` | interface/web-arena.md |
+| `src/treg/alembic/versions/0058_web_arena_call_stats.py` | interface/web-arena.md |
 | `src/treg/analytics.py` | architecture/data-model.md |
 | `src/treg/api.py` | architecture/archive.md, architecture/money.md, architecture/multi-tenancy.md, architecture/proxy-model.md, architecture/super-admin.md, interface/api.md, interface/landing-sandbox.md, interface/seo.md |
 | `src/treg/application/__init__.py` | architecture/import-boundaries.md |
@@ -185,6 +186,7 @@ Regenerate via `scripts/build-map.py`.
 | `src/treg/application/table.py` | architecture/table.md |
 | `src/treg/application/web_arena.py` | interface/web-arena.md |
 | `src/treg/application/web_arena_benchmark.py` | interface/web-arena.md |
+| `src/treg/application/web_arena_calls.py` | interface/web-arena.md |
 | `src/treg/application/web_arena_publications.py` | interface/web-arena.md |
 | `src/treg/application/web_arena_quality.py` | interface/web-arena.md |
 | `src/treg/archive.py` | architecture/archive.md |
@@ -609,6 +611,7 @@ Regenerate via `scripts/build-map.py`.
 | `tests/test_tinyfish.py` | architecture/catalog.md, architecture/money.md, ops/capacity.md |
 | `tests/test_token_revocation.py` | architecture/multi-tenancy.md |
 | `tests/test_web_arena.py` | interface/web-arena.md |
+| `tests/test_web_arena_calls.py` | interface/web-arena.md |
 | `tests/test_wiza.py` | architecture/catalog.md |
 
 ## Fragment → sources
@@ -651,7 +654,7 @@ Regenerate via `scripts/build-map.py`.
 | `interface/skill-openai-test-cases.md` | _(no source files — narrative/reference)_ |
 | `interface/skill-openai-tool-justifications.md` | _(no source files — narrative/reference)_ |
 | `interface/skill.md` | `skill.md`, `SKILL.md`, `SKILL.md`, `web.py`, `mcp_install.py`, `build_plugin.py`, `plugin.json`, `marketplace.json`, `plugin.json`, `plugin.json`, `package.json`, `cordis.patch.yml`, `index.js`, `plugin.json`, `minimax_plugin.py` |
-| `interface/web-arena.md` | `web_arena.py`, `web_arena_scores.py`, `web_arena.py`, `web_arena_quality.py`, `web_arena_publications.py`, `web_arena_benchmark.py`, `web_arena_cases.json`, `web_arena.py`, `models.py`, `0057_web_arena.py`, `config.py`, `bootstrap.py`, `worker.py`, `web-arena.html`, `arena.js`, `arena.css`, `test_web_arena.py` |
+| `interface/web-arena.md` | `web_arena.py`, `web_arena_scores.py`, `web_arena.py`, `web_arena_quality.py`, `web_arena_publications.py`, `web_arena_calls.py`, `web_arena_benchmark.py`, `web_arena_cases.json`, `web_arena.py`, `models.py`, `0057_web_arena.py`, `0058_web_arena_call_stats.py`, `config.py`, `bootstrap.py`, `worker.py`, `web-arena.html`, `arena.js`, `arena.css`, `test_web_arena.py`, `test_web_arena_calls.py` |
 | `ops/capacity.md` | `__init__.py`, `collectors.py`, `policy.py`, `sweep.py`, `view.py`, `routes.py`, `signatures.py`, `verify.py`, `marks.py`, `test_capacity_protect.py`, `limiter.py`, `overflow_spend.py`, `routes_view.py`, `overflow.py`, `0007_overflow_spend.py`, `test_capacity_overflow.py`, `test_capacity_overflow_spend.py`, `0008_org_platform_overflow_disabled.py`, `test_capacity_smoothing.py`, `overflow_seed.json`, `__init__.py`, `orthogonal.py`, `monid.py`, `catalogs.py`, `0006_overflow_route.py`, `test_capacity_overflow_routes.py`, `test_influencersclub_overflow.py`, `worker.py`, `provider_balances.py`, `0005_capacity_policy_snapshot.py`, `test_capacity_know.py`, `test_capacity_collectors.py`, `test_financialdatasets.py`, `test_tinyfish.py` |
 | `ops/deploy.md` | `pyproject.toml`, `hatch_build.py`, `build-dashboard.sh`, `build-web.sh`, `frontend-e2e-server.sh`, `__main__.py`, `maintenance.py`, `env.py`, `0034_managed_api_keys.py`, `0035_default_key_generation.py`, `0036_activity_key_indexes.py`, `worker.py`, `selfhost.sh`, `config.py`, `db.py`, `email.py`, `audit.py`, `dev-local.sh`, `render.example.yaml` |
 | `reference/glossary.md` | `2026-06-30-jason-tools-registry.md` |
