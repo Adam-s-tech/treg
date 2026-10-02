@@ -41,7 +41,7 @@
       <p v-if="a.quality.unique_valid_urls!==undefined">{{a.quality.unique_valid_urls}} unique valid URLs · Coverage unknown without a known list</p>
     </template>
     <section v-if="task==='search'&&a.state==='hit'&&searchResults(a).length" class="web-search-results" :aria-label="providerName(a.provider)+' results'">
-      <h4>Results</h4>
+      <h4>{{searchResults(a).length}} {{searchResults(a).length===1?'Result':'Results'}}</h4>
       <ol :class="{'web-results-collapsed':!expandedResults[a.id]&&searchResults(a).length>3}">
         <li v-for="(item,index) in (expandedResults[a.id]?searchResults(a):searchResults(a).slice(0,3))" :key="item.url+'-'+index">
           <a class="web-result-link" :href="item.url" target="_blank" rel="noopener noreferrer">{{item.title}}</a>
