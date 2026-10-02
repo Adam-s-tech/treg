@@ -38,6 +38,14 @@
 .web-card h2{font-size:22px}.web-card h3{font-size:17px}
 .web-heading{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:15px}
 .web-heading p,.web-note{color:var(--muted);font-size:12px}
+.web-view-switch{display:flex;flex:none;gap:2px;padding:3px;border:1px solid var(--line);border-radius:10px;background:#f7f9f7}
+.web-view-option{position:relative;display:flex}
+.web-view-option button{display:grid;place-items:center;width:32px;height:30px;padding:5px;border:0;border-radius:7px;background:transparent;color:var(--muted);cursor:pointer}
+.web-view-option button[aria-pressed="true"]{background:#fff;color:var(--ink);box-shadow:0 1px 3px #182f241c}
+.web-view-option button:focus-visible{outline:2px solid var(--teal-ink);outline-offset:2px}
+.web-view-option svg{width:17px;height:17px}
+.web-view-tooltip{position:absolute;z-index:20;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:#fff;box-shadow:0 5px 16px #182f241c;color:var(--ink);font-size:11px;white-space:nowrap;visibility:hidden;opacity:0;pointer-events:none}
+.web-view-option:is(:hover,:focus-within) .web-view-tooltip{visibility:visible;opacity:1}
 .web-lineup{margin:0 0 16px}
 .web-roster-nav{display:grid;grid-template-columns:32px minmax(0,1fr) 32px;align-items:center;gap:2px;padding:0 8px}
 .web-roster-arrow{display:grid;place-items:center;width:29px;height:29px;padding:0;border:1px solid #e8ece8;border-radius:50%;background:#fff;color:#66746e;cursor:pointer}
@@ -98,6 +106,24 @@
 .result-card pre{max-height:320px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--card);padding:10px;border-radius:9px;font:11px var(--mono)}
 .result-card details{margin-top:12px}
 .result-card .web-result-footer details{margin-top:0}
+.web-results-table-wrap{overflow-x:auto}
+.web-results-table{min-width:760px;font-size:12px}
+.web-results-table th,.web-results-table td{vertical-align:top;padding:14px 10px}
+.web-results-table thead th{color:var(--muted);font:11px var(--mono)}
+.web-results-table tbody th{min-width:130px;white-space:normal}
+.web-table-provider{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.web-results-table tbody th .award-badge{display:inline-block;margin:5px 4px 0 0}
+.web-results-table .web-table-result{min-width:260px;width:42%;white-space:normal;overflow-wrap:anywhere}
+.web-table-result>span{display:block;margin-bottom:5px;color:var(--muted)}
+.web-table-result>span.web-metric-chip{display:inline-flex;margin:4px 0 6px}
+.web-table-result details{margin-top:8px}
+.web-table-result summary{color:var(--ink)}
+.web-table-result ol{list-style:none;padding:0;display:grid;gap:10px}
+.web-table-result li a{display:block;font-weight:500}
+.web-table-result li span,.web-table-result li small{color:var(--muted)}
+.web-table-result li p{margin:3px 0;color:var(--muted);line-height:1.4}
+.web-table-result li small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.web-table-result pre{max-width:430px;max-height:260px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--card);padding:10px;border-radius:9px;font:11px var(--mono)}
 .web-table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse}th,td{padding:12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}th{font-weight:500}td small{color:var(--muted)}
 .web-card details{margin-top:16px}.web-card details summary{cursor:pointer}.web-card ol{margin-top:12px}
 @media(max-width:800px){.web-layout .session-sidebar{display:none}.result-grid{grid-template-columns:1fr}.masthead{flex-wrap:wrap}.masthead .arena-page-tabs{order:3;width:100%;justify-content:center}.web-layout{padding:0 12px}.web-layout main{padding:0 0 50px}.web-controls .run-button{margin-left:0}}

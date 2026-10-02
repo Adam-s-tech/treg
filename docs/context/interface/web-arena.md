@@ -55,19 +55,20 @@ It joins content-free live totals by provider: result rate and median provider t
 after 20 distinct inputs, and the task-specific quality estimate appears after 20 checked
 inputs. Search uses Jev intent match, Fetch uses relative fact coverage, and Sitemap
 coverage stays unknown without a known URL list. Repeat Battles of the same input count
-once per provider, using the latest completed result. The table replaces its preview with
-the actual result cards during and after a run.
+once per provider, using the latest completed result. The preview gives way to the
+actual results during and after a run.
 The run form uses one quality switch with Jev and treg details in an info tooltip. A focused query has one outer
 border. Results show provider logos, time and cost, thumbs ratings, and plain failure states.
 Search result cards show the first three provider links with titles, available dates and descriptions,
 and a control to reveal the remaining links. The raw provider response stays in a footer disclosure
 opposite the thumbs ratings. The quality check's internal link list is not displayed separately.
+The Results heading has an icon toggle for card and compact table views with tooltips. The table
+keeps provider status, quality, links, raw response, cost, time, and ratings available.
 While a run is live, the lineup shows only its selected providers, uses Enrich Arena's fight and
 win animation, and puts Stop beside the fighters.
 Completed Battle runs mark the fastest and cheapest successful results when all compared values
 are known, both on result cards and on provider fighters. Search results describe freshness from
-known source dates in words. A result with no usable dates shows no freshness label; a completed
-check can say that recent sources are not needed. The fighter lineup shows the state of each
+known source dates in words. A result with no usable dates shows no freshness label. The fighter lineup shows the state of each
 attempted provider after a run.
 An unavailable search match check leaves the score line empty.
 One endpoint per provider joins the quote. Battle selects all by default, with a fresh quote

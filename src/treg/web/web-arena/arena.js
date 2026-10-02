@@ -3,12 +3,14 @@
   'use strict';
   if (!window.Vue) return;
   const draftKey='treg.web-arena.draft.v1';
+  const resultViewKey='treg.web-arena.result-view.v1';
+  const readResultView=()=>{try{return localStorage.getItem(resultViewKey)==='table'?'table':'cards';}catch{return 'cards';}};
   const page=location.pathname.endsWith('/leaderboard')?'leaderboard':location.pathname.endsWith('/benchmark')?'benchmark':'arena';
   const saveDraft=d=>{try{sessionStorage.setItem(draftKey,JSON.stringify(d));}catch{}};
   const readDraft=()=>{try{return JSON.parse(sessionStorage.getItem(draftKey)||'null');}catch{return null;}};
   Vue.createApp({
     data:()=>({page,tasks:[{id:'search',label:'Web Search',enabled:true},{id:'fetch',label:'Web Fetch',enabled:true},{id:'sitemap',label:'Sitemap',enabled:true},{id:'brand',label:'Brand',enabled:false}],task:'search',value:'',mode:'battle',jev:true,
-      user:null,teams:[],team:'',balance:null,quote:null,availableProviders:[],selected:[],run:null,history:[],live:null,bench:null,insightsTimer:null,
+      user:null,teams:[],team:'',balance:null,quote:null,availableProviders:[],selected:[],run:null,resultView:readResultView(),history:[],live:null,bench:null,insightsTimer:null,
       busy:false,pricing:false,running:false,error:'',authError:'',email:'',code:'',authStep:'email',devCode:'',newTeamName:'',poller:null,
       quoteTimer:null,quoteSequence:0,quotedKey:'',selectionTouched:false,rosterLeft:false,rosterRight:false,rosterObserver:null,expandedResults:{}}),
     computed:{
@@ -54,6 +56,7 @@
     },
     methods:{
       usd(n){return n===null||n===undefined?'—':'$'+(Number(n)/1e6).toFixed(4);},
+      setResultView(view){this.resultView=view;try{localStorage.setItem(resultViewKey,view);}catch{}},
       percent(n){return n===null||n===undefined?'—':Number(n).toFixed(1)+'%';},
       previewPrice(provider){
         if(provider.estimate_micro!=null)return this.usd(provider.estimate_micro);
