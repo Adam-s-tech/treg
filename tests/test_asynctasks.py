@@ -734,6 +734,13 @@ async def test_byok_task_status_keeps_direct_provider_object_access(
         ],
     ),
     (
+        # an extended dataset row on the sync runner: past a minute it answers 202 + snapshot_id
+        "/call/brightdata.x.amazon-reviews?dataset_id=gd_le8e811kzy4ggddlq",
+        {"input": [{"url": "https://www.amazon.com/dp/B000000000"}]},
+        {"snapshot_id": "snapshot-extended"},
+        ["/call/brightdata.web.scrape.job.results?snapshot_id=snapshot-extended&format=json"],
+    ),
+    (
         "/call/companyenrich.companies.enrich.bulk.start", {"domains": ["example.com"]},
         {"job_id": "job-owned", "status": "pending"},
         ["/call/companyenrich.companies.enrich.bulk.status?jobId=job-owned"],
