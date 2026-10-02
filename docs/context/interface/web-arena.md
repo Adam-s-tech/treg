@@ -63,14 +63,16 @@ Search result cards show the first three provider links with titles, available d
 and a control to reveal the remaining links. The raw provider response stays in a footer disclosure
 opposite the thumbs ratings. The quality check's internal link list is not displayed separately.
 The Results heading has an icon toggle for card and compact table views with tooltips. The table
-keeps Fastest, Cheapest, and Most Relevant badges below the provider name. Its plus action expands the full links
+keeps Fastest, Cheapest, Most Relevant, and Token Efficient badges below the provider name. Its
+plus action expands the full links
 or provider output; thumbs, cost, time, and quality stay in the row.
 While a run is live, the lineup shows only its selected providers, uses Enrich Arena's fight and
 win animation, and puts Stop beside the fighters.
 Completed Battle runs mark the fastest and cheapest successful results when all compared values
 are known. Search Battles also mark the highest estimated intent match when every compared result
 has a usable score. Ties receive the same badge. These badges appear on result cards, table rows,
-and provider fighters. Search results describe freshness from
+and provider fighters. Fetch Battles mark the best token efficiency when all successful, non-downvoted
+results have usable efficiency scores. Search results describe freshness from
 known source dates in words. A result with no usable dates shows no freshness label. The fighter lineup shows the state of each
 attempted provider after a run.
 An unavailable search match check leaves the score line empty.
@@ -102,8 +104,11 @@ Fetch counts words and symbols with the fixed `word-or-symbol-v1` tokenizer. For
 provider texts, a bounded LLM request lists up to 12 facts from their union. Jev tests retention
 of each fact in each text. This is relative coverage and cannot detect facts every provider
 missed. Web Arena reads plain page text, Olostep's `markdown_content`, and Brand.dev's nested
-`markdown.data` before deciding whether a Fetch returned usable text. Card and table views both
-call the fetch metric Relative coverage. Sitemap checks URL syntax, exact host, and duplicates
+`markdown.data` before deciding whether a Fetch returned usable text. Fetch cards show text count,
+Fact coverage, and token efficiency as compact metrics with explanations. The text count is a
+word-and-symbol count, not a model token count. Cards omit the underlying tokens-per-fact ratio
+and the shared fact-list generation time. Card and table views both call the fetch metric Fact
+coverage and explain its relative scope in a tooltip. Sitemap checks URL syntax, exact host, and duplicates
 without Jev. It shows coverage only
 when a separate known URL list exists. Results save before checks; a check failure leaves the
 provider data visible. `WebArenaJudgeBudget` admits external quality calls under a daily user

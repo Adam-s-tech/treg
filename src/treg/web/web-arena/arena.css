@@ -60,7 +60,9 @@
 .web-lineup .fighter-verdict{white-space:nowrap}
 .web-lineup .fighter-awards.triple-belt{top:25px}
 .web-lineup .fighter-awards .award-badge.most-relevant{background:#f5da94;color:#785218}
+.web-lineup .fighter-awards .award-badge.token-efficient{background:#cde4f4;color:#315979;font-size:6.5px}
 .web-results .award-badge.most-relevant{background:#fff1cc;color:#825c15}
+.web-results .award-badge.token-efficient{background:#e5f1f9;color:#315979}
 .web-empty-lineup{margin:20px auto;color:var(--muted);font-size:12px}
 .web-lineup-warning{padding:0 20px 14px;text-align:center;color:#a35028;font-size:12px}
 .web-provider-preview{padding:0;overflow:hidden}
@@ -89,6 +91,11 @@
 .web-freshness-chip.freshness-mixed{color:#6b6251;background:#f8f4e9;border-color:#ece5d5}
 .web-freshness-chip.freshness-stale{color:#8b6354;background:#fbf1ec;border-color:#f1dfd7}
 .web-result-empty{color:var(--muted);font-size:12px}
+.web-fetch-metrics{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 12px}
+.web-fetch-metric{gap:4px}
+.web-fetch-metric .web-info-trigger{width:17px;height:17px;padding:1px}
+.web-fetch-metric .web-info-trigger svg{width:13px;height:13px}
+.web-fetch-metric:last-child .web-info-tooltip{left:auto;right:0}
 .web-search-results{margin-top:14px;min-width:0}
 .web-search-results h4{font-size:12px;font-weight:600;margin:0 0 10px}
 .web-search-results ol{position:relative;list-style:none;padding:0;margin:0;display:grid;gap:14px}

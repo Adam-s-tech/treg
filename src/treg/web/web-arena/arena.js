@@ -51,6 +51,10 @@
           const best=Math.max(...results.map(a=>a.quality.estimated_match));
           for(const a of results)if(a.quality.estimated_match===best)(awards[a.id]||=[]).push('Most Relevant');
         }
+        if(this.run.task==='fetch'&&results.every(a=>Number.isFinite(a.quality?.token_efficiency)&&a.quality.token_efficiency>=0&&a.quality.token_efficiency<=100)){
+          const best=Math.max(...results.map(a=>a.quality.token_efficiency));
+          for(const a of results)if(a.quality.token_efficiency===best)(awards[a.id]||=[]).push('Token Efficient');
+        }
         return awards;
       },
       runButtonLabel(){if(this.running)return 'Running…';if(this.busy)return 'Starting…';if(!this.user)return 'Sign up to run';if(this.pricing)return 'Updating price…';
@@ -79,7 +83,7 @@
       fighterIncluded(provider){return this.selected.includes(provider)||(this.running&&!!this.attemptFor(provider));},
       fighterAwards(provider){return this.battleAwards[this.attemptFor(provider)?.id]||[];},
       awardClass(badge){return badge.toLowerCase().replaceAll(' ','-');},
-      awardDescription(badge){return ({Fastest:'Lowest provider time among successful, non-downvoted results',Cheapest:'Lowest actual charge among successful, non-downvoted results','Most Relevant':'Highest estimated intent match among successful, non-downvoted results'})[badge]||badge;},
+      awardDescription(badge){return ({Fastest:'Lowest provider time among successful, non-downvoted results',Cheapest:'Lowest actual charge among successful, non-downvoted results','Most Relevant':'Highest estimated intent match among successful, non-downvoted results','Token Efficient':'Fewest counted words and symbols per kept fact among scored results'})[badge]||badge;},
       fighterState(provider){
         if(!this.fighterIncluded(provider))return 'excluded';
         const attempt=this.attemptFor(provider);
