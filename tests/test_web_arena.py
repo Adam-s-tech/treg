@@ -7,6 +7,7 @@ from treg.domain import web_arena, web_arena_scores
 from treg.application import web_arena as app, web_arena_quality, web_arena_publications
 from treg.application.call import service
 from treg.config import get_settings
+from treg.domain.catalog import store as catalog_store
 from test_routing import _relay_by_provider
 
 
@@ -50,6 +51,25 @@ def test_scores_need_all_parts_and_known_price():
 def test_publication_refuses_unreviewed_or_incomplete_tests():
     with pytest.raises(ValueError):
         web_arena_publications._validate_publication({"version": "v1", "human_reviewed": False})
+
+
+def test_live_provider_stats_need_distinct_checked_inputs(monkeypatch):
+    monkeypatch.setattr(web_arena_publications.arena, "_unpack", lambda payload: payload)
+    rows = [SimpleNamespace(task="search", payload={"input": f"query {i}", "attempts": [{
+        "provider": "exa", "state": "miss" if i == 0 else "hit", "duration_ms": 100 + i,
+        "quality": {} if i == 0 else {"state": "checked", "estimated_match": 80},
+    }]}) for i in range(21)]
+    rows.append(SimpleNamespace(task="search", payload={"input": "query 1", "attempts": [{
+        "provider": "exa", "state": "miss", "duration_ms": 900, "quality": {},
+    }]}))  # An older repeat must not outweigh the latest result.
+    doc = web_arena_publications.summarize_live(rows, catalog_store.load())
+    row = doc["task_results"]["search"][0]
+    assert row["runs"] == 21
+    assert row["success_rate"] == 95.2
+    assert row["median_provider_ms"] == 110
+    assert row["metric_sample_count"] == 20
+    assert row["metric_percent"] == 80
+    assert "query 1" not in str(doc)
 
 
 def test_public_task_previews_show_verified_search_providers(monkeypatch):

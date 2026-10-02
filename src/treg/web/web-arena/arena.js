@@ -8,11 +8,15 @@
   const readDraft=()=>{try{return JSON.parse(sessionStorage.getItem(draftKey)||'null');}catch{return null;}};
   Vue.createApp({
     data:()=>({page,tasks:[{id:'search',label:'Web Search',enabled:true},{id:'fetch',label:'Web Fetch',enabled:true},{id:'sitemap',label:'Sitemap',enabled:true},{id:'brand',label:'Brand',enabled:false}],task:'search',value:'',mode:'battle',jev:true,
-      user:null,teams:[],team:'',balance:null,quote:null,availableProviders:[],selected:[],run:null,history:[],live:null,bench:null,
+      user:null,teams:[],team:'',balance:null,quote:null,availableProviders:[],selected:[],run:null,history:[],live:null,bench:null,insightsTimer:null,
       busy:false,pricing:false,running:false,error:'',authError:'',email:'',code:'',authStep:'email',devCode:'',newTeamName:'',poller:null,
       quoteTimer:null,quoteSequence:0,quotedKey:'',selectionTouched:false,rosterLeft:false,rosterRight:false,rosterObserver:null}),
     computed:{
       liveRows(){return this.live?.task_results?.[this.task]||[];},
+      previewRows(){
+        const stats=new Map(this.liveRows.map(row=>[row.provider,row]));
+        return this.displayProviders.map(provider=>({provider,stats:stats.get(provider.provider)||null}));
+      },
       benchmarkGroup(){return this.bench?.task_results?.[this.task]||null;},
       quoteKey(){return JSON.stringify([this.task,this.value.trim(),this.mode,this.jev,this.team,[...this.selected].sort()]);},
       readyQuote(){return this.quote&&this.quotedKey===this.quoteKey?this.quote:null;},
@@ -51,6 +55,16 @@
     methods:{
       usd(n){return n===null||n===undefined?'—':'$'+(Number(n)/1e6).toFixed(4);},
       percent(n){return n===null||n===undefined?'—':Number(n).toFixed(1)+'%';},
+      previewPrice(provider){
+        if(provider.estimate_micro!=null)return this.usd(provider.estimate_micro);
+        if(provider.catalog_price_usd==null)return '—';
+        const unit=provider.price_unit||({per_call:'call',per_result:'result',per_page:'page'})[provider.price_type]||'unit';
+        return '$'+Number(provider.catalog_price_usd).toFixed(4)+' / '+unit;
+      },
+      previewMetric(row){return row?.metric_sample_count>=20?this.percent(row.metric_percent):'—';},
+      previewRate(row){return row?.runs>=20?this.percent(row.success_rate):'—';},
+      previewTime(row){return row?.runs>=20&&row.median_provider_ms!=null?row.median_provider_ms+' ms':'—';},
+      metricName(){return ({search:'Intent match',fetch:'Fact coverage',sitemap:'URL coverage'})[this.task];},
       date(s){return s?new Date(s).toLocaleDateString():'';},
       providerName(provider){return ({branddev:'Brand.dev',firecrawl:'Firecrawl',scrapegraphai:'ScrapeGraphAI',search1api:'Search1API',tinyfish:'TinyFish',you:'You.com',anyapi:'AnyAPI'})[provider]||provider.charAt(0).toUpperCase()+provider.slice(1);},
       taskIcon(task){return ({search:'M20 20l-4.3-4.3M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Z',fetch:'M8 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9l-5-5h-4M16 4v5h5M8 14h8m-8 3h5',sitemap:'M12 3v5m-7 6v-3h14v3M12 8v3M3 14h4v5H3zm7 0h4v5h-4zm7 0h4v5h-4z',brand:'M4 5h16v14H4zM8 14l3-3 3 3 2-2 4 4M8 8h.01'})[task]||'';},
@@ -132,6 +146,7 @@
       },
       async loadBalance(){const team=this.teams.find(t=>t.slug===this.team);if(team)this.balance=(await this.api('/orgs/'+team.org_id+'/balance?limit=1')).balance_micro;},
       async reloadTeam(){this.run=null;this.showPreview();this.scheduleQuote(0);await this.loadBalance();await this.loadHistory();},
+      async loadInsights(){try{this.live=await this.api('/web-arena/api/leaderboard',{cache:'no-store'},'');}catch{this.live=null;}},
       async loadHistory(){if(this.user&&this.team)this.history=await this.api('/web-arena/api/runs');},
       openLogin(){this.remember();this.$refs.login.showModal();},
       closeLogin(){this.$refs.login.close();},
@@ -149,7 +164,8 @@
           const request=providers=>this.api('/web-arena/api/quotes',{method:'POST',body:JSON.stringify({task,value,mode,jev,providers})},team);
           const full=await request(null);
           if(sequence!==this.quoteSequence||team!==this.team||task!==this.task||value!==this.value.trim()||mode!==this.mode||jev!==this.jev)return;
-          this.availableProviders=full.providers;
+          const previews=new Map(this.previewFor(task).map(p=>[p.provider,p]));
+          this.availableProviders=full.providers.map(p=>({...previews.get(p.provider),...p}));
           this.$nextTick(()=>this.updateRoster());
           const eligible=new Set(full.providers.map(p=>p.provider));
         this.selected=touched?selection.filter(p=>eligible.has(p)):full.providers.map(p=>p.provider);
@@ -178,7 +194,7 @@
         try{const r=await this.api('/web-arena/api/runs/'+quote.id+'/start',{method:'POST'});this.quote=null;this.quotedKey='';this.running=true;this.run={id:r.id,state:'running',attempts:[]};await this.poll();this.poller=setInterval(()=>this.poll(),1500);}
         catch(e){this.error=e.message;}finally{this.busy=false;}
       },
-      async poll(){if(!this.run)return;try{this.run=await this.api('/web-arena/api/runs/'+this.run.id);if(this.run.state!=='running'){clearInterval(this.poller);this.poller=null;this.running=false;await this.loadHistory();await this.loadBalance();this.scheduleQuote(0);}}catch(e){clearInterval(this.poller);this.poller=null;this.running=false;this.error=e.message;}},
+      async poll(){if(!this.run)return;try{this.run=await this.api('/web-arena/api/runs/'+this.run.id);if(this.run.state!=='running'){clearInterval(this.poller);this.poller=null;this.running=false;await this.loadHistory();await this.loadBalance();await this.loadInsights();this.scheduleQuote(0);}}catch(e){clearInterval(this.poller);this.poller=null;this.running=false;this.error=e.message;}},
       async loadRun(id){this.error='';try{const run=await this.api('/web-arena/api/runs/'+id);clearInterval(this.poller);this.poller=null;this.running=run.state==='running';this.run=run;this.task=run.task;this.value=run.input;this.mode=run.mode;this.jev=run.jev;this.showPreview();this.selected=run.attempts.map(a=>a.provider);this.selectionTouched=true;this.resetRoster();this.scheduleQuote();if(this.running)this.poller=setInterval(()=>this.poll(),1500);}catch(e){this.error=e.message;}},
       newRun(){clearInterval(this.poller);this.poller=null;this.running=false;this.run=null;this.value='';this.showPreview();this.scheduleQuote();this.remember();},
       async cancel(){try{await this.api('/web-arena/api/runs/'+this.run.id+'/cancel',{method:'POST'});await this.poll();}catch(e){this.error=e.message;}},
@@ -195,12 +211,13 @@
           this.selected=draft.selected.filter(p=>visible.has(p));
           this.selectionTouched=this.selected.length!==this.availableProviders.length;
         }
-        if(page==='leaderboard')this.live=await this.api('/web-arena/api/leaderboard',{},'');
+        if(page!=='benchmark')await this.loadInsights();
         if(page==='benchmark')this.bench=await this.api('/web-arena/api/benchmark',{},'');
         await this.loadIdentity();await this.loadHistory();
         const id=new URLSearchParams(location.search).get('run');if(id&&this.user)await this.loadRun(id);
+        if(page!=='benchmark')this.insightsTimer=setInterval(()=>{if(!document.hidden)this.loadInsights();},120000);
       }catch(e){this.error=e.message;}
     },
-    unmounted(){clearInterval(this.poller);clearTimeout(this.quoteTimer);this.quoteSequence++;this.rosterObserver?.disconnect();}
+    unmounted(){clearInterval(this.poller);clearInterval(this.insightsTimer);clearTimeout(this.quoteTimer);this.quoteSequence++;this.rosterObserver?.disconnect();}
   }).mount('#web-arena');
 })();

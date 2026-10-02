@@ -49,6 +49,14 @@ a short pause. The lineup keeps selected fighters first and has controls to scro
 Opening a saved run restores its selected fighters from the saved attempts. Failed, empty, and
 downvoted attempts use the fallen fighter pose; other available providers stay excluded.
 The current quote appears on the Run button without a separate price step.
+Before a run, the provider table lists every catalog-preview tool and its catalog price.
+When a team quote is ready, the table replaces that price with the input-specific estimate.
+It joins content-free live totals by provider: result rate and median provider time appear
+after 20 distinct inputs, and the task-specific quality estimate appears after 20 checked
+inputs. Search uses Jev intent match, Fetch uses relative fact coverage, and Sitemap
+coverage stays unknown without a known URL list. Repeat Battles of the same input count
+once per provider, using the latest completed result. The table replaces its preview with
+the actual result cards during and after a run.
 The run form uses one quality switch with Jev and treg details in an info tooltip. A focused query has one outer
 border. Results show provider logos, time and cost, thumbs ratings, and plain failure states.
 While a run is live, the lineup shows only its selected providers, uses Enrich Arena's fight and
@@ -94,7 +102,12 @@ Local development with a SQLite database and loopback public URL skips the quali
 for testing. It still needs an AI gateway key.
 
 `web_arena_publications.refresh_live` is worker work. It reads completed Battle runs only, then
-saves content-free totals in `WebArenaPublication`. The public page reads that one publication.
+saves content-free totals in `WebArenaPublication`. The Arena preview and public leaderboard
+read that one publication. The scheduled `treg-worker arena insights` command refreshes it
+when Web Arena is enabled and the reviewed benchmark is published. The standalone
+`treg-worker web-arena totals` command remains available for manual refresh. Local development
+computes the same content-free totals on the leaderboard request so new test runs appear
+without a cron worker.
 Quality win rate stays unknown until 20 comparable checked runs. Sitemap needs a known reference
 URL list before any live quality win can exist. `publish_file` accepts a reviewed, versioned
 benchmark with the fixed sample counts and formula. The benchmark page only reads that saved

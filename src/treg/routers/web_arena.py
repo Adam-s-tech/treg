@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..application import web_arena, web_arena_publications
+from ..config import get_settings
 from ..domain.web_arena import WebArenaError
 from ..domain.identity.access import Caller, require_member
 from .auth import _client_ip
@@ -65,6 +66,8 @@ async def web_arena_leaderboard():
     _enabled()
     if not await web_arena_publications.ready():
         raise HTTPException(404)
+    if get_settings().local_dev:
+        return JSONResponse(await web_arena_publications.live_now(), headers={"Cache-Control": "no-store"})
     return JSONResponse(await web_arena_publications.published("live"), headers={"Cache-Control": "public, max-age=60"})
 
 

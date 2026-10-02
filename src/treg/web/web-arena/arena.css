@@ -52,6 +52,17 @@
 .web-lineup .fighter-verdict{white-space:nowrap}
 .web-empty-lineup{margin:20px auto;color:var(--muted);font-size:12px}
 .web-lineup-warning{padding:0 20px 14px;text-align:center;color:#a35028;font-size:12px}
+.web-provider-preview{padding:0;overflow:hidden}
+.web-provider-preview .web-heading{padding:22px 24px 0}
+.web-provider-preview .web-table-wrap{padding:0 12px}
+.web-provider-preview table{min-width:680px;font-size:12px}
+.web-provider-preview th,.web-provider-preview td{padding:14px 12px}
+.web-provider-preview thead th{color:var(--muted);font:11px var(--mono)}
+.web-provider-preview td small{display:block;margin-top:3px;font-size:10px}
+.web-provider-preview .web-preview-provider{display:flex;align-items:center;gap:9px;white-space:nowrap}
+.web-provider-preview .web-preview-provider img{object-fit:contain}
+.web-provider-preview .web-preview-excluded{opacity:.5}
+.web-provider-preview>.web-note{margin:13px 24px 20px;line-height:1.5}
 .result-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .result-card{border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0}
 .result-top{display:flex;justify-content:space-between;align-items:center;gap:12px}

@@ -5,7 +5,7 @@ import json
 from collections import defaultdict
 from datetime import timedelta
 from pathlib import Path
-from statistics import mean
+from statistics import mean, median
 
 from sqlmodel import select
 
@@ -103,51 +103,24 @@ async def publish_file(path: str):
     return {"version": doc["version"], "status": "published"}
 
 
-async def refresh_live():
-    """Worker reads private runs, then saves only totals. The page reads one small row."""
+async def _live_rows():
     cutoff = now() - timedelta(days=30)
     async with session_maker() as db:
         rows = (await db.execute(select(WebArenaRun).where(WebArenaRun.mode == "battle",
             WebArenaRun.state == "completed", WebArenaRun.created_at >= cutoff,
             WebArenaRun.expires_at > now()).order_by(WebArenaRun.created_at.desc()).limit(10_000))).scalars().all()
-    by_task: dict[str, dict[str, dict]] = defaultdict(lambda: defaultdict(lambda: {
-        "runs": 0, "success": 0, "times": [], "comparable": 0, "wins": 0}))
-    for row in rows:
-        payload = arena._unpack(row.payload)
-        attempts = payload.get("attempts") or []
-        values = scores.winner_values(row.task, attempts)
-        best = max(values.values()) if values else None
-        for a in attempts:
-            if a.get("state") in {"queued", "running", "not_attempted", "skipped"}:
-                continue
-            slot = by_task[row.task][a["provider"]]
-            slot["runs"] += 1
-            slot["success"] += a["state"] == "hit"
-            if isinstance(a.get("duration_ms"), int):
-                slot["times"].append(a["duration_ms"])
-            if a["provider"] in values:
-                slot["comparable"] += 1
-                slot["wins"] += values[a["provider"]] == best
-    catalog = catalog_store.load()
-    result = {}
-    for task, providers in by_task.items():
-        output = []
-        for provider, stats in providers.items():
-            current = next((ep for ep in catalog.for_capability({"search":"web.search", "fetch":"web.extract", "sitemap":"web.map"}[task])
-                            if ep["provider"] == provider and ep["id"] in catalog.adapters), None)
-            cv = catalog.cost_view(current.get("cost"), provider) if current else None
-            n = stats["runs"]
-            comparable = stats["comparable"]
-            output.append({"provider": provider, "runs": n,
-                "success_rate": round(100 * stats["success"] / n, 1),
-                "average_provider_ms": round(mean(stats["times"])) if stats["times"] else None,
-                "quality_sample_count": comparable,
-                "quality_win_rate": round(100 * stats["wins"] / comparable, 1) if comparable >= 20 else None,
-                "current_catalog_price_usd": cv.get("usd") if cv else None,
-                "price_unit": (current.get("cost") or {}).get("unit") if current else None})
-        result[task] = sorted(output, key=lambda x: (-x["runs"], x["provider"]))
-    doc = {"status": "live", "source": "Complete Web Arena Battle runs only", "window_days": 30,
-           "updated_at": now().isoformat() + "Z", "task_results": result, "minimum_comparable_runs": 20}
+    return rows
+
+
+async def live_now() -> dict:
+    """Compute content-free totals directly for local development."""
+    return summarize_live(await _live_rows(), catalog_store.load())
+
+
+async def refresh_live():
+    """Worker saves content-free totals for the hosted page to read as one small row."""
+    rows = await _live_rows()
+    doc = summarize_live(rows, catalog_store.load())
     async with session_maker() as db:
         row = await db.get(WebArenaPublication, "live:current")
         if row:
@@ -157,4 +130,61 @@ async def refresh_live():
             row = WebArenaPublication(id="live:current", kind="live", version="v1", payload=doc)
         db.add(row)
         await db.commit()
-    return {"tasks": list(result), "battle_runs": len(rows)}
+    return {"tasks": list(doc["task_results"]), "battle_runs": len(rows)}
+
+
+def summarize_live(rows, catalog):
+    """Aggregate the latest completed Battle per provider and distinct input."""
+    by_task: dict[str, dict[str, dict]] = defaultdict(lambda: defaultdict(lambda: {
+        "runs": 0, "success": 0, "times": [], "metric_values": [], "comparable": 0, "wins": 0}))
+    seen_inputs = set()
+    for row in rows:
+        payload = arena._unpack(row.payload)
+        attempts = payload.get("attempts") or []
+        values = scores.winner_values(row.task, attempts)
+        best = max(values.values()) if values else None
+        for a in attempts:
+            if a.get("state") not in {"hit", "miss", "error", "timeout"}:
+                continue
+            key = (row.task, a["provider"], payload.get("input"))
+            if key in seen_inputs:
+                continue
+            seen_inputs.add(key)
+            slot = by_task[row.task][a["provider"]]
+            slot["runs"] += 1
+            slot["success"] += a["state"] == "hit"
+            if isinstance(a.get("duration_ms"), int):
+                slot["times"].append(a["duration_ms"])
+            quality = a.get("quality") or {}
+            metric = (quality.get("estimated_match") if row.task == "search" and quality.get("state") == "checked"
+                      else quality.get("relative_coverage") if row.task == "fetch" and quality.get("state") == "checked"
+                      else quality.get("coverage_percent") if row.task == "sitemap" else None)
+            if isinstance(metric, (int, float)) and not isinstance(metric, bool) and 0 <= metric <= 100:
+                slot["metric_values"].append(metric)
+            if a["provider"] in values:
+                slot["comparable"] += 1
+                slot["wins"] += values[a["provider"]] == best
+    result = {}
+    for task, providers in by_task.items():
+        output = []
+        for provider, stats in providers.items():
+            current = next((ep for ep in catalog.for_capability({"search":"web.search", "fetch":"web.extract", "sitemap":"web.map"}[task])
+                            if ep["provider"] == provider and ep["id"] in catalog.adapters), None)
+            cv = catalog.cost_view(current.get("cost"), provider) if current else None
+            n = stats["runs"]
+            comparable = stats["comparable"]
+            metric_values = stats["metric_values"]
+            output.append({"provider": provider, "runs": n,
+                "success_rate": round(100 * stats["success"] / n, 1),
+                "average_provider_ms": round(mean(stats["times"])) if stats["times"] else None,
+                "median_provider_ms": round(median(stats["times"])) if stats["times"] else None,
+                "metric_sample_count": len(metric_values),
+                "metric_percent": round(mean(metric_values), 1) if len(metric_values) >= 20 else None,
+                "quality_sample_count": comparable,
+                "quality_win_rate": round(100 * stats["wins"] / comparable, 1) if comparable >= 20 else None,
+                "current_catalog_price_usd": cv.get("usd") if cv else None,
+                "price_unit": (current.get("cost") or {}).get("unit") if current else None})
+        result[task] = sorted(output, key=lambda x: (-x["runs"], x["provider"]))
+    doc = {"status": "live", "source": "Complete Web Arena Battle runs only", "window_days": 30,
+           "updated_at": now().isoformat() + "Z", "task_results": result, "minimum_comparable_runs": 20}
+    return doc

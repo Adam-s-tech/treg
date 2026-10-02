@@ -89,7 +89,11 @@ def tasks():
                 if not _supports_result_limit(task, ep["id"], adapter):
                     continue
                 seen.add(provider)
-                previews.append({"provider": provider, "endpoint_id": ep["id"]})
+                cost = cat.cost_view(ep.get("cost"), provider)
+                previews.append({"provider": provider, "endpoint_id": ep["id"],
+                                 "catalog_price_usd": cost.get("usd") if cost else None,
+                                 "price_unit": (ep.get("cost") or {}).get("unit"),
+                                 "price_type": (ep.get("cost") or {}).get("type")})
         result.append({"id": task, "label": label, "enabled": task != "brand",
                        "provider_previews": sorted(previews, key=lambda p: p["provider"])})
     return result

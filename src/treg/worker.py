@@ -293,6 +293,7 @@ async def _arena_insights(args) -> int:
     from .application.arena_insights import drain
     from .bootstrap import archive_object_store
     from . import analytics
+    from .application import web_arena, web_arena_publications
 
     async with archive_object_store():
         await verify_db()
@@ -301,6 +302,8 @@ async def _arena_insights(args) -> int:
             result = await drain(max_seconds=args.max_seconds)
         finally:
             await analytics.drain()
+    if web_arena.enabled() and await web_arena_publications.ready():
+        result["web_arena"] = await web_arena_publications.refresh_live()
     print(json.dumps(result, sort_keys=True))
     return 1 if result["failed"] else 0
 
