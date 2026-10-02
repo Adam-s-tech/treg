@@ -1,4 +1,5 @@
-"""The fire-and-forget drain discipline — audit and archive carry twin copies of it."""
+"""The fire-and-forget drain discipline - audit, archive and the managed-key last-used writer
+carry copies of it."""
 
 import asyncio
 import subprocess
@@ -6,53 +7,43 @@ import sys
 
 import pytest
 
-from treg import archive, audit
+from treg import audit
 
-# Two hand-copied implementations of the same pending-set/drain pattern (archive documents itself
-# as "audit's discipline"), so both are pinned here: archive copied audit's drain BEFORE the
-# busy-spin fix landed in audit, and the stale copy went on wedging CI for a day after audit was
-# already safe. A shared pin is what keeps the twins from diverging again.
-_MODULES = [audit, archive]
+# Hand-copied implementations of the same pending-set/drain pattern, so all are pinned here:
+# archive copied audit's drain BEFORE the busy-spin fix landed in audit, and the stale copy went
+# on wedging CI for a day after audit was already safe; the managed-key last-used writer later
+# copied the pre-fix shape again and wedged the Postgres job the same way. A shared pin is what
+# keeps the copies from diverging. (module, pending set, drain function)
+_DRAINS = [
+    ("treg.audit", "_pending", "drain"),
+    ("treg.archive", "_pending", "drain"),
+    ("treg.archive_bodies", "_pending", "drain"),
+    ("treg.domain.identity.api_keys", "_last_used_tasks", "drain_last_used"),
+]
 
 
-@pytest.mark.parametrize("mod", _MODULES, ids=lambda m: m.__name__.rsplit(".", 1)[-1])
-async def test_drain_exits_when_a_finished_task_lingers_in_the_pending_set(mod):
-    """The CI livelock shape: a completed task still in `_pending` with no removal callback coming.
+@pytest.mark.parametrize(("module", "pending", "drain"), _DRAINS, ids=[row[0] for row in _DRAINS])
+def test_drain_exits_when_a_finished_task_lingers_in_the_pending_set(module, pending, drain):
+    """The CI livelock shape: a completed task still in the pending set, its removal callback not
+    yet run.
 
-    Awaiting a gather of already-complete tasks never suspends (Python ≥3.10 gather returns a done
+    Awaiting a gather of already-complete tasks never suspends (Python >=3.10 gather returns a done
     future eagerly), so a drain that relies on the call_soon'd discard callback spins synchronously
-    forever — asyncio timers included, which is why the in-process `wait_for` below could never fire
-    against the broken shape. Drain must remove what it gathered itself.
-    """
-    async def _noop() -> None:
-        return None
-
-    task = asyncio.create_task(_noop())
-    await task
-    mod._pending.add(task)
-    await asyncio.wait_for(mod.drain(), timeout=5)
-    assert task not in mod._pending
-
-
-@pytest.mark.parametrize("name", ["audit", "archive"])
-def test_drain_livelock_regression_fails_instead_of_wedging(name):
-    """Run the same shape in a subprocess with a parent-side deadline.
-
-    A regression here livelocks the event loop at ~100% CPU, starving every in-process watchdog —
-    the only reliable referee lives outside the process. A wedged suite was exactly how the original
-    bug presented on CI; a reintroduction must fail in seconds instead.
+    forever at ~100% CPU, starving every asyncio timer and in-process watchdog. The only reliable
+    referee lives outside the process, so the shape runs in a subprocess with a parent-side
+    deadline: a regression fails in seconds instead of wedging the suite.
     """
     program = (
-        f"import asyncio\n"
-        f"from treg import {name} as mod\n"
+        "import asyncio, importlib\n"
+        f"mod = importlib.import_module({module!r})\n"
         "async def main():\n"
         "    async def _noop():\n"
         "        return None\n"
         "    task = asyncio.create_task(_noop())\n"
         "    await task\n"
-        "    mod._pending.add(task)\n"
-        "    await mod.drain()\n"
-        "    assert not mod._pending\n"
+        f"    getattr(mod, {pending!r}).add(task)\n"
+        f"    await getattr(mod, {drain!r})()\n"
+        f"    assert not getattr(mod, {pending!r})\n"
         "asyncio.run(main())\n"
     )
     result = subprocess.run(

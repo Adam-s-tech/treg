@@ -30,6 +30,83 @@ def test_key_providers_are_offerable_without_deployment_credentials():
         assert P.is_configured(p) is True, p.service
 
 
+async def test_spidercloud_key_uses_free_balance_probe(clients, monkeypatch):
+    def probe(request):
+        assert request.method == "GET"
+        assert request.url.path == "/data/credits"
+        assert request.headers["authorization"] == "Bearer own-key"
+        return httpx.Response(200, json={"data": {"credits": "250000.000000"}})
+
+    async with AsyncClient(transport=httpx.MockTransport(probe)) as upstream:
+        monkeypatch.setattr(app.state, "http", upstream)
+        response = await clients.post(
+            "/connections/token", json={"provider": "spidercloud", "token": "own-key"},
+        )
+    assert response.status_code == 200, response.text
+
+
+async def test_search1api_key_uses_free_usage_probe(clients, monkeypatch):
+    def probe(request):
+        assert request.method == "GET"
+        assert request.url.path == "/usage"
+        assert request.headers["authorization"] == "Bearer own-key"
+        return httpx.Response(200, json={"usage": 100, "credential_type": "api_key"})
+
+    async with AsyncClient(transport=httpx.MockTransport(probe)) as upstream:
+        monkeypatch.setattr(app.state, "http", upstream)
+        response = await clients.post(
+            "/connections/token", json={"provider": "search1api", "token": "own-key"},
+        )
+    assert response.status_code == 200, response.text
+
+
+async def test_enrichlayer_key_uses_free_balance_probe(clients, monkeypatch):
+    def probe(request):
+        assert request.method == "GET"
+        assert request.url.path == "/api/v2/credit-balance"
+        assert request.headers["authorization"] == "Bearer own-key"
+        return httpx.Response(200, json={"credit_balance": 100})
+
+    async with AsyncClient(transport=httpx.MockTransport(probe)) as upstream:
+        monkeypatch.setattr(app.state, "http", upstream)
+        response = await clients.post(
+            "/connections/token", json={"provider": "enrichlayer", "token": "own-key"},
+        )
+    assert response.status_code == 200, response.text
+
+
+async def test_perplexity_key_uses_free_model_list_probe(clients, monkeypatch):
+    def probe(request):
+        assert request.method == "GET"
+        assert request.url.path == "/v1/models"
+        assert request.headers["authorization"] == "Bearer own-key"
+        return httpx.Response(200, json={"object": "list", "data": []})
+
+    async with AsyncClient(transport=httpx.MockTransport(probe)) as upstream:
+        monkeypatch.setattr(app.state, "http", upstream)
+        response = await clients.post(
+            "/connections/token", json={"provider": "perplexity", "token": "own-key"},
+        )
+    assert response.status_code == 200, response.text
+
+
+async def test_octen_key_uses_unbilled_validation_probe(clients, monkeypatch):
+    def probe(request):
+        assert request.method == "POST"
+        assert request.url.path == "/search"
+        assert json.loads(request.content) == {"query": ""}
+        assert request.headers["x-api-key"] == "own-key"
+        return httpx.Response(400, json={"code": 400, "msg": "Invalid params. Missing parameter query"})
+
+    async with AsyncClient(transport=httpx.MockTransport(probe)) as upstream:
+        monkeypatch.setattr(app.state, "http", upstream)
+        response = await clients.post(
+            "/connections/token", json={"provider": "octen", "token": "own-key"},
+        )
+    assert response.status_code == 200, response.text
+    assert response.json()["health"] == "unknown"
+
+
 async def test_adyntel_connect_collects_both_credentials_before_provisioning(clients, monkeypatch):
     def probe(request):
         assert request.method == "POST"

@@ -34,12 +34,8 @@ proposed_capabilities:
   companies.emails.list: "List every work email found on a company domain"
   companies.emails.count: "Count the emails known for a domain, by department & seniority"
   companies.emails.locations: "Where a domain's contacts are, by country"
-  companies.tech_stack: "Technologies a website runs"
-  companies.similar: "Find companies similar to a given domain"
   people.email.sources: "Where on the web an email address was seen"
-  people.phone.verify: "Validate & format a phone number"
   web.domain.disposable: "Is a domain disposable or a free webmail host"
-  account.usage: "Credits consumed so far this period"
   account.rate_limits: "Per-route rate limits and current usage"
   account.logs: "Recent API calls with the credits each one cost"
 endpoints:
@@ -146,7 +142,7 @@ endpoints:
     scope: any_account
     method: GET
     path: /v1/email-verifier
-    name: "Verify an email address is deliverable"
+    name: "Verify email — catch-all, disposable, role and SMTP"
     summary: "Deliverability status, score, MX/SMTP checks, catch-all, disposable, gibberish and role-address flags for one address"
     input:
       queryParams:

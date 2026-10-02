@@ -23,6 +23,7 @@ covers (frontmatter `sources:`). Regenerate this index with
 | [Application composition and deployment roles](architecture/composition.md) | shipped | bootstrap.py, bootstrap_handlers.py, bootstrap_http.py, call_surface.py, … |
 | [Data model — the registry tables, async DB, audit writer](architecture/data-model.md) | shipped | 0042_pinned_read_scope.py, alembic.ini, env.py, 0001_baseline_current_schema.py, … |
 | [Feedback - private intake for problems and suggestions](architecture/feedback.md) | shipped | feedback_contract.py, __init__.py, reports.py, reviews.py, … |
+| [Find tools for a job - /catalog/find, recall by job and one judge request](architecture/find.md) | building | catalog_find.py, find_recall.py, find_index.py, embed.py, … |
 | [The tool hub — tools a maker publishes, made of other tools](architecture/hub.md) | built (phases 1–10, 2026-09-09/14; pricing flexibility 9.1–9.5 (`docs/hub-pricing-decisions.md`), listing + public run log 10.1–10.5 (`docs/hub-listing-decisions.md`)); behind `hub_enabled` (TREG_HUB_ENABLED), off in production until the final merge | __init__.py, manifest.py, refs.py, graph.py, … |
 | [Enforced import boundaries](architecture/import-boundaries.md) | shipped | pyproject.toml, ci.yml, __init__.py, __init__.py, … |
 | [Instagram OAuth — direct Login and optional Facebook Page tools](architecture/instagram-oauth.md) | built; Meta configuration and live verification pending | catalog_ingest.py, access.py, resolve.py, service.py, … |
@@ -33,8 +34,9 @@ covers (frontmatter `sources:`). Regenerate this index with
 | [Money — prepaid balance, the ledger, Stripe, and the reports that check it](architecture/money.md) | shipped | tavily.yaml, tinyfish.yaml, test_tinyfish.py, __init__.py, … |
 | [Multi-tenancy — orgs, memberships, invites, per-org scoping](architecture/multi-tenancy.md) | shipped | access.py, 0042_pinned_read_scope.py, test_pinned_read_scope.py, models.py, … |
 | [The proxy — faithful credential-injecting relay + tool resolution](architecture/proxy-model.md) | shipped | relay.py, ssrf.py, api.py, authorize.py, … |
-| [Discovery experiment — a relevance judge behind catalog search, measured on what the caller does next](architecture/search-experiment.md) | building | search_experiment.py, interleave.py, judge.py, 0041_searchlog.py, … |
+| [Discovery experiment — a relevance judge behind catalog search, measured on what the caller does next; the job-first answer served to agents](architecture/search-experiment.md) | building | catalog_search.py, search_experiment.py, interleave.py, judge.py, … |
 | [Super-admin — cross-tenant read + control](architecture/super-admin.md) | shipped | api.py, admin.py, evidence_retention.py, access.py, … |
+| [The table layer — one call, answered as rows and columns (`/table/`)](architecture/table.md) | built, behind `table_enabled` (TREG_TABLE_ENABLED), off by default | __init__.py, table.py, table.py, call.py, … |
 
 ## Interfaces (API · CLI · skill)
 
@@ -43,7 +45,7 @@ covers (frontmatter `sources:`). Regenerate this index with
 | [The API — the only brain (FastAPI)](interface/api.md) | shipped | media.py, sitetrack.js, api.py, bootstrap_handlers.py, … |
 | [Catalog browse taxonomy — open placement and naming decisions](interface/catalog-review-proposal.md) | backlog | — |
 | [The CLI (treg) + skill scaffolding](interface/cli.md) | shipped | cli.py, test_released_cli_compat.py, test_cli_key_compatibility.py, auth_helpers.py, … |
-| [The web dashboard (served from FastAPI)](interface/dashboard.md) | shipped | sitetrack.js, README.md, index.html, package.json, … |
+| [The web dashboard (served from FastAPI)](interface/dashboard.md) | shipped | App.vue, views.ts, controller.js, base.css, … |
 | [Enrich Arena — paid comparisons, one-click feedback, and visible waterfalls](interface/enrich-arena.md) | shipped | arena.py, arena.py, arena.py, models.py, … |
 | [Import — scan a .env AND/OR a skills dir, auto-register as tools + bundles](interface/env-import.md) | in-progress | providers.py, skills.py |
 | [Landing sandbox backend - front-end entry removed](interface/landing-sandbox.md) | shipped | sandbox.py, sandbox_identity.py, pubfeed.py, sandbox.py, … |
@@ -52,7 +54,7 @@ covers (frontmatter `sources:`). Regenerate this index with
 | [Shell mode (treg shell) — transparent CLI interception](interface/shell.md) | shipped | shell.py, cli.py |
 | [Test cases for the ChatGPT plugin submission](interface/skill-openai-test-cases.md) | reference | — |
 | [Tool justifications for the ChatGPT plugin submission](interface/skill-openai-tool-justifications.md) | reference | — |
-| [The shippable tools-registry skill (3 personas)](interface/skill.md) | shipped | skill.md, SKILL.md, web.py, mcp_install.py, … |
+| [The shippable tools-registry skill (3 personas)](interface/skill.md) | shipped | skill.md, SKILL.md, SKILL.md, web.py, … |
 
 ## Ops (deploy, scale)
 

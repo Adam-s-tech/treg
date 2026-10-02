@@ -322,3 +322,18 @@ async def test_HTTP_search_orders_equal_matches_on_observed_evidence(clients: As
         "/catalog/search", params={"q": "ad library", "limit": 100})).json()["results"]
     ids = [row["id"] for row in rows]
     assert ids.index(poor) < ids.index(stale), ids
+
+
+async def test_a_platform_shelf_carries_each_endpoints_calls(clients: AsyncClient):
+    """The platform page leads with what agents use, so the shelf ships each endpoint's calls."""
+    cold = (await clients.get("/catalog/platforms/tiktok")).json()
+    used = cold["domains"][0]["rows"][0]["endpoints"][-1]["id"]
+    for _ in range(3):
+        await _record(used, 200)
+    await app.state.endpoint_observation_reader.reset()
+    await clients.get("/catalog/platforms/tiktok")
+    await app.state.endpoint_observation_reader.wait_for_idle()
+    body = (await clients.get("/catalog/platforms/tiktok")).json()
+    eps = {e["id"]: e for d in body["domains"] for r in d["rows"] for e in r["endpoints"]}
+    assert eps[used]["observed"]["samples"] == 3
+    assert all("observed" in e for e in eps.values())

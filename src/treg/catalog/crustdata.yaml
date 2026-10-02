@@ -13,9 +13,7 @@ pricing_url: https://docs.crustdata.com/general/pricing
 # sales-enabled routes are intentionally omitted.
 
 proposed_capabilities:
-  companies.jobs.search: "Search indexed job listings across companies"
-  companies.autocomplete: "Autocomplete company-search field values"
-  people.autocomplete: "Autocomplete person-search field values"
+  companies.search.filters: "List the accepted values for a company-search filter"
 
 endpoints:
   - id: crustdata.companies.search
@@ -59,7 +57,7 @@ endpoints:
 
   - id: crustdata.companies.autocomplete
     domain: companies
-    capability: companies.autocomplete
+    capability: companies.search.filters
     platform: companies
     scope: any_account
     method: POST
@@ -179,7 +177,7 @@ endpoints:
 
   - id: crustdata.people.autocomplete
     domain: contacts
-    capability: people.autocomplete
+    capability: people.search.filters
     platform: people
     scope: any_account
     method: POST

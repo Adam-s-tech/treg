@@ -26,14 +26,10 @@ limits: "no published per-second rate limit; a monthly credit quota enforced wit
 pricing_url: https://predictleads.com/pricing
 
 proposed_capabilities:
-  companies.similar: "Find companies similar to a given company"
   companies.funding: "A company's funding rounds & financing events"
-  companies.funding.feed: "Browse the latest funding rounds across all companies"
   companies.news.detail: "Get one company news event by ID"
   companies.news.feed: "Browse the latest company news events across all companies"
-  companies.jobs.search: "Search job postings across all companies by role, seniority or location"
   companies.jobs.detail: "Get one job posting by ID"
-  companies.tech_stack: "Technologies detected on a company's website and job posts"
   companies.tech_stack.users: "Find companies that use a given technology"
   companies.tech_stack.detection: "Get the full evidence for one technology detection"
   companies.technologies.list: "Browse the catalog of tracked technologies"
@@ -44,7 +40,6 @@ proposed_capabilities:
   companies.investors.portfolio: "Browse portfolio companies listed by VCs, accelerators and incubators"
   companies.website_evolution: "Pages appearing on and disappearing from a company's website"
   companies.repositories: "Public code repositories a company publishes"
-  companies.products: "Products and services a company sells"
   companies.products.detail: "Get one company product by ID"
   companies.products.feed: "Browse the latest products across all companies"
   companies.launch_posts: "Latest startup-platform launch and hiring posts"

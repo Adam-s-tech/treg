@@ -16,6 +16,7 @@ from treg.bootstrap import ROLE_STARTUP_CHECKS, create_app
 _SNAPSHOT = Path(__file__).parent / "snapshots" / "routes.json"
 _CALL_ROUTE = "DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT /call/{rest:path}"
 _CATALOG_CALL_ROUTE = "DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT /catalog/call/{rest:path}"
+_TABLE_ROUTE = "DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT /table/{rest:path}"
 
 
 def _all_routes() -> list[str]:
@@ -34,6 +35,7 @@ _ALL_ROUTES = _all_routes()
 _DATAPLANE_ONLY = (
     _CALL_ROUTE,
     _CATALOG_CALL_ROUTE,
+    _TABLE_ROUTE,
     "GET,HEAD /.well-known/oauth-protected-resource/mcp",
     "GET,HEAD /.well-known/oauth-protected-resource/mcp/v2",
     "MOUNT /mcp/v2",

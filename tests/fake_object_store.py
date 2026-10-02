@@ -49,6 +49,21 @@ class MemoryObjectStore:
         body = self.objects.get(content_hash)
         return ObjectInfo(content_hash, len(body)) if body is not None else None
 
+    async def put_named(self, name: str, body: bytes) -> None:
+        self.check_io()
+        self.put_calls += 1
+        if self.fail_puts:
+            self.fail_puts -= 1
+            raise ObjectStoreError('store_error')
+        self.objects[name] = body
+
+    async def get_named(self, name: str) -> bytes | None:
+        self.check_io()
+        self.get_calls += 1
+        if self.fail_gets:
+            raise ObjectStoreError('store_error')
+        return self.objects.get(name)
+
 
 class MemoryObstoreSDK:
     """The obstore methods used by our adapter, without Rust or network I/O."""

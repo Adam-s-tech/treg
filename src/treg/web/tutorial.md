@@ -527,7 +527,7 @@ registry.
 
 ## Step 22a - Turn your whole `.env` into tools
 
-`treg upload env` reads your `.env`, matches each variable against a catalog of ~80 providers, and
+`treg upload env` reads your `.env`, matches each variable against the providers treg recognizes, and
 registers the ones you pick as ready-to-call tools. Detection reads **names only**; the value is loaded
 only for the keys you confirm. Config vars (`*_HOST`, `*_MODEL`, `*_PROJECT_ID`) and your app's own
 secrets (`SECRET_KEY`, `SESSION_SECRET`, `DATABASE_URL`, `*_WEBHOOK_SECRET`) are excluded automatically.

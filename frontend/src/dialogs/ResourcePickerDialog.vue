@@ -4,9 +4,9 @@ export default { setup: useDashboard }
 </script>
 
 <template>
-<div  class="scrim" role="dialog" aria-modal="true" @click.self="resPick=null">
+<div  class="scrim" role="dialog" aria-labelledby="resource-picker-dialog-title" aria-modal="true" v-dialog="() => { resPick=null }" @click.self="resPick=null">
       <div class="modal" style="padding:16px">
-        <h3 style="margin:0 0 10px">Choose {{article(resPick.label)}} {{resPick.label}}</h3>
+        <h3 id="resource-picker-dialog-title" style="margin:0 0 10px">Choose {{article(resPick.label)}} {{resPick.label}}</h3>
         <p class="sub" style="margin:0 0 10px">The {{resPick.label}} your agent uses by default.
           It can still use another one per call — this just saves it guessing.</p>
         <div v-if="resPick.loading" class="ttable-wrap">

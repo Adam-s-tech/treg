@@ -13,6 +13,7 @@ sources:
   - src/treg/application/call/idempotency.py
   - src/treg/application/call/intake.py
   - src/treg/application/call/resolve.py
+  - src/treg/application/call/octen.py
   - src/treg/application/call/service.py
   - src/treg/application/call/async_bridge.py
   - src/treg/application/call/route.py
@@ -248,6 +249,11 @@ evidence settles the original task once under its row lock. Caller success witho
 only learns result ownership and leaves the hold for a later observation; worker fallback retains
 its reserve-based settlement with a reconciliation alert. Settlement errors leave the provider
 response unchanged and cron retries. Only the winning finalizer archives terminal evidence.
+For a successful task, the same transaction stores the terminal adapter hit verdict on the task;
+a confirmed terminal failure stores `false` when the endpoint has verified hit rules, while
+pending and timed-out tasks remain undecided. This counts failed attempts in routing's hit rate.
+The audit path copies the verdict to the original submission row whether that row was inserted
+before or after the terminal poll. The submission ticket itself supplies no hit verdict.
 An async status declared as `billed_failure` is still presented as failure by the CLI, but the
 worker settles its usage evidence and records the terminal outcome; this covers cancellation after
 billable work without manufacturing a successful result.
@@ -519,10 +525,12 @@ Provider-specific calculation stays outside the faithful relay.
 | Evidence | Settlement behavior |
 |---|---|
 | Generic catalog-reported charge | A paid synchronous cost may name `reported_charge.path` with unit `usd` or provider `credit`. A finite nonnegative response value, including zero, settles exactly; credit conversion is frozen from `fx.yaml` when the call resolves, while invalid or absent evidence falls through to the normal estimate/miss behavior |
+| Litescrape AI Overview | A response with `ai_overview: null` and `search_metadata.ai_overview_state: not_served` settles at zero, matching the provider's unbilled 200 miss. Other responses retain the catalog's success price. The live key balance confirmed the zero-cost miss. |
 | Tavily Search | Reserve one credit for Basic, Fast and Ultra-fast or two for Advanced and an auto-selected depth; an explicit Basic depth overrides automatic selection. Platform Search requires caller-supplied `include_usage: true` and settles finite nonnegative per-request `usage.credits`. Empty results remain a paid routing miss. Missing or malformed usage keeps the frozen reserve. BYOK is unmetered and need not request usage. The endpoint-specific rate table must be complete, positive and finite; catalog validation rejects bad declarations and runtime refuses the call before reserve or relay instead of pricing it at zero |
 | Tavily Extract | Reserve the requested URL count (bounded by the documented 20-URL maximum) at 0.2 credit per Basic or 0.4 per Advanced extraction. Settle that fractional allocation for each valid entry in `results`; `failed_results` and grouped `usage.credits` do not charge the caller. A documented empty results list is free; malformed evidence keeps the frozen reserve |
 | Tavily Map | Platform calls require an explicit integer `limit` from 1 to 20. Reserve that many pages at 0.1 credit each, or 0.2 when the caller supplied nonempty `instructions`; settle valid URL strings in `results` at the frozen per-page unit. Empty results are free, malformed evidence keeps the reserve, and grouped `usage.credits` is ignored |
 | Tavily Crawl | Platform calls require the same 1-20 limit. Reserve per returned extraction at 0.3 credit (Basic), 0.4 (Basic + instructions), 0.5 (Advanced), or 0.6 (Advanced + instructions), then settle valid extracted entries in `results`. This is a conservative deterministic allocation, not the exact Tavily account charge: the response does not expose every page successfully mapped before extraction. treg absorbs any hidden mapping difference, bounded by the 20-page platform cap. Grouped `usage.credits` is ignored and BYOK remains unmetered |
+| Octen search and extraction | Reserve the documented maximum from `count`, Broad `max_queries`, optional full-content results, News subjects, or Extract URL count at the advanced rate. Settle Web and News from the call base plus `meta.usage.full_content_extra_count`, Broad from `num_search_queries` plus extras, and Extract from `successful_by_mode`. Missing, malformed, or over-ceiling usage keeps the frozen hold; failed HTTP responses release it. Rates are frozen from `cost.octen_rates` before relay. Own-key calls remain unmetered and have no platform request cap. |
 | Legacy reported charge | DataForSEO `cost`, ScrapeCreators and Dropleads finder/verifier `credits_charged`, Akta and Dropleads person enrichment `credits_consumed`, Dropleads company `credits.creditsDeducted`, Lusha `billing.creditsCharged`, Exa `costDollars.total`, and Prospeo bulk `total_cost`; credit amounts use the catalog FX rate |
 | Crustdata, cloro, AI Ark | Read the charge from a response header through `_CREDIT_HEADERS` using the same FX rate. Crustdata `X-Credits-Used` and cloro `X-Credits-Charged` are positive charges; AI Ark `X-Credit` is a negative debit and declares an explicit -1 multiplier. Invalid signs and non-finite values are ignored. cloro omits the header on its free routes and on a failed extraction, neither of which it bills, so an absent header settles at the estimate, not at zero |
 | cloro reserve | `cost.value` is the full-surface `test_request` price (ChatGPT 9, Google SERP 7); the plain call settles lower from the header (verified live 2026-09-07 at the then-Lite rate: reserve 7,200 µ$, settled 5,600, refunded 1,600; at the Hobby rate 3,600 → 2,800, re-verified 2026-09-14). The top-level `state` body field is a `cost.modifiers` rider (+2 credits) reserved through the same generic path Aviato uses, which is open to any credit-priced provider with a FX rate |
@@ -541,6 +549,7 @@ Provider-specific calculation stays outside the faithful relay.
 | Serpstat | An `error` envelope (bad token, exhausted limit, "Data not found") is free; otherwise rows in `result.data[]`, or `result.data.top[]` for `getKeywordTop`, floored at the documented 1-credit minimum on an empty list; any other response shape settles at the estimate |
 | TheCompaniesAPI companies search | `simplified=true` is free on endpoints that declare it in `input.queryParams`; otherwise one credit per company in `companies[]`, capped at the requested `size` |
 | Findymail employee search | One finder credit per contact in the returned list (`_rows_billed_micro`); an empty list is a free miss where the estimate used to bill the hold |
+| You.com Contents | Reserve for each requested URL, then count objects in the returned bare array at the frozen per-page price, capped at the hold. An unreadable response keeps the estimate. Search modes that may trigger live page fetches stay BYOK because the response does not identify the billed pages |
 
 Bright Data snapshot downloads are billable per result, including repeat downloads. Gzip or a
 buffer-truncated response falls back to the estimate because the record count is unknown.
@@ -688,8 +697,10 @@ still pay the provider twice.
 - Metered successes retain status, body, charge and call id for 24 hours. Uncharged failures
   (every routed failure since routed children defer their holds to the parent, catalog.md), BYOK
   calls and owned free polls release the label immediately, so a retry tries again.
-- Replays return `X-Treg-Idempotent-Replay: true` and the original `X-Treg-Cost-Micro`;
-  MCP returns `replayed: true`. An async submission replay repeats its original reservation.
+- Replays return `X-Treg-Idempotent-Replay: true`, `X-Treg-Cost-Micro: 0` (nothing new was charged,
+  so a client summing the header stays right) and the first call's figure in
+  `X-Treg-Original-Cost-Micro`; MCP returns `replayed: true`. An async submission replay echoes its
+  original reservation there.
 - Refusal and cancellation cleanup return an acquired label. Expired entries are swept lazily,
   scoped to the caller, at claim time.
 
@@ -1014,6 +1025,13 @@ buffering (`MarketplaceCall.streamable_free_result`). It retains the existing ze
 reserve/settle gates and settles with an explicit zero override before returning the stream. It
 does not observe the original generation task or persist a response for idempotent replay; the
 label is released and retrying performs another free read. MIME type never decides billability.
+
+A metered 2xx on an endpoint declaring `spooled_response` keeps the same completeness rule with
+the body on disk: `_spool_response` settles from the paths its row reads (usage meters, `expect` leaf) before headers go
+out, so `X-Treg-Cost-Micro` stays exact and the hold closes once on the normal path. An answer the
+provider completed but whose evidence is missing or unparseable settles at the reserve (the image
+exists); an oversized or budget-refused body is a `response_buffer_limit` release. The label is
+released rather than stored, so an idempotent retry is a new, separately billed generation.
 
 
 ## HarvestAPI integration

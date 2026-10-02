@@ -288,6 +288,37 @@ async def call_tool(
     request: Request,
     caller: Caller = Depends(require_member),
 ):
+    prefix = "/catalog/call/" if getattr(request.state, "catalog_only", False) else "/call/"
+    return await run_call_surface(rest, request, caller, prefix=prefix, finish=_relay_answer)
+
+
+async def _relay_answer(request: Request, context, upstream: UpstreamResponse, rest: str) -> Response:
+    """`/call/`'s ending: the provider's answer, streamed unchanged, with the optional invitation."""
+    _attach_async_descriptor(upstream, context, rest)
+    response = _http_upstream_response(upstream)
+    try:
+        # Optional invitation, decided before the body streams (application/call/invite.py).
+        kind = await invitation(context, response.status_code,
+                                replayed=bool(response.headers.get("X-Treg-Idempotent-Replay")))
+        if kind is not None:
+            response.headers["X-Treg-Hint"] = kind
+            if kind == "review":
+                response.headers["X-Treg-Review"] = "requested"  # read by CLI <= 0.18
+            _capture_hint(request, context, kind)
+    except Exception:
+        pass  # A fault here can only lose the header; the answer is already built.
+    return response
+
+
+async def run_call_surface(rest: str, request: Request, caller: Caller, *, prefix: str, finish,
+                           headers=None) -> Response:
+    """One call through the whole call road: the caller's identity stashed for the refusal fallback,
+    the context built from the raw request, `execute_call`, and the same bookkeeping on every exit.
+    Every call surface (`/call/`, `/catalog/call/`, `/table/`) goes through here; only `finish`,
+    which turns the answer into the HTTP response, differs. `finish(request, context, upstream,
+    rest)` runs inside the same try, so a fault there is audited and released like any other.
+    `headers`, when given, replaces the request's raw headers for the upstream call (`/table/` asks
+    the provider for uncompressed bytes); `/call/` never passes it."""
     # Identity for the refusal fallback in `_mark_treg_own_errors`: a raise anywhere below (unknown
     # tool, deny rule, daily cap) leaves this handler without an audit row, and the exception handler
     # is the one place every such refusal passes through — but it has no Caller of its own.
@@ -307,14 +338,13 @@ async def call_tool(
     # valid percent-escapes, so the original bytes travel through to the upstream one-to-one.
     raw_path = request.scope.get("raw_path")
     if raw_path:
-        call_prefix = "/catalog/call/" if getattr(request.state, "catalog_only", False) else "/call/"
-        _, sep, raw_rest = raw_path.decode("ascii", "replace").partition(call_prefix)
+        _, sep, raw_rest = raw_path.decode("ascii", "replace").partition(prefix)
         if sep:
             rest = raw_rest
     call_input = CallInput(
         method=request.method,
         raw_rest=rest,
-        raw_headers=tuple(request.headers.raw),
+        raw_headers=tuple(request.headers.raw) if headers is None else tuple(headers),
         query_items=tuple(request.query_params.multi_items()),
         raw_query=request.url.query or "",
         body=_HttpRequestBody(request),
@@ -330,20 +360,7 @@ async def call_tool(
     request.state.call_context = context
     try:
         upstream = await execute_call(context, request.app.state.http)
-        _attach_async_descriptor(upstream, context, rest)
-        response = _http_upstream_response(upstream)
-        try:
-            # Optional invitation, decided before the body streams (application/call/invite.py).
-            kind = await invitation(context, response.status_code,
-                                    replayed=bool(response.headers.get("X-Treg-Idempotent-Replay")))
-            if kind is not None:
-                response.headers["X-Treg-Hint"] = kind
-                if kind == "review":
-                    response.headers["X-Treg-Review"] = "requested"  # read by CLI <= 0.18
-                _capture_hint(request, context, kind)
-        except Exception:
-            pass  # A fault here can only lose the header; the answer is already built.
-        return response
+        return await finish(request, context, upstream, rest)
     except CallFailure as exc:
         raise _translate_call_failure(exc) from exc
     except PoolTimeoutError:

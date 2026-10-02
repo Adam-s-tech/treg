@@ -28,6 +28,8 @@ sources:
 
   - src/treg/alembic/versions/0011_callrecord_archive_link.py
   - src/treg/alembic/versions/0015_idempotentcall_membership_cascade.py
+  - src/treg/alembic/versions/0053_idempotentcall_membership_expires_index.py
+  - src/treg/alembic/versions/0054_callrecord_org_id_id.py
   - src/treg/alembic/versions/0034_managed_api_keys.py
   - src/treg/alembic/versions/0035_default_key_generation.py
   - src/treg/alembic/versions/0036_activity_key_indexes.py
@@ -35,6 +37,7 @@ sources:
   - src/treg/maintenance.py
   - src/treg/web/sitetrack.js
   - src/treg/models.py
+  - src/treg/alembic/versions/0052_async_task_hit.py
   - src/treg/alembic/versions/0031_archive_result_admission.py
   - src/treg/alembic/versions/0032_archive_body_storage.py
   - src/treg/alembic/versions/0039_archive_own_key_and_repeat_pricing.py
@@ -43,6 +46,8 @@ sources:
   - src/treg/routers/provider_resources.py
   - src/treg/alembic/versions/0033_signup_promo_eligibility.py
   - src/treg/alembic/versions/0041_searchlog.py
+  - src/treg/alembic/versions/0055_find_v2_log.py
+  - src/treg/alembic/versions/0056_searchlog_verdict.py
   - src/treg/timeutil.py
   - src/treg/infra/db.py
   - src/treg/domain/referrals.py
@@ -85,6 +90,14 @@ indexed result id and adds `AsyncResourceRecord`: an org/provider/resource-kind/
 for legacy async pairs whose billing does not use a deferred hold. They ship with the behavior
 because old code ignores the additions while new code cannot safely retain an asynchronous hold or
 authorize a shared-provider result without them.
+
+Revision `0052` adds nullable `hit`: the terminal contact verdict for the original submission.
+The terminal finalizer commits it with settlement. The audit writer locks the task row before
+inserting a submission `CallRecord`, so a poll that finishes first still gives that row its final
+verdict; when the audit row wins the race, the finalizer queues a background correction. Both use the
+original `call_ref`, including routed children. A confirmed terminal failure stores `false`
+for endpoints with verified result rules, since that attempt produced no hit. A pending or
+timed-out submission remains undecided.
 
 Migration `0019` adds `consecutive_failures` with a retained server default of zero, allowing old
 writers during rollout. Valid polls reset it; failures grow the retry delay to 15 minutes.
@@ -272,7 +285,11 @@ uses this metadata, never the encrypted token's shape.
   `(org_id, user_email, created_at)` in revision 0023, and then the same answer as the ledger: the
   index-only scan still fetched the heap for today's not-yet-vacuumed pages (110k heap fetches,
   2.8 s), so revision 0024 moves the gate to `Membership.calls_today` and the journal count is
-  left to the roster and `/usage/me`.
+  left to the roster and `/usage/me`. A team's newest rows: `/calls` pages by id on
+  `(org_id, id)`, and local runs, a sliver of a team's rows, read a partial
+  `(org_id, created_at, id) WHERE kind = 'local_run'` (revision 0054); without them the first
+  walked the primary key testing `org_id` and the second read the team's whole history. The
+  Activity feed's calls page by time on `(org_id, created_at)`.
 
   `refused_by` distinguishes a treg refusal (`auth`, `policy`, `balance`, `cap`, `resolution`,
   `request`, and other mechanism-specific values) from an upstream answer, where it is null.
@@ -312,6 +329,16 @@ uses this metadata, never the encrypted token's shape.
   the membership is revoked there is no valid caller that can replay it. `delete_membership` removes
   it explicitly and the `membership_id` foreign key uses `ON DELETE CASCADE` as the schema backstop
   (Alembic `0015`), so a cached paid response can never turn token revocation into a 500.
+  A `pending` row is a lease owned by one call: it carries that call's `call_ref` from the claim,
+  the owner renews `created_at` every `IDEMPOTENCY_LEASE_RENEW_S` while it runs, and every store,
+  release and renewal is fenced on `call_ref`. A lease older than `IDEMPOTENCY_STALE_PENDING_S`
+  with no open hold or pending async task under `call_ref` (and its `call_ref:` children) is closed
+  by compare-and-swap (owner and `created_at`) with a stored terminal 410:
+  `idempotency_response_lost` with the charge when the owner's ledger shows one, else
+  `idempotency_outcome_unknown`. The key is never run again: a lapsed lease does not prove its owner
+  stopped. Rows without a `call_ref` (written before this) keep answering 409 until they expire.
+  The per-call expired-label sweep reads `(membership_id, expires_at)` (Alembic `0053`), so its
+  cost is the expired rows, not every label the caller holds.
 - **`ToolRequest`** - a "the catalog doesn't have X" report (`POST /tool-requests`, open + per-IP
   rate-limited): `capability` (the headline, ≤200 chars), `query` (the search that came up empty -
   auto-filled by agents, the dedup/priority signal), `note`, `contact`, `source` (`web` | `cli` |
@@ -322,11 +349,13 @@ uses this metadata, never the encrypted token's shape.
   querying the table; a Slack notifier may hang off the insert later, but the row is the record.
 - **`SearchMiss`** - a catalog search that returned **nothing**: `query` (capped to 300 chars),
   `source` (`api` for the HTTP route that serves web + CLI + raw API; `mcp` for the team MCP; or
-  `claude-connector` for V2), `created_at`. The demand
+  `claude-connector` for V2; `web-find` for `/catalog/find`), `created_at`, and on a find `reason`
+  (0055: `gap` | `not_task` | `judge_off` | `scope`, see [find](find.md)) and `engine` (the find
+  engine served; a shadow answer files none). The demand
   signal one step before a `ToolRequest`: most agents that miss never file, so the query text is all
   they leave. Written fire-and-forget through `audit.record_search_miss` (dropped rows cost
   analytics, never a search) from both search paths - `GET /catalog/search` and the in-process MCP
-  `catalog_search` tool. Deliberately identity-free; surfaced by `scripts/usage_report.py`, which
+  `catalog_search` tool. Deliberately identity-free; surfaced by the private usage report, which
   reads misses against the catalog to split coverage gaps from naming/discovery failures.
 - **`SearchLog`** (0041) - one MCP catalog search under the **discovery experiment** (see
   [search-experiment](search-experiment.md)): `query`, `source`, the caller's `org_id`/`user_email`
@@ -336,6 +365,10 @@ uses this metadata, never the encrypted token's shape.
   judge's `judge_ms` / tokens / `judge_error`. Written fire-and-forget through
   `audit.record_search`; read by `scripts/search_experiment_report.sql` joined to `CallRecord`.
   Nothing is written while `search_experiment` is `off`.
+  `/catalog/find` writes the same row with `mode=find`, `source=web-find` and no identity; 0055 adds
+  `engine` (v1 | v2) and v2's readings: `platform_choice`, `platform_conf`, `name_p`, `recall_ms`,
+  `embed_ms`, `embed_error`, and `units` as `[kind, id, p]` rows ([find](find.md)); 0056 adds
+  `verdict`, the verdict a v2 answer ended on with its reason after a colon (`none:gap`).
 - **`RunRecord`** - the **server-side run** audit row (a `treg run --server` CLI execution - the "kind"
   `server_run` in usage rollups): `org_id`, `user_email`, `bundle_name` (holds the **tool** name since the
   tool-side run unification; column name is historical), `argv` (JSON - never carries a secret value;

@@ -5,10 +5,6 @@ source:
   curated: '2026-09-23'
 pricing_url: https://www.olostep.com/dashboard/billing
 limits: "Olostep publishes no numeric general API rate limit. Successful live Scrape, Search, Answer, Map, Crawl and account calls returned no rate-limit headers; treg therefore smooths only the shared key at a conservative policy rate of 5 requests/second. Batch, monitor, schedule, file, agent, top-up and generic retrieve routes are intentionally not catalogued."
-proposed_capabilities:
-  web.answer: "Answer a question from live web research with sources"
-  web.crawl.status: "Check a website crawl's progress and final credit usage"
-  web.crawl.results: "List the pages produced by a website crawl"
 async:
   id_from: id
   poll:

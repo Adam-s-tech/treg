@@ -342,6 +342,12 @@ class CallRecord(SQLModel, table=True):
                       # a member with 287k rows. Revision 0023 builds it concurrently.
                       Index("ix_callrecord_org_id_user_email_created_at", "org_id", "user_email", "created_at"),
                       Index("ix_callrecord_org_id_created_at", "org_id", "created_at"),
+                      # "This team's newest N" (0054): `/calls` pages by id; local runs are too
+                      # sparse for any org-wide index to find quickly, and page by time.
+                      Index("ix_callrecord_org_id_id", "org_id", "id"),
+                      Index("ix_callrecord_org_local_run", "org_id", "created_at", "id",
+                            postgresql_where=text("kind = 'local_run'"),
+                            sqlite_where=text("kind = 'local_run'")),
                       Index("ix_callrecord_org_key_id", "org_id", "api_key_id", "id",
                             postgresql_where=text("api_key_id IS NOT NULL"),
                             sqlite_where=text("api_key_id IS NOT NULL")),)
@@ -428,6 +434,8 @@ class CallRecord(SQLModel, table=True):
     cached: bool = Field(default=False)
     # Did the provider FIND something? Decided at settle from the response body by the endpoint's
     # routing adapter (`catalog/adapters.yaml` `miss`), never stored as content — only the verdict.
+    # An accepted async submission stays NULL until terminal evidence arrives; the task row
+    # retains that verdict across an audit insert race.
     # NULL = no adapter could tell (or the call failed). Feeds `stats.observed` `hit_rate`, the
     # P(hit) of the router's expected-cost-per-hit ranking.
     hit: bool | None = Field(default=None)
@@ -849,6 +857,9 @@ class AsyncTaskRecord(SQLModel, table=True):
     status: str = Field(default="pending", index=True)
     error: str = Field(default="")
     settled_micro: int | None = Field(default=None)
+    # Final contact verdict. Durable here so a fast poll can finish before the best-effort
+    # CallRecord writer inserts the submission row.
+    hit: bool | None = Field(default=None)
     completed_at: NaiveUTC | None = Field(default=None, index=True)
 
     # Attribution snapshot: never infer ownership from a current membership or lossy audit.
@@ -1234,7 +1245,11 @@ class IdempotentCall(SQLModel, table=True):
     one that says no.
     """
 
-    __table_args__ = (UniqueConstraint("membership_id", "key", name="uq_idem_caller_key"),)
+    __table_args__ = (
+        UniqueConstraint("membership_id", "key", name="uq_idem_caller_key"),
+        # The per-call expired-label sweep in `_claim_idempotent` (Alembic 0053).
+        Index("ix_idempotentcall_membership_id_expires_at", "membership_id", "expires_at"),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     # org_id is kept alongside the caller so the row is still org-scoped for deletion and audit.
@@ -1495,6 +1510,11 @@ class SearchMiss(SQLModel, table=True):
     # api (HTTP /catalog/search: web + CLI) | mcp | claude-connector
     source: str = Field(default="api", index=True)
     created_at: NaiveUTC = Field(default_factory=_now, index=True)
+    # web-find only: why the answer was empty - gap (the catalog lacks it) | not_task | judge_off |
+    # scope (a shelf's find read that shelf only)
+    reason: str | None = Field(default=None)
+    # web-find only: the engine whose answer was served and empty (v1 | v2); a shadow files no miss
+    engine: str | None = Field(default=None)
 
 
 class SearchLog(SQLModel, table=True):
@@ -1525,7 +1545,8 @@ class SearchLog(SQLModel, table=True):
     baseline_ids: list | None = Field(default=None, sa_column=Column("baseline_ids", JSON, nullable=True))
     # [[endpoint_id, probability], ...] — the judge's kept rows, in the order the judged arm shows
     judged: list | None = Field(default=None, sa_column=Column("judged", JSON, nullable=True))
-    # [[endpoint_id, owner], ...] — the page actually served; owner is baseline | judged | both
+    # [[endpoint_id, owner, job], ...] — the page actually served; owner is baseline | judged | both
+    # (| name | hub), job the row's capability so a later call to any vendor of it can be credited
     shown: list | None = Field(default=None, sa_column=Column("shown", JSON, nullable=True))
     baseline_total: int = 0                                  # lexical matches before the page cut
     differs: bool = False                                    # the two pages are not the same set+order
@@ -1533,6 +1554,20 @@ class SearchLog(SQLModel, table=True):
     judge_tokens_in: int | None = Field(default=None)
     judge_tokens_out: int | None = Field(default=None)
     judge_error: str | None = Field(default=None)            # timeout | http_<status> | <exception>; None = answered
+    # web-find only (application.catalog_find): which engine answered (v1 | v2; shadow writes one
+    # row for each), and v2's own readings - the judge's platform pick and name probability, the
+    # recall's time, and every unit it read as [kind, id, probability]
+    engine: str | None = Field(default=None)
+    platform_choice: str | None = Field(default=None)
+    platform_conf: float | None = Field(default=None)
+    name_p: float | None = Field(default=None)
+    recall_ms: int | None = Field(default=None)
+    embed_ms: int | None = Field(default=None)
+    embed_error: str | None = Field(default=None)
+    units: list | None = Field(default=None, sa_column=Column("units", JSON, nullable=True))
+    # the verdict a v2 answer ended on, the reason after a colon where there is one
+    # (strong | closest | name | none:gap | keyword | keyword:not_task ...); None for v1
+    verdict: str | None = Field(default=None)
 
 
 class CapacityPolicy(SQLModel, table=True):

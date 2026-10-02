@@ -13,7 +13,6 @@ sources:
   - src/treg/routers/auth.py
   - src/treg/web/claude-connector.html
   - src/treg/web/connect-demo.html
-  - docs/CLAUDE-CONNECTOR-SUBMISSION.md
   - tests/test_mcp.py
   - tests/test_mcp_oauth.py
   - tests/test_mcp_directory.py
@@ -24,6 +23,10 @@ related:
   - architecture/money.md
   - interface/api.md
 ---
+
+The same authorization server also serves one non-MCP client, "treg for Sheets" (`treg-sheets`):
+its own resource (`<public_url>/table`) and scope, a grant that belongs to the person rather than one
+team, and a token accepted only on the table routes. See [table](table.md).
 
 # MCP
 
@@ -135,7 +138,7 @@ same-named team tool. A change is incomplete if only one relevant MCP test file 
 
 | Tool | Job |
 |---|---|
-| `catalog_search` | find endpoints by what you want to DO, with prices |
+| `catalog_search` | find endpoints by what you want to DO, with prices; in the experiment's `v2` mode a verdict and the jobs on the page ([search-experiment](search-experiment.md)) |
 | `catalog_get` | one endpoint in full: params, cost, reliability, sibling providers |
 | `call` | a catalog endpoint by id, or `<tool-name>/<path>` for the team's own tool |
 | `call_media` | the same `/call/` path for audio endpoints, returned as native `AudioContent` plus structured call/cost metadata |
@@ -157,7 +160,7 @@ that isn't a catalog id or `<tool>/<path>`, POSTing the inputs as its JSON body.
 registers these tools (they are absent from `directory_mcp`), so the V2 tool count above is
 unaffected. See [the tool hub](hub.md) for the runtime.
 
-Deliberately not one tool per provider. A catalog of 2,600 endpoints exposed as 2,600 MCP tools would
+Deliberately not one tool per provider. A catalog of thousands of endpoints exposed as thousands of MCP tools would
 bury the client's tool list and force a re-connect every time the catalog grew. `catalog_search`
 plus `call` covers all of it and stays the same size.
 

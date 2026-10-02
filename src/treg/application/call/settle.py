@@ -6,6 +6,8 @@ import asyncio
 import json
 import logging
 import math
+import tempfile
+import weakref
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -204,6 +206,17 @@ def _icypeas_bulk_found_count(endpoint_id: str, doc: object) -> int | None:
     return sum(1 for item in data if isinstance(item, dict) and item.get("status") == "FOUND")
 
 
+def _icypeas_search_row_count(endpoint_id: str, doc: object) -> int | None:
+    """Rows in an Icypeas lead-database search page (0.02 credit each), while the reserve is the
+    requested `pagination.size`: an empty page, or `success: false`, bills nothing."""
+    if endpoint_id not in ("icypeas.people.search", "icypeas.companies.search") or not isinstance(doc, dict):
+        return None
+    if doc.get("success") is False:
+        return 0
+    leads = doc.get("leads")
+    return len(leads) if isinstance(leads, list) else None
+
+
 def _serpstat_result_count(doc: object) -> int | None:
     """Credits a Serpstat JSON-RPC answer bills, in rows. HTTP 200 carries both outcomes: an `error`
     envelope (bad token, exhausted limit, "Data not found") bills nothing; a `result` bills per row
@@ -280,9 +293,19 @@ def _tavily_cost_micro(mk: MarketplaceCall, doc: object) -> int | None:
     return min(count, _tavily_requested_result_limit(mk)) * mk.unit_micro
 
 
+def _quickenrich_present(value) -> bool:
+    return isinstance(value, str) and value.strip().lower() not in ("", "n/a", "null", "none")
+
+
 def _quickenrich_cost_micro(mk: MarketplaceCall, doc: dict) -> int | None:
     """Subscription credits at the frozen list rate, independent of the upstream plan fee."""
     if mk.cost_type == "free":
+        return 0
+    data = doc.get("data")
+    if (mk.endpoint_id == "quickenrich.people.email.find" and isinstance(data, dict)
+            and not _quickenrich_present(data.get("email"))):
+        # QuickEnrich takes its credit for a phone-only answer too (meta.credits_used=1), but this
+        # is the pay-per-success EMAIL finder and the adapter calls that a miss: treg absorbs it.
         return 0
     meta = doc.get("meta")
     if isinstance(meta, dict) and "credits_used" in meta:
@@ -295,25 +318,21 @@ def _quickenrich_cost_micro(mk: MarketplaceCall, doc: dict) -> int | None:
     if data is None or data == [] or data == {}:
         return 0
 
-    def present(value):
-        return isinstance(value, str) and value.strip().lower() not in ("", "n/a", "null", "none")
-
     if mk.endpoint_id == "quickenrich.people.search.domain" and isinstance(data, list):
         if not all(isinstance(row, dict) for row in data):
             return None
         title = (mk.request_data.get("queryParams") or {}).get("title", "")
-        credits = (sum(present(row.get("email")) or present(row.get("employee_phone")) for row in data)
+        credits = (sum(_quickenrich_present(row.get("email")) or _quickenrich_present(row.get("employee_phone"))
+                       for row in data)
                    if title else 1)
         return credits * mk.unit_micro
     if mk.endpoint_id == "quickenrich.companies.search" and isinstance(data, list):
         return len(data) * mk.unit_micro if all(isinstance(row, dict) for row in data) else None
     if isinstance(data, dict):
         if mk.endpoint_id == "quickenrich.people.email.find":
-            if "email" not in data and "employee_phone" not in data:
-                return None
-            return int(present(data.get("email")) or present(data.get("employee_phone"))) * mk.unit_micro
+            return mk.unit_micro  # an email is present: the miss returned 0 above
         if mk.endpoint_id == "quickenrich.people.phone.find" and "employee_phone" in data:
-            return int(present(data["employee_phone"])) * mk.unit_micro
+            return int(_quickenrich_present(data["employee_phone"])) * mk.unit_micro
         if mk.endpoint_id == "quickenrich.people.enrich":
             return mk.unit_micro
     return None
@@ -424,7 +443,7 @@ def _observed_cost_micro(mk: MarketplaceCall, body: bytes, headers=None) -> int 
         `chargeInfo`, which is what keeps a 400/404 on a `per_call` profile fetch unbilled.
       - apify: DERIVED by counting the dataset rows a run-sync call returns, plus the row's flat
         `call_fee` for the actor start or compute the run bills regardless of rows.
-      - companyenrich / icypeas bulk / serpstat / thecompaniesapi search / findymail employees:
+      - companyenrich / icypeas bulk and search / serpstat / thecompaniesapi search / findymail employees:
         DERIVED by counting the rows the vendor bills for, priced at the row's credits and capped
         at the hold (`_rows_billed_micro`): an empty answer never costs the requested page.
     Everyone else settles at the estimate. This is the same signal the catalog's `observed_cost`
@@ -464,6 +483,18 @@ def _observed_cost_micro(mk: MarketplaceCall, body: bytes, headers=None) -> int 
         doc = json.loads(body)
     except (ValueError, UnicodeDecodeError):
         return 0 if provider == "contactout" else None
+    if (provider == "valyu" and mk.endpoint_id.endswith(".search")
+            and isinstance(doc, dict)
+            and ("results" not in doc or doc["results"] == [])
+            and doc.get("total_deduction_dollars") is None):
+        # Search can answer 206 with no results and a null deduction (observed live).
+        # An omitted results key is also no evidence of a billable retrieval.
+        # A usage basis would otherwise settle at the reserved result count.
+        return 0
+    if provider == "you" and mk.endpoint_id == "you.web.contents" and mk.cost_type == "per_result":
+        # Contents returns one object per fetched page as a bare array. The request's URL count
+        # bounds the hold; count only pages the provider actually returned.
+        return _rows_billed_micro(mk, ep, len(doc) if isinstance(doc, list) else None)
     if provider == "apify" and mk.cost_type == "per_result" and mk.unit_micro > 0:
         # DERIVED: run-sync-get-dataset-items answers the bare dataset array, one billed event per
         # row, and the run's start or compute charge is the catalog's flat `call_fee`. Apify's own
@@ -484,6 +515,18 @@ def _observed_cost_micro(mk: MarketplaceCall, body: bytes, headers=None) -> int 
         # Extract, Map and Crawl intentionally ignore account-grouped usage.credits. Their unit
         # was frozen from the caller's request mode and only this response's valid results count.
         return _tavily_cost_micro(mk, doc)
+    if provider == "octen":
+        from . import octen
+        rates = mk.settlement_basis.get("octen_rates_micro")
+        if not isinstance(rates, dict):
+            return None
+        return octen.observed_micro(
+            mk.endpoint_id, rates, mk.request_data, doc, mk.estimate_micro)
+    if provider == "enrichlayer" and mk.settlement_basis.get("enrichlayer_rule"):
+        from . import enrichlayer
+        return enrichlayer.observed_micro(
+            mk.settlement_basis["enrichlayer_rule"],
+            mk.settlement_basis["enrichlayer_unit_micro"], doc, mk.estimate_micro)
     if provider == "aviato" and mk.endpoint_id == "aviato.people.enrich.bulk":
         if isinstance(doc, list) and mk.unit_micro > 0:
             return sum(item is not None for item in doc) * mk.unit_micro
@@ -495,6 +538,9 @@ def _observed_cost_micro(mk: MarketplaceCall, body: bytes, headers=None) -> int 
         # The scrape row carries the dearer profile rate; a company batch is 0.5 credit a hit.
         company = mk.endpoint_id == "icypeas.scrape.bulk" and isinstance(body, dict) \
             and body.get("type") == "company"
+        search_rows = _icypeas_search_row_count(mk.endpoint_id, doc)
+        if search_rows is not None:
+            return _rows_billed_micro(mk, ep, search_rows)
         return _rows_billed_micro(mk, ep, _icypeas_bulk_found_count(mk.endpoint_id, doc),
                                   Decimal("0.5") if company else None)
     if provider == "serpstat" and mk.cost_type == "per_result" and mk.unit_micro > 0:
@@ -518,6 +564,10 @@ def _observed_cost_micro(mk: MarketplaceCall, body: bytes, headers=None) -> int 
         return None
     if not isinstance(doc, dict):
         return 0 if provider == "contactout" else None
+    if mk.endpoint_id == "litescrape.google.serp.ai_overview" and doc.get("ai_overview") is None:
+        metadata = doc.get("search_metadata")
+        if isinstance(metadata, dict) and metadata.get("ai_overview_state") == "not_served":
+            return 0
     reported = (ep.get("cost") or {}).get("reported_charge") if ep else None
     if reported:
         amount = _dig(doc, reported["path"])
@@ -758,6 +808,24 @@ def _dig(doc, dotted: str):
     return json_path(doc, dotted)
 
 
+def _buffer_limit(message: str) -> GatewayFailed:
+    """The uncharged refusal for evidence treg will not hold: raised before any header is sent."""
+    return GatewayFailed("response_buffer_limit", status_code=502, detail={
+        "error": "response_buffer_limit",
+        "message": f"{message}; no response was delivered and this call was not charged"})
+
+
+def _with_length(raw_headers, size: int) -> tuple[tuple[bytes, bytes], ...]:
+    """The upstream's headers verbatim (the relay already dropped hop-by-hop + our own), with a
+    content-length that matches what we are actually about to send."""
+    return tuple([(k, v) for k, v in raw_headers if k.lower() != b"content-length"]
+                 + [(b"content-length", str(size).encode())])
+
+
+def _as_bytes(chunk) -> bytes:
+    return chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8", "replace")
+
+
 async def _buffer_response(response: UpstreamResponse) -> tuple[UpstreamResponse, bytes]:
     """Read complete settlement evidence before sending headers; never return a prefix.
 
@@ -767,14 +835,10 @@ async def _buffer_response(response: UpstreamResponse) -> tuple[UpstreamResponse
     chunks, size = [], 0
     try:
         async for chunk in response.body_stream:
-            raw = chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8", "replace")
+            raw = _as_bytes(chunk)
             size += len(raw)
             if size > _PLATFORM_BODY_MAX:
-                raise GatewayFailed(
-                    "response_buffer_limit", status_code=502,
-                    detail={"error": "response_buffer_limit",
-                            "message": "upstream response exceeds treg's 8 MiB settlement buffer; "
-                                       "no response was delivered and this call was not charged"})
+                raise _buffer_limit("upstream response exceeds treg's 8 MiB settlement buffer")
             chunks.append(raw)
         body = b"".join(chunks)
     finally:
@@ -786,14 +850,161 @@ async def _buffer_response(response: UpstreamResponse) -> tuple[UpstreamResponse
     async def closed() -> None:
         return None
 
-    # Carry the upstream's headers verbatim (the relay already dropped hop-by-hop + our own), with a
-    # content-length that matches what we are actually about to send.
-    raw_headers = tuple(
-        [(k, v) for k, v in response.raw_headers if k.lower() != b"content-length"]
-        + [(b"content-length", str(len(body)).encode())]
-    )
-    out = UpstreamResponse(response.status, raw_headers, buffered_body(), closed)
+    out = UpstreamResponse(response.status, _with_length(response.raw_headers, len(body)),
+                           buffered_body(), closed)
     return out, body
+
+
+_SPOOL_CHUNK = 256 * 1024
+_spool_in_use = 0  # bytes held by this process's live spools, against `spool_budget_bytes`
+_spool_gate: asyncio.Semaphore | None = None
+_spool_gate_loop: asyncio.AbstractEventLoop | None = None
+
+
+def _spool_parse_gate() -> asyncio.Semaphore:
+    """`spool_parse_concurrency` parses per process, on the CURRENT loop (recreated if the loop
+    changed, like `audit._get_sem`)."""
+    global _spool_gate, _spool_gate_loop
+    loop = asyncio.get_running_loop()
+    if _spool_gate is None or _spool_gate_loop is not loop:
+        _spool_gate = asyncio.Semaphore(get_settings().spool_parse_concurrency)
+        _spool_gate_loop = loop
+    return _spool_gate
+
+
+def _release_spool(file, claimed: int) -> None:
+    global _spool_in_use
+    _spool_in_use -= claimed
+    if file is not None:
+        file.close()
+
+
+def _project(document, paths: tuple[str, ...]) -> dict:
+    """A document holding only the values at `paths`, each at its original place: `usageMetadata`
+    keeps that whole object, `candidates.0.finishReason` keeps one leaf inside a one-item list.
+    A path the document does not carry is simply absent, as it was in the original."""
+    projection: dict = {}
+    for path in paths:
+        value = json_path(document, path)
+        if value is None:
+            continue
+        parts = path.split(".")
+        node: dict | list = projection
+        for depth, part in enumerate(parts):
+            key: int | str = int(part) if isinstance(node, list) else part
+            if isinstance(node, list):
+                node.extend({} for _ in range(key + 1 - len(node)))
+            if depth == len(parts) - 1:
+                node[key] = value
+                break
+            want = list if parts[depth + 1].isdigit() else dict
+            current = node[key] if isinstance(node, list) else node.get(key)
+            if not isinstance(current, want):
+                node[key] = want()
+            node = node[key]
+    return projection
+
+
+def _spool_evidence(file, paths: tuple[str, ...]) -> bytes:
+    """The values at `paths` in a spooled JSON object, re-serialized in place; b"" when the body
+    is not a JSON object. Parsing the whole document is deliberate: a correct parser must scan every
+    byte anyway, and the stdlib one does it at C speed (a 23 MB answer in ~30 ms). Peak memory is
+    about three times the body (bytes, decoded text, parsed strings), bounded by `spool_max_bytes`
+    and `spool_parse_concurrency`."""
+    file.seek(0)
+    try:
+        document = json.load(file)
+    except (ValueError, RecursionError):
+        return b""
+    if not isinstance(document, dict):
+        return b""
+    return json.dumps(_project(document, paths)).encode()
+
+
+async def _spool_response(
+    response: UpstreamResponse, keys: tuple[str, ...],
+) -> tuple[UpstreamResponse, bytes, int]:
+    """Read a large metered 2xx to disk, settle from its evidence keys, relay it verbatim.
+
+    The `_buffer_response` contract - complete evidence before headers, never a prefix, an
+    oversized body fails uncharged - with the body in an anonymous temp file instead of RAM, so a
+    provider that inlines media in its JSON (Gemini's base64 images) can be metered. Returns the
+    replay response, the evidence (a small JSON object of `keys`, b"" when the body is not a JSON
+    object) and the body's size. The file is unlinked from creation, so a crash leaks nothing on
+    disk; the replay's close (or its garbage collection) closes it and returns its budget, once."""
+    global _spool_in_use
+    settings = get_settings()
+    file = None
+    size = claimed = 0
+
+    def claim(total: int) -> None:
+        """Hold budget for `total` bytes of this body; refuse (uncharged) when the process has no
+        room. Admission is all at once when the provider declares a length, so concurrent large
+        answers are admitted or refused whole instead of all stalling half-read."""
+        nonlocal claimed
+        global _spool_in_use
+        if total > settings.spool_max_bytes:
+            raise _buffer_limit(
+                f"upstream response exceeds treg's {settings.spool_max_bytes // (1024 * 1024)} "
+                "MiB settlement limit")
+        if total > claimed:
+            if _spool_in_use + total - claimed > settings.spool_budget_bytes:
+                raise _buffer_limit("treg is settling too many large responses right now; this "
+                                    "is temporary, retry shortly")
+            _spool_in_use += total - claimed
+            claimed = total
+
+    try:
+        try:
+            declared = next((v for k, v in response.raw_headers
+                             if k.lower() == b"content-length"), b"")
+            if declared.isdigit():
+                claim(int(declared))
+            file = tempfile.TemporaryFile(dir=settings.spool_dir or None)
+            pending = bytearray()
+            async for chunk in response.body_stream:
+                raw = _as_bytes(chunk)
+                claim(size + len(raw))
+                size += len(raw)
+                pending += raw
+                if len(pending) >= _SPOOL_CHUNK:
+                    await asyncio.to_thread(file.write, pending)
+                    pending.clear()
+            if pending:
+                await asyncio.to_thread(file.write, pending)
+        finally:
+            await response.close()
+        async with _spool_parse_gate():
+            evidence = await asyncio.to_thread(_spool_evidence, file, keys)
+    except BaseException:
+        _release_spool(file, claimed)
+        raise
+
+    async def replay():
+        file.seek(0)
+        while chunk := await asyncio.to_thread(file.read, _SPOOL_CHUNK):
+            yield chunk
+
+    async def close() -> None:
+        release()
+
+    out = UpstreamResponse(response.status, _with_length(response.raw_headers, size), replay(), close)
+    release = weakref.finalize(out, _release_spool, file, claimed)
+    return out, evidence, size
+
+
+async def _read_evidence(
+    mk: MarketplaceCall, response: UpstreamResponse,
+) -> tuple[UpstreamResponse, bytes, int | None]:
+    """Complete settlement evidence for a metered or owned-poll answer: the whole body in memory,
+    or, for a metered 2xx on an endpoint declaring `spooled_response`, the body on disk and the
+    keys its usage settlement reads. The third value is the spooled size, None when the body is in memory.
+    A routed child always reads into memory: its parent builds the answer from the child's body."""
+    if (mk.spooled_evidence and mk.metered and mk.deferred is None
+            and 200 <= response.status < 300):
+        return await _spool_response(response, mk.spooled_evidence)
+    response, body = await _buffer_response(response)
+    return response, body, None
 
 
 async def _peek_stream_head(response: UpstreamResponse, limit: int) -> tuple[UpstreamResponse, bytes]:
@@ -897,8 +1108,9 @@ async def _platform_settle(
     if not mk.metered or not mk.call_id:
         return 0, None
     billable = status_code is not None and _platform_billable(status_code, mk.cost_type)
-    if billable and status_code >= 400 and mk.tier == "platform":
-        # A 4xx the status set calls the caller's fault may still be OUR account running dry in a
+    if billable and mk.tier == "platform":
+        # A 4xx the status set calls the caller's fault, or even a 2xx (Icypeas' 200 "insufficient
+        # credits"), may still be OUR account running dry in a
         # vendor's own dialect (Apollo's 422 "Insufficient credits"). Ask the signature table before
         # charging: billing it would take the caller's money for treg's empty account, and once
         # overflow serves the same request through an aggregator they would pay twice. (The
@@ -1055,7 +1267,7 @@ async def close_deferred(items: list[DeferredSettle], *, charge: bool, why: str 
 
 
 async def _finish_cancelled_call(
-    claim: tuple[int, str] | None,
+    claim: tuple[int, str, str] | None,
     mk: MarketplaceCall | None,
     call_ref: str,
     response: UpstreamResponse | None = None,
@@ -1116,7 +1328,7 @@ async def _note_capacity_signal(mk: MarketplaceCall, status_code: int, headers, 
     Burst/unknown 429s only log (D′ smooths them). Runs after the settle, on its own short session,
     and never raises. Platform tier only: an org's own key running dry is the org's business, and an
     oauth-billed connect has no shared account to mark. Returns the signal kind for the audit funnel."""
-    if mk.tier != "platform" or status_code < 400:
+    if mk.tier != "platform":
         return None
     signal = None
     try:
@@ -1181,7 +1393,7 @@ async def _note_capacity_recovery(mk: MarketplaceCall) -> None:
 
 async def _record_first_call(org_id: int) -> None:
     """Set Org.first_call_at once — the metric that decides whether a marketing channel is real (see
-    marketing/landing/_measurement.md). A CONDITIONAL UPDATE, not read-then-write: concurrent first
+    docs/context/architecture/ads-conversions.md). A CONDITIONAL UPDATE, not read-then-write: concurrent first
     calls would both see NULL and both fire. Set for EVERY org (it is a product metric in its own
     right); adsconv.queue() itself no-ops for orgs with no ad_gclid, so the conversion side stays
     ad-attributed-only.

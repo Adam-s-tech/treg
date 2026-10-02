@@ -38,14 +38,18 @@ EXPECTED_MAKERS: dict[str, set[str]] = {
     "application/provider_resources.py": {API},
     # Interactive paid runs: short transactions between legs, never across upstream waits.
     "application/arena.py": {API},
+    # `/table/`: one short read of a hub tool's manifest, after the call's answer is fully read.
+    "application/table.py": {API},
     # Snapshot read on the request path; the collector runs in the `treg-worker` process (see
     # `worker.py` below), where the API pool is the only one in use.
     "application/arena_insights.py": {API},
     "application/arena_verification_insights.py": {API},  # explicit aggregate publication, no worker
 
-    "application/feedback.py": {API},  # synchronous intake; admin reads use get_admin_session
+    # Synchronous intake, and the catalog's five-minute verdict fold; admin reads use get_admin_session.
+    "application/feedback.py": {API},
     "application/media.py": {API},  # `treg host`: one short write, one short read, no upstream wait
     "application/catalog_find.py": {API},  # one rate-limit write, committed before the judge call
+    "application/catalog_search.py": {API},  # the hub read and the per-caller judge cap, each closed before the judge
 
     "application/referrals.py": {API}, "application/signup.py": {API},
     "application/onboard/__init__.py": {API},

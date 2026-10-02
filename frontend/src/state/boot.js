@@ -1,3 +1,4 @@
+import { storageGet, storageSet, storageRemove } from './storage.js'
 export default async function boot(){
     const lifecycle = new AbortController();
     let versionTimer;
@@ -10,7 +11,7 @@ export default async function boot(){
       if(e.key==='Escape'){ const orgWasOpen=this.orgMenu; this.closeOverlays(); if(orgWasOpen) this.elements.orgmain?.focus(); if(this.startAgentOpen){ this.startAgentOpen=false; this.elements.startAgentTrigger?.focus(); } else if(this.elements.accountMenu?.open){ this.elements.accountMenu.open=false; this.elements.accountMenu.querySelector('summary').focus(); } return; }
       // "/" focuses the search box (the "/" glyph in the box advertised a shortcut that didn't exist)
       const t=e.target, typing = t && (t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable);
-      if(e.key==='/' && !typing && this.authed && (this.view==='tools'||this.view==='resources'||this.view==='connections')){ e.preventDefault(); this.elements.search && this.elements.search.focus(); }
+      if(e.key==='/' && !typing && this.authed && (this.view==='tools'||this.view==='resources'||this.view==='catalog')){ e.preventDefault(); this.elements.search && this.elements.search.focus(); }
     });
     listen(document, 'click', e=>{  // the org dropdown didn't close on an outside click
       if(this.elements.accountMenu && !e.target.closest('.rd-account-menu')) this.elements.accountMenu.open=false;
@@ -29,14 +30,18 @@ export default async function boot(){
       if(d){ this.openDetail(d.kind, d.name, true); return; }
       const rid=(e.state&&e.state.run)||this.runFromPath(location.pathname);
       if(rid){ this.openRun(rid, true); return; }
+      // The first entry of a page opened at a public catalog URL (/catalog, /catalog/<slug>) carries no
+      // state and no hash: resolve it from the path, as the first load did, not as the tools view.
+      const cr=!(e.state&&e.state.view) && !location.hash && this.catalogFromPath(location.pathname);
+      if(cr){ this.openCatalogRoute(cr); return; }
       let v=(e.state&&e.state.view)||(location.hash||'').replace('#','')||'tools';
       if(v==='billing'){ this.orgTab='billing'; v='orgs'; }
-      if(['tools','orgs','activity','usage','admin','help','secrets','start','resources','connections','referrals','hub'].includes(v)) this.go(v, true);
+      if(['tools','orgs','activity','usage','admin','help','secrets','start','resources','catalog','connections','referrals','hub'].includes(v)) this.go(v, true);
     });
     // Catalog data does not depend on the session, so a view that shows it starts fetching now,
     // alongside /meta and /auth/me, instead of after them (the shelves used to arrive last).
     const catalogShelf=this.catalogFromPath(location.pathname)?.slug || this.platformFromHash();
-    if(this.catalogFromPath(location.pathname) || catalogShelf || location.hash==='#connections') this.loadPlatforms();
+    if(this.catalogFromPath(location.pathname) || catalogShelf || location.hash==='#catalog') this.loadPlatforms();
     if(catalogShelf) this.prefetchPlatform(catalogShelf);
     // /search needs no session to draw, so it does not wait for one: the page paints now, and the
     // session (the top bar's buttons, a result clicked before sign-in) follows when /auth/me answers.
@@ -60,7 +65,7 @@ export default async function boot(){
     const qs = new URLSearchParams(location.search);
     const linkOrg = qs.get('invite_org'), inv = qs.get('invite'), ref = qs.get('ref'), oauthSignin = qs.get('signin')==='oauth';
     this.oauthSignin=oauthSignin;
-    if(ref){ try{ localStorage.setItem('treg-ref', ref); }catch(e){} }  // survives the sign-in reload so the welcome can preselect the agent the landing was about (see maybeOnboard)
+    if(ref) storageSet('treg-ref', ref);  // survives the sign-in reload so the welcome can preselect the agent the landing was about (see maybeOnboard)
     if(linkOrg || inv || qs.get('invite_expired') || ref || oauthSignin){ history.replaceState(null,'',location.pathname+location.hash); }  // strip one-shot params so reload/share doesn't replay them
     if(linkOrg){ this.inviteLinkOrg=parseInt(linkOrg,10)||null; }
     // A shared detail deep link (/app/skills/<x>, /app/tools/<x>) — from the URL itself, or stashed
@@ -73,8 +78,8 @@ export default async function boot(){
     // fallback (see `_spa_catalog_page`) now that the real UI is about to take over.
     const catRoute=this.catalogFromPath(location.pathname);
     if(catRoute){ this.publicCatalog=true; document.getElementById('prerender')?.remove(); }
-    const stashed=localStorage.getItem('treg-next');
-    if(stashed){ localStorage.removeItem('treg-next');
+    const stashed=storageGet('treg-next');
+    if(stashed){ storageRemove('treg-next');
       if(!route && !mkRoute){
         route=this.routeFromPath(stashed); mkRoute=this.mkFromPath(stashed);
         if(route||mkRoute) history.replaceState(null,'',stashed);
@@ -131,7 +136,7 @@ export default async function boot(){
       // Platform tab (the provider shelf) fills for a signed-out visitor too — only /connections
       // needs a session, and its failure is caught. Without this the tab reads "Platform 0" and
       // renders blank in an incognito window.
-      if(catRoute.view==='find'){ this.view='find'; this.loadPlatforms(); } else if(catRoute.slug) this.openPlatform(catRoute.slug, true); else { this.view='connections'; this.loadConnections(); }
+      if(catRoute.view==='find'){ this.view='find'; this.loadPlatforms(); } else if(catRoute.slug) this.openPlatform(catRoute.slug, true); else { this.view='catalog'; this.loadConnections(); }
       return; }
     if(!inv && !linkOrg && !route && !qs.get('invite_expired') && !ref && !oauthSignin){ location.replace('/'); return; }  // logged-out plain visit → the marketing landing owns the front door. `ref` is a use-case page's CTA (/app?ref=p1), so keep that attribution while opening sign-in in place.
     if(route){ this.shareGate=route; this.demo.signin=true; }  // shared link while logged out: the focused gate (no sandbox mint, no tour); after sign-in the boot lands on it (email verify reloads in place; OAuth restores via the treg-next stash)

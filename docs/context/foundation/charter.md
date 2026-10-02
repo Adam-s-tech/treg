@@ -19,7 +19,7 @@ handing the credential around. That shipped, and it still works exactly as writt
 "share what we already have", and the product now leads with a different question: **"get what you
 don't have."**
 
-treg carries ~2,600 catalogued endpoints across ~40 providers (SEO, backlinks, social, enrichment,
+treg carries a curated catalog of endpoints from many providers (SEO, backlinks, social, enrichment,
 ads, scraping) and serves eligible ones **on its own key**, metered per call from a prepaid balance.
 The pitch is *"OpenRouter, but for agent tools instead of models"* and *"ask for the task, not the
 tool"* — because the tools an agent needs sit behind subscriptions nobody buys for one run.

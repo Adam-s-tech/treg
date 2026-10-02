@@ -96,7 +96,7 @@ endpoints:
   scope: any_account
   method: POST
   path: /job/verify_email
-  name: Verify an email address
+  name: Verify B2B email — catch-all result
   summary: Verify an existing B2B email address, including catch-all domains
   input:
     body:

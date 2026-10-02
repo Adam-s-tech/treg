@@ -156,6 +156,16 @@ class Settings(BaseSettings):
     # (a 30s ceiling 502'd one live), and merchant routes have been observed at 9s→105s.
     call_timeout_s: int = 180
     hold_grace_s: int = 60
+    # Spooled settlement evidence (application/call/settle.py `_spool_response`): a catalog
+    # endpoint declaring `spooled_response` writes its metered 2xx body to an anonymous temp file
+    # instead of RAM, reads the top-level keys its usage settles from, settles, then relays the file.
+    # Per-body cap, per-process budget across concurrent spools (over it a call fails uncharged,
+    # like the 8 MiB buffer), and how many bodies one process parses for evidence at once.
+    # `spool_dir` empty = the system temp dir; the files are unlinked from birth.
+    spool_dir: str = ""
+    spool_max_bytes: int = Field(default=64 * 1024 * 1024, ge=1)
+    spool_budget_bytes: int = Field(default=512 * 1024 * 1024, ge=1)
+    spool_parse_concurrency: int = Field(default=2, ge=1, le=16)
 
     # ---- referral program (referrals.py) --------------------------------------------------------
     # Flat bounties, not a percentage of top-ups. At 0% platform margin a percentage would be a
@@ -253,12 +263,22 @@ class Settings(BaseSettings):
     platform_key_influencersclub: str = ""  # Bearer key (dashboard JWT); creator discovery + enrichment, fx.yaml $0.598/credit (our $299/500 plan)
     platform_key_crustdata: str = ""  # Bearer key; every call also needs the pinned x-api-version header
     platform_key_aviato: str = ""     # Bearer key; $10 auto-top-up buys 1,000 credits
+    platform_key_enrichlayer: str = ""  # Bearer; pay-as-you-go credits
     platform_key_exa: str = ""        # x-api-key; dollar-metered ($7/1k searches, $1/1k pages); settles from costDollars.total
     platform_key_tavily: str = ""     # Bearer; Search reports per-call usage, other tools settle returned successes
+    platform_key_search1api: str = ""  # Bearer; prepaid credits, free GET /usage balance check
+    platform_key_octen: str = ""      # x-api-key; PAYG search and extraction usage settles per response
+    platform_key_linkup: str = ""     # Bearer; prepaid USD balance, request-priced Search/Fetch/Research
+    platform_key_you: str = ""        # X-API-Key; prepaid USD balance across You.com web APIs
+    platform_key_valyu: str = ""      # X-API-Key; subscription credits shared across Valyu APIs
     platform_key_serper: str = ""     # X-API-KEY; prepaid Google search credits, exact charge in response.credits
+    platform_key_litescrape: str = ""  # Bearer; prepaid calls, free key status endpoint
     platform_key_keenable: str = ""   # X-API-Key; $4/1,000-request package, 10 requests/s per organization
     platform_key_olostep: str = ""    # Bearer; prepaid credits, platform price $0.002/credit
+    platform_key_firecrawl: str = ""  # Bearer; Standard plan credits, priced at the public base-plan rate
     platform_key_scrapegraphai: str = ""  # SGAI-APIKEY; credit balance and bounded v2 web tools
+    platform_key_spidercloud: str = ""   # Bearer; PAYG USD balance, only priced routes may use shared key
+    platform_key_perplexity: str = ""    # Bearer; prepaid USD credits, no documented balance API
     platform_key_cloro: str = ""      # Bearer key (sk_live_…); Hobby metered rate $0.0004/credit; settles from X-Credits-Charged
     platform_key_minimax: str = ""    # Bearer key for MiniMax voice, image and video generation
     platform_key_fishaudio: str = ""  # Bearer key for Fish Audio speech and private voices
@@ -274,6 +294,7 @@ class Settings(BaseSettings):
     platform_key_openrouter: str = ""  # Bearer key for asynchronous routed generation
     platform_key_replicate: str = ""  # Bearer token for official asynchronous models
     platform_key_reapi: str = ""      # Bearer key; prepaid credits at $0.001, Seedance 2.5 + image models
+    platform_key_google_ai: str = ""  # x-goog-api-key; token-billed Gemini API project (image output $120/M tokens)
     platform_key_piapi: str = ""      # X-API-Key; prepaid USD balance, Seedance 2.5 less-restriction + image models
     platform_key_tinyfish: str = ""   # X-API-Key; free Search/Fetch plus Agent billed per terminal step
     # Overflow aggregators (docs/PROVIDER-CAPACITY-PLAN.md §4.3): treg-owned accounts that serve the
@@ -304,10 +325,17 @@ class Settings(BaseSettings):
     # behaviour — did the caller go on to `call` something from the page. `off` (default) leaves
     # search exactly as it is. `shadow` computes and logs both pages, serves the baseline.
     # `interleave` serves a team-draft merge of both pages to most callers and a pure page to two
-    # holdouts. Any value here is also the kill switch: a bad judge is one env change from off.
+    # holdouts. `v2` serves the job-first answer (application.catalog_find, the engine behind
+    # /catalog/find) to most callers and the same two pure holdouts. Any value here is also the
+    # kill switch: a bad judge is one env change from off.
     search_experiment: str = "off"
-    # Per-caller share (each) of the two pure arms in `interleave` mode; the rest is interleaved.
+    # Per-caller share (each) of the two pure arms in `interleave` and `v2` mode; the rest is
+    # interleaved, or served v2.
     search_experiment_holdout_percent: int = 10
+    # Judged searches one caller gets per hour in `v2` mode; past it the hour's searches answer
+    # from the shipped ranker. A search is not metered, so this is the only bound on what an
+    # agent in a loop can spend on the judge.
+    search_judge_max_per_caller_hour: int = 300
     # Stirs the caller→arm hash, so a rerun of the experiment re-deals the arms.
     search_experiment_salt: str = ""
     # Rows the judge sees per query (widened recall), and the probability cut that keeps a row on
@@ -330,6 +358,28 @@ class Settings(BaseSettings):
     # the wait, so the timeout is looser than an agent's search. Rate limits bound anonymous use.
     find_candidates: int = 60
     find_timeout_s: float = 6.0
+    # Which find answers: `v1` (endpoint recall, above), `v2` (recall by job: a unit per capability,
+    # every vendor listed once the job fits; docs/context/architecture/find.md), or `shadow` (v1 is
+    # served, v2 runs beside it and is only logged). One setting is the rollout and the rollback.
+    find_engine: str = "v1"
+    # v2's seats for the judge: jobs, representatives (a member whose own words fit better than its
+    # job's card), uncatalogued endpoints, and the jobs reserved for a platform the query names.
+    find_jobs: int = 25
+    find_delta: int = 10
+    find_raw: int = 10
+    find_platform_seats: int = 8
+    # The judge's confidence that no platform covers the task at or above which v2 caps the verdict
+    # at closest, and calls it a catalog gap when nothing fits well.
+    find_gap_min: float = 0.5
+    # v2's semantic channel: card and query vectors from an OpenAI-compatible /embeddings API
+    # (infra/embed.py). Empty key = the channel is off; with the default OpenRouter URL an empty key
+    # falls back to treg's own OpenRouter key (`platform_key_openrouter`). Card vectors are computed
+    # when a catalog is first used and cached in the archive's object store by card hash under the
+    # model's name (application/find_index.py), so a new model recomputes and never mixes.
+    find_embed_api_key: str = Field(default="", repr=False)
+    find_embed_model: str = "voyageai/voyage-4-lite"
+    find_embed_url: str = "https://openrouter.ai/api/v1/embeddings"
+    find_embed_timeout_s: float = 0.8
     # The judge's probability that a find query is only a name ("google", "semrush") at or above
     # which, with no strong fit, the answer is what that platform or provider offers.
     find_name_min: float = 0.8
@@ -465,6 +515,16 @@ class Settings(BaseSettings):
     # beside `hub_teams` (owner, 2026-09-26): colleagues try it from their own accounts, with no
     # shared team. Either list lets a reader in; both empty means every team.
     hub_users: str = ""
+    # `/table/<tool id>`: the same call as `/call/`, answered as rows and columns (for the Google
+    # Sheets add-on). Off by default; with it on, `table_teams` / `table_users` limit it the same
+    # way `hub_teams` / `hub_users` limit the hub, and both empty means every team.
+    table_enabled: bool = False
+    table_teams: str = ""
+    table_users: str = ""
+    # The redirect URIs of "treg for Sheets" (the add-on's OAuth client `treg-sheets`), comma-separated
+    # and matched exactly: one per Apps Script project (`.../macros/d/<script id>/usercallback`). A new
+    # script id is a setting, not a code change. Empty = the client does not exist.
+    sheets_redirect_uris: str = ""
 
     # Additive Claude directory MCP. Default OFF so deploying code cannot publish a new connector
     # surface before its production Inspector and custom-connector gates have passed.
@@ -646,15 +706,27 @@ class Settings(BaseSettings):
           - a loopback `public_url` (so it is not fronted by a public domain).
         A stray TREG_SINGLE_USER=true in production therefore does nothing.
         """
-        if not self.single_user or "sqlite" not in self.database_url:
-            return False
+        return self.single_user and self.local_dev
+
+    @property
+    def local_dev(self) -> bool:
+        """A registry on this machine, never a deploy: a LOCAL sqlite database behind a loopback
+        `public_url`. The one test for both; `single_user_ok` and the dev tab marker rest on it."""
         host = (urlsplit(self.public_url).hostname or "").lower()
-        return host in ("localhost", "127.0.0.1", "0.0.0.0", "::1", "")
+        return "sqlite" in self.database_url and host in ("localhost", "127.0.0.1", "0.0.0.0", "::1", "")
 
     @property
     def platform_provider_set(self) -> frozenset[str]:
         """The allow-listed tier-4 providers (comma-separated `TREG_PLATFORM_PROVIDERS`)."""
         return frozenset(p.strip().lower() for p in self.platform_providers.split(",") if p.strip())
+
+    @property
+    def table_team_set(self) -> frozenset[str]:
+        return frozenset(p.strip().lower() for p in self.table_teams.split(",") if p.strip())
+
+    @property
+    def table_user_set(self) -> frozenset[str]:
+        return frozenset(p.strip().lower() for p in self.table_users.split(",") if p.strip())
 
     @property
     def hub_user_set(self) -> frozenset[str]:

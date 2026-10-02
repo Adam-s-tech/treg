@@ -38,10 +38,9 @@ Four things to decide:
    `douyin-xingtu` → Advertising). Recommendation: **keep**, but name the rule explicitly in
    `capabilities.yaml` so future China platforms are placed consistently (content → China
    Social; storefront → E-commerce; ad/creator marketplace → Advertising).
-3. **No "Music / Media" category.** `spotify`, `apple-music`, `soundcloud` sit in Social and
-   `netease-music` in China Social. Fine at today's volume; revisit only if music platforms
-   proliferate. Recommendation: **keep in Social**; do not split a Music tab for four
-   platforms.
+3. **No "Music / Media" category.** `spotify`, `apple-music`, `soundcloud` sit in Social. Fine
+   at today's volume; revisit only if music platforms proliferate. Recommendation: **keep in
+   Social**; do not split a Music tab for three platforms.
 4. **"Reviews & Apps" is two ideas stapled together** (app-store review sites *and* app
    stores *and* general review sites like Trustpilot/Yelp/Tripadvisor/IMDb/Douban). It reads
    fine as "reputation & listings", but if it grows, consider splitting **App Stores** from

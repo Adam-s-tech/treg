@@ -5041,6 +5041,7 @@ endpoints:
   observed_time: 5.38
 - id: anyapi.tiktok.trending_hashtags
   tier: extended
+  capability: tiktok.trends.hashtags
   platform: tiktok
   domain: trending
   method: POST

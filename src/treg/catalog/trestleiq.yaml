@@ -10,7 +10,6 @@ source:
 pricing_url: https://trestleiq.com/pricing/
 limits: Default self-serve limit is 10 requests per second. Monthly quota depends on the account.
 proposed_capabilities:
-  people.phone.verify: Validate and format a phone number
   people.contact.verify: Verify that supplied contact details are consistent and reachable
   people.address.verify: Validate and normalize a US postal address
 endpoints:

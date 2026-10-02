@@ -219,6 +219,9 @@ endpoints:
 
   # --- YouTube ----------------------------------------------------------------------------------
   - id: tikhub.youtube.video.detail
+    status: retired
+    status_note: "TikHub removed /youtube/web/get_video_info_v2 (absent from its OpenAPI since at least 2026-08-29; live 404 through treg on 2026-09-27); superseded by the web_v2 route."
+    superseded_by: tikhub.x.youtube-web-v2-get-video-info-v2
     capability: youtube.video.detail
     platform: youtube
     scope: any_account

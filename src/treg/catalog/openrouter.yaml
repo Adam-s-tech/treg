@@ -5,13 +5,10 @@ source:
 pricing_url: https://openrouter.ai/api/v1/videos/models
 proposed_capabilities:
   video-gen.models.list: "List available video generation models"
-  video-gen.result.retrieve: "Retrieve completed video generation content"
   # Per-model capabilities (see minimax.yaml): single-provider join keys that keep curated rows
   # standalone in the model wall; job-level comparisons stay empty until models are hand-picked.
   video-gen.wan-3-0.from_text: "Generate a Wan 3.0 video from a text prompt"
   video-gen.wan-3-0.from_image: "Animate an image into a Wan 3.0 video"
-  # Shared with reapi.yaml / piapi.yaml: the same model over three routes merges onto one row.
-  video-gen.seedance-2-5.generate: "Seedance 2.5"
 async:
   id_from: id
   poll:
@@ -65,7 +62,8 @@ endpoints:
       confidence: verified
       note: "Settles at the reply's `usage.cost`. VERIFIED 2026-09-23: a ~600-byte request cost $0.0000171."
     docs_url: https://openrouter.ai/typesafe/jev-1.13
-    verified: '2026-09-23'
+    verified: '2026-09-27'
+    example_response: examples/openrouter.ai-judge.decide.json
 
   # --- Video --------------------------------------------------------------------------------
   - id: openrouter.video-gen.models.list
@@ -164,7 +162,7 @@ endpoints:
       confidence: documented
       note: "Table rows quote the live rate card; the upstream applies a minimum charge the rate card does not publish (live 2026-09-02: 480p x 2 s priced $0.10 by the table, billed $0.2125 as usage.cost). What settles is the terminal usage.cost, never the table row. Indistinguishable mode-specific SKUs collapse to the highest rate. The matched row is reserved; the fallback is the matrix ceiling for unmatched requests."
     verified: 2026-09-02
-    example_response: examples/openrouter.x.alibaba-wan-3-0.json
+    example_response: examples/openrouter.video-gen.wan-3-0.from_text.json
     docs_url: https://openrouter.ai/alibaba/wan-3.0
 
   - id: openrouter.video-gen.wan-3-0.from_image

@@ -78,7 +78,7 @@ endpoints:
     scope: any_account
     method: POST
     path: /v1/people/email-validation
-    name: "Verify an email address is deliverable"
+    name: "Verify email — catch-all and MX provider"
     summary: "Check an email is real and deliverable, and whether its domain is catch-all"
     input:
       bodyType: json

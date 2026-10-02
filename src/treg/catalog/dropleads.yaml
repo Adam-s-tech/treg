@@ -8,9 +8,7 @@ source:
 limits: 'Live account headers observed 60 requests/minute on prime.dropleads.io and 30,000 on api.dropleads.io; treat these as account-specific, not universal plan promises.'
 pricing_url: https://dropleads.io/pricing
 proposed_capabilities:
-  people.count: Count people matching search filters without returning records
   people.enrich.verified: Enrich one person and require verified email data
-  companies.search.count: Count companies matching search filters without returning records
 endpoints:
   - id: dropleads.people.email.find
     capability: people.email.find
@@ -86,7 +84,7 @@ endpoints:
     method: POST
     host: api.dropleads.io
     path: /email-verifier
-    name: Verify an email
+    name: Verify an email address — catch-all result
     summary: Check an email address for deliverability.
     input:
       bodyType: json
@@ -158,7 +156,7 @@ endpoints:
     example_response: examples/dropleads.people.search.json
 
   - id: dropleads.people.search.count
-    capability: people.count
+    capability: people.search.count
     platform: people
     scope: any_account
     domain: contacts

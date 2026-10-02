@@ -83,7 +83,7 @@ endpoints:
     scope: any_account
     method: GET
     path: /email-verifier
-    name: "Verify an email address is deliverable"
+    name: "Verify email — catch-all, disposable and SMTP checks"
     summary: "Check an email is real, deliverable and not a catch-all or disposable inbox"
     input:
       queryParams:

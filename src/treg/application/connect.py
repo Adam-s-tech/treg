@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 import json
 import logging
+import re
 from urllib.parse import parse_qsl, urlsplit, urlunsplit
 
 from sqlalchemy import or_
@@ -21,7 +22,7 @@ from ..infra.db import session_maker
 from ..infra.oauth_exchange import HTTPXOAuthExchangePort
 from ..infra.oauth_refresh import HTTPXOAuthRefreshPort
 from ..infra.upstream.injectors import ensure_base64
-from ..models import PendingOAuth, Secret, Tool
+from ..models import HubTool, Invite, Membership, PendingOAuth, Secret, Tool
 from ..timeutil import as_naive as _as_naive
 from ..timeutil import utcnow_naive as _utcnow_naive
 
@@ -621,8 +622,10 @@ async def connect_with_pasted_secret(
     )
     deferred = resp.status_code in provider.probe_deferred_statuses
     if (status_reject and not deferred) or field_bad or field_reject or equals_bad or text_error:
+        error = payload.get("error")
         why = (
-            payload.get("error")
+            # Google-style envelopes nest the reason: {"error": {"code": 400, "message": ...}}.
+            (error.get("message") if isinstance(error, dict) else error)
             or (payload.get("ErrorMessage") if equals_bad else None)
             or (f"{provider.token_verify_field}=false" if field_bad else None)
             or (resp.text.strip()[:80] if text_error else f"HTTP {resp.status_code}")
@@ -772,7 +775,7 @@ async def list_connections(*, org_id: int) -> list[dict]:
                 # credential has been supplied and the connection is callable.
                 if profile.needs_extra_credential and not profile.extra_credential_is_platform:
                     built = (await db.execute(
-                        select(Tool).where(Tool.org_id == org_id, Tool.name == provider.service)
+                        select(Tool).where(Tool.org_id == org_id, Tool.name == (s.name or provider.service))
                     )).scalars().first()
                     view["needs_extra_credential"] = built is None
             out.append(view)
@@ -1163,10 +1166,10 @@ async def supply_extra_credential(
              "name": provider.extra_credential_name, "format": "{secret}"},
         ]
         tool = (await db.execute(
-            select(Tool).where(Tool.org_id == org_id, Tool.name == provider.service)
+            select(Tool).where(Tool.org_id == org_id, Tool.name == (secret.name or provider.service))
         )).scalars().first()
         if tool is None:
-            tool = Tool(org_id=org_id, name=provider.service, owner=owner,
+            tool = Tool(org_id=org_id, name=secret.name or provider.service, owner=owner,
                         base_url=provider.base_url, host=_host_of(provider.base_url), bindings=bindings)
             db.add(tool)
         else:
@@ -1200,6 +1203,103 @@ async def revoke_connection(*, secret_id: int, org_id: int) -> dict:
         await db.delete(secret)
         await db.commit()
         return {"deleted": secret_id, "removed_tools": removed_tools}
+
+
+_TOOL_NAME = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?")
+
+
+def _valid_tool_name(name: str) -> str:
+    name = name.strip().lower()
+    if not _TOOL_NAME.fullmatch(name):
+        raise ConnectError(
+            "invalid_name", "a name is 1-64 lowercase letters, digits and dashes, not starting or ending with a dash")
+    return name
+
+
+async def _rename_tools(
+    db: AsyncSession, *, org_id: int, tools: list[Tool], renames: dict[str, str], keep: set[int],
+    also: frozenset[str] = frozenset(),
+) -> None:
+    """Rename `tools` per `renames` (old -> new) and every member/invite tool_access naming them.
+
+    `keep` is the secret ids whose own names may collide (the connection being renamed); `also` is a
+    new name that must be free even though no tool takes it (that connection's secret name).
+    The old names stop resolving; nothing aliases them. A live hub recipe that `uses` an old name
+    blocks the rename, because a published version is a contract and is never rewritten."""
+    taken = {t.name for t in tools if t.name not in renames} | set((await db.execute(
+        select(Secret.name).where(Secret.org_id == org_id, Secret.id.not_in(keep))  # type: ignore[union-attr]
+    )).scalars().all())
+    if clash := sorted((set(renames.values()) | also) & taken):
+        raise ConnectError("name_taken", f"{clash[0]!r} is already used in this team")
+    recipes = (await db.execute(select(HubTool).where(
+        HubTool.org_id == org_id, HubTool.status.in_(("live", "unchecked"))  # type: ignore[attr-defined]
+    ))).scalars().all()
+    for r in recipes:
+        if used := sorted(set(r.manifest.get("uses") or []) & set(renames)):
+            raise ConnectError("name_in_use", (
+                f"hub tool {r.name!r} calls {used[0]!r}; publish a version that uses the new name first"))
+    for t in tools:
+        if t.name in renames:
+            t.name = renames[t.name]
+    for model in (Membership, Invite):
+        # No SQL filter on tool_access: "all tools" is stored as JSON null, which IS NOT NULL
+        # does not exclude.
+        for row in (await db.execute(select(model).where(model.org_id == org_id))).scalars().all():
+            if row.tool_access and set(row.tool_access) & set(renames):
+                row.tool_access = [renames.get(n, n) for n in row.tool_access]  # reassign: JSON column
+
+
+async def rename_connection(*, secret_id: int, name: str, org_id: int) -> dict:
+    """Rename a connected account, which renames the tool an agent types: instagram-2 -> instagram-acme.
+
+    The connection's secret and the tools bound to it under its name (the main one and any companion
+    `{name}-{suffix}`) move together, in one transaction, through `_rename_tools`."""
+    name = _valid_tool_name(name)
+    async with session_maker() as db:
+        secret = await _owned_connection(secret_id, org_id, db)
+        old = secret.name
+        if name == old:
+            return connection_refresh.connection_view(secret)
+        provider = oauth_providers.get(secret.provider) if secret.provider else None
+        suffixes = [e["suffix"] for e in (getattr(provider, "extra_tools", ()) or ())]
+        tools = list((await db.execute(select(Tool).where(Tool.org_id == org_id))).scalars().all())
+        # Only tools this credential actually powers move; an unrelated tool that happens to share
+        # the name is the user's own and stays put.
+        renames = {
+            t.name: name + t.name[len(old):]
+            for t in tools
+            if t.name in {old, *(f"{old}-{s}" for s in suffixes)}
+            and any(b.get("secret_id") == secret.id for b in (t.bindings or []))
+        }
+        await _rename_tools(db, org_id=org_id, tools=tools, renames=renames, keep={secret.id},
+                            also=frozenset({name}))
+        secret.name = name
+        await db.commit()
+        await db.refresh(secret)
+        return connection_refresh.connection_view(secret)
+
+
+async def rename_tool(*, tool_id: int, name: str, org_id: int) -> None:
+    """Rename one of the team's own tools from its edit form.
+
+    A connection's main tool renames through its connection, so the secret and companion tools
+    follow; otherwise only this tool moves."""
+    name = _valid_tool_name(name)
+    async with session_maker() as db:
+        tools = list((await db.execute(select(Tool).where(Tool.org_id == org_id))).scalars().all())
+        tool = next((t for t in tools if t.id == tool_id), None)
+        if tool is None or tool.name == name:
+            return
+        bound = {b.get("secret_id") for b in (tool.bindings or [])}
+        connection = (await db.execute(select(Secret.id).where(
+            Secret.org_id == org_id, Secret.id.in_(bound), Secret.name == tool.name,  # type: ignore[union-attr]
+            or_(Secret.kind == "oauth", Secret.provider != ""),
+        ))).scalars().first()
+        if connection is None:
+            await _rename_tools(db, org_id=org_id, tools=tools, renames={tool.name: name}, keep=set())
+            await db.commit()
+            return
+    await rename_connection(secret_id=connection, name=name, org_id=org_id)
 
 
 async def run_connection_health(

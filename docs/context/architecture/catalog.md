@@ -19,8 +19,52 @@ sources:
   - src/treg/domain/provider_resources.py
   - src/treg/routers/provider_resources.py
   - src/treg/catalog/tavily.yaml
+  - src/treg/application/call/octen.py
+  - src/treg/application/call/enrichlayer.py
+  - src/treg/catalog/enrichlayer.yaml
+  - src/treg/catalog/examples/enrichlayer.companies.search.json
+  - src/treg/catalog/examples/enrichlayer.company.employees.count.json
+  - src/treg/catalog/examples/enrichlayer.company.employees.list.json
+  - src/treg/catalog/examples/enrichlayer.company.employees.search.json
+  - src/treg/catalog/examples/enrichlayer.company.lookup-id.json
+  - src/treg/catalog/examples/enrichlayer.company.lookup.json
+  - src/treg/catalog/examples/enrichlayer.company.profile-picture.json
+  - src/treg/catalog/examples/enrichlayer.company.profile.json
+  - src/treg/catalog/examples/enrichlayer.company.role.lookup.json
+  - src/treg/catalog/examples/enrichlayer.contacts.personal-email.json
+  - src/treg/catalog/examples/enrichlayer.contacts.personal-phone.json
+  - src/treg/catalog/examples/enrichlayer.contacts.reverse-phone.json
+  - src/treg/catalog/examples/enrichlayer.email.disposable-check.json
+  - src/treg/catalog/examples/enrichlayer.jobs.profile.json
+  - src/treg/catalog/examples/enrichlayer.jobs.search.json
+  - src/treg/catalog/examples/enrichlayer.people.search.json
+  - src/treg/catalog/examples/enrichlayer.person.lookup.json
+  - src/treg/catalog/examples/enrichlayer.person.profile-picture.json
+  - src/treg/catalog/examples/enrichlayer.person.profile.json
+  - src/treg/catalog/examples/enrichlayer.person.reverse-email.json
+  - src/treg/catalog/examples/enrichlayer.person.work-email.json
+  - src/treg/catalog/examples/enrichlayer.school.profile.json
+  - src/treg/web/logos/enrichlayer.svg
+  - src/treg/catalog/linkup.yaml
+  - src/treg/catalog/you.yaml
+  - src/treg/catalog/examples/you.web.search.json
+  - src/treg/catalog/examples/you.web.contents.json
+  - src/treg/web/logos/you.svg
+  - src/treg/web/logos/linkup.svg
+  - src/treg/catalog/examples/linkup.web.search.json
+  - src/treg/catalog/examples/linkup.web.fetch.json
+  - src/treg/catalog/examples/linkup.web.fetch.structured.json
+  - src/treg/catalog/examples/linkup.web.answer.json
+  - src/treg/catalog/examples/linkup.web.answer.status.json
   - src/treg/catalog/keenable.yaml
   - src/treg/catalog/olostep.yaml
+  - src/treg/catalog/spidercloud.yaml
+  - src/treg/catalog/examples/spidercloud.web.scrape.json
+  - src/treg/catalog/examples/spidercloud.web.crawl.json
+  - src/treg/catalog/examples/spidercloud.web.search.json
+  - src/treg/catalog/examples/spidercloud.web.links.json
+  - src/treg/catalog/examples/spidercloud.web.unblock.json
+  - src/treg/catalog/examples/spidercloud.web.screenshot.json
   - src/treg/catalog/tinyfish.yaml
   - src/treg/catalog/examples/tinyfish.web.search.json
   - src/treg/catalog/examples/tinyfish.web.search.news.json
@@ -51,6 +95,7 @@ sources:
   - src/treg/catalog/contracts.yaml
   - src/treg/catalog/millionverifier.yaml
   - src/treg/catalog/adapters.yaml
+  - src/treg/catalog/capabilities.yaml
   - src/treg/catalog/prospeo.yaml
   - tests/test_route_cost_ceiling.py
   - src/treg/catalog/tomba.yaml
@@ -306,6 +351,37 @@ Each endpoint's `tavily_rates` mapping has an exact mode-key contract. Catalog v
 incomplete, extra, non-finite or non-positive rate, and runtime repeats that check before reserve or
 relay so catalog drift cannot silently turn a platform call into a free call.
 
+Octen's `octen_rates` mapping likewise keeps the original published USD unit prices in catalog data.
+`octen.rates_micro` rejects incomplete or non-micro-USD rates before a shared-key call. The platform
+request check bounds search result counts, Broad subqueries, News subject results, and Extract URL
+count without rewriting the caller's body. A team's own key bypasses that check. The call runtime
+uses the bounded maximum for the hold and this response's `meta.usage` for settlement; the relay
+does not parse or reshape Octen's answer. Catalog validation requires each route's exact rate keys
+and checks that the displayed base price matches its rate table.
+
+Linkup's curated `web.search` and Markdown `web.extract` rows have verified routing adapters;
+Research remains a direct asynchronous `web.answer` tool. Search's `depth` and `outputType` select
+one published per-success price. The Fetch route has separate Markdown and structured catalog
+rows because supplying `schema` changes the price; both rows price `mode` and `renderJs` with
+declarative tables and enforce distinct body allowlists. Research requires an explicit
+`reasoningDepth` so callers choose its $0.25–$2.50 price; Linkup otherwise defaults to L at $1.50.
+Its published pricing varies by depth, not mode. Research reserves the requested depth price,
+releases failed tasks under Linkup's documented no-charge-on-error policy, and settles successful
+tasks after the owned
+`GET /v1/research/{id}` poll reports completion. The polling read is free and restricted to the
+team that submitted the task on the shared key. Account-wide task listing, mixed batch Tasks,
+closed-beta Extract, and the undocumented Responses route are outside the shared-key catalog.
+
+Spider's `spidercloud.yaml` curates Scrape, Crawl, Search, Links, Unblocker and Screenshot. The
+standard routes are live-verified with public targets. Only the bounded Search listing is offered
+on the shared key: with `fetch_page_content=false`, a two-result limit and the default listing each debited ten
+Spider API credits ($0.001). Search's response has no per-call cost object. A fetched-page Search
+probe produced a very large response and a variable charge, so the catalog exposes only the
+listing form. The other five routes remain BYOK-only because bandwidth, compute, browser and
+Unblocker charges depend on the target. `max_credits_allowed=1` did not stop Search or Unblocker
+from debiting more than one credit, so it is not used as a shared-key reserve ceiling. A team's own
+credential remains unmetered by treg.
+
 A verification stamp proves the request shape, response shape, and paid behavior that the evidence
 actually observed. A placeholder path value or a free miss does not prove a paid hit. Such rows keep
 the documented price and say which paid behavior remains unobserved. Captured examples use public
@@ -405,10 +481,10 @@ pages therefore render as flat model walls; the same model reachable over severa
 direct, OpenRouter, Replicate all serve Hailuo) sits adjacent under model-led names, which is the
 comparison that actually means something. The per-model capability is the join key that lets those
 routes merge onto one row if that comparison is later curated. reAPI and PiAPI are the first pair
-to share join keys on purpose: both files propose `video-gen.seedance-2-5.generate`,
+to share join keys on purpose: both files use `video-gen.seedance-2-5.generate`,
 `video-gen.seedance-2-5-unrestricted.generate`, `image-gen.gpt-image-2-5.generate`,
-`image-gen.gpt-image-2.generate` and `image-gen.gemini-3-pro-image.generate`, so the two routes to
-one model sit on one row with their prices side by side. The `-unrestricted` key names the Less Restriction route (reAPI `content_filter: false`, PiAPI's `seedance-2.5-less-restriction` task): the
+`image-gen.gpt-image-2.generate` and `image-gen.gemini-3-pro-image.generate` (shared keys, so they
+live in capabilities.yaml), so the two routes to one model sit on one row with their prices side by side. The `-unrestricted` key names the Less Restriction route (reAPI `content_filter: false`, PiAPI's `seedance-2.5-less-restriction` task): the
 only route on which a real person's photo is accepted as the subject reference, which is the whole
 reason those resellers are listed beside the official-rate OpenRouter route. OpenRouter's Seedance 2.5
 is curated into `openrouter.yaml` on the same join key (its generated extended twin is therefore
@@ -417,7 +493,8 @@ the Less Restriction row two. Replicate's official `google/nano-banana-pro`, `op
 `openai/gpt-image-2.5-*` models are curated into `replicate.yaml` on the image keys the same way (per
 output image by quality or resolution, from the model pages' price criteria), so each image model
 row compares reAPI, PiAPI and Replicate. Merged rows are titled by the capability description, which for these
-per-model keys is the plain model name ("Seedance 2.5"), not a sentence.
+per-model keys is the plain model name ("Seedance 2.5"), not a sentence. Where a compared job's
+description runs long, `capability_titles` gives the shelf a short title instead (below).
 
 ## Schema
 
@@ -439,12 +516,26 @@ Rules:
 - A capability id is dot-delimited, lowercase; the FIRST segment is its platform slug.
 - Ids name the *job*, not the provider's endpoint ("get user profile", not "fetch_user_profile_v2").
 - Adding a capability = adding it here. Provider files may carry `proposed_capabilities:` (same
-  mapping shape) when curation discovers a job the taxonomy lacks; the reviewer merges them into
-  this file. The validator accepts a capability that is either global or proposed in the same file.
+  mapping shape) when curation discovers a job the taxonomy lacks. A proposal is live the moment it
+  loads (the loader merges it into the taxonomy, first file by name wins the description), so the
+  validator keeps it a staging area: an endpoint may use a capability that is global or proposed in
+  its own file; a proposal that repeats a capabilities.yaml id, or one id proposed with different
+  descriptions in different files, is an error; and a proposal that endpoints of two providers use
+  is a warning to promote it here, deleting it from every provider file.
+- `capability_titles:` maps an id to a short title people scan on a platform shelf, only where the
+  description runs long. The description stays whole, because agents read it and search ranks on it;
+  the shelf shows it on hover. A title naming no capability fails the catalog load.
+- One job, one id. Two ids of one platform with the same description are a validator warning: they
+  split one comparison row in two. Rename the losing id on its rows (endpoint ids do not change) and
+  check `contracts.yaml` and `adapters.yaml`, which are keyed by capability. Count-only search
+  variants are `<platform>.search.count`, lookalike search is `companies.similar`.
 - Under `AI generation`, platform means the generated-media modality rather than a system that owns
-  the data. The frozen vocabulary is `video-gen.from_text`, `video-gen.from_image`,
-  `video-gen.task.status`, `image-gen.from_text`, `image-gen.edit`, and `voice-gen.from_text`;
-  text-to-video and image-to-video stay separate because their required inputs and prices differ.
+  the data. The job-level `video-gen.from_text`, `video-gen.from_image`, `image-gen.from_text`,
+  `image-gen.edit` and `voice-gen.from_text` are deliberately memberless (see "Two tiers"
+  above and the capabilities.yaml header): rows carry per-model capabilities such as
+  `video-gen.hailuo.from_text`, and a model joins a job-level row only as a hand-picked editorial
+  choice. Text-to-video and image-to-video stay separate because their required inputs and prices
+  differ.
 
 ### `<service>.yaml`
 
@@ -677,10 +768,9 @@ prices are explicitly unknown, while the curated core rows carry per-model page 
 ingesters sort their inputs and produce byte-identical output when upstream data is unchanged.
 
 Utility capability names still describe the utility's actual job. OpenRouter model discovery uses
-the file-local proposed `video-gen.models.list`; OpenRouter and MiniMax content retrieval use the
-proposed `video-gen.result.retrieve`; only polling uses the frozen `video-gen.task.status`. These
-rows remain hidden management plumbing because `kind: utility`, and proposed capabilities avoid
-expanding the global generation vocabulary merely to satisfy the core-row capability requirement.
+the file-local proposed `video-gen.models.list`; OpenRouter and MiniMax content retrieval share
+`video-gen.result.retrieve`; polling uses `video-gen.task.status`. These rows remain hidden
+management plumbing because `kind: utility`.
 
 ### `<service>.extended.yaml`
 
@@ -904,11 +994,18 @@ against every row's maximum computable price. A `times` value outside the field'
 (or non-finite, or non-positive) matches no row and prices at the
 fallback, so a request cannot reserve zero or bill past the ceiling. With `settle: table`, the
 matched row is reserved and settled (fallback when unmatched). With `settle: usage`, the matched
-row is reserved as the rate-card estimate and the terminal `usage.path` figure settles, which may
-exceed the reserve (OpenRouter's unpublished minimums); `settle: usage` therefore requires an async
-descriptor, exactly a dotted `usage.path` and a supported `usage.unit` (`usd`; `credit` when
-fx.yaml prices that provider's credit; or a provider-native meter with a numeric
-`unit_rates_usd[provider][unit]` entry), and `settle: table` rejects a stray usage block. A `times`
+row is reserved as the rate-card estimate and the reply's `usage.path` figure settles (the
+terminal document on an async row, the buffered body on a synchronous one), which may exceed the
+reserve (OpenRouter's unpublished minimums). A flat `value` may also declare `settle: usage` with
+no table: its explicit `fallback` is the reserve. Either form requires exactly a dotted
+`usage.path` and a supported `usage.unit` (`usd`; `credit` when fx.yaml prices that provider's
+credit; or a provider-native meter with a numeric `unit_rates_usd[provider][unit]` entry), or
+`usage.terms` with `unit: usd` for a provider that reports several meters and no charge: a list of
+`{path, rate}` whose figure is the sum of each meter times its positive USD rate. A term path may
+select a list item by key (`candidatesTokensDetails[modality=IMAGE].tokenCount`), because per-
+modality entries have no guaranteed order. An absent meter counts as zero (proto3 JSON omits zero
+fields); a response with none of them is unobserved and settles at the reserve. Any
+other settle rejects a stray usage block. A `times`
 value is never non-positive, whatever minimum the field declares, so a field that admits a sentinel
 such as `-1` cannot multiply a rate by it; the sentinel is priced by a flat row that pins it, and
 that row is left out of the advertised per-second rate span. The money fragment describes the settlement itself.
@@ -970,6 +1067,19 @@ credit rate. The catalog estimate still reserves a safe
 ceiling. A finite nonnegative response value settles the call at that amount; missing, invalid, or
 non-finite evidence falls back to the normal estimate/miss rules. `reported_charge` is generic
 catalog metadata, not a provider-specific billing branch, and cannot be combined with `cost.settle`.
+
+`spooled_response: true` marks a synchronous endpoint whose answer inlines media too large for
+the 8 MiB settlement buffer (Gemini returns images as base64 in its JSON: ~9 MB at 2K, ~23 MB at
+4K; Lyria songs arrive as base64 MP3). Its metered 2xx is read to disk and settled from exactly
+the paths its row reads: the top-level objects its usage terms start at, and its `expect` success
+leaf (`resolve._spool_evidence_paths`; proxy-model.md), so the evidence cannot drift from the
+price. A token-metered row settles on `usage`; a fixed price (Lyria's per song) needs an `expect`
+rule so a refused generation is not billed. The validator requires one of the two and refuses the
+field beside `async`, `resource_ownership` or `managed_resource`, which need the whole body.
+
+A `pathParams` field that declares an `enum` is enforced on treg's key: the value names what the
+shared credential is spent on (Google AI's `model`), so any other value is a 400 before reserve.
+Own-key calls still relay whatever path the caller asks for.
 
 `platform_request` fixes exact body, header or query values needed only on the shared credential.
 A `queryParams.*` pin must appear exactly once and is read as the pinned value's type, so a run
@@ -1586,6 +1696,10 @@ Five rules worth keeping:
 
 ### Search scoring — most words must match, and the rare ones decide
 
+This is the shipped ranker: what `/catalog/search` and the CLI answer, the lexical page the
+discovery experiment measures against, and the page an agent's MCP search falls back to when the
+job-first answer abstains ([search-experiment](search-experiment.md)).
+
 `catalog_store.search` demanded EVERY query token match (AND). Right for the 2–3 word refinement
 ("tiktok comments" must not return every tiktok endpoint), and fatal for how agents actually query:
 the day the SearchMiss log shipped it recorded "company job postings hiring open jobs linkedin" → 0
@@ -1737,10 +1851,12 @@ to choose (`docs/CAPABILITY-ROUTING-PLAN.md`). Everything else in the catalog st
   rule is per candidate, so `{q, company_domain}` also drops the `q`-only providers.
 - **Adapters** — `adapters.yaml`, one per endpoint: `accepts` (identity variants), `in` (contract
   field → `queryParams.x` / `body.x`), `const` (fixed provider params), `out` (core field →
-  expression over the body), `miss`. The expression language (`domain/catalog/routing/paths.py`)
-  is deliberately tiny: dotted paths with `[i]` (root `[0]`, `.` = the whole body), `coalesce`,
+  expression over the body), `miss`, and `route: false` for an adapter that only judges hit/miss
+  evidence (results, stats, cache admission) and never joins routing or the arena. The expression language (`domain/catalog/routing/paths.py`)
+  is deliberately tiny: dotted paths with `[i]` (root `[0]`, `.` = the whole body), `coalesce`
+  (first non-empty argument, else the last one),
   `/ N`, `==`/`!=` against literals, and named transforms (`split_first`, `split_last`, `join`,
-  `has_type`, `len`, `list`, `obj`, `fmt`, `csv`, `lower`/`upper`, `at_least`, `null_if`, `choose`, `linkedin_handle`/
+  `has_type`, `len`, `list`, `obj`, `fmt`, `csv`, `lower`/`upper`, `at_least`, `at_most`, `null_if`, `choose`, `linkedin_handle`/
   `linkedin_url`, `email_domain`, `host`, `dfs_location`, `seranking_source`, `tca_filter`).
   `values` reads rows from object-keyed or list responses; `get` applies dotted/indexed lookup
   to another expression result (for example, the first company in a domain-keyed response).
@@ -1844,8 +1960,16 @@ to choose (`docs/CAPABILITY-ROUTING-PLAN.md`). Everything else in the catalog st
   and charge; the existing async worker owns eventual settlement. Only declared terminal misses and
   failures may continue under the normal bounded fallback rules.
 - **Hit rate** — `CallRecord.hit` (nullable, alembic `0009`, last column) is the adapter's verdict
-  written at settle; `stats.observed` publishes `hit_rate`/`hit_samples` (floor 20) and, for
+  for a completed result. An accepted async submission leaves it NULL; the terminal finalizer
+  classifies the finished body and queues an audit update for the originating row, including a
+  routed child. The poll response does not wait for that best-effort write. A
+  confirmed terminal failure counts as a miss; pending and timed-out jobs remain undecided. Its
+  `AsyncTaskRecord.hit` keeps the verdict if polling beats the background audit insert.
+  Async endpoints read their `CallRecord` observations live: the daily fold may consume a
+  submission before its terminal poll changes the hit, and its one-way cursor cannot revise it.
+  `stats.observed` publishes `hit_rate`/`hit_samples` (floor 20) and, for synchronous
   per-success endpoints, reads historical rows too (a 2xx with `cost_observed_micro == 0` is a miss).
+  Async per-success endpoints use only the terminal verdict: a found result can cost zero credits.
   The plan, `catalog_get` and the CLI's HIT column read it; a registered tool (tier 1) or stored key
   (tier 2) for a provider ranks first at cost 0.
 - **R0 done (2026-08-28)**: the top-traffic untagged `.x.` endpoints carry capabilities now
@@ -2032,3 +2156,13 @@ before any example is committed, all learned the hard way:
 Credentials are NEVER written into catalog files, examples, scripts, or docs — the verifier reads
 `TREG_CATALOG_CRED` from the environment only. Captured examples are truncated (arrays → 2 items,
 long strings clipped, ~10 KB cap) by the verifier, then human-reviewed for PII before commit.
+
+## Operator-supplied pricing evidence
+
+`catalog_ingest.py` requires `TREG_CATALOG_EVIDENCE_DIR` for AnyAPI and JustOneAPI imports.
+The directory supplies `anyapi_measured_charges.json` (`skus`, `as_of`, `window_days`) and
+`justoneapi_prices.json` (`prices`). Missing files fail before catalog output is written, rather
+than silently replacing measured prices with estimates or dropping dashboard prices. Other
+providers do not require these files. Published catalog prices remain part of the public product;
+private ledger exports and account evidence do not. Hosted operators maintain the inputs in
+`treg-internal/tools/catalog-evidence/`.

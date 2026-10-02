@@ -3,21 +3,32 @@ export default {
 money(micro){ const m=Math.round(Number(micro)||0), s=m<0?'-':'', a=Math.abs(m);
       if(a%10000===0) return s+'$'+(a/1e6).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
       return s+'$'+(a/1e6).toFixed(6).replace(/0+$/,''); },
+// The top bar's balance, to the cent and never rounded up: "$24.48", not "$24.485672". A glance
+    // wants the dollars; the exact figure is on hover and on the Billing tab.
+    moneyGlance(micro){ const m=Math.round(Number(micro)||0);
+      return m>0 && m<10000 ? '<$0.01' : this.money(Math.trunc(m/10000)*10000); },
 async loadBilling(){ if(!this.canAdmin || !this.activeOrgId){ this.billing=null; return; }
       this.autoOpen=false; this.autoConsent=false;
-      this.billing=await this.api('/billing').catch(()=>null);
+      const live=this.ticket('billing'), org=this.activeOrgId;
+      const billing=await this.api('/billing').catch(()=>null);
+      if(!live()) return;
+      this.billing=billing;
       if(this.billing){ this.topupAmount=this.billing.topup.default_usd;
         this.autoAmount=Math.round(this.billing.autotopup.amount_usd);
         this.autoThreshold=Math.round(this.billing.autotopup.threshold_usd);
         this.loadBillingHistory(); }
       // The daily cap lives beside the balance for the user even though it is an org setting.
-      this.capCfg=await this.api(`/orgs/${this.activeOrgId}/settings`).catch(()=>null);
+      const capCfg=await this.api(`/orgs/${org}/settings`).catch(()=>null);
+      if(!live()) return;
+      this.capCfg=capCfg;
       if(this.capCfg){ this.capUsd=this.capCfg.daily_cap_micro ? (this.capCfg.daily_cap_micro/1e6).toFixed(2) : '';
-        const k=await this.api(`/orgs/${this.activeOrgId}/tag-keys`).catch(()=>null);
+        const k=await this.api(`/orgs/${org}/tag-keys`).catch(()=>null);
+        if(!live()) return;
         this.budDims=[...new Set([...((k&&k.seen)||[]), ...(this.capCfg.budget_dims||[])])];
         if(!this.budDims.length) this.budDims=['customer'];
         this.budDim=this.budDim||this.budDims[0];
-        this.budgets=await this.api(`/orgs/${this.activeOrgId}/budgets`).catch(()=>[]); } },
+        const budgets=await this.api(`/orgs/${org}/budgets`).catch(()=>[]);
+        if(live()) this.budgets=budgets; } },
 defaultFor(dim){ return (this.budgets||[]).find(b=>b.dim===dim && b.is_default) || null; },
 overridesFor(dim){ return (this.budgets||[]).filter(b=>b.dim===dim && !b.is_default); },
 fmtCap(b){ return b.daily_cap_micro==null ? 'no limit' : this.money(b.daily_cap_micro)+'/day'; },
@@ -65,9 +76,9 @@ async saveCap(){ this.capBusy=true; this.capErr='';
 // Amounts come from our own credit blocks, so this list can never disagree with the balance above
     // it; Stripe supplies only the document links, and bhist.ok===false means those were unavailable.
     async loadBillingHistory(){ if(!this.canAdmin || !this.billing || !this.billing.configured){ this.bhist={items:[],loading:false,ok:true}; return; }
-      this.bhist={items:[],loading:true,ok:true};
+      this.bhist={items:[],loading:true,ok:true}; const live=this.ticket('billingHistory');
       const out=await this.api('/billing/history').catch(()=>null);
-      this.bhist={items:(out&&out.items)||[], loading:false, ok:!out||out.stripe_ok!==false}; },
+      if(live()) this.bhist={items:(out&&out.items)||[], loading:false, ok:!out||out.stripe_ok!==false}; },
 async openPortal(){ this.billingBusy=true; this.err='';
       try{ const out=await this.api('/billing/portal',{method:'POST'});
         // Stripe's hosted portal owns card, billing address, tax ID and the full invoice archive. Its
@@ -104,6 +115,10 @@ tierBonus(usd){ const t=this.billing&&this.billing.topup.bonus_tiers; if(!t||!us
       let pct=0; Object.keys(t).map(Number).sort((a,b)=>a-b).forEach(k=>{ if(usd>=k) pct=t[k]; });
       return Math.floor(usd*1e6*pct/100); },
 async payTopup(){ const usd=this.topupUsd; if(!this.topupValid) return;
+      // The mandate decision below reads this team's auto top-up state; billing from another team
+      // (a switch whose loadBilling has not answered yet) must never decide it.
+      const org=this.activeOrgId;
+      if(!this.billing || this.billing.org_id!==org){ this.topupErr='This team\'s billing is still loading - try again in a moment.'; return; }
       this.billingBusy=true; this.topupErr=''; this.topupAmount=usd;
       this.track('topup_checkout_opened',{amount_usd:usd, auto_opt_in:this.topupAuto, bonus_micro:this.topupBonusMicro});
       try{
@@ -113,9 +128,13 @@ async payTopup(){ const usd=this.topupUsd; if(!this.topupValid) return;
           // charged under it. The server stores the numbers and marks it "no_card"; Checkout's
           // saved card then arms it from the setup webhook. A failure here stops the payment too -
           // paying without the auto top-up the user just agreed to would be a silent downgrade.
-          this.billing=await this.api('/billing/autotopup',{method:'POST',headers:{'content-type':'application/json'},
+          const armed=await this.api('/billing/autotopup',{method:'POST',headers:{'content-type':'application/json'},
             body:JSON.stringify({enabled:true, consent:true, amount_usd:this.autoAmount, threshold_usd:this.autoThreshold, monthly_cap_usd:this.autoCapUsd, setup_url:false})});
+          if(this.activeOrgId===org) this.billing=armed;
         }
+        // The request below carries the ACTIVE team; after a switch it would buy credit for the
+        // other team, so the payment stops here instead.
+        if(this.activeOrgId!==org) throw {detail:'the active team changed'};
         const out=await this.api('/billing/topup',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({amount_usd:usd,checkout_source:window.TregTracking?.checkoutSource()||'app'})});
         window.location.href=out.url; }
       catch(e){ this.topupErr='Could not start the payment: '+(e.detail||e.status); this.billingBusy=false; } },

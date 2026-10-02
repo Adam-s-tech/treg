@@ -4,12 +4,13 @@ export default { setup: useDashboard }
 </script>
 
 <template>
-<div class="scrim" role="dialog" aria-modal="true"  @click.self="newTool=false;toolErr=''">
-      <div class="modal" style="width:min(620px,95vw)"><div class="hd"><b>{{(tForm.id?'Edit ':'Add ')+(tForm.mode==='cli'?'CLI':'endpoint')}}</b><button class="btn sm" @click="newTool=false;toolErr=''" aria-label="Close">✕</button></div>
+<div class="scrim" role="dialog" aria-labelledby="edit-tool-dialog-title" aria-modal="true" v-dialog="() => { newTool=false;toolErr='' }" @click.self="newTool=false;toolErr=''">
+      <div class="modal" style="width:min(620px,95vw)"><div class="hd"><b id="edit-tool-dialog-title">{{(tForm.id?'Edit ':'Add ')+(tForm.mode==='cli'?'CLI':'endpoint')}}</b><button class="btn sm" @click="newTool=false;toolErr=''" aria-label="Close">✕</button></div>
         <div style="padding:16px 18px">
           <template v-if="tForm.mode!=='cli'">
             <p class="explain">An endpoint = an upstream base URL + one or more credential bindings (how treg injects each key). Need a key? Close this and open <b>⚿ Secrets</b> first.</p>
-            <div class="frow"><label>Name</label><input v-model="tForm.name" :disabled="!!tForm.id" placeholder="e.g. openai"/></div>
+            <div class="frow"><label>Name</label><input v-model="tForm.name" placeholder="e.g. openai"/></div>
+            <p v-if="tForm.id && tForm.name.trim() && tForm.name.trim()!==tForm.oldName" class="sub" style="font-size:11px;margin-top:-4px">Renaming changes what agents call: scripts using <span class="mono">{{tForm.oldName}}</span> need the new name.</p>
             <div class="frow"><label>Base URL</label><input v-model="tForm.base_url" placeholder="https://api.openai.com"/></div>
             <div class="lbl" style="margin-top:12px;display:flex;align-items:center">Bindings - how each key is injected <button class="btn sm" @click="addBinding" style="margin-left:auto">＋ binding</button></div>
             <div class="bindrow" v-for="(b,i) in tForm.bindings" :key="i">

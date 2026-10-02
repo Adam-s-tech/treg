@@ -6,7 +6,6 @@ source:
 limits: 10 requests/second aggregated per user; HTTP 429 when exceeded.
 pricing_url: https://sumble.com/pricing
 proposed_capabilities:
-  companies.tech_stack: Get a company’s confirmed-used technology stack
   companies.teams.search: Find and enrich teams within organizations
   companies.intelligence_brief: Retrieve an account intelligence brief
 endpoints:

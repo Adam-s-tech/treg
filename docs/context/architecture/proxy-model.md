@@ -184,7 +184,9 @@ pool occupancy at the network boundary and covers concurrent calls. Pool sizing,
 the separate API/admin/background pools are specified in [deploy](../ops/deploy.md).
 
 ## Tool resolution (`application.call.resolve`)
-`* /call/{rest:path}` → `routers.call.call_tool()` → `application.call.service.execute_call()`
+`* /call/{rest:path}` → `routers.call.call_tool()` → `routers.call.run_call_surface()` (shared with
+`/catalog/call/` and `/table/`, which differ only in the `finish` that turns the answer into the
+response: see [table](table.md)) → `application.call.service.execute_call()`
 → `resolve_call_target(...)` returns a framework-neutral
 `ResolvedTarget(tool, upstream)`. Each resolution use case owns and closes its read session.
 
@@ -486,13 +488,12 @@ When the resolver already knows the account is out (the exhausted view) **and** 
 ladder skips the direct attempt entirely (`MarketplaceCall.skip_direct`): no parent hold, no vendor
 402, straight to the child - the plan's tier 4b.
 
-Influencers Club discovery/search and similar-creators routes have a verified flat Orthogonal
-price against our per-creator direct price. Both entry points pass the direct request estimate
-to the route view: `routes.route_for` excludes these routes when the fixed fee exceeds 4× that
-estimate, before any child hold or aggregator budget is reserved. The worker also bounds the fee
-by the verified $0.03 ceiling. A one-creator request currently cannot overflow; a request for two
-or more can. The original paging/filter body is relayed unchanged and the child settles once at
-the aggregator's reported price, even if the page is empty. See `ops/capacity.md` for verification.
+Influencers Club discovery/search and similar-creators routes, and Icypeas people search, have a
+verified flat Orthogonal price against our per-row direct price. They are admitted by an absolute
+fee ceiling (`routes.request_priced`, `$0.03`) instead of the price ratio, and `route_for` applies
+no per-request check, so even a one-row request can overflow. The original paging/filter body is
+relayed unchanged and the child settles once at the aggregator's reported price, even if the page
+is empty. See `ops/capacity.md` for verification.
 
 **An aggregator failure is data.** Its own 401/402/403 or a malformed envelope releases the child
 hold and marks `overflow:<name>` unhealthy for everyone; a relayed vendor answer the signature table
@@ -591,6 +592,41 @@ settlement, archive or replay. This is an explicit size limitation, not support 
 metered JSON. The fault is attributed to treg's buffer limit, not to the provider. Own-key streams
 remain outside this limit. `tests/test_call_response_limits.py` exercises both real HTTP hops,
 CLI output, boundaries, Range, disconnects, settlement evidence, archive and replay behavior.
+
+### Spooled evidence for inline media
+
+Some providers return generated media inside their JSON answer: Gemini's `generateContent` puts
+a base64 image and a multi-megabyte `thoughtSignature` in the body, about 9 MB at 2K and 23 MB at
+4K, with its token meters (`usageMetadata`) after them. Streaming that answer would mean settling
+after the response is sent (no exact `X-Treg-Cost-Micro`, a second close-once path for disconnects,
+routed children and overflow rebuilt); raising the buffer would put tens of megabytes per call in
+a web process. The endpoint instead declares `spooled_response: true` and
+`_read_evidence` hands its metered 2xx to `_spool_response`:
+
+- The body streams into `tempfile.TemporaryFile` (unlinked from creation, so a crashed worker
+  leaves nothing on disk) under `spool_max_bytes` (64 MiB) and a per-process
+  `spool_budget_bytes` (512 MiB) shared by concurrent spools. A declared `Content-Length` is
+  claimed whole before the first read, so concurrent answers are admitted or refused whole rather
+  than all stalling half-read; without one, the claim grows chunk by chunk. Crossing either limit
+  raises the same `response_buffer_limit` before headers (the budget refusal says it is temporary);
+  the upstream closes in `finally` as in `_buffer_response`, temp-file creation included.
+- The file is parsed once with the stdlib `json` (measured on a 23 MB Gemini answer: ~30 ms and
+  ~45 MB peak; about three times the body at worst) in a worker thread, at most
+  `spool_parse_concurrency` (2) per process. Only the paths the row's settlement reads survive
+  (`_spool_evidence_paths`: each usage term's top-level object and the `expect` leaf, kept at its
+  original place, e.g. `{"candidates": [{"finishReason": "STOP"}]}`), re-serialized as the `body`
+  every later consumer sees: usage
+  settlement, result classification and capacity signatures. A body that is not a JSON object
+  yields empty evidence; a `usage` basis then settles at its reserve.
+- Settlement then runs exactly as for a buffered body, before the response starts, and the router
+  relays the file in 256 KiB reads with the provider's headers and a recomputed `content-length`.
+  The replay's close returns the budget; `weakref.finalize` does so too for a response dropped
+  without closing.
+- A spooled body is not archived and not stored for idempotent replay; its audit row records the
+  full size. Non-2xx answers, own-key calls and routed children (whose parent reads the child's
+  body) keep their existing paths. `tests/test_call_spool.py` covers the lifecycle (oversize,
+  budget, reset, cancellation, garbage collection, parse gate) and `test_call_response_limits.py`
+  a 20 MB Gemini-shaped answer over two real HTTP hops.
 
 
 ## HarvestAPI integration

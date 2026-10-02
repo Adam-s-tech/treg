@@ -86,6 +86,10 @@ resolves the tool by host and injects the credential:
   return `502` with `detail.error=response_buffer_limit` and no charge; retrying the same oversized
   response will not help. Authorized free final downloads needing no body evidence stream in full.
   Such downloads are fetched again on retry, not retained for local idempotent replay.
+- A tool whose answer inlines media (Google AI's images, speech and Lyria music arrive as base64 in the JSON) is
+  exempt from the 8 MiB limit up to 64 MiB and is charged from the provider's reported usage. Its
+  answer is never replayed: an `Idempotency-Key` retry generates, and bills, a new image. A
+  `response_buffer_limit` whose message says it is temporary means treg is busy: retry shortly.
 
 ### Retrying a call: `Idempotency-Key`
 
@@ -100,8 +104,9 @@ answer was lost on the way back to you. Send the SAME key when you repeat that c
       -H "X-Treg-Token: $TREG_TOKEN" -H "Idempotency-Key: 4f9c1b2e"
 
 treg returns the stored answer, does not call the provider again, and charges nothing. The reply
-carries `X-Treg-Idempotent-Replay: true` and `X-Treg-Cost-Micro` set to what the original cost
-(for a generation task: what it reserved; the settled figure is in `treg audit` / `GET /calls`).
+carries `X-Treg-Idempotent-Replay: true`, `X-Treg-Cost-Micro: 0`, and `X-Treg-Original-Cost-Micro`
+set to what the original cost (for a generation task: what it reserved; the settled figure is in
+`treg audit` / `GET /calls`), so summing `X-Treg-Cost-Micro` never counts a call twice.
 
 Use a NEW key, or none, for genuinely new work — even with identical parameters. Repeating a search
 to see what changed is a new call, not a retry, and reusing the key would hand you yesterday's
@@ -110,6 +115,13 @@ answer. Reusing one key for a DIFFERENT request is refused (422) rather than ans
 Keys are yours alone: scoped to the caller, kept 24 hours. Nothing happens without the header, and a
 call that fails frees its key at once. Over MCP the same thing is the `idempotency_key` argument to
 `call`, and a replayed result carries `replayed: true`.
+
+A `409` means the original call with that key is still running: retry shortly. A `410`
+`idempotency_response_lost` means the original call completed and was charged but treg could not keep
+its answer; the body names the `call_id` and the charge, `GET /calls/{call_id}/result` may still have
+the answer, and a new key calls again. A `410` `idempotency_outcome_unknown` means the original call
+stopped before its outcome was recorded and may have reached the provider: `GET /calls/{call_id}`
+shows what it cost, and a new key calls again.
 
 ### Reselling treg inside your own product
 
@@ -126,7 +138,10 @@ nothing — treg refuses rather than truncating, because a shortened id merges t
 one invoice line.
 
 Every response returns `X-Treg-Call-Id`: the key to join our records to yours. `GET /calls/{id}` reads
-one back with its ledger entries.
+one back with its ledger entries, and `GET /calls/{id}/result` returns the answer it got: a
+successful catalog call is kept, so a response your code dropped after paying for it can be
+fetched again (`stored: false` with a `note` when there is no copy, such as your own tools,
+failures, or a provider whose terms forbid keeping the body).
 
 - **Invoice from** `GET /orgs/{id}/usage/by-tag?key=customer&days=30`. Money comes from the ledger, and
   `attributed_micro + unattributed_micro == total_micro` for every key, so nothing goes missing.
@@ -165,6 +180,12 @@ Start from the job, not the vendor:
     treg catalog get tikhub.tiktok.user.profile     # docs, params, PRICE, and how you'd be served
     treg call tikhub.tiktok.user.profile --query uniqueId=tiktok
     # raw HTTP: GET {BASE}/call/tikhub.tiktok.user.profile?uniqueId=tiktok  + X-Treg-Token
+
+Search for the job AND any required output, such as `treg catalog search "email verification
+catch-all"`. Use `treg catalog get` to check each candidate's fields, parameters and price. When
+you need a provider-specific field (catch-all, disposable, role-address or SMTP), call that
+provider's endpoint: the routed `treg.people.email.verify` contract defines only `valid`,
+`status` and `score`.
 
 Searched and the catalog genuinely lacks it? File it — requests steer which provider gets added
 next: `treg catalog request "<what you need>"`, or raw HTTP
@@ -276,7 +297,7 @@ unverified rows and guesses that one $0.006 verify call each would have caught.)
 Call a specific provider's endpoint when you need a particular one.
 
 <!--/routed-->
-**Video, image and voice generation.** The `video-gen`, `image-gen`, and `voice-gen` platforms list
+**Video, image, voice and music generation.** The `video-gen`, `image-gen`, `voice-gen`, and `music-gen` platforms list
 one row per model per route; the same model on two routes sits side by side with both prices. Models
 are not interchangeable - you pick one; treg does not choose. MiniMax voice generation is
 synchronous: call `minimax.voice-gen.speech-2-8-hd` or
@@ -549,6 +570,12 @@ A small tool set, the same for every client:
     my_tools         what your team registered that you can call without the key
     catalog_request  request a missing capability
     feedback         share a problem or suggestion (omit private information)
+
+`catalog_search` answers a described job with the endpoints that do it, every provider of that
+job ranked by measured success (a provider or platform name lists what it offers). Read its
+`verdict`: `strong` means these do the job; `closest` means the nearest, read `catalog_get`
+before relying on one; `none` means the catalog has no tool for it, so file `catalog_request`
+instead of rephrasing; `keyword` means ranked by words alone.
 <!--hub-->
 - `hub_create` · `hub_update` · `hub_mine` — publish a tool made of tools (the four files as fields; the check runs once on your balance; live on pass).
 <!--/hub-->
@@ -705,7 +732,7 @@ Instead of adding tools/skills one at a time, point treg at what you already hav
 `treg upload` does **both** doors for the current dir; `treg upload env` / `treg upload
 skills` restrict it (`--dir` sets the location).
 
-- **env door** - scans a `.env`, matches each variable against a catalog of ~80 providers
+- **env door** - scans a `.env`, matches each variable against the providers treg recognizes
   (served at `GET /providers.json`), and registers the ones you pick as ready-to-call tools.
   Detection reads NAMES only; the value loads just for the keys you confirm. Config vars
   (`*_HOST`, `*_MODEL`) and app secrets (`SECRET_KEY`, `DATABASE_URL`, `*_WEBHOOK_SECRET`) are
@@ -792,6 +819,10 @@ Example (an agent calling Intercom with no key on its box):
   (`treg scan/upload clis`), shell mode (`treg shell`), and the local-run security sandbox; and
   [Team access control]({BASE}/tutorial-access.md) - which tools each member may use + the
   local-run on/off dial.
+<!--hosted-->
+- [GTM engineering playbook]({BASE}/gtm-engineering.md): 16 chapters from ICP to rollout, each with a
+  prompt and a rule; the data steps (lists, enrichment, signals, inbound) were tested on recorded runs.
+<!--/hosted-->
 - [The official Claude skill]({BASE}/skill.md): the 3-persona (consumer/creator/admin) skill —
   save it to `~/.claude/skills/treg/SKILL.md` (install.sh does this automatically).
 - [Web dashboard]({BASE}/): sign in and manage everything in the browser (tools, secrets,

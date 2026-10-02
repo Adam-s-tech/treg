@@ -14,6 +14,7 @@ import pytest
 from httpx import AsyncClient
 
 from treg.config import get_settings
+from treg.routers.web import _SITEMAP_PAGES, _USE_CASES
 
 
 SITEMAP_NS = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
@@ -137,6 +138,16 @@ async def test_widening_head_did_not_leak_into_the_public_schema(clients: AsyncC
     assert with_head == ["/call/{rest}"], with_head
 
 
+async def test_every_openapi_operation_has_its_own_id(clients: AsyncClient):
+    """FastAPI gives a multi-method route one operation id for every method it declares, taken from
+    whichever method the set yields first, so the /call relay published seven operations under one
+    id. Code generators key on it; each operation must be distinct."""
+    paths = (await clients.get("/openapi.json")).json()["paths"]
+    ids = [op["operationId"] for ops in paths.values() for op in ops.values()]
+    assert len(ids) == len(set(ids)), sorted({i for i in ids if ids.count(i) > 1})
+    assert paths["/call/{rest}"]["post"]["operationId"] == "call_tool_call__rest__post"
+
+
 def test_no_shelf_is_published_that_the_app_grid_hides():
     """Adding a platform is a data-only change — drop the YAML in and it appears on both sides. The
     one way that breaks: `catalog_store` auto-registers a platform with no `platforms:` entry in
@@ -152,12 +163,21 @@ def test_no_shelf_is_published_that_the_app_grid_hides():
         "publish /catalog/<slug> for each while the app's tile grid hides them")
 
 
-@pytest.mark.parametrize("path", ["/", "/support", "/terms", "/privacy", "/tutorial", "/catalog",
-                                  "/robots.txt", "/skill.md", "/llms.txt", "/.well-known/skill.md"])
+# Every page the sitemap publishes, the ad landing pages, and the agent-facing text files.
+_TEMPLATED_PATHS = sorted(
+    {path for path, _, _ in _SITEMAP_PAGES}
+    | {f"/use-cases/{slug}" for slug in _USE_CASES}
+    | {"/robots.txt", "/skill.md", "/llms.txt", "/.well-known/skills/treg/SKILL.md", "/integrate.md",
+       "/tutorial.md", "/quickstart.md", "/contact", "/help"})
+
+
+@pytest.mark.parametrize("path", _TEMPLATED_PATHS)
 async def test_no_page_ships_an_unsubstituted_base(clients: AsyncClient, path: str):
     """`{BASE}` reaching a browser means a canonical or og:url is pointing at nothing, and an
     unfilled `{ENDPOINTS}` or `{PROVIDERS}` puts a template on the front door."""
-    text = (await clients.get(path)).text
+    r = await clients.get(path)
+    assert r.status_code == 200, (path, r.status_code)
+    text = r.text
     for placeholder in ("{BASE}", "{ENDPOINTS}", "{PROVIDERS}"):
         assert placeholder not in text, (path, placeholder)
 

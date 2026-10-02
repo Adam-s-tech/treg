@@ -34,7 +34,7 @@ The standalone [Enrich Arena](../interface/enrich-arena.md) pages (`/enrich-aren
 `/enrich-arena/leaderboard`) and `/arena/*` routes are control-role
 surfaces. Paid interactive runs use the ordinary call application internally. Shutdown drains their
 in-process owners before closing the shared upstream client.
-The shared `/agent-setup.js` browser asset and the compiled Dashboard assets at
+The `/agent-setup.js` browser asset (compiled from the Dashboard source for Arena) and the compiled Dashboard assets at
 `/app/ui/assets/{name}` also belong to the control role.
 
 `bootstrap.create_app(role)` is the FastAPI composition root. `api.py` hosts the ordered route table,
@@ -44,7 +44,7 @@ EOF so the deployed `treg.api:app` import path remains the default `all` role.
 The factory owns concrete assembly: the three core pure-ASGI middleware registrations, the optional
 V2 path normalizer, five exception handlers, static mounts, optional MCP mounts and lifespans,
 GET-to-HEAD widening, the OpenAPI wrapper that hides
-implied HEAD operations, shared HTTP client creation, startup work, shutdown drains, and the Ads
+implied HEAD operations and gives each method of a multi-method route its own operation id, shared HTTP client creation, startup work, shutdown drains, and the Ads
 conversion worker. Registration order is compatibility behavior. The four stage-0 snapshots stay
 byte-identical for `role="all"` unless that composition intentionally changes.
 
@@ -52,7 +52,10 @@ When archive settings select R2, the lifespan validates object-store configurati
 verification, then owns the asynchronous client until archive and analytics drains finish. This
 conditional resource setup does no object I/O at startup and adds no worker. Tests can supply
 `create_app(..., archive_object_store=...)`; `configure_archive_object_store` is the shared
-in-memory injection seam. See [archive](archive.md) for switches and queue behavior.
+in-memory injection seam, and hands the same store to find's card vectors (`find_index.configure`,
+see [find](find.md)); with an embedding key the lifespan also starts, on every role, one background
+task that builds those vectors (`find_index.warm`), cancelled with the other workers on shutdown.
+See [archive](archive.md) for switches and queue behavior.
 The same `archive_object_store` context owns the client for the Arena insights worker; that command
 does not start a web lifespan or its background tasks.
 
@@ -73,8 +76,9 @@ carrying the `build` and `archive_config` fingerprints every server event has (s
 
 `bootstrap_handlers.py` owns the app-wide pool-saturation and HTTP-exception adapters.
 `call_surface.split_call_path`
-classifies both `/call/` and `/catalog/call/` so those adapters share the same call-id, audit and
-idempotency-release contract while retaining `call` versus `catalog_call` ingress attribution. The
+classifies `/call/`, `/catalog/call/` and `/table/` so those adapters share the same call-id, audit
+and idempotency-release contract while retaining `call`, `catalog_call` and `table` ingress
+attribution. The
 composition root supplies the call-specific `_stamp_call_exit` callback from `routers/call.py` before registration;
 the callback owns call ids, refusal classification, audit fallback, exceptional call telemetry, and
 idempotency-label release. After caller identity exists, the pool adapter reports
@@ -87,7 +91,10 @@ the typed 503; normal HTTP refusals remain responses, not server faults.
 `_BodyDecodeMiddleware` -> `_SecurityHeadersMiddleware` ->
 `_LegacyHostRedirectMiddleware` -> routes/mounts. All three are pure ASGI. The security wrapper adds
 headers at `http.response.start` with case-insensitive setdefault semantics, and the redirect wrapper
-either sends the same 301/302 response as before or calls its child directly. Keeping
+either sends the same 301/302 response as before or calls its child directly. On a local dev server
+(`Settings.local_dev`: local sqlite behind a loopback `public_url`, the same test `single_user_ok`
+rests on) `_DevTitleMiddleware` wraps the stack and prefixes every HTML page's `<title>` with
+`[dev] `, so its tab is told apart from production's; it is never registered anywhere else. Keeping
 `BaseHTTPMiddleware.call_next()` out of this stack matters for streaming and disconnects: an MCP
 client may close while its stateless transport terminates without sending a response, which is a
 normal end to an already-dead connection rather than a server 500.
@@ -111,7 +118,7 @@ architecture test separately pins the dataplane/control startup split and backgr
 | Role | HTTP routes and mounts | Background tasks | Startup checks |
 |---|---|---|---|
 | `all` | The complete surface, including `/run`, static files, `/mcp`, and the flagged `/mcp/v2` | Ads conversion worker when enabled | Read-only DB verify, HTTP client, enabled MCP lifespans |
-| `dataplane` | `/call/{rest:path}`, `/catalog/call/{rest:path}`, MCP mounts, and their resource metadata; no `/run`, static files, docs, or OpenAPI | None | Read-only DB verify, HTTP client, enabled MCP lifespans |
+| `dataplane` | `/call/{rest:path}`, `/catalog/call/{rest:path}`, `/table/{rest:path}` (see [table](table.md)), MCP mounts, and their resource metadata; no `/run`, static files, docs, or OpenAPI | None | Read-only DB verify, HTTP client, enabled MCP lifespans |
 | `control` | Everything except the calling surfaces; includes OAuth issuance, `/run`, and static files | Ads conversion worker when enabled | Read-only DB verify, HTTP client |
 
 No role lifespan writes schema, performs a data backfill, or provisions the local single user. The explicit

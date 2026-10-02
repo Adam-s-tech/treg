@@ -22,6 +22,7 @@ export class Pile {
   private bodies = new Map<string, Matter.Body>()
   private walls: Matter.Body[] = []
   private raf = 0
+  private destroyed = false
   private grip: Matter.Constraint | null = null
   private held: Matter.Body | null = null
   private width = 0
@@ -134,7 +135,8 @@ export class Pile {
   }
 
   start() {
-    if (this.raf) return
+    // A destroyed pile never runs again, whatever a late caller asks of it.
+    if (this.raf || this.destroyed) return
     // The first step is a nominal frame: a frame timestamp can precede the moment this loop was
     // started, and Matter reads a zero or negative step as "at rest" and puts every new body to
     // sleep where it spawned, above the page.
@@ -152,7 +154,7 @@ export class Pile {
     this.raf = requestAnimationFrame(tick)
   }
 
-  destroy() { cancelAnimationFrame(this.raf); this.raf = 0; Matter.Engine.clear(this.engine) }
+  destroy() { this.destroyed = true; cancelAnimationFrame(this.raf); this.raf = 0; Matter.Engine.clear(this.engine) }
 
   private awake() {
     for (const b of this.bodies.values()) if (!b.isSleeping) return true

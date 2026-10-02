@@ -352,7 +352,8 @@ def _show_charge_line(resp: httpx.Response) -> None:
     field is in the provider body, which is all stdout carries. Silent for an unmetered call (no
     header) — a team's own key is never billed — and for every non-call response."""
     headers = getattr(resp, "headers", {}) or {}
-    cost = headers.get("X-Treg-Cost-Micro")
+    # A replay reports 0 and the first call's charge separately; an older registry sent only the latter.
+    cost = headers.get("X-Treg-Original-Cost-Micro") or headers.get("X-Treg-Cost-Micro")
     if cost is None:
         return
     asynchronous = bool(headers.get("X-Treg-Async"))
@@ -1334,7 +1335,7 @@ def _onboard_test_call(cfg: dict, tools: list) -> None:
 def _demo_catalog_peek(cfg: dict) -> None:
     """Read-only: what the catalog can already do for this team, with nothing registered and no key.
     Costs nothing — a search is free; only a call spends the balance."""
-    print("  ~2,600 endpoints across ~40 providers. Ask for the JOB, not the vendor:")
+    print("  The whole catalog, priced per call. Ask for the JOB, not the vendor:")
     _cmd('treg catalog search "backlinks for a domain"')
     try:
         with _client(cfg) as c:
@@ -3957,9 +3958,31 @@ def cmd_skill_bootstrap(args, cfg) -> None:
                 print(f"    (removed the old tools-registry skill folder — renamed to treg)")
         except OSError:
             pass
+    # The other public skills this registry advertises (make-ugc, lead-signals, …): the same well-known
+    # index `npx skills add` reads, so that one list decides what ships. Best-effort: the treg skill is
+    # already in place, so a miss here never fails the install.
+    extra = []
+    try:
+        idx = httpx.get(f"{base_url}/.well-known/skills/index.json", timeout=15, follow_redirects=True).json()
+        for entry in idx.get("skills", []):
+            name = str(entry.get("name", ""))
+            # the name becomes a directory: only a plain slug, never a path the server could steer
+            if name == "treg" or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", name):
+                continue
+            r = httpx.get(f"{base_url}/.well-known/skills/{name}/SKILL.md", timeout=15, follow_redirects=True)
+            if r.status_code == 200 and r.text.startswith("---"):
+                extra.append((name, r.text))
+    except Exception:  # noqa: BLE001 — optional extras; the treg skill already installed
+        pass
+    for name, text in extra:
+        for b in bases:
+            (b / name).mkdir(parents=True, exist_ok=True)
+            (b / name / "SKILL.md").write_text(text)
+        print(f"  ✓ {name} → {len(bases)} location(s)")
     detected = _agents.detect_installed()
     tail = f"detected: {', '.join(detected)}" if detected else "no agents detected — used sensible defaults"
-    print(f"\nInstalled the treg skill into {n} location(s)  ({tail}).")
+    names = ", ".join(["treg"] + [nm for nm, _ in extra])
+    print(f"\nInstalled {names} into {n} location(s)  ({tail}).")
 
 
 def cmd_agents_ls(args, cfg) -> None:
@@ -5947,8 +5970,10 @@ def _print_price_table(cost, inp: dict) -> None:
         print(f"  {'fallback (ceiling)':<58} {money(float(fb['value']))}")
     if settle == "usage":
         usage = cost.get("usage") or {}
+        reported = (", ".join(str(t.get("path")) for t in usage["terms"]) + " at their rates"
+                    if usage.get("terms") else usage.get("path", "usage"))
         _dim(f"  settle: usage - the matched row is reserved; the provider's reported "
-             f"{usage.get('path', 'usage')} is what you pay")
+             f"{reported} is what you pay")
         _dim("  (it can exceed the reserve when the provider applies a minimum charge).")
     else:
         _dim("  settle: table - the matched row is reserved at submission and charged when the task succeeds.")
@@ -6085,7 +6110,7 @@ HELP_GROUPS: list[tuple[str, list[tuple[str, str]]]] = [
     # Ordered as the job is done: find a tool → call it → see what it cost. The catalog leads
     # because it is the half a newcomer can use with no setup at all.
     ("THE CATALOG — tools you don't have a key for", [
-        ("catalog", "Find a tool by what you want to DO. ~2,600 endpoints, each with its price."),
+        ("catalog", "Find a tool by what you want to DO. Every endpoint shows its price."),
         ("call", "Call a tool: a catalog endpoint by id, or one of your own by URL."),
         ("host", "Host a reference image / audio / video at a public URL for a vendor to fetch."),
         ("balance", "Prepaid balance: credit left, calls in flight, recent spend."),
@@ -6189,7 +6214,7 @@ def build_parser() -> argparse.ArgumentParser:
         # Hard-wrapped: _RAWFMT is RawDescriptionHelpFormatter, so argparse will NOT wrap this for
         # us and an unwrapped paragraph runs off the edge of a narrow terminal.
         description=("treg — the tool catalog for your agent.\n"
-                     "Call the tool a job needs without owning its API key: ~2,600 catalogued\n"
+                     "Call the tool a job needs without owning its API key: catalogued\n"
                      "endpoints priced per call, plus your team's own keys, skills and CLIs.\n"
                      "Credentials are injected server-side, never on your machine."),
         epilog=_ex(
@@ -7005,8 +7030,18 @@ def _subcommands(parser) -> set[str]:
 
 
 def main(argv: list[str] | None = None) -> None:
+    """One CLI invocation. `--org` and `--json` live in module globals for the length of this call
+    only, so a second `main()` in the same process (tests, embedders) starts from the defaults."""
     global _ORG_OVERRIDE, _JSON_OVERRIDE
-    argv = list(sys.argv[1:] if argv is None else argv)
+    _ORG_OVERRIDE, _JSON_OVERRIDE = None, False
+    try:
+        _main(list(sys.argv[1:] if argv is None else argv))
+    finally:
+        _ORG_OVERRIDE, _JSON_OVERRIDE = None, False
+
+
+def _main(argv: list[str]) -> None:
+    global _ORG_OVERRIDE, _JSON_OVERRIDE
     override = _pop_org_flag(argv)
     _JSON_OVERRIDE = _pop_json_flag(argv)
     # Preserve the original submission shorthand; help teaches the explicit subcommands.

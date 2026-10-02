@@ -68,6 +68,15 @@
       "GET",
       "HEAD"
     ],
+    "name": "catalog_provider",
+    "path": "/catalog/providers/{service}"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
     "name": "catalog_search",
     "path": "/catalog/search"
   },
@@ -124,6 +133,15 @@
     ],
     "name": "catalog_page",
     "path": "/catalog/{slug}"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "catalog_comparison_page",
+    "path": "/catalog/{slug:shelf}/{key}"
   },
   {
     "kind": "APIRoute",
@@ -807,6 +825,15 @@
       "GET",
       "HEAD"
     ],
+    "name": "lead_signals_skill_md",
+    "path": "/skills/lead-signals/SKILL.md"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
     "name": "feedback_md",
     "path": "/feedback.md"
   },
@@ -962,6 +989,33 @@
     ],
     "name": "people_search_page",
     "path": "/people-search"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "leads_signals_page",
+    "path": "/leads-signals"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "gtm_engineering_page",
+    "path": "/gtm-engineering"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "gtm_engineering_md",
+    "path": "/gtm-engineering.md"
   },
   {
     "kind": "APIRoute",
@@ -1146,6 +1200,15 @@
     ],
     "name": "well_known_make_ugc_md",
     "path": "/.well-known/skills/make-ugc/SKILL.md"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "well_known_lead_signals_md",
+    "path": "/.well-known/skills/lead-signals/SKILL.md"
   },
   {
     "kind": "APIRoute",
@@ -2061,7 +2124,7 @@
       "HEAD"
     ],
     "name": "get_call_result",
-    "path": "/calls/{call_id:int}/result"
+    "path": "/calls/{call_id}/result"
   },
   {
     "kind": "APIRoute",
@@ -2148,6 +2211,14 @@
     ],
     "name": "set_extra_credential",
     "path": "/connections/{secret_id}/extra-credential"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "PATCH"
+    ],
+    "name": "rename_connection",
+    "path": "/connections/{secret_id}"
   },
   {
     "kind": "APIRoute",
@@ -2429,6 +2500,47 @@
     ],
     "name": "call_catalog_endpoint",
     "path": "/catalog/call/{rest:path}"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "DELETE",
+      "GET",
+      "HEAD",
+      "OPTIONS",
+      "PATCH",
+      "POST",
+      "PUT"
+    ],
+    "name": "table_tool",
+    "path": "/table/{rest:path}"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "table_columns",
+    "path": "/table-columns/{tool_id:path}"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "table_account",
+    "path": "/table-account"
+  },
+  {
+    "kind": "APIRoute",
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "name": "activity_feed",
+    "path": "/activity"
   },
   {
     "kind": "APIRoute",

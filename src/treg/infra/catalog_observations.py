@@ -44,7 +44,7 @@ class EndpointObservationCacheCounts:
 
 @dataclass(frozen=True)
 class _Entry:
-    value: stats.EndpointObservation
+    value: stats.EndpointObservation | None   # None: read, and nothing to publish (never called)
     stored_at: float
 
 
@@ -52,8 +52,10 @@ class PostgresEndpointObservationReader:
     """Authoritative reader whose session exists only for one small read.
 
     Once `treg-worker catalog stats` has caught up with the audit table (the cursor row says so),
-    an observation is thirty `EndpointDayStat` rows per endpoint, summed and published through the
-    same floors as the live aggregate. Until then, on any deployment that never schedules the
+    a synchronous observation is thirty `EndpointDayStat` rows per endpoint, summed and published
+    through the same floors as the live aggregate. Async endpoints still read `CallRecord` live
+    because their terminal hit can arrive after the fold cursor passes the submission. Until then,
+    on any deployment that never schedules the
     worker, and whenever the worker has not run for `STALE_AFTER_S` (it stopped, or every run is
     failing), it is the live thirty-day aggregate over `callrecord` it always was, so the numbers
     the catalog publishes never depend on an operator remembering a cron or noticing a dead one.
@@ -71,7 +73,14 @@ class PostgresEndpointObservationReader:
         from ..models import EndpointDayStat, EndpointStatCursor
         from ..timeutil import utcnow_naive
         cat = catalog_store.load()
-        per_success = {i for i in ids if ((cat.by_id.get(i) or {}).get("cost") or {}).get("type") == "per_success"}
+        async_ids = [i for i in ids if (cat.by_id.get(i) or {}).get("async")]
+        folded_ids = [i for i in ids if i not in async_ids]
+        # An async submission can finish after the fold cursor has consumed its audit row.
+        # Read those endpoints live so the terminal correction is visible to routing.
+        # Async per-success endpoints use the terminal verdict exclusively. A completed
+        # hit can report zero credits, so charge-based miss inference would skew routing.
+        per_success = {i for i in folded_ids
+                       if ((cat.by_id.get(i) or {}).get("cost") or {}).get("type") == "per_success"}
         async with self._session_factory() as db:
             cursor = await db.get(EndpointStatCursor, "callrecord")
             if cursor is None or cursor.caught_up_at is None:
@@ -81,14 +90,19 @@ class PostgresEndpointObservationReader:
                             cursor.updated_at.isoformat())
                 return await stats.observed(db, ids, per_success=per_success)
             rows = (await db.execute(
-                select(EndpointDayStat).where(EndpointDayStat.endpoint_id.in_(ids),
+                select(EndpointDayStat).where(EndpointDayStat.endpoint_id.in_(folded_ids),
                                               EndpointDayStat.day >= stats.window_days()))).scalars().all()
+            live_async = (await stats.observed(db, async_ids, per_success=set())
+                          if async_ids else {})
         tallies = stats.merged((row.endpoint_id, stats.Tally(
             n=row.n, ok=row.ok, bad=row.bad, last_ok=row.last_ok_at, hits=row.hits,
             hit_decided=row.hit_decided, paid_hits=row.paid_hits, free_misses=row.free_misses,
             latency_seen=row.latency_seen, latencies=list(row.latency_sample or []),
         )) for row in rows)
-        return stats.publish(ids, tallies, per_success=per_success)
+        return stats.publish(folded_ids, tallies, per_success=per_success) | live_async
+
+    def pending(self, endpoint_ids: Collection[str]) -> bool:
+        return False   # every read waits on the database, so nothing is ever still on its way
 
 
 class CachedEndpointObservationReader:
@@ -153,10 +167,12 @@ class CachedEndpointObservationReader:
                 age = now - entry.stored_at if entry is not None else None
                 if entry is not None and age is not None and age <= self._fresh_ttl_s:
                     self._fresh += 1
-                    result[endpoint_id] = entry.value
+                    if entry.value is not None:
+                        result[endpoint_id] = entry.value
                 elif entry is not None and age is not None and age <= self._stale_ttl_s:
                     self._stale += 1
-                    result[endpoint_id] = entry.value
+                    if entry.value is not None:
+                        result[endpoint_id] = entry.value
                     refresh_ids.add(endpoint_id)
                 else:
                     self._miss += 1
@@ -200,9 +216,12 @@ class CachedEndpointObservationReader:
                 else:
                     stored_at = self._clock()
                     async with self._lock:
-                        for endpoint_id, value in refreshed.items():
+                        # An id the source had nothing for is remembered as such, so an endpoint
+                        # nobody calls is not a miss, and a database read, on every request.
+                        for endpoint_id in endpoint_ids:
                             if endpoint_id in self._inflight:
-                                self._entries[endpoint_id] = _Entry(value=value, stored_at=stored_at)
+                                self._entries[endpoint_id] = _Entry(value=refreshed.get(endpoint_id),
+                                                                    stored_at=stored_at)
                         self._retry_not_before = 0.0
                 finally:
                     async with self._lock:
@@ -211,6 +230,11 @@ class CachedEndpointObservationReader:
             async with self._lock:
                 if self._task is asyncio.current_task():
                     self._task = None
+
+    def pending(self, endpoint_ids: Collection[str]) -> bool:
+        """Whether any of these has never been read and is being read now: a view that shows it
+        unmeasured may have numbers a moment later."""
+        return any(i not in self._entries and (i in self._pending or i in self._inflight) for i in endpoint_ids)
 
     async def wait_for_idle(self) -> None:
         """Wait for the current shared refresh task, primarily for orderly tests and shutdown."""

@@ -1860,6 +1860,35 @@ REAPI = OAuthProvider(
     probe_reject_statuses=(401, 403),
 )
 
+GOOGLE_AI = OAuthProvider(
+    service="google-ai",
+    display_name="Google AI (Gemini API)",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="your Gemini API key",
+    token_header="x-goog-api-key",
+    token_format="{secret}",
+    setup_url="https://aistudio.google.com/apikey",
+    setup_action_label="Get your Gemini API key",
+    setup_steps=(
+        "Sign in to Google AI Studio and open Get API key.",
+        "Create a key in a project with billing enabled (image models are paid-tier only).",
+    ),
+    setup_note=(
+        "Calls bill the key's Google Cloud project by token. treg checks the free model list "
+        "when you connect the key."
+    ),
+    auth_uri="", token_uri="", scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="AI generation",
+    summary="Generate and edit images with Gemini 3 Pro Image on Google's own API.",
+    base_url="https://generativelanguage.googleapis.com/v1beta",
+    docs_url="https://ai.google.dev/gemini-api/docs/image-generation",
+    # A bad key answers 400 API_KEY_INVALID, 401 UNAUTHENTICATED (a malformed AQ. key) or 403
+    # (none), observed 2026-09-29; listing models is free.
+    probe_path="/models?pageSize=1",
+)
+
 PIAPI = OAuthProvider(
     service="piapi",
     display_name="PiAPI",
@@ -2352,6 +2381,19 @@ LEADMAGIC = OAuthProvider(
     probe_path="/v1/credits",  # free — no credits consumed
 )
 
+ENRICHLAYER = OAuthProvider(
+    service="enrichlayer", display_name="Enrichlayer", auth_kind="key",
+    token_label="API key", token_placeholder="your Enrichlayer API key",
+    token_header="Authorization", token_format="Bearer {secret}",
+    setup_url="https://enrichlayer.com/", setup_action_label="Get your Enrichlayer API key",
+    setup_steps=("Sign in to Enrichlayer and copy your API key.",),
+    auth_uri="", token_uri="", scopes={}, client_id_setting="", client_secret_setting="",
+    category="Enrichment",
+    summary="Search and enrich people and companies; resolve profiles, contact data and jobs.",
+    base_url="https://enrichlayer.com", docs_url="https://enrichlayer.com/docs",
+    probe_path="/api/v2/credit-balance",
+)
+
 
 FIBER_AI = OAuthProvider(
     service="fiber-ai",
@@ -2474,6 +2516,25 @@ EXA = OAuthProvider(
     probe_json={"urls": ["https://example.com"], "text": {"maxCharacters": 1}},
 )
 
+SEARCH1API = OAuthProvider(
+    service="search1api",
+    display_name="Search1API",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="your Search1API key",
+    setup_url="https://app.s1.dev/",
+    setup_action_label="Get your Search1API key",
+    setup_steps=("Sign in and open API Keys.", "Create or copy an API key."),
+    setup_note="Calls spend Search1API credits. treg checks the free Usage endpoint when connecting.",
+    auth_uri="", token_uri="", scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="SEO",
+    summary="Search the web and news, read pages, discover sites, and extract content.",
+    base_url="https://api.search1api.com",
+    docs_url="https://s1.dev/docs",
+    probe_path="/usage",
+)
+
 TAVILY = OAuthProvider(
     service="tavily",
     display_name="Tavily",
@@ -2498,6 +2559,108 @@ TAVILY = OAuthProvider(
     base_url="https://api.tavily.com",
     docs_url="https://docs.tavily.com/documentation/api-reference",
     probe_path="/usage",
+)
+
+OCTEN = OAuthProvider(
+    service="octen",
+    display_name="Octen",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="your Octen API key",
+    token_header="x-api-key",
+    token_format="{secret}",
+    setup_url="https://octen.ai/platform",
+    setup_action_label="Get your Octen API key",
+    setup_steps=(
+        "Sign in to the Octen API Platform and create or copy an API key.",
+        "Paste the key here.",
+    ),
+    setup_note="Search and extraction calls spend your Octen pay-as-you-go balance.",
+    auth_uri="", token_uri="",
+    scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="SEO",
+    summary="Search the web and news, run broad searches, and extract page content.",
+    base_url="https://api.octen.ai",
+    docs_url="https://docs.octen.ai/",
+    probe_path="/search",
+    probe_method="POST",
+    probe_json={"query": ""},
+    probe_reject_statuses=(401, 403),
+    probe_deferred_statuses=(400,),
+)
+
+LINKUP = OAuthProvider(
+    service="linkup",
+    display_name="Linkup",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="your Linkup API key",
+    setup_url="https://app.linkup.so",
+    setup_action_label="Get your Linkup API key",
+    setup_steps=(
+        "Sign in to Linkup and open the API Keys section.",
+        "Create or copy a key.",
+    ),
+    setup_note=(
+        "Search, Fetch and Research use prepaid USD credit. treg checks the free balance "
+        "endpoint when you connect the key."
+    ),
+    auth_uri="", token_uri="",
+    scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="SEO",
+    summary="Search the web, fetch pages, and run sourced research.",
+    base_url="https://api.linkup.so",
+    docs_url="https://docs.linkup.so/pages/documentation/get-started/introduction",
+    probe_path="/v1/credits/balance",
+)
+
+YOU = OAuthProvider(
+    service="you",
+    display_name="You.com",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="your You.com API key",
+    token_header="X-API-Key",
+    token_format="{secret}",
+    setup_url="https://you.com/platform",
+    setup_action_label="Get your You.com API key",
+    setup_steps=(
+        "Sign in to You.com Platform and create an API key.",
+        "Copy the key and connect it here.",
+    ),
+    setup_note="Search, Contents, Answer and Research use prepaid USD credit. treg checks the account balance when you connect the key.",
+    auth_uri="", token_uri="",
+    scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="SEO",
+    summary="Search the web, extract pages, and get cited answers or research.",
+    base_url="https://api.you.com",
+    catalog_targets=(CatalogTarget(host="ydc-index.io", base_url="https://ydc-index.io"),),
+    docs_url="https://you.com/docs/welcome",
+    probe_path="/v1/billing/account_balance",
+)
+
+VALYU = OAuthProvider(
+    service="valyu",
+    display_name="Valyu",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="your Valyu API key",
+    token_header="X-API-Key",
+    token_format="{secret}",
+    setup_url="https://platform.valyu.ai",
+    setup_action_label="Get your Valyu API key",
+    setup_steps=("Sign in to Valyu Platform and open API Keys.", "Create or copy a key."),
+    setup_note="Search, Contents, Answer and DeepResearch use Valyu credits. Datasource discovery checks the key without a paid query.",
+    auth_uri="", token_uri="", scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="Research & public data",
+    summary="Search the web and specialist sources, extract pages, and run cited research.",
+    base_url="https://api.valyu.ai",
+    docs_url="https://docs.valyu.ai/home",
+    probe_path="/v1/datasources",
 )
 
 SERPER = OAuthProvider(
@@ -2531,6 +2694,30 @@ SERPER = OAuthProvider(
     ),
     docs_url="https://serper.dev/playground",
     probe_path="/account",
+)
+
+LITESCRAPE = OAuthProvider(
+    service="litescrape",
+    display_name="Litescrape",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="ls_live_…",
+    setup_url="https://litescrape.com/",
+    setup_action_label="Get your Litescrape API key",
+    setup_steps=(
+        "Open Litescrape and copy your API key.",
+        "Paste the key here; treg checks the free key status endpoint.",
+    ),
+    setup_note="Search, places, reviews, app store and web tools use one prepaid call per successful response.",
+    auth_uri="", token_uri="", scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="SEO",
+    summary="Search engines, maps, reviews, app stores, web pages and screenshots.",
+    base_url="https://api.litescrape.com",
+    docs_url="https://litescrape.com/docs/reference",
+    probe_path="/api/keys/status",
+    token_ok_field="status",
+    token_ok_value="active",
 )
 
 KEENABLE = OAuthProvider(
@@ -2588,6 +2775,82 @@ OLOSTEP = OAuthProvider(
     base_url="https://api.olostep.com",
     docs_url="https://docs.olostep.com/",
     probe_path="/user/credits/info",
+)
+
+FIRECRAWL = OAuthProvider(
+    service="firecrawl",
+    display_name="Firecrawl",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="fc-…",
+    setup_url="https://www.firecrawl.dev/app/api-keys",
+    setup_action_label="Get your Firecrawl API key",
+    setup_steps=(
+        "Sign in to Firecrawl and open API Keys.",
+        "Create or copy an API key.",
+    ),
+    setup_note=(
+        "Scrape, Search, Map, Crawl and Batch Scrape spend Firecrawl credits. "
+        "Connecting checks the free credit-usage endpoint."
+    ),
+    auth_uri="", token_uri="",
+    scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="SEO",
+    summary="Scrape pages, search the web, map sites, and run bounded crawls or batches.",
+    base_url="https://api.firecrawl.dev",
+    docs_url="https://docs.firecrawl.dev/introduction",
+    probe_path="/v2/team/credit-usage",
+)
+
+SPIDERCLOUD = OAuthProvider(
+    service="spidercloud",
+    display_name="Spider",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="sk-…",
+    setup_url="https://spider.cloud/account/keys/",
+    setup_action_label="Get your Spider API key",
+    setup_steps=(
+        "Sign in to Spider and open API Keys.",
+        "Create or copy an API key.",
+    ),
+    setup_note=(
+        "Spider bills pay-as-you-go usage from your dollar balance. treg checks the free "
+        "balance endpoint when you connect the key."
+    ),
+    auth_uri="", token_uri="", scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="SEO",
+    summary="Scrape and crawl pages, search, discover links, unblock pages, and capture screenshots.",
+    base_url="https://api.spider.cloud",
+    docs_url="https://spider.cloud/docs/api/",
+    probe_path="/data/credits",
+)
+
+PERPLEXITY = OAuthProvider(
+    service="perplexity",
+    display_name="Perplexity",
+    auth_kind="key",
+    token_label="API key",
+    token_placeholder="pplx-…",
+    setup_url="https://console.perplexity.ai/",
+    setup_action_label="Get your Perplexity API key",
+    setup_steps=(
+        "Sign in to the Perplexity API console and open API keys.",
+        "Generate or copy an API key.",
+    ),
+    setup_note=(
+        "Search and Agent calls spend prepaid API credits. The credit balance is shown in the "
+        "console; connecting checks the free Agent model-list endpoint."
+    ),
+    auth_uri="", token_uri="", scopes={},
+    client_id_setting="", client_secret_setting="",
+    category="SEO",
+    summary="Search the web and get cited answers or background research.",
+    base_url="https://api.perplexity.ai",
+    docs_url="https://docs.perplexity.ai/docs/getting-started/overview",
+    probe_path="/v1/models",
 )
 
 SCRAPEGRAPHAI = OAuthProvider(
@@ -2958,32 +3221,31 @@ FINDYMAIL = OAuthProvider(
 
 BRANDDEV = OAuthProvider(
     service="branddev",
-    display_name="Brand.dev",
+    display_name="Context.dev",
     auth_kind="key",
     token_label="API key",
-    token_placeholder="your Brand.dev API key",
+    token_placeholder="your Context.dev API key",
     # token_header / token_format default to Authorization: Bearer {secret} — which is exactly
-    # what this API wants (verified live 2026-08-20).
-    setup_url="https://brand.dev",
-    setup_action_label="Get your Brand.dev API key",
+    # what this API wants (verified live on the Context.dev host 2026-09-28).
+    setup_url="https://context.dev",
+    setup_action_label="Get your Context.dev API key",
     setup_steps=(
-        "Create a Brand.dev account — a work email gets the larger free credit grant.",
+        "Create a Context.dev account.",
         "Open the dashboard's API keys page and copy your key.",
     ),
-    setup_note="Brand lookups spend credits (10 per brand record, 5 for fonts, 1 for a "
-               "screenshot); credits are charged only on a successful response, and "
-               "malformed requests are free.",
+    setup_note="Context.dev calls spend credits; the response reports credits_consumed. "
+               "Brand records cost 10 credits and basic web requests start at 1 credit.",
     auth_uri="", token_uri="",
     scopes={},
     client_id_setting="", client_secret_setting="",
     category="Enrichment",
-    summary="Turn a domain, company name, work email, ticker or card descriptor into a brand "
-            "profile — logos, colors, fonts, styleguide, slogan, socials and industry codes.",
-    base_url="https://api.brand.dev/v1",
-    docs_url="https://docs.brand.dev",
+    summary="Search, scrape, map and crawl the web, or turn a company identifier into a brand "
+            "profile with logos, colors, fonts, socials and industry codes.",
+    base_url="https://api.context.dev/v1",
+    docs_url="https://docs.context.dev",
     # There is NO free account/usage route on this API (every /v1/account, /v1/usage, /v1/key
     # guess answers 403 "does not exist"). The probe is therefore the Coresignal pattern: call
-    # the data route with NO parameters. Observed live 2026-08-20:
+    # the data route with NO parameters. Observed live on the Context.dev host 2026-09-28:
     #   valid key   -> 400 {"error_code":"INPUT_VALIDATION_ERROR", ... credits_consumed: 0}
     #   bogus key   -> 401 {"error_code":"NOT_FOUND","message":"API key not found …"}
     # so 400 must count as "key accepted" and only 401/403 as a rejection. The probe is FREE.
@@ -3575,14 +3837,14 @@ REGISTRY: dict[str, OAuthProvider] = {
         TRYKITT, CONTACTOUT, MILLIONVERIFIER, BOUNCEBAN, CRUNCHBASE, MINIMAX, FISHAUDIO,
         OPENROUTER,
         REPLICATE,
-        REAPI, PIAPI, TINYFISH,
+        REAPI, PIAPI, GOOGLE_AI, TINYFISH,
         TIKHUB, BRIGHTDATA, SEMRUSH, JUSTONEAPI,
         SCRAPECREATORS,
         # SEO API-key providers
-        DATAFORSEO, SERANKING, MOZ, MAJESTIC, SERPSTAT, EXA, TAVILY, KEENABLE, OLOSTEP,
-        SCRAPEGRAPHAI, SERPER, CLORO,
+        DATAFORSEO, SERANKING, MOZ, MAJESTIC, SERPSTAT, EXA, SEARCH1API, TAVILY, OCTEN, LINKUP, YOU, VALYU, KEENABLE, OLOSTEP, FIRECRAWL, SPIDERCLOUD, PERPLEXITY,
+        SCRAPEGRAPHAI, SERPER, LITESCRAPE, CLORO,
         # more Enrichment API-key providers
-        LUSHA, CORESIGNAL, DIFFBOT, THECOMPANIESAPI, LEADMAGIC, FIBER_AI, CRUSTDATA, AVIATO,
+        LUSHA, CORESIGNAL, DIFFBOT, THECOMPANIESAPI, LEADMAGIC, ENRICHLAYER, FIBER_AI, CRUSTDATA, AVIATO,
         COMPANYENRICH, OCEANIO, ADYNTEL, TOMBA, TRESTLEIQ, PREDICTLEADS, FINDYMAIL, BRANDDEV, ICYPEAS, LEADSFORGE,
         INFLUENCERSCLUB,
         # Market data API-key providers
@@ -3599,7 +3861,7 @@ DEFAULT_CAPABILITY = "read"
 # Shelf order in the marketplace. Anything carrying a category not named here sorts last, so a
 # provider added without one is visible rather than lost between the shelves.
 CATEGORY_ORDER = ("AI generation", "SEO", "Advertising", "Social media", "Enrichment",
-                  "Market data", "Community", "Other")
+                  "Market data", "Research & public data", "Community", "Other")
 
 
 def get(service: str) -> OAuthProvider | None:

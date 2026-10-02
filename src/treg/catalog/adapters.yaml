@@ -7,6 +7,8 @@
 #   predicates   x == null · x != null · x == [] · x == 'literal'
 #   named        split_first(full_name) · join(a, b) · has_type(emails, 'work')
 # `accepts` lists the contract identity variants (by their keys) this endpoint can serve.
+# `route: false` keeps a verified adapter out of routing and the arena; its `miss` still judges
+# hit/miss evidence for this endpoint's own calls.
 #
 # Every adapter is VERIFIED at catalog load against the endpoint's `test_request` (in) and its
 # captured `example_response` (out): one that cannot round-trip its fixture does not become a
@@ -805,6 +807,20 @@ adapters:
           location: "results[0].location.raw"}
     miss: "results[0].error != null"
   # ---- companies.enrich (batch 5, 2026-08-28) --------------------------------------------------
+  crustdata.companies.identify:
+    # Identity resolution, not enrichment: evidence only, not a routed companies.enrich child.
+    route: false
+    accepts: [[domain]]
+    in: {domain: body.domains}
+    in_expr: {body.domains: "list(domain)"}
+    out: {name: "[0].matches[0].company_data.basic_info.name",
+          domain: "[0].matches[0].company_data.basic_info.primary_domain",
+          website: "[0].matches[0].company_data.basic_info.website",
+          description: "[0].matches[0].company_data.basic_info.description",
+          founded: "[0].matches[0].company_data.basic_info.year_founded",
+          employees: "[0].matches[0].company_data.basic_info.employee_count_range",
+          linkedin_url: "[0].matches[0].company_data.basic_info.professional_network_url"}
+    miss: "coalesce([0].matches, []) == []"
   dropleads.companies.enrich:
     accepts: [[domain], [name]]
     in: {domain: body.domains, name: body.companyNames}
@@ -1526,13 +1542,6 @@ adapters:
     out: {video_id: data.video_id, title: data.title, channel: data.author, channel_id: data.channel_id, description: data.description,
           views: data.view_count, duration_seconds: data.length_seconds, published: data.publish_date}
     miss: "data.video_id == null"
-  tikhub.youtube.video.detail:
-    accepts: [[video_id]]
-    in:  {video_id: queryParams.video_id}
-    out: {video_id: data.videoDetails.videoId, title: data.videoDetails.title, channel: data.videoDetails.author,
-          channel_id: data.videoDetails.channelId, description: data.videoDetails.shortDescription,
-          views: data.videoDetails.viewCount, duration_seconds: data.videoDetails.lengthSeconds}
-    miss: "data.videoDetails == null"
   justoneapi.youtube.video.detail:
     accepts: [[video_id]]
     in:  {video_id: queryParams.videoId}
@@ -1951,11 +1960,6 @@ adapters:
     in:  {post_id: queryParams.id}
     out: {post: data}
     miss: "data == null"
-  tikhub.x.weibo-web-fetch-post-detail:
-    accepts: [[post_id]]
-    in:  {post_id: queryParams.post_id}
-    out: {post: data.data}
-    miss: "data.data == null"
   tikhub.x.weibo-app-fetch-status-detail:
     accepts: [[post_id]]
     in:  {post_id: queryParams.status_id}
@@ -2381,6 +2385,17 @@ adapters:
     cost_units: "choose(title, 20, 1)"
     out: {people: data, count: "len(data)"}
     miss: "coalesce(data, []) == []"
+  apollo.people.search:
+    # Free search rows carry an obfuscated last name: evidence only, not a routed people.search child.
+    route: false
+    accepts: [[title, company_domain], [company_domain], [title]]
+    in: {company_domain: body.q_organization_domains_list, title: body.person_titles}
+    in_expr:
+      body.q_organization_domains_list: "list(company_domain)"
+      body.person_titles: "list(title)"
+      body.per_page: limit
+    out: {people: people, count: total_entries}
+    miss: "coalesce(people, []) == []"
   quickenrich.people.search:
     accepts: [[title, company_domain], [company_domain], [title]]
     in: {company_domain: body.company_url.include, title: body.title.include}
@@ -2655,6 +2670,32 @@ adapters:
     miss: "coalesce(output.data.suggestions, []) == []"
 
   # ---- open web -----------------------------------------------------------------------------
+  search1api.web.search:
+    accepts: [[q]]
+    in: {q: body.query}
+    in_expr: {body.max_results: limit}
+    out: {results: results, count: "len(results)"}
+    miss: "coalesce(results, []) == []"
+  perplexity.web.search.fast:
+    accepts: [[q]]
+    in: {q: body.query}
+    in_expr: {body.max_results: limit}
+    const: {body.search_type: fast}
+    out: {results: results, count: "len(results)"}
+    miss: "coalesce(results, []) == []"
+  you.web.search:
+    accepts: [[q]]
+    in: {q: body.query}
+    in_expr: {body.count: limit}
+    out: {results: results.web, count: "len(results.web)"}
+    miss: "coalesce(results.web, []) == []"
+  valyu.web.search:
+    accepts: [[q]]
+    in: {q: body.query}
+    in_expr: {body.max_num_results: limit}
+    const: {body.search_type: web, body.max_price: 1.5, body.response_length: short}
+    out: {results: results, count: "len(results)"}
+    miss: "coalesce(results, []) == []"
   tinyfish.web.search:
     accepts: [[q]]
     in: {q: queryParams.query}
@@ -2675,6 +2716,13 @@ adapters:
     const: {body.search_depth: basic, body.include_usage: true}
     out: {results: results, count: "len(results)"}
     miss: "coalesce(results, []) == []"
+  linkup.web.search:
+    accepts: [[q]]
+    in: {q: body.q}
+    in_expr: {body.maxResults: limit}
+    const: {body.depth: flash, body.outputType: searchResults}
+    out: {results: results, count: "len(results)"}
+    miss: "choose(results == null, false, results == [])"
   exa.web.search:
     accepts: [[q]]
     in: {q: body.query}
@@ -2702,7 +2750,31 @@ adapters:
     in_expr: {body.gl: "lower(country)", body.hl: language}
     out: {results: organic, count: "len(organic)"}
     miss: "coalesce(organic, []) == []"
+  firecrawl.web.search:
+    accepts: [[q]]
+    in: {q: body.query}
+    in_expr: {body.limit: limit}
+    out: {results: data.web, count: "len(data.web)"}
+    miss: "choose(coalesce(data.web, []) == null, coalesce(creditsUsed, 0) == 0, false)"
+  branddev.web.search:
+    accepts: [[q]]
+    in: {q: body.query}
+    const: {body.numResults: 10}
+    out: {results: results, count: "len(results)"}
+    miss: "coalesce(results, []) == []"
 
+  search1api.web.crawl:
+    accepts: [[url]]
+    in: {url: body.url}
+    out: {pages: "list(results)", count: "len(list(results))"}
+    miss: "results == null"
+  you.web.contents:
+    accepts: [[url]]
+    in_expr: {body.urls: "list(url)"}
+    test_identity: {url: "https://example.com"}
+    const: {body.formats: [markdown]}
+    out: {pages: ".", count: "len(.)"}
+    miss: ". == []"
   tinyfish.web.fetch:
     accepts: [[url]]
     in_expr: {body.urls: "list(url)"}
@@ -2737,6 +2809,13 @@ adapters:
     const: {body.extract_depth: basic}
     out: {pages: results, count: "len(results)"}
     miss: "coalesce(results, []) == []"
+  linkup.web.fetch:
+    accepts: [[url]]
+    in: {url: body.url}
+    test_identity: {url: "https://example.com"}
+    const: {body.mode: standard, body.renderJs: false}
+    out: {pages: "list(.)", count: "len(list(.))"}
+    miss: "coalesce(markdown, '') == ''"
   keenable.web.fetch:
     accepts: [[url]]
     in: {url: queryParams.url}
@@ -2749,7 +2828,25 @@ adapters:
     const: {body.includeMarkdown: true}
     out: {pages: "list(.)", count: "len(list(.))"}
     miss: "coalesce(text, '') == ''"
+  firecrawl.web.scrape:
+    accepts: [[url]]
+    in: {url: body.url}
+    const: {body.formats: [markdown], body.parsers: []}
+    out: {pages: "list(data)", count: "len(list(data))"}
+    miss: "coalesce(data.markdown, '') == null"
+  branddev.web.scrape:
+    accepts: [[url]]
+    in: {url: body.url}
+    const: {body.formats: {markdown: true}}
+    out: {pages: "list(.)", count: "len(list(.))"}
+    miss: "markdown.success == false"
 
+  search1api.web.sitemap:
+    accepts: [[url]]
+    in: {url: body.url}
+    const: {body.type: sitemap}
+    out: {results: links, count: "len(links)"}
+    miss: "coalesce(links, []) == []"
   anyapi.web.map:
     accepts: [[url], [url, q]]
     in: {url: body.url, q: body.search}
@@ -2768,6 +2865,19 @@ adapters:
     in: {url: body.url, q: body.search_query}
     in_expr: {body.top_n: limit}
     test_identity: {url: "https://docs.olostep.com", q: "billing and credits"}
+    out: {results: urls, count: "len(urls)"}
+    miss: "coalesce(urls, []) == []"
+  firecrawl.web.map:
+    accepts: [[url, q], [url]]
+    in: {url: body.url, q: body.search}
+    in_expr: {body.limit: limit}
+    out: {results: links, count: "len(links)"}
+    miss: "success == false"
+  branddev.web.map:
+    accepts: [[url]]
+    in_expr: {queryParams.domain: "host(url)"}
+    test_identity: {url: "https://docs.context.dev"}
+    const: {queryParams.maxLinks: "10"}
     out: {results: urls, count: "len(urls)"}
     miss: "coalesce(urls, []) == []"
 
@@ -2857,3 +2967,42 @@ adapters:
     test_identity: {email: "creator@example.com"}
     out: {platform: result.platform, username: result.username, url: result.url, full_name: result.fullname, followers: result.followers}
     miss: "result.platform == null"
+
+  # Enrichlayer's routed profiles use only the documented one-credit cache option.
+  enrichlayer.person.profile:
+    accepts: [[linkedin_url]]
+    in: {linkedin_url: queryParams.profile_url}
+    const: {queryParams.use_cache: if-present}
+    out: {full_name: full_name, first_name: first_name, last_name: last_name,
+          title: occupation, company: "experiences[0].company", location: location_str,
+          linkedin_url: "fmt('https://www.linkedin.com/in/{}', public_identifier)"}
+    miss: "full_name == null"
+  enrichlayer.company.profile:
+    accepts: [[linkedin_url]]
+    in: {linkedin_url: queryParams.url}
+    const: {queryParams.use_cache: if-present}
+    out: {name: name, domain: "host(website)", website: website, description: description, industry: industry,
+          founded: founded_year, location: "join(hq.city, hq.country)"}
+    miss: "name == null"
+
+  # Search returns profile URLs; full profile enrichment remains a direct provider option.
+  enrichlayer.people.search:
+    accepts: [[full_name], [company_domain], [title, company_domain], [title]]
+    in: {title: queryParams.current_role_title, company_domain: queryParams.current_company_domain_name,
+         country: queryParams.country}
+    in_expr: {queryParams.first_name: "split_first(full_name)", queryParams.last_name: "split_last(full_name)",
+              queryParams.page_size: "at_most(limit, 10)"}
+    const: {queryParams.enrich_profiles: skip, queryParams.use_cache: if-present}
+    test_identity: {full_name: Satya Nadella}
+    cost_units: "at_most(limit, 10)"
+    out: {people: results, count: total_result_count}
+    miss: "results == []"
+  enrichlayer.companies.search:
+    accepts: [[name], [industry], [domain]]
+    in: {name: queryParams.name, industry: queryParams.industry,
+         domain: queryParams.domain_name, country: queryParams.country}
+    in_expr: {queryParams.page_size: "at_most(limit, 10)"}
+    const: {queryParams.enrich_profiles: skip, queryParams.use_cache: if-present}
+    cost_units: "at_most(limit, 10)"
+    out: {companies: results, count: total_result_count}
+    miss: "results == []"

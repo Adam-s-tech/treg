@@ -340,6 +340,9 @@ class MarketplaceCall:
     resource_ownership: dict | None = None
     managed_resource: dict | None = None
     public_resource_ids: tuple[str, ...] = ()
+    # On an endpoint declaring `spooled_response`: the response paths its settlement reads (the
+    # usage meters, the `expect` success rule). A metered 2xx goes to disk; only these are kept.
+    spooled_evidence: tuple[str, ...] = ()
     # A platform-key utility poll was authorized against this org-owned submission. The buffered
     # response may teach the same row its provider result/file id before the background worker runs.
     async_owner_call_id: str | None = None
@@ -577,6 +580,9 @@ _TAVILY_ENDPOINTS = frozenset({
     "tavily.web.map",
     "tavily.web.crawl",
 })
+_OCTEN_ENDPOINTS = frozenset({
+    "octen.web.search", "octen.web.search.broad", "octen.web.search.news", "octen.web.extract",
+})
 _TAVILY_BOUNDED_SITE_ENDPOINTS = frozenset({"tavily.web.map", "tavily.web.crawl"})
 _TAVILY_PLATFORM_MAX_RESULTS = 20
 _TAVILY_RATE_KEYS = {
@@ -742,6 +748,19 @@ def _credit_modifiers(cost: dict, query, doc: dict) -> tuple[bool, float, float,
     return free, added, settled_added, per_result
 
 
+def _octen_rates_or_fail(endpoint_id: str, cost: dict | None) -> dict[str, int]:
+    from . import octen
+    try:
+        return octen.rates_micro(endpoint_id, cost or {})
+    except ValueError as exc:
+        raise ResolutionFailed(
+            "catalog_price_invalid", status_code=503, detail={
+                "error": "catalog_price_invalid", "endpoint_id": endpoint_id,
+                "message": "Octen pricing is unavailable because its catalog rates are invalid",
+            },
+        ) from exc
+
+
 def _marketplace_pricing(
     provider: str, endpoint_id: str, cost: dict | None, query, body: bytes
 ) -> tuple[int, int]:
@@ -751,6 +770,15 @@ def _marketplace_pricing(
     scalar cannot express: provider batch shapes and request-dependent modes.
     `unit` is non-zero only when the response must decide the final charge.
     """
+    if provider == "octen" and endpoint_id in _OCTEN_ENDPOINTS:
+        from . import octen
+        rates = _octen_rates_or_fail(endpoint_id, cost)
+        return octen.estimate_micro(endpoint_id, rates, body), 0
+    if provider == "enrichlayer" and cost and cost.get("enrichlayer"):
+        from . import enrichlayer
+        credit = _usd_to_micro(catalog_store.load().credit_rates["enrichlayer"])
+        query_values = dict(query.multi_items()) if isinstance(query, QueryValues) else dict(query)
+        return enrichlayer.estimate_micro(endpoint_id, cost, query_values, credit)
     if not cost:
         return 0, 0
     if provider == "tavily" and endpoint_id in _TAVILY_ENDPOINTS:
@@ -797,6 +825,15 @@ def _marketplace_pricing(
     else:
         unit = (_usd_to_micro(cost["usd"])
                 if cost.get("type") in ("per_result", "quota_rows") and cost.get("usd") else 0)
+    if endpoint_id in ("icypeas.bulk.search", "icypeas.people.email.find") and credit_rate:
+        # The answer is an id ({file} / {item: {_id}}) with no rows, so this reserve IS the bill: one
+        # row per bulk `data` entry at its task's rate, one for a single search. Without it the
+        # 20-row default billed a 3-row job, and a single email lookup, $0.38.
+        # ponytail: a search row is billed as if found; per-found billing needs a settle on job end.
+        doc = _json_object(body)
+        rows = doc.get("data") if isinstance(doc.get("data"), list) else []
+        credits = 0.1 if doc.get("task") == "email-verification" else 1
+        return _usd_to_micro(max(1, min(len(rows), 5000)) * credits * credit_rate), unit
     if provider == "quickenrich":
         credit = _usd_to_micro(float(cost.get("usd") or 0))
         if endpoint_id == "quickenrich.people.search.domain":
@@ -1499,6 +1536,15 @@ def _enforce_apify_run_options(ep: dict, query) -> None:
         )
 
 
+def _spool_evidence_paths(ep: dict, cost: dict) -> tuple[str, ...]:
+    """What a spooled answer must keep for settlement: the top-level objects its usage terms read,
+    and the leaf its `expect` success rule compares. Everything else stays on disk."""
+    if not ep.get("spooled_response"):
+        return ()
+    rule = (ep.get("expect") or {}).get("json_path")
+    return settlement_basis.usage_roots(cost) + ((str(rule),) if rule else ())
+
+
 def _enforce_platform_request(ep: dict, body: bytes, headers=None, query=None) -> None:
     """Check explicit platform constraints and fixed pricing selectors before reserve/relay.
 
@@ -1506,6 +1552,33 @@ def _enforce_platform_request(ep: dict, body: bytes, headers=None, query=None) -
     has a singleton enum is the row identity, not caller choice: accepting another value lets a cheap
     row reserve for an expensive model. Full schema validation remains out of the faithful BYOK path.
     """
+    if ep.get("provider") == "octen" and ep.get("id") in _OCTEN_ENDPOINTS:
+        from . import octen
+        invalid = octen.invalid_platform_parameter(ep["id"], body)
+        if invalid:
+            raise ResolutionFailed(
+                "catalog_parameter_invalid", status_code=400, detail={
+                    "error": "catalog_parameter_invalid", "endpoint_id": ep["id"],
+                    "parameter": invalid,
+                    "message": "Octen platform calls require a bounded request; connect your own key "
+                               "for the upstream range",
+                },
+            )
+
+    if ep.get("provider") == "enrichlayer":
+        from . import enrichlayer
+        invalid = enrichlayer.invalid_platform_parameter(
+            ep["id"], dict(query.multi_items()) if query else {}, ep.get("cost") or {})
+        if invalid:
+            raise ResolutionFailed(
+                "catalog_parameter_invalid", status_code=400, detail={
+                    "error": "catalog_parameter_invalid", "endpoint_id": ep["id"],
+                    "parameter": invalid,
+                    "message": "Enrichlayer shared-key calls require a bounded, priced request; "
+                               "connect your own key for other options.",
+                },
+            )
+
     if ep.get("provider") == "openmart" and ep.get("id") in _OPENMART_METERED_ENDPOINTS:
         requested = _openmart_requested_records(ep["id"], body)
         parameter = (
@@ -1547,6 +1620,19 @@ def _enforce_platform_request(ep: dict, body: bytes, headers=None, query=None) -
         _enforce_apify_run_options(ep, query)
 
     input_schema = ep.get("input") or {}
+    # A path parameter with a declared enum names WHAT the shared key is spent on (Google AI's
+    # `model`): the price row and usage rates are that model's. Accepting any other value would
+    # let one catalog row run a different model on treg's key at the wrong rates.
+    for name, spec in sorted((input_schema.get("pathParams") or {}).items()):
+        allowed = spec.get("enum") if isinstance(spec, dict) else None
+        if isinstance(allowed, list) and (query.get(name) if query is not None else None) not in allowed:
+            raise ResolutionFailed(
+                "catalog_parameter_invalid", status_code=400, detail={
+                    "error": "catalog_parameter_invalid", "endpoint_id": ep["id"],
+                    "parameter": f"pathParams.{name}", "expected": allowed,
+                    "message": f"{ep['id']} serves {name} " + ", ".join(map(str, allowed))
+                               + " on treg's key; connect your own key for other values",
+                })
     rules = ep.get("platform_request") or {}
     for path, expected in sorted(rules.items()):
         if not str(path).startswith("headers."):
@@ -2049,6 +2135,19 @@ async def _resolve_marketplace_call(
             "when": "response", "amount": {"kind": "observed"},
             "fallback_micro": info_est, "reserve_micro": info_est,
         }
+    if service == "octen" and ep["id"] in _OCTEN_ENDPOINTS:
+        basis = {
+            "when": "response", "amount": {"kind": "observed"},
+            "fallback_micro": info_est, "reserve_micro": info_est,
+            "octen_rates_micro": _octen_rates_or_fail(ep["id"], cv),
+        }
+    if service == "enrichlayer" and raw_cost.get("enrichlayer"):
+        basis = {
+            "when": "response", "amount": {"kind": "observed"},
+            "fallback_micro": info_est, "reserve_micro": info_est,
+            "enrichlayer_rule": raw_cost["enrichlayer"],
+            "enrichlayer_unit_micro": info_unit,
+        }
     common = dict(
         upstream=upstream, consumed=consumed, endpoint_id=ep["id"], provider=service,
         params_hash=phash, cost_type=str((ep.get("cost") or {}).get("type") or ""),
@@ -2060,6 +2159,7 @@ async def _resolve_marketplace_call(
         settlement_basis=basis, request_data=request_data,
         async_descriptor=ep.get("async"), resource_ownership=ep.get("resource_ownership"),
         managed_resource=ep.get("managed_resource"),
+        spooled_evidence=_spool_evidence_paths(ep, raw_cost),
     )
     if chosen_tool is not None:
         return MarketplaceCall(tool=chosen_tool, tier="tool", **common)

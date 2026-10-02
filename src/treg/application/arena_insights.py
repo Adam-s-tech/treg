@@ -29,7 +29,9 @@ from ..models import ArenaInsightState, ArenaObservation, ArchiveKey, ArchiveSna
 from ..timeutil import utcnow_naive as now
 
 WINDOW_DAYS = 30
-REFRESH_SECONDS = 120
+# Each refresh re-aggregates the whole 30-day window on the primary (tens of seconds on a large
+# table, evicting the money path's cached pages). A 30-day leaderboard does not need minutes.
+REFRESH_SECONDS = 1800
 BATCH_SIZE = 100
 MAX_BODY_BYTES = 2_000_000
 log = logging.getLogger(__name__)
@@ -39,7 +41,7 @@ def _catalog():
     cat = store.load()
     endpoints = {eid: ep for eid, ep in cat.by_id.items()
                  if ep.get("capability") in arena.TASKS and ep.get("capability") not in arena.DISCOVERY_TASKS and eid in cat.adapters
-                 and cat.adapters[eid].verified and ep.get("provider") not in {"treg", "wrangle"}
+                 and cat.adapters[eid].verified and cat.adapters[eid].route and ep.get("provider") not in {"treg", "wrangle"}
                  and eid not in arena.EXCLUDED and not ep.get("async") and ".bulk" not in eid}
     fingerprint = {eid: {"path": ep.get("path"), "method": ep.get("method"),
                         "adapter": cat.adapters[eid].__dict__, "contract": cat.contracts[ep["capability"]].__dict__}

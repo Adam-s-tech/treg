@@ -141,7 +141,8 @@ live call"; 0 makes repeats free. Own-key hits are outside this: never metered, 
 
 `archive_bodies` owns body preparation, object reads, the independent upload queue and completed
 storage observations. `archive.py` retains request keys, snapshots, transactions, TTL learning
-and pruning. `infra.object_store.ObjectStore` exposes only put/get/head; `open_r2` imports
+and pruning. `infra.object_store.ObjectStore` exposes only put/get/head (the same store also holds find's card
+vectors as named `find-vectors/...` objects, `NamedObjectStore`; see [find](find.md)); `open_r2` imports
 obstore lazily and bootstrap owns its lifecycle. Tests inject `MemoryObjectStore` through
 `bootstrap.configure_archive_object_store` or `create_app(archive_object_store=...)`.
 
@@ -299,7 +300,7 @@ dict. The call service (`application/call/service.py`) keeps them in `archive_ke
 targets are already indexed). `archive.resolve_result(key_hash, content_hash)` walks
 row → key → newest snapshot with that content hash → `body_of` carrier, and returns the request
 shape (`req_*`, pre-injection) plus the answer; a hash-only version reports `stored: false`.
-`GET /calls/{id}/result` (api.py) exposes it to members of the row's org, with a `note` on every
+`GET /calls/{id}/result` (api.py; `id` is the row id or the `X-Treg-Call-Id`) exposes it to members of the row's org, with a `note` on every
 "nothing on file" branch; `/calls` rows carry `has_result`. The archive stays platform-scoped —
 what makes the read safe is that the row belongs to the team and names the exact bytes that
 team already received. Failure evidence (`error_*`) is untouched and still admin-only.
@@ -460,7 +461,8 @@ later for the timers; it complements `/admin/reconcile/repeats`, which prices wh
 ## The recorder (PR 2)
 
 Hooked in `call_tool` immediately after `_buffer_response` — the one line where "metered platform
-call, body already in memory" is a fact, which IS eligibility gate 3. Metered 2xx only; the
+call, body already in memory" is a fact, which IS eligibility gate 3. Metered 2xx only, and never a 2xx the capacity
+signature table reads as our own account running dry (Icypeas' 200 "insufficient credits"); the
 serve path already emits `X-Treg-Cache: hit`. The call context also carries `cached` from
 `served_hit`, so review invitations can exclude archive hits independently of response headers. `archive.record()` is fire-and-forget with
 audit's discipline: bounded pending set (512), failures swallowed but logged at **ERROR** (a lost
@@ -590,6 +592,8 @@ Successful free final fetches that qualify for `MarketplaceCall.streamable_free_
 lookup and recording even though their zero-amount money lifecycle remains metered. They have no
 buffered body, so no empty or partial body/hash is recorded. Other calls exceeding the settlement
 buffer's 8 MiB limit fail before recording and cannot populate a cache or idempotent success.
+A spooled answer (`spooled_response`, inline media) is settled from evidence on disk and is never
+recorded: its body is not in memory, and multi-megabyte generated media is not a reusable answer.
 
 ## The cache key
 
@@ -966,3 +970,6 @@ Lookup takes the minimum of the learned TTL, vendor ceiling, operator ceiling an
 80% due threshold. It does not reset or rewrite historical learning counters. `/admin/archive`
 reports `serve_max_age_s` so operators can verify the running configuration. The global team cohort
 percentage is unchanged. Production pilot values and rollback live in treg-internal.
+
+The legacy archive-link backfill takes an explicit database connection (`--dsn` or
+`TREG_DATABASE_URL`). It does not provision network access or read cloud credentials.

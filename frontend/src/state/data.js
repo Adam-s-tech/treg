@@ -1,8 +1,9 @@
+import { storageGet } from './storage.js'
 import { createElements } from './context'
 import { LS } from './constants.js'
 import { FIND_EMPTY } from './find.js'
 export default function data(){
-    let cfg={active:null,orgs:{}}; try{ cfg=JSON.parse(localStorage.getItem(LS))||cfg; }catch(e){}
+    let cfg={active:null,orgs:{}}; try{ cfg=JSON.parse(storageGet(LS))||cfg; }catch(e){}
     return {
       // the tool hub: hub.tools is every version of the team's tools (newest first); hub.tool the
       // opened one; hub.tab overview|versions|price|listing|earnings|runs|health; run the opened run
@@ -12,7 +13,7 @@ export default function data(){
       bootReady: false, bootFailed: false,
       bootStartedAt: performance.now(),  // ms since navigation: where the loader's animations already are (App.vue)
       sessionChecked: false,  // /auth/me has answered (a page drawn before boot finishes waits on this for sign-in state)
-      theme: localStorage.getItem('treg-theme')||'light',
+      theme: storageGet('treg-theme')||'light',
       mobileNav: false,  // mobile sidebar toggle
       // True when this load is a PUBLIC catalog URL (/catalog, /catalog/<slug>). The catalog API is
       // unauthenticated, so the same marketplace views render for a signed-out visitor — that is
@@ -66,10 +67,10 @@ export default function data(){
       // Connections: registry OAuth connects (see oauth_providers.py). `providers` is what treg
       // holds an approved app for; `connections` is what this org has actually connected.
       providers:[], connections:[], connErr:'', connBusy:false, confirmDisc:null, resPick:null,
-      mkCat:'', mkService:null,  // marketplace: active category filter, and the open integration
-      byokFocus:null,  // provider row to flash after a "Bring your own key" jump to the Platform tab
-      // Marketplace tab bar: 'all' + one key per catalog category, plus 'platform' for the
-      // original integration shelves. Data-first is the default view.
+      mkService:null,  // the open provider page
+      byokFocus:null,  // provider card to flash after a "Bring your own key" jump to Connections
+      connQ:'', connKind:'',  // the provider filter on Connections, and '' | 'account' | 'key'
+      // Catalog tab bar: 'all' + one key per catalog category.
       mkTab:'all',
       platLogoBad:{},  // platform slug (or `v:`+vendor) → no /logos/platforms/<slug>.svg (/logos/<vendor>.svg), so draw the initial tile
       // Endpoint catalog (GET /catalog/*): the platform axis of the marketplace. Everything here is
@@ -79,14 +80,18 @@ export default function data(){
       // Find tools for a job (state/find.js): phase idle | recall | reading | done | error
       find:{...FIND_EMPTY}, findCopied:'', findSoon:false,
       platSlug:null, platData:null, platErr:'', platLoading:false,
+      platSetupOpen:false, // a platform shelf's account-and-setup list has been expanded
       platShelfOpen:{},    // category → its featured shelf has been expanded to the full tile list
-      // The ledger's filter bar. All three narrow the SAME row list, and a section with no
-      // surviving rows disappears rather than showing an empty heading.
-      platDomain:'', platQ:'', platVerifiedOnly:false,
-      platOpen:{},         // ledger row key → row expanded
-      platActionsOpen:false,  // the single platform-wide account/utility ("Actions") section is open
-      epOpen:{},           // endpoint id → its provider sub-row (level two, merged rows only) is open
-      epTab:{},            // endpoint id → which pane of its detail is showing ('req' | 'res')
+      platQ:'',            // the shelf's search box
+      epTab:{},            // endpoint id → which pane of its detail is showing ('req' | 'res' | 'rev')
+      verdictKinds:['useful','partly','not_useful'],   // an endpoint's agent verdicts, in bar order
+      platCap:null,        // the compared capability a platform URL names, by its key (`compare`)
+      drawerTool:null,       // endpoint id open in the tool drawer
+      catalogArm:'',         // the catalog-v2 arm this load was dealt (state/catalogExperiment.js)
+      epInfo:{},         // endpoint id → {loading, data} from /catalog/endpoints/<id>
+      platComparisonLead:null,    // the endpoint whose detail carries the open comparison's siblings and plan
+      platComparisonSort:{key:'price', dir:'asc'},   // the comparison's order (DataTable v-model:sort)
+      mkTools:null,        // {service, loading, err, data} from /catalog/providers/<service>
       platEx:{},           // endpoint id → {open, loading, err, text} for the lazily-fetched example
       platCopied:'',       // endpoint id whose `treg call` line was just copied
       capAsk:null,  // the access question, asked when a one-method provider has several scope levels
@@ -103,7 +108,7 @@ export default function data(){
       catalogClis:null,  // bin → catalog default deny patterns (lazy, from /providers.json)
       newSkill:false, skillJson:'', skillBusy:false, skillErr:'', skillMode:'folder',
       skillFiles:[], detected:null, skillSel:{}, skillVals:{}, skillResults:null,
-      sessionMode:false, activeSlug: localStorage.getItem('treg-active')||null, meta:{github:false, public_url:location.origin},
+      sessionMode:false, activeSlug: storageGet('treg-active')||null, meta:{github:false, public_url:location.origin},
       view:'tools', q:'', err:'', loading:false, toolTab:'all', bundles:[], confirmDelBundle:null, installCopied:null,
       copyRecipe:null, recipeTab:'cURL', viewRecipe:null, recipeSaved:false,
       // detail pages (shareable /app/skills/<name> + /app/tools/<name> deep links)
@@ -112,9 +117,9 @@ export default function data(){
       share:{on:false, email:'', role:'viewer', full:true, busy:false, err:'', sent:null, member:null},  // detail-page "Share…" (invite + land on this page)
       me:'', icHash:'', myOrgs:[], isAdmin:false,
       onboarded:true,  // first-run onboarding done (server flag; gates the welcome modal)
-      welcome:{on:false, step:0, name:'', agent:'openclaw', moreOpen:false, busy:false, err:''},  // first-run: name your team → pick your agent → setup line
+      welcome:{on:false, step:0, name:'', agent:'claude-code', moreOpen:false, busy:false, err:''},  // first-run: name your team → pick your agent → setup line
       emptyTab:'agent',
-      tools:[], health:{}, calls:[], runs:[], callsLoaded:false, adminStats:null, adminOrgs:[], adminUsers:[],
+      tools:[], health:{}, calls:[], runs:[], callsLoaded:false, activityNext:null, activityOlderBusy:false, adminStats:null, adminOrgs:[], adminUsers:[],
       admHub:{on:false, state:'requested', rows:[], reason:{}, cap:{}, busy:null, updates:[]},  // hub listing review (superadmin)
       adminBusy:false, confirmAdmUser:null, confirmAdmOrg:null,
       proxy: location.origin, copyTool:null, snippetTab:'cURL', snippetTabs:['cURL','CLI','Claude Code','Python','Node'], copied:false,

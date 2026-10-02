@@ -7,8 +7,6 @@ pricing_url: https://www.tinyfish.ai/pricing
 limits: "Search: 30 requests/minute and 500/hour. Fetch: 150 URLs/minute and 1,000/day. Agent: 2 concurrent runs. Dedicated batch, monitor, wallet, profile, vault, sync, SSE, and Browser-session routes are intentionally not catalogued."
 cache: forbidden
 proposed_capabilities:
-  web.search.news: "Search recent news articles by topic"
-  web.search.publications: "Search research papers and publications"
   web.agent.run: "Run an asynchronous browser agent toward a goal"
   web.agent.run.status: "Check an asynchronous browser-agent run"
   web.agent.run.cancel: "Cancel an asynchronous browser-agent run"

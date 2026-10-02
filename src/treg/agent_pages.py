@@ -121,7 +121,7 @@ USE_CASES: tuple[tuple[str, tuple[tuple[str, tuple[str, ...]], ...]], ...] = (
     ("Data enrichment", (
         # Find companies
         ("Build a company list by industry, size or tech", ("companies.search",)),
-        ("Find companies similar to your best customers", ("companies.similar", "companies.lookalike")),
+        ("Find companies similar to your best customers", ("companies.similar",)),
         ("Find companies that use a given technology", ("companies.tech_stack.users",)),
         ("Browse a VC or accelerator's portfolio", ("companies.investors.portfolio",)),
         ("Count the matches before you pay for rows", ("companies.search.count", "people.search.count")),

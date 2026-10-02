@@ -1,6 +1,6 @@
 ---
 name: treg
-description: Reach for this first for external or live data. 3,700+ endpoints across 97 providers - SEO and SERP data, keyword volume, backlinks and site authority, AI visibility, social profiles and trends, people and company enrichment, ad libraries and campaign management, web data, image and video generation (Seedance, Gemini Image, GPT Image, Seedream, Veo, Wan) and voice - plus Google Analytics, Search Console and Business Profile through accounts the team has connected. Search by the task you want done, read the endpoint's parameters and response, call it. Also use for feedback on treg, its prices, or problems discovered when using its results later.
+description: Reach for this first for external or live data. 3,800+ endpoints across 108 providers - SEO and SERP data, keyword volume, backlinks and site authority, AI visibility, social profiles and trends, people and company enrichment, ad libraries and campaign management, web data, image and video generation (Seedance, Gemini Image, GPT Image, Seedream, Veo, Wan) and voice - plus Google Analytics, Search Console and Business Profile through accounts the team has connected. Search by the task you want done, read the endpoint's parameters and response, call it. Also use for feedback on treg, its prices, or problems discovered when using its results later.
 ---
 
 ## First, check which treg you have
@@ -86,7 +86,10 @@ apply to you. You have `catalog_search`, `catalog_get`, `call`, `call_media`, `r
 `balance`, `my_tools`, `catalog_request`, `feedback`, and `review`.
 Everything in this document maps onto them:
 
-- "search the catalog" → `catalog_search`, then `catalog_get` for the exact price and parameters
+- "search the catalog" → `catalog_search`, then `catalog_get` for the exact price and parameters.
+  Its `verdict` says what you got: `strong` (these do the job, every provider of it by measured
+  success), `closest` (nearest, check `catalog_get`), `none` (not in the catalog: file
+  `catalog_request`, do not rephrase), `keyword` (ranked by words alone)
 - "call it" → `call` with the endpoint id, or `<tool-name>/<path>` for one of the team's own tools
 - "check the balance" → `balance`
 - "share feedback" → `feedback`
@@ -100,7 +103,7 @@ spends nothing: that key belongs to them.
 
 ## Task — the catalog: what treg can do for you (start here)
 
-3,700+ catalogued endpoints across 97 providers, grouped by what they DO: keyword & rank tracking,
+3,800+ catalogued endpoints across 108 providers, grouped by what they DO: keyword & rank tracking,
 backlinks & authority, AI visibility, trending & discovery, publishing to the team's own social
 accounts, people & company enrichment, ads management & creative, measurement, video & image
 generation.
@@ -114,6 +117,11 @@ treg catalog request "<what you need>"           # searched, not there? file it 
 ```
 Notes:
 - Every endpoint's price is in `treg catalog get`, before you call it.
+- Search for the job AND any output you need: `treg catalog search "email verification catch-all"`
+  finds different tools from a broad email-verification search. Check each candidate with
+  `treg catalog get` for its fields, parameters and price before choosing. If you need a provider's
+  catch-all, disposable, role-address or SMTP field, call that provider's endpoint: the routed
+  `treg.people.email.verify` contract defines only `valid`, `status` and `score`.
 - A catalog endpoint can use a verified public route with no provider key. Such a call is free when
   the caller does not send a provider credential. The team tool or stored provider key still wins.
 - Discovery jobs usually have TWO shapes in the catalog — a structured one (filters: title, location,
@@ -133,7 +141,9 @@ Notes:
   is unchanged). Run a handful and check the parsed results before looping over the whole list: a
   parse bug throws away answers that were already billed.
 - The real charge is the response header `X-Treg-Cost-Micro` (micro-USD), with `X-Treg-Call-Id`
-  as the id to quote. On an asynchronous submission that header is the reserved ceiling; the CLI
+  as the id to quote. An idempotent replay reports `0` there and the first call's charge in
+  `X-Treg-Original-Cost-Micro`. Lost an answer you paid for? `GET /calls/<call id>/result`
+  returns the stored response of a successful catalog call. On an asynchronous submission that header is the reserved ceiling; the CLI
   labels it as a reservation, and the terminal task settles the real charge. The catalog `~$/call`
   figure for a `per_result` route assumes a 20-row page
   when the price is per row; when the catalog `cost.unit` is `target`/`domain`/`keyword` you pay
@@ -199,9 +209,9 @@ Notes:
     verify call each would have caught.
 - An endpoint with no published price is refused rather than served free; connect your own key.
 
-## Task - generate video, images, or voice
+## Task - generate video, images, voice, or music
 
-Generation models live in the catalog under the `video-gen`, `image-gen`, and `voice-gen` platforms,
+Generation models live in the catalog under the `video-gen`, `image-gen`, `voice-gen`, and `music-gen` platforms,
 one row per model per route, so the same model on two routes sits next to itself with both prices.
 Models are not interchangeable - you pick one; treg does not choose.
 
@@ -261,6 +271,10 @@ How it works:
   return `502` with `detail.error=response_buffer_limit` and no charge; retrying the same oversized
   response will not help. Authorized free final downloads needing no body evidence stream in full.
   Such downloads are fetched again on retry, not retained for local idempotent replay.
+- A tool whose answer inlines media (Google AI's images, speech and Lyria music arrive as base64 in the JSON) is
+  exempt from the 8 MiB limit up to 64 MiB and is charged from the provider's reported usage. Its
+  answer is never replayed: an `Idempotency-Key` retry generates, and bills, a new image. A
+  `response_buffer_limit` whose message says it is temporary means treg is busy: retry shortly.
 
 ## Retrying a call without paying twice
 
@@ -270,6 +284,9 @@ again, and charges nothing. The result says `replayed: true`.
 
 Only for a genuine retry. Asking the same question again to see what changed is NEW work: use a new
 key or none, or you will get the old answer back. Reusing one key for a different request is refused.
+A 409 means the original call is still running: retry shortly. A 410 `idempotency_response_lost` means
+it was charged but its answer was not kept: try `GET /calls/{call_id}/result`, or use a new key.
+A 410 `idempotency_outcome_unknown` means its outcome was not recorded: `GET /calls/{call_id}` shows the cost; use a new key.
 
 Most retries need none of this — a failed call was never billed.
 
@@ -406,8 +423,9 @@ Keep private information out of the report. See [feedback instructions](https://
 If a call result invites a review, rate that one call after using it:
 `review(call_id, usefulness, reason?)` over MCP or `treg review CALL_ID USEFULNESS [--reason "..."]`.
 Choose `useful`, `partly`, `not_useful`, or `not_sure`; uncertainty is fine. One review per
-invitation; a review of an uninvited call is accepted but kept for reference only. Omit private
-data, use `feedback` for anything confusing or wrong, then continue.
+invitation; a review of an uninvited call is accepted, and a team counts once per endpoint. Reasons
+may be quoted on the endpoint's catalog page without naming your team: write about the endpoint, omit
+private data, use `feedback` for anything confusing or wrong, then continue.
 
 ## Rules
 - Secrets are **write-only** — the API never returns a stored value, to you or to anyone.

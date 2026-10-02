@@ -61,6 +61,10 @@ jobs:
       - name: Enforce import boundaries
         if: steps.docs.outputs.only != 'true'
         run: uv run --locked lint-imports
+      - name: Validate the catalog
+        if: steps.docs.outputs.only != 'true'
+        # The whole catalog, not the slices the tests exercise: a catalog data PR is gated here.
+        run: uv run --locked python scripts/catalog_validate.py
       - name: Run tests
         if: steps.docs.outputs.only != 'true'
         # -n auto: the suite is 2,700+ small independent tests — serial execution is what let a

@@ -6,6 +6,7 @@ sources:
   - src/treg/domain/feedback/__init__.py
   - src/treg/domain/feedback/reports.py
   - src/treg/domain/feedback/reviews.py
+  - src/treg/domain/feedback/verdicts.py
   - src/treg/hints.py
   - src/treg/config.py
   - src/treg/routers/call.py
@@ -20,6 +21,7 @@ sources:
   - src/treg/web/feedback.md
   - tests/test_feedback.py
   - tests/test_reviews.py
+  - tests/test_endpoint_verdicts.py
   - tests/test_hints.py
   - tests/test_kv.py
 related:
@@ -120,8 +122,9 @@ parent endpoint as `routed_via`; otherwise it retains parent attribution. `invit
 from a 2xx, non-cached record with `credential_tier == "platform"` and the current review
 sampling rate. Routed and own-key catalog calls can still be reviewed uninvited. Every agent-facing
 text says one review per invitation: volunteered reviews are accepted and labelled `invited=false`,
-but they are not requested, and a future score must use invited rows only (an agent that reviews
-every call of a batch, seen in production on launch day, would otherwise weigh as much as a team). Retries return
+but they are not requested. An agent that reviews every call of a batch (seen in production on
+launch day) must not weigh more than a team, which the published score below settles by counting
+teams, not rows. Retries return
 the original ID and `already_reviewed`; a unique index also arbitrates concurrent submissions. Its savepoint
 stays open until the application commit, avoiding SQLite deferred-BEGIN early commits. The sole writer
 is `domain.feedback.reviews`; the moved `reports` module preserves feedback behavior.
@@ -197,8 +200,47 @@ cap or adaptive sampling is implemented.
 
 Models lean toward `useful`, ratings often precede actual use despite the instructions, and
 models differ in how they use the scale. A score is only meaningful when comparing sibling
-endpoints of one capability. Phase 1 collects only: no aggregation, catalog scores, ranking,
-team-side read route, dashboard, or adaptive per-endpoint sampling.
+endpoints of one capability, so it is published per endpoint and never rolled up per provider: a
+provider's average would mostly measure how hard its jobs are (keyword volume is easier to answer
+than finding a person's phone). There is no ranking, no effect on routing or `catalog_get`, no
+team-side read route, and no adaptive per-endpoint sampling.
+
+## Published verdicts
+
+`domain.feedback.verdicts` folds the last 90 days of reviews into what `GET /catalog/platforms/{slug}`
+and `GET /catalog/providers/{service}` attach to an endpoint as `reviews`: `{teams, share: {useful,
+partly, not_useful}, samples}`, the shares to two places. `teams` is the band the count falls in
+(`TEAM_BANDS`: 5, 10, 25, 50; its floor), never the exact count: beside the shares an exact count
+would give a small group's votes away, and a count moving from 5 to 6 would say how the new team voted.
+One team is one vote per endpoint; a team's several reviews split that vote across the verdicts it
+gave. That is what lets volunteered reviews count beside invited ones: a batch-rating agent moves
+its own team's vote, not the endpoint's. `not_sure` is not a verdict and is left out.
+
+An endpoint rated by fewer than five teams gets no `share`: a share of three teams is an anecdote,
+and one team more would flip the label. It does get its quotes, as **early reviews**: `{teams: 0,
+samples}`, drawn exactly as the scored quotes are (one per team, its latest, in the proportions the
+teams voted, newest first, at most three); only the share is withheld. `teams: 0` is the band below
+the first one, so the count stays a band here too. With no quotable reason the endpoint carries no `reviews` at all: an early
+form with nothing to quote says nothing. One agent's account of what the result was good or bad
+for is the signal a page can show before a score exists, which is what a Steam page does under
+"not enough reviews for a score".
+
+`samples` quotes at most three reasons, at most one per team (its latest), drawn in the proportions
+the teams voted (largest remainder) rather than picked for tone, newest first, each with its
+verdict, the month (never the day) and the review's `client`. A reason of 40 characters or more is
+quoted as written, with no filter: the review tool tells agents that reasons may be quoted on the
+endpoint's page without naming the team, and to leave private data out. No team, user or call is
+identified. The catalog page is public, so the quotes are too;
+the dashboard labels the band ("5+ teams", or "under 5 teams" with the neutral word "Early" in
+place of a label). `GET /catalog/endpoints/{id}` attaches the same object to the endpoint and to
+each sibling, so `catalog_get` hands an agent choosing between providers what other teams' agents
+said, beside `observed`.
+
+`application.feedback.endpoint_verdicts` reads the window once per process every five minutes on
+the API pool. Only the first fold is waited on (single-flight); after that an expired fold is served
+while the next is read in a background task, so no catalog page waits on the database, and a failed
+refresh keeps the previous fold for another full period. The router attaches nothing when there is no
+fold at all, because an enrichment must never take the catalog down.
 
 ## Response-rate query
 

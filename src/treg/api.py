@@ -48,6 +48,7 @@ from .domain.identity import api_keys as managed_keys
 from .domain.identity import session as identity_session
 from .models import (CallRecord, CapabilityPin, LedgerEntry, Membership, Org, RunRecord, Secret,
                      Tool, ToolRequest, User)
+from .routers import activity as activity_routes
 from .routers import admin as admin_routes
 from .routers import api_keys as api_key_routes
 
@@ -65,6 +66,7 @@ from .routers import orgs as org_routes
 from .routers import provider_resources as provider_resource_routes
 from .routers import referrals as referral_routes
 from .routers import resources as resources_routes
+from .routers import table as table_routes
 from .routers import web as web_routes
 from .routers.auth import _client_ip
 from .routers.auth_helpers import _same_origin
@@ -210,6 +212,9 @@ async def meta() -> dict:
             "posthog_key": s.posthog_key, "posthog_host": s.posthog_host.rstrip("/") if s.posthog_key else "",
             # public workspace id — only present when this deployment opts in (self-hosters load no widget)
             "intercom_app_id": s.intercom_app_id,
+            # Whether the hub routes exist here at all (TREG_HUB_ENABLED), so the dashboard asks
+            # them nothing when they would only answer 404. Per-team access is still probed.
+            "hub": bool(s.hub_enabled),
             # Config only, no database: lets the top-bar referral entry name the reward on every page
             # without calling GET /referrals, which mints a code and runs the payout sweep.
             "referral": {"referrer_micro": int(s.referral_referrer_micro),
@@ -694,68 +699,17 @@ async def list_calls(
     tasks = await async_task_app.views_for(
         caller.org_id, [c.call_ref for c in rows if c.call_ref and c.credential_tier == "platform"],
         pinned_tags=caller.membership.pinned_tags)
-    return [
-        {
-            "id": c.id,
-            "user_email": c.user_email,
-            "tool_name": c.tool_name,
-            "method": c.method,
-            "path": c.path,
-            "status_code": c.status_code,
-            "kind": c.kind,
-            "client": c.client,
-            "api_key_id": c.api_key_id,
-            "api_key_name": c.api_key_name,
-            "api_key_prefix": c.api_key_prefix,
-            # Marketplace telemetry — all null for a plain tool call (see models.CallRecord). Kept in
-            # the same row a caller already reads, so "what did this cost me" needs no second endpoint.
-            "endpoint_id": c.endpoint_id,
-            "provider": c.provider,
-            "credential_tier": c.credential_tier,
-            # The archive answered instead of the vendor; the money columns are still identical to
-            # a live call on purpose (docs/context/architecture/archive.md).
-            "cached": c.cached,
-            # The archive holds this call's answer: `GET /calls/{id}/result` can show it. False
-            # for own-key/own-tool calls (never stored), failures, and calls made while recording
-            # was off.
-            "has_result": c.archive_key_hash is not None,
-            "cost_estimated_micro": c.cost_estimated_micro,
-            "cost_observed_micro": c.cost_observed_micro,
-            "cost_charged_micro": _async_charged(c, tasks.get(c.call_ref)),
-            "duration_ms": c.duration_ms,
-            "response_bytes": c.response_bytes,
-            "params_hash": c.params_hash,
-            # non-null = treg said no before anything went upstream (see models.CallRecord) — the
-            # one field that tells "the provider failed" apart from "we refused" in `treg audit`.
-            "refused_by": c.refused_by,
-            # The caller's own tags (X-Treg-Meta), for a builder reconciling this row against their
-            # records. Money is NOT invoiced from here — see the ledger-backed usage endpoint.
-            "call_ref": c.call_ref,
-            "budget_dim": c.budget_dim,
-            "budget_val": c.budget_val,
-            "tags": c.tags,
-            "created_at": c.created_at.isoformat(),
-            # Present only on a metered async submission: settlement state, and the artifact once the
-            # task succeeded (a time-limited URL, or the CLI command that retrieves it).
-            "async_task": tasks.get(c.call_ref),
-        }
-        for c in rows
-    ]
+    return [activity_routes.call_row(c, tasks.get(c.call_ref)) for c in rows]
 
 
-def _async_charged(c: CallRecord, task: dict | None) -> int | None:
-    """What hit the balance, once the task record is known: nothing yet while pending, the settled
-    figure at a terminal state. Without a task record the audit row's own column stands."""
-    if task is None:
-        return c.cost_charged_micro
-    return None if task["status"] == "pending" else task["settled_micro"]
-
-
-@app.get("/calls/{call_id:int}/result")
+@app.get("/calls/{call_id}/result")
 async def get_call_result(
-    call_id: int, caller: Caller = Depends(require_member), db: AsyncSession = Depends(get_session)
+    call_id: str, caller: Caller = Depends(require_member), db: AsyncSession = Depends(get_session)
 ) -> dict:
     """What one of this team's calls asked and what came back — the archive's copy.
+
+    `call_id` is either the audit row's numeric `id` or the `X-Treg-Call-Id` the call returned (a
+    32-hex call ref; a short all-digit value is the row id).
 
     Only a METERED PLATFORM 2xx call has one: those answers are recorded by the archive (see
     docs/context/architecture/archive.md), and the audit row keeps the identities of the exact
@@ -767,7 +721,9 @@ async def get_call_result(
     row = (await db.execute(
         select(CallRecord)
         .options(defer(CallRecord.error_request), defer(CallRecord.error_response))
-        .where(CallRecord.org_id == caller.org_id, CallRecord.id == call_id,
+        .where(CallRecord.org_id == caller.org_id,
+               CallRecord.id == int(call_id) if call_id.isdigit() and len(call_id) < 19
+               else CallRecord.call_ref == call_id,
                *pinned_tag_predicates(CallRecord.tags, caller.membership.pinned_tags)))).scalars().first()
     if row is None:
         raise HTTPException(status_code=404, detail="no call with that id")
@@ -840,7 +796,7 @@ async def get_call(
                 "credential_tier": row.credential_tier,
                 "cost_estimated_micro": row.cost_estimated_micro,
                 "cost_observed_micro": row.cost_observed_micro,
-                "cost_charged_micro": _async_charged(row, task),
+                "cost_charged_micro": activity_routes.async_charged(row, task),
                 "duration_ms": row.duration_ms, "response_bytes": row.response_bytes,
                 "refused_by": row.refused_by, "budget_dim": row.budget_dim,
                 "budget_val": row.budget_val, "tags": row.tags,
@@ -877,28 +833,15 @@ async def list_runs(
         local_q = local_q.where(CallRecord.api_key_id == api_key_id)
     server = (await db.execute(
         server_q
-        .order_by(RunRecord.id.desc()).limit(limit)
+        .order_by(RunRecord.created_at.desc(), RunRecord.id.desc()).limit(limit)
     )).scalars().all()
     # A local run is audited as its GRANT (kind="local_run"); the redacted argv lives in `path`.
     local = (await db.execute(
         local_q
-        .order_by(CallRecord.id.desc()).limit(limit)
+        .order_by(CallRecord.created_at.desc(), CallRecord.id.desc()).limit(limit)
     )).scalars().all()
-    rows = [
-        {"id": f"s{r.id}", "user_email": r.user_email, "tool": r.bundle_name,  # bundle_name = tool (historical)
-         "argv": r.argv, "exit_code": r.exit_code, "duration_ms": r.duration_ms,
-         "where": "server", "client": r.client, "api_key_id": r.api_key_id,
-         "api_key_name": r.api_key_name, "api_key_prefix": r.api_key_prefix,
-         "created_at": r.created_at.isoformat()}
-        for r in server
-    ] + [
-        {"id": f"l{c.id}", "user_email": c.user_email, "tool": c.tool_name,
-         "argv": (c.path or "").split(), "exit_code": None, "duration_ms": None,
-         "where": "local", "client": c.client, "api_key_id": c.api_key_id,
-         "api_key_name": c.api_key_name, "api_key_prefix": c.api_key_prefix,
-         "created_at": c.created_at.isoformat()}
-        for c in local
-    ]
+    rows = ([activity_routes.server_run_row(r) for r in server]
+            + [activity_routes.local_run_row(c) for c in local])
     rows.sort(key=lambda x: x["created_at"], reverse=True)
     return rows[:limit]
 
@@ -923,6 +866,8 @@ router.routes.extend(admin_routes.reports_router.routes)
 
 # ---- the proxy: call a tool without holding its credential; tier-4 metering ----------------
 router.routes.extend(call_routes.router.routes)
+router.routes.extend(table_routes.router.routes)
+router.routes.extend(activity_routes.app.routes)
 router.routes.extend(arena_routes.router.routes)
 
 

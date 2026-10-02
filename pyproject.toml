@@ -47,9 +47,10 @@ server = [
     "stripe>=12",  # balance top-ups (src/treg/infra/stripe.py) — the payment rail, server-side only
     "mcp>=2",      # the MCP front door (src/treg/mcp.py) — server-side only; pulls httpx2 ALONGSIDE
     "quickjs>=1.19.4",  # the hub's script sandbox engine (src/treg/hub_sandbox.py) — server-side only
-                   # httpx (they coexist), so the light CLI's dependency set is untouched
+    # httpx (they coexist), so the light CLI's dependency set is untouched
     "redis>=5",    # the shared key-value store (src/treg/infra/kv.py) — server-side only
     "obstore>=0.11,<0.12",
+    "numpy>=2.1",  # find's card vectors: one matrix product per query (application/find_index.py)
 ]
 # The LOCAL PROXY (`treg shell` catching the agent's own outgoing calls). It needs to generate a
 # certificate authority on the machine, and `cryptography` is a compiled package — putting it in the
@@ -253,6 +254,8 @@ asyncio_default_fixture_loop_scope = "session"
 # ModuleNotFoundError at collection. Say it here so both invocations agree, rather than adding
 # `scripts/__init__.py` and changing what the sdist thinks it contains.
 pythonpath = ["."]
+# Each OpenAPI operation needs its own id; bootstrap splits multi-method routes for the schema.
+filterwarnings = ["error:Duplicate Operation ID:UserWarning"]
 
 [build-system]
 requires = ["hatchling"]
@@ -299,6 +302,14 @@ name = "Async task domain is a stdlib leaf shared with the light CLI"
 type = "forbidden"
 source_modules = ["treg.domain.asynctasks"]
 forbidden_modules = ["treg.api", "treg.routers", "treg.application", "treg.bootstrap", "treg.audit", "treg.models", "treg.infra", "treg.config", "fastapi", "starlette", "sqlmodel", "sqlalchemy", "pydantic", "pydantic_settings", "yaml", "httpx"]
+allow_indirect_imports = true
+as_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Table domain is a pure stdlib leaf: an answer in, rows and columns out"
+type = "forbidden"
+source_modules = ["treg.domain.table"]
+forbidden_modules = ["treg.api", "treg.routers", "treg.application", "treg.bootstrap", "treg.audit", "treg.models", "treg.infra", "treg.config", "treg.domain.identity", "treg.domain.governance", "treg.domain.connections", "treg.domain.tools", "treg.domain.catalog", "treg.domain.capacity", "treg.domain.money", "treg.domain.asynctasks", "treg.domain.hub", "fastapi", "starlette", "sqlmodel", "sqlalchemy", "pydantic", "pydantic_settings", "yaml", "httpx"]
 allow_indirect_imports = true
 as_packages = true
 

@@ -95,6 +95,7 @@ for _k in (
     "PLATFORM_KEY_FINANCIALDATASETS",
     "PLATFORM_KEY_ADYNTEL", "PLATFORM_EMAIL_ADYNTEL",
     "PLATFORM_KEY_KEENABLE", "PLATFORM_KEY_OLOSTEP",
+    "PLATFORM_KEY_SEARCH1API",
 ):
     os.environ[f"TREG_{_k}"] = ""  # the test upstream is an in-process ASGI transport, not real DNS
 
@@ -108,6 +109,7 @@ from treg.api import app  # noqa: E402
 from treg import archive  # noqa: E402
 from treg.config import get_settings  # noqa: E402
 from treg.infra.db import reset_db  # noqa: E402
+from treg.domain.identity import api_keys as managed_keys  # noqa: E402
 
 
 # The OTP-start + sandbox throttles (and the OTP codes) now live in the DB's `ephemeral` table, not in
@@ -424,11 +426,26 @@ async def drain_background_writes():
     # forgives it) — the serial CI job hung exactly here, 5-minute faulthandler timeouts on
     # whichever archive test ran next (2026-08-28, twice).
     await archive.drain()
+    # And the managed-key last-used writer: ids restart with every reset_db(), so a write or a
+    # throttle claim left over from one test would land on, or suppress, the next test's key.
+    await managed_keys.drain_last_used()
+    managed_keys._last_used_claims.clear()
+
+
+@pytest.fixture(autouse=True)
+async def _drain_around_each_test():
+    """Every test starts and ends with no background write in flight. A fixture that calls
+    reset_db() itself (many do) would otherwise race the previous test's audit rows: a call record
+    committed between reset_db's delete of `callrecord` and its delete of `org` breaks the foreign
+    key, and one that lands after the reset attaches to the next test's rewound ids. Autouse
+    fixtures set up first and tear down last, so this brackets every other fixture's reset."""
+    await drain_background_writes()
+    yield
+    await drain_background_writes()
 
 
 @pytest.fixture
 async def clients():
-    await drain_background_writes()
     # The archive report's 30s server-side cache would outlive this reset and serve the previous
     # test's numbers — clear it with the schema.
     from treg.routers import admin as admin_routes
@@ -483,6 +500,9 @@ def _reset_call_path_caches():
         # Who a key is, for the hub's lists: remembered a minute, and keys repeat across resets.
         from treg.routers import hub_gate
         hub_gate._readers.clear()
+        # The catalog's agent verdicts: a five-minute fold of callreview, which reset_db() empties.
+        from treg.application import feedback
+        feedback.forget_endpoint_verdicts()
     _clear()
     yield
     _clear()
@@ -541,3 +561,21 @@ def contactout_platform(monkeypatch):
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
+
+
+_SESSION_CWD = os.getcwd()
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_teardown(item, nextitem):
+    """Every test ends in the directory the run started in. A test that changes it (a bare
+    `os.chdir`, or product code that chdirs while a stub stands in for `exec`) makes later tests
+    fail on relative paths, far from the cause and only in some orders. Runs after every fixture
+    has torn down, so `monkeypatch.chdir` restores first; the leaking test errors here instead."""
+    result = yield
+    if os.getcwd() != _SESSION_CWD:
+        leaked = os.getcwd()
+        os.chdir(_SESSION_CWD)
+        raise AssertionError(f"{item.nodeid} left the working directory at {leaked}; "
+                             "use monkeypatch.chdir so it is restored")
+    return result

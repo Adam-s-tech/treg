@@ -11,6 +11,10 @@
 <meta property="og:url" content="https://treg.to/people-search"/>
 <meta property="og:type" content="website"/>
 <meta name="twitter:card" content="summary_large_image"/>
+<meta property="og:image" content="{BASE}/media/og.png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta name="twitter:image" content="{BASE}/media/og.png"/>
 <link rel="icon" href="favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -227,7 +231,7 @@
   .uc-chip.in { opacity: 1; transform: none; }
   .uc-chip.ok { color: var(--green); background: var(--green-soft); border-color: rgba(17,132,83,.3); }
   .uc-mask { font-family: var(--mono); font-size: 17px; letter-spacing: .04em; color: var(--ink); margin: 6px 0 4px; font-variant-numeric: tabular-nums; }
-  /* the +2,867 catalog ticker card */
+  /* the catalog ticker card */
   .uc.uc-more { background: #1B1B1A; color: #F8F8F7; }
   .uc-more .uc-stage { justify-content: flex-start; }
   .uc-more h3 { margin: 2px 0 8px; font-family: var(--display); font-weight: 500; font-size: 21px; letter-spacing: -.01em; }
@@ -462,7 +466,7 @@
 <header class="hero">
   <h1 id="heroA"><span class="hw ag-line"><span class="ag" id="agWrap"><img id="agLogo" src="media/people-search/claude-code.png" alt=""><span id="agName">Claude</span></span> for</span><br><span class="hw hl">people search.</span></h1>
   <h1 id="heroB" hidden><span class="hw">Run GTM</span> <span class="hw">from your</span><br><span class="hw"><span class="hero-agents"><img src="media/people-search/claude-code.png" alt="Claude Code"><img src="media/people-search/codex.png" alt="Codex"><img src="media/people-search/openclaw.png" alt="OpenClaw"><img src="media/people-search/hermes.png" alt="Hermes"></span></span> <span class="hw hl">terminal.</span></h1>
-  <p class="sub">One skill gives your agent <strong>1B+ contacts</strong> across Apollo, Hunter, Tomba, People&nbsp;Data&nbsp;Labs — 60 providers behind one token. It finds the companies, the people, and their <strong>verified work emails</strong>. You pay per answer, misses are free. <a href="#receipt" style="color:var(--green);text-decoration:underline;text-underline-offset:3px">27-person receipt: 20 verified emails for $0.58</a></p>
+  <p class="sub">One skill gives your agent <strong>1B+ contacts</strong> across Apollo, Hunter, Tomba, People&nbsp;Data&nbsp;Labs — {PROVIDERS} providers behind one token. It finds the companies, the people, and their <strong>verified work emails</strong>. You pay per answer, misses are free. <a href="#receipt" style="color:var(--green);text-decoration:underline;text-underline-offset:3px">27-person receipt: 20 verified emails for $0.58</a></p>
   <div class="ctas">
     <a class="pill dark" href="/app?ref=people-search" id="ctaHero">Setup treg</a>
     <a class="pill" href="#pricing">Pricing: pay per lead</a>
@@ -629,7 +633,7 @@
         <div class="uc-row"><img src="media/people-search/beam.png" alt=""><b>Beam</b><span class="uc-bar" style="--w:88%"><i></i></span></div>
         <div class="uc-row"><img src="media/people-search/cerebrium.png" alt=""><b>Cerebrium</b><span class="uc-bar" style="--w:84%"><i></i></span></div>
       </div>
-      <div class="uc-foot">companies.lookalike · from $0.049</div>
+      <div class="uc-foot">companies.similar · from $0.049</div>
     </div>
 
     <div class="uc" data-uc="verify">
@@ -669,7 +673,7 @@
     <a class="uc uc-more" href="#tools">
       <div class="uc-strip"><span class="pr">›</span>and whatever comes next<span class="c"></span></div>
       <div class="uc-stage">
-        <h3><b>+ 2,867 more</b> tools</h3>
+        <h3><b>{ENDPOINTS}</b> tools</h3>
         <div class="uc-tickwrap"><ul class="uc-tick">
           <li>serp.google <s>· live results</s></li>
           <li>keywords.volume <s>· $0.006</s></li>
@@ -689,7 +693,7 @@
           <li>scrape.page <s>· any URL</s></li>
         </ul></div>
       </div>
-      <div class="uc-foot">60 providers · one token · <b>browse the catalog →</b></div>
+      <div class="uc-foot">{PROVIDERS} providers · one token · <b>browse the catalog →</b></div>
     </a>
 
   </div>
@@ -787,7 +791,7 @@
 
 
 <section class="section tools-sec" id="tools">
-  <h2>One token. 2,896 data &amp; tools.</h2>
+  <h2>One token. {ENDPOINTS} data &amp; tools.</h2>
   <p class="lede">People search is one aisle. The same token reaches social, SEO, ads, scraping — and your own keys always win over treg's.</p>
   <div class="catwrap">
     <div class="pgrid">
@@ -816,7 +820,7 @@
         <div class="pcard"><span class="ph"><img src="media/people-search/serpstat.png" alt=""></span><span class="pt"><b>Rank tracking</b><s>Serpstat</s></span></div>
       </div>
     </div>
-    <div class="moreline">+ 2,870 more across 60 providers</div>
+    <div class="moreline">+ many more across {PROVIDERS} providers</div>
     <div class="ctas" style="display:flex;justify-content:center;margin-top:20px">
       <a class="pill dark" href="/catalog">Browse the catalog →</a>
     </div>
@@ -838,6 +842,10 @@
 <section class="section" id="related" style="padding-top:60px;padding-bottom:80px">
   <h2 style="margin-bottom:28px">Related</h2>
   <div style="max-width:900px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px">
+    <!--hosted--><a href="/gtm-engineering" style="display:block;padding:18px 20px;background:#fff;border-radius:14px;box-shadow:0 1px 2px rgba(20,18,12,.05),0 4px 14px -6px rgba(20,18,12,.08);text-decoration:none;color:inherit;transition:box-shadow .24s">
+      <b style="display:block;font-size:15px;margin-bottom:4px">GTM engineering playbook</b>
+      <span style="font-size:13px;color:var(--muted)">16 chapters from ICP to rollout, the data steps tested on real runs</span>
+    </a><!--/hosted-->
     <a href="/use-cases/people-search" style="display:block;padding:18px 20px;background:#fff;border-radius:14px;box-shadow:0 1px 2px rgba(20,18,12,.05),0 4px 14px -6px rgba(20,18,12,.08);text-decoration:none;color:inherit;transition:box-shadow .24s">
       <b style="display:block;font-size:15px;margin-bottom:4px">Compare providers</b>
       <span style="font-size:13px;color:var(--muted)">Priced comparison of people search APIs</span>
@@ -877,7 +885,7 @@
     </div>
     <nav class="bf-cols" aria-label="Site">
       <div class="bf-col"><div class="lab">Explore</div>
-        <a href="/catalog">Catalog</a><a href="/use-cases">Use cases</a><a href="/workflows">Workflows</a><a href="/agents/claude-code">Agents</a><a href="/blog">Blog</a></div>
+        <a href="/catalog">Catalog</a><a href="/use-cases">Use cases</a><a href="/workflows">Workflows</a><!--hosted--><a href="/gtm-engineering">GTM engineering</a><!--/hosted--><a href="/agents/claude-code">Agents</a><a href="/blog">Blog</a></div>
       <div class="bf-col"><div class="lab">Build</div>
         <a href="/tutorial">Docs</a><a href="/docs">API</a><a href="/llms.txt">llms.txt</a><a href="https://github.com/superdesigndev/treg" target="_blank" rel="noopener">GitHub ↗</a></div>
       <div class="bf-col"><div class="lab">Company</div>
