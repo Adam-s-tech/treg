@@ -177,6 +177,13 @@ async providers participate too; Arena handles submit and polling internally. Br
 public; submitting requires login, and billable attempts use your team's credits. See the
 [Arena guide](docs/context/interface/enrich-arena.md).
 
+**Web Arena** compares Web Search, Web Fetch, and Sitemap providers at `/web-arena`.
+Battle calls selected providers for the same input; Waterfall tries them in order. The
+live leaderboard summarizes completed Battle runs over a rolling 30-day window, while
+the Benchmark page shows a separate set of reviewed fixed tests. The pages open only
+after a reviewed benchmark is published and the feature is enabled. See the
+[Web Arena guide](docs/context/interface/web-arena.md).
+
 ## Share & use your own tools
 
 The zero-thought path — point treg at a project and it figures out what's shareable:
