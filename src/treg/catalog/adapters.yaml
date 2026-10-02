@@ -7,6 +7,8 @@
 #   predicates   x == null · x != null · x == [] · x == 'literal'
 #   named        split_first(full_name) · join(a, b) · has_type(emails, 'work')
 # `accepts` lists the contract identity variants (by their keys) this endpoint can serve.
+# `route: false` keeps a verified adapter out of routing and the arena; its `miss` still judges
+# hit/miss evidence for this endpoint's own calls.
 #
 # Every adapter is VERIFIED at catalog load against the endpoint's `test_request` (in) and its
 # captured `example_response` (out): one that cannot round-trip its fixture does not become a
@@ -805,6 +807,20 @@ adapters:
           location: "results[0].location.raw"}
     miss: "results[0].error != null"
   # ---- companies.enrich (batch 5, 2026-08-28) --------------------------------------------------
+  crustdata.companies.identify:
+    # Identity resolution, not enrichment: evidence only, not a routed companies.enrich child.
+    route: false
+    accepts: [[domain]]
+    in: {domain: body.domains}
+    in_expr: {body.domains: "list(domain)"}
+    out: {name: "[0].matches[0].company_data.basic_info.name",
+          domain: "[0].matches[0].company_data.basic_info.primary_domain",
+          website: "[0].matches[0].company_data.basic_info.website",
+          description: "[0].matches[0].company_data.basic_info.description",
+          founded: "[0].matches[0].company_data.basic_info.year_founded",
+          employees: "[0].matches[0].company_data.basic_info.employee_count_range",
+          linkedin_url: "[0].matches[0].company_data.basic_info.professional_network_url"}
+    miss: "coalesce([0].matches, []) == []"
   dropleads.companies.enrich:
     accepts: [[domain], [name]]
     in: {domain: body.domains, name: body.companyNames}
@@ -2369,6 +2385,17 @@ adapters:
     cost_units: "choose(title, 20, 1)"
     out: {people: data, count: "len(data)"}
     miss: "coalesce(data, []) == []"
+  apollo.people.search:
+    # Free search rows carry an obfuscated last name: evidence only, not a routed people.search child.
+    route: false
+    accepts: [[title, company_domain], [company_domain], [title]]
+    in: {company_domain: body.q_organization_domains_list, title: body.person_titles}
+    in_expr:
+      body.q_organization_domains_list: "list(company_domain)"
+      body.person_titles: "list(title)"
+      body.per_page: limit
+    out: {people: people, count: total_entries}
+    miss: "coalesce(people, []) == []"
   quickenrich.people.search:
     accepts: [[title, company_domain], [company_domain], [title]]
     in: {company_domain: body.company_url.include, title: body.title.include}

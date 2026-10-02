@@ -53,7 +53,9 @@ verification, then owns the asynchronous client until archive and analytics drai
 conditional resource setup does no object I/O at startup and adds no worker. Tests can supply
 `create_app(..., archive_object_store=...)`; `configure_archive_object_store` is the shared
 in-memory injection seam, and hands the same store to find's card vectors (`find_index.configure`,
-see [find](find.md)). See [archive](archive.md) for switches and queue behavior.
+see [find](find.md)); with an embedding key the lifespan also starts, on every role, one background
+task that builds those vectors (`find_index.warm`), cancelled with the other workers on shutdown.
+See [archive](archive.md) for switches and queue behavior.
 The same `archive_object_store` context owns the client for the Arena insights worker; that command
 does not start a web lifespan or its background tasks.
 

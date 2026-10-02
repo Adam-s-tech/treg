@@ -22,7 +22,7 @@ from starlette.routing import BaseRoute, Mount
 
 from . import adsconv, analytics, archive, audit
 from .application.call import route as routed_call
-from .application import arena
+from .application import arena, find_index
 from . import bootstrap_handlers
 from .bootstrap_http import (
     _BodyDecodeMiddleware,
@@ -177,6 +177,8 @@ _CONTROL_ROUTE_KEYS: frozenset[RouteKey] = frozenset({
     ('/ugc', ('GET',), 'ugc_page'),
     ('/people-search', ('GET',), 'people_search_page'),
     ('/leads-signals', ('GET',), 'leads_signals_page'),
+    ('/gtm-engineering', ('GET',), 'gtm_engineering_page'),
+    ('/gtm-engineering.md', ('GET',), 'gtm_engineering_md'),
     ('/jev', ('GET',), 'jev_page'),
     ('/jev/xboost.json', ('GET',), 'jev_xboost_json'),
     ('/jev/xboost/judge', ('POST',), 'jev_xboost_judge'),
@@ -654,6 +656,9 @@ def _lifespan(role: AppRole):
                 if ROLE_BACKGROUND_TASKS[role] and archive.prune_enabled()
                 else None
             )
+            # Find's card vectors (docs/context/architecture/find.md): built now, in the background,
+            # instead of by the first find after a deploy; off without an embedding key.
+            find_task = asyncio.create_task(find_index.warm()) if find_index.enabled() else None
             endpoint_observations = app.state.endpoint_observation_reader
             routed_call.configure_endpoint_observation_reader(endpoint_observations)
             mcp_reader_bound = role != "control" and _mcp is not None
@@ -673,7 +678,7 @@ def _lifespan(role: AppRole):
             finally:
                 try:
                     workers = [task for task in (
-                        gauge_task, ads_task, archive_task, prune_task,
+                        gauge_task, ads_task, archive_task, prune_task, find_task,
                     ) if task is not None]
                     for task in workers:
                         task.cancel()

@@ -1545,7 +1545,8 @@ class SearchLog(SQLModel, table=True):
     baseline_ids: list | None = Field(default=None, sa_column=Column("baseline_ids", JSON, nullable=True))
     # [[endpoint_id, probability], ...] — the judge's kept rows, in the order the judged arm shows
     judged: list | None = Field(default=None, sa_column=Column("judged", JSON, nullable=True))
-    # [[endpoint_id, owner], ...] — the page actually served; owner is baseline | judged | both
+    # [[endpoint_id, owner, job], ...] — the page actually served; owner is baseline | judged | both
+    # (| name | hub), job the row's capability so a later call to any vendor of it can be credited
     shown: list | None = Field(default=None, sa_column=Column("shown", JSON, nullable=True))
     baseline_total: int = 0                                  # lexical matches before the page cut
     differs: bool = False                                    # the two pages are not the same set+order
@@ -1564,6 +1565,9 @@ class SearchLog(SQLModel, table=True):
     embed_ms: int | None = Field(default=None)
     embed_error: str | None = Field(default=None)
     units: list | None = Field(default=None, sa_column=Column("units", JSON, nullable=True))
+    # the verdict a v2 answer ended on, the reason after a colon where there is one
+    # (strong | closest | name | none:gap | keyword | keyword:not_task ...); None for v1
+    verdict: str | None = Field(default=None)
 
 
 class CapacityPolicy(SQLModel, table=True):
