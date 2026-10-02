@@ -15,7 +15,7 @@ from ..domain.catalog import store as catalog_store
 from ..infra.db import session_maker
 from ..models import WebArenaPublication, WebArenaRun
 from ..timeutil import utcnow_naive as now
-from . import arena
+from . import arena, web_arena_calls
 
 EXPECTED_CASES = {"search": 30, "fetch": 20, "sitemap": 10}
 FORMULA = {"quality": 0.60, "success": 0.20, "speed": 0.10, "price": 0.10}
@@ -70,24 +70,39 @@ def _validate_publication(doc: dict) -> dict:
             raise ValueError(f"{task} needs rules, limits, and the sample count.")
         if len(group.get("providers") or []) < 2:
             raise ValueError(f"{task} needs measured results from at least two providers.")
+        allowed_parts = {"relevance", "freshness", "fact_coverage", "token_efficiency",
+                         "known_url_coverage", "valid_url_rate", "success", "speed", "price"}
         for row in group.get("providers") or []:
-            if set(row) - {"provider", "parts", "overall", "rank", "sample_count"}:
+            if set(row) - {"provider", "parts", "overall", "rank", "sample_count", "case_scores"}:
                 raise ValueError("A provider score contains unapproved fields.")
             parts = row.get("parts") or {}
-            if set(parts) - {"relevance", "freshness", "fact_coverage", "token_efficiency",
-                             "known_url_coverage", "valid_url_rate", "success", "speed", "price"}:
+            if set(parts) - allowed_parts:
                 raise ValueError("A score has an unknown metric.")
             if any(value is not None and (not isinstance(value, (int, float)) or isinstance(value, bool)
                                           or not 0 <= value <= 100) for value in parts.values()):
                 raise ValueError("Each known score must be between 0 and 100.")
+            case_scores = row.get("case_scores")
+            if not isinstance(case_scores, list) or len(case_scores) != count or {entry.get("id") for entry in case_scores if isinstance(entry, dict)} != set(known):
+                raise ValueError(f"{task}/{row.get('provider')} needs one score for every fixed case.")
+            if any(not isinstance(entry, dict) or set(entry) != {"id", "parts"}
+                   or not isinstance(entry["parts"], dict) or set(entry["parts"]) != set(parts)
+                   or any(value is not None and (not isinstance(value, (int, float)) or isinstance(value, bool)
+                        or not 0 <= value <= 100) for value in entry["parts"].values())
+                   for entry in case_scores):
+                raise ValueError("Case scores must contain only the case ID and numeric metric parts.")
+            for metric, value in parts.items():
+                values = [entry["parts"][metric] for entry in case_scores]
+                derived = round(mean(values), 1) if all(v is not None for v in values) else None
+                if value != derived:
+                    raise ValueError(f"{task}/{row.get('provider')} {metric} must be derived from every case.")
             q = scores.quality(task, parts)
             expected = scores.overall(quality_score=q, success=parts.get("success"),
                 speed=parts.get("speed"), price=parts.get("price"))
             if row.get("overall") != expected:
                 raise ValueError(f"Score does not match the formula for {task}/{row.get('provider')}.")
-            if parts.get("price") is None and row.get("rank") is not None:
-                raise ValueError("A provider with no known price cannot have an overall rank.")
-            if row.get("sample_count") != count:
+            if expected is None and row.get("rank") is not None:
+                raise ValueError("A provider with an unknown score cannot have an overall rank.")
+            if row.get("sample_count") != len(case_scores):
                 raise ValueError("Every ranked provider needs the full fixed case set.")
     # The published object is allowlisted. Raw answers and private queries are not accepted.
     if set(doc) - {"version", "test_date", "human_reviewed", "formula", "task_results", "methodology"}:
@@ -108,7 +123,7 @@ async def publish_file(path: str):
 async def _live_rows():
     cutoff = now() - timedelta(days=30)
     async with session_maker() as db:
-        rows = (await db.execute(select(WebArenaRun).where(WebArenaRun.mode == "battle",
+        rows = (await db.execute(select(WebArenaRun).where(WebArenaRun.mode.in_(["battle", "waterfall"]),
             WebArenaRun.state == "completed", WebArenaRun.created_at >= cutoff,
             WebArenaRun.expires_at > now()).order_by(WebArenaRun.created_at.desc()).limit(10_000))).scalars().all()
     return rows
@@ -117,6 +132,7 @@ async def _live_rows():
 async def live_now() -> dict:
     """Compute content-free totals directly for local development."""
     rows = await _live_rows()
+    traffic = await web_arena_calls.local_snapshot()
     readable = []
     unreadable = 0
     for row in rows:
@@ -127,7 +143,7 @@ async def live_now() -> dict:
         else:
             readable.append(row)
     if not unreadable:
-        return summarize_live(rows, catalog_store.load())
+        return summarize_live(rows, catalog_store.load(), traffic)
 
     # A local preview may outlive its encryption key. Older ciphertext must not
     # hide newer, readable Battles; retain saved totals only for tasks with no
@@ -138,7 +154,7 @@ async def live_now() -> dict:
             raise InvalidToken
         return {**snapshot, "source": "Last saved Battle totals; older local runs could not be read.",
                 "stale": True}
-    doc = summarize_live(readable, catalog_store.load())
+    doc = summarize_live(readable, catalog_store.load(), traffic)
     saved_tasks = snapshot.get("task_results", {}) if snapshot.get("status") == "live" else {}
     stale_tasks = sorted(set(saved_tasks) - set(doc["task_results"]))
     for task in stale_tasks:
@@ -149,8 +165,11 @@ async def live_now() -> dict:
 
 async def refresh_live():
     """Worker saves content-free totals for the hosted page to read as one small row."""
+    collected = await web_arena_calls.collect()
+    if not collected["caught_up"]:
+        return {"skipped": True, "reason": "call backlog", **collected}
     rows = await _live_rows()
-    doc = summarize_live(rows, catalog_store.load())
+    doc = summarize_live(rows, catalog_store.load(), await web_arena_calls.snapshot())
     async with session_maker() as db:
         row = await db.get(WebArenaPublication, "live:current")
         if row:
@@ -160,7 +179,7 @@ async def refresh_live():
             row = WebArenaPublication(id="live:current", kind="live", version="v1", payload=doc)
         db.add(row)
         await db.commit()
-    return {"tasks": list(doc["task_results"]), "battle_runs": len(rows)}
+    return {"tasks": list(doc["task_results"]), "arena_runs": len(rows), **collected}
 
 
 async def refresh_live_if_due():
@@ -177,56 +196,71 @@ async def refresh_live_if_due():
     return await refresh_live()
 
 
-def summarize_live(rows, catalog):
-    """Aggregate the latest completed Battle per provider and distinct input."""
+def summarize_live(rows, catalog, traffic=None):
+    """Join direct-call facts to checked Arena quality, never double-counting Battle calls."""
     by_task: dict[str, dict[str, dict]] = defaultdict(lambda: defaultdict(lambda: {
         "runs": 0, "success": 0, "times": [], "metric_values": [], "efficiency_values": [],
         "comparable": 0, "wins": 0}))
     seen_inputs = set()
+    seen_quality: dict[str, set] = defaultdict(set)
     for row in rows:
         payload = arena._unpack(row.payload)
         attempts = payload.get("attempts") or []
-        values = scores.winner_values(row.task, attempts)
+        values = scores.winner_values(row.task, attempts) if getattr(row, "mode", "battle") == "battle" else {}
         best = max(values.values()) if values else None
         for a in attempts:
             if a.get("state") not in {"hit", "miss", "error", "timeout"}:
                 continue
             key = (row.task, a["provider"], payload.get("input"),
                    payload.get("query", "") if row.task == "sitemap" else "")
-            if key in seen_inputs:
-                continue
-            seen_inputs.add(key)
             slot = by_task[row.task][a["provider"]]
-            slot["runs"] += 1
-            slot["success"] += a["state"] == "hit"
-            if isinstance(a.get("duration_ms"), int):
-                slot["times"].append(a["duration_ms"])
+            if key not in seen_inputs:
+                seen_inputs.add(key)
+                slot["runs"] += 1
+                slot["success"] += a["state"] == "hit"
+                if isinstance(a.get("duration_ms"), int):
+                    slot["times"].append(a["duration_ms"])
             quality = a.get("quality") or {}
             metric = (quality.get("estimated_match") if row.task == "search" and quality.get("state") == "checked"
                       else quality.get("relative_coverage") if row.task == "fetch" and quality.get("state") == "checked"
                       else quality.get("coverage_percent") if row.task == "sitemap" else None)
-            if isinstance(metric, (int, float)) and not isinstance(metric, bool) and 0 <= metric <= 100:
+            if (key not in seen_quality["metric"] and isinstance(metric, (int, float))
+                    and not isinstance(metric, bool) and 0 <= metric <= 100):
                 slot["metric_values"].append(metric)
+                seen_quality["metric"].add(key)
             efficiency = quality.get("token_efficiency") if row.task == "fetch" and quality.get("state") == "checked" else None
-            if isinstance(efficiency, (int, float)) and not isinstance(efficiency, bool) and 0 <= efficiency <= 100:
+            if (key not in seen_quality["efficiency"] and isinstance(efficiency, (int, float))
+                    and not isinstance(efficiency, bool) and 0 <= efficiency <= 100):
                 slot["efficiency_values"].append(efficiency)
-            if a["provider"] in values:
+                seen_quality["efficiency"].add(key)
+            if key not in seen_quality["win"] and a["provider"] in values:
                 slot["comparable"] += 1
                 slot["wins"] += values[a["provider"]] == best
+                seen_quality["win"].add(key)
     result = {}
+    for task, providers in (traffic or {}).items():
+        for provider in providers:
+            by_task[task][provider]
+    lineup = {(task, provider): endpoint_id
+              for endpoint_id, (task, provider) in web_arena_calls.endpoint_tasks().items()}
     for task, providers in by_task.items():
         output = []
         for provider, stats in providers.items():
-            current = next((ep for ep in catalog.for_capability({"search":"web.search", "fetch":"web.extract", "sitemap":"web.map"}[task])
-                            if ep["provider"] == provider and ep["id"] in catalog.adapters), None)
+            current = catalog.by_id.get(lineup.get((task, provider)))
             cv = catalog.cost_view(current.get("cost"), provider) if current else None
-            n = stats["runs"]
+            observed = (traffic or {}).get(task, {}).get(provider)
+            n = observed["runs"] if observed is not None else stats["runs"]
             comparable = stats["comparable"]
             metric_values = stats["metric_values"]
             output.append({"provider": provider, "runs": n,
-                "success_rate": round(100 * stats["success"] / n, 1),
-                "average_provider_ms": round(mean(stats["times"])) if stats["times"] else None,
-                "median_provider_ms": round(median(stats["times"])) if stats["times"] else None,
+                "hit_samples": observed["hit_samples"] if observed is not None else n,
+                "time_samples": observed["time_samples"] if observed is not None else len(stats["times"]),
+                "success_rate": observed["success_rate"] if observed is not None else
+                    round(100 * stats["success"] / n, 1) if n else None,
+                "average_provider_ms": observed["average_provider_ms"] if observed is not None else
+                    round(mean(stats["times"])) if stats["times"] else None,
+                "median_provider_ms": observed["median_provider_ms"] if observed is not None else
+                    round(median(stats["times"])) if stats["times"] else None,
                 "metric_sample_count": len(metric_values),
                 "metric_percent": round(mean(metric_values), 1) if len(metric_values) >= 20 else None,
                 "token_efficiency_sample_count": len(stats["efficiency_values"]),
@@ -237,6 +271,8 @@ def summarize_live(rows, catalog):
                 "current_catalog_price_usd": cv.get("usd") if cv else None,
                 "price_unit": (current.get("cost") or {}).get("unit") if current else None})
         result[task] = sorted(output, key=lambda x: (-x["runs"], x["provider"]))
-    doc = {"status": "live", "source": "Complete Web Arena Battle runs only", "window_days": 30,
-           "updated_at": now().isoformat() + "Z", "task_results": result, "minimum_comparable_runs": 20}
+    doc = {"status": "live", "source": "Direct treg calls for hit rate and time; checked Web Arena runs for quality",
+           "window_days": 30, "updated_at": now().isoformat() + "Z", "task_results": result,
+           "minimum_comparable_runs": 20, "minimum_hit_samples": web_arena_calls.MIN_HIT_SAMPLES,
+           "filters": {"cached": "excluded", "treg_refusals": "excluded", "quality": "checked Arena runs"}}
     return doc

@@ -7,11 +7,13 @@ sources:
   - src/treg/application/web_arena.py
   - src/treg/application/web_arena_quality.py
   - src/treg/application/web_arena_publications.py
+  - src/treg/application/web_arena_calls.py
   - src/treg/application/web_arena_benchmark.py
   - src/treg/web_arena_cases.json
   - src/treg/routers/web_arena.py
   - src/treg/models.py
   - src/treg/alembic/versions/0057_web_arena.py
+  - src/treg/alembic/versions/0058_web_arena_call_stats.py
   - src/treg/config.py
   - src/treg/bootstrap.py
   - src/treg/worker.py
@@ -19,6 +21,7 @@ sources:
   - src/treg/web/web-arena/arena.js
   - src/treg/web/web-arena/arena.css
   - tests/test_web_arena.py
+  - tests/test_web_arena_calls.py
 related:
   - interface/enrich-arena.md
   - architecture/catalog.md
@@ -62,11 +65,13 @@ downvoted attempts use the fallen fighter pose; other available providers stay e
 The current quote appears on the Run button without a separate price step.
 Before a run, the provider table lists every catalog-preview tool and its catalog price.
 When a team quote is ready, the table replaces that price with the input-specific estimate.
-It joins content-free live totals by provider: result rate and median provider time appear
-after 20 distinct inputs, and the task-specific quality estimate appears after 20 checked
-inputs. Search uses Jev intent match, Fetch uses relative fact coverage, and Sitemap
-coverage stays unknown without a known URL list. Repeat Battles of the same input count
-once per provider, using the latest completed result. The preview gives way to the
+It joins content-free live totals by provider: hit rate appears after 20 decided direct
+calls and median provider time after 20 successful uncached direct calls. The task-specific
+quality estimate appears after 20 checked Web Arena inputs. Search uses Jev intent match,
+Fetch uses relative fact coverage, and Sitemap coverage stays unknown without a known URL
+list. A provider call made during a Battle or Waterfall enters the direct-call aggregate
+once through `CallRecord`; it is not counted again from `WebArenaRun`. Repeat checked Arena
+inputs count once per provider for quality, using the latest checked result. The preview gives way to the
 actual results during and after a run.
 The run form uses one quality switch with Jev and treg details in an info tooltip. A focused query has one outer
 border. Results show provider logos, time and cost, thumbs ratings, and plain failure states.
@@ -130,37 +135,50 @@ and operations cap before network I/O. Treg pays those calls separately from pro
 Local development with a SQLite database and loopback public URL skips the quality-call caps
 for testing. It still needs an AI gateway key.
 
-`web_arena_publications.refresh_live` is worker work. It reads completed Battle runs only, then
-saves content-free totals in `WebArenaPublication`. The Arena preview and public leaderboard
-read that one publication. The scheduled `treg-worker arena insights` command refreshes it
+`web_arena_calls.collect` walks `CallRecord` by a locked cursor with a commit lag and folds
+eligible Web task endpoint calls into content-free daily buckets. Only actual, uncached,
+unrefused provider attempts enter the buckets. Adapter hit/miss verdicts and provider faults
+decide hit rate; unknown outcomes and caller 4xx do not. Only successful direct calls provide
+response-time samples. The collector processes backlog incrementally and never reads a provider
+answer body. `WebArenaCallDayStat` and `WebArenaCallCursor` are owned by this module.
+`web_arena_publications.refresh_live` joins those call observations with quality from completed
+Battle and Waterfall runs and saves content-free totals in `WebArenaPublication`. Quality wins
+remain Battle-only because they require simultaneous checked comparisons. The Arena preview and
+public leaderboard read that one publication. The scheduled `treg-worker arena insights` command
+collects new call observations on each tick and refreshes the publication
 when Web Arena is enabled and the reviewed benchmark is published, at most once every 30
 minutes. The cron can run more often; `refresh_live_if_due` skips the full
 rolling-window read while the saved totals are fresh and retries on the next run after a
 failed refresh. The standalone
 `treg-worker web-arena totals` command remains available for manual refresh. Local development
-computes the same content-free totals on the leaderboard request so new test runs appear
+reads recent direct calls and Arena quality on the leaderboard request so new test runs appear
 without a cron worker. If older local runs cannot be decrypted after a key change, the local
-leaderboard uses readable recent runs for each task and labels that data as partial. A task with
-no readable runs keeps its last saved live totals with a stale-data label. If no run is readable
+quality summary uses readable recent runs for each task and labels that data as partial. A task with
+no readable runs keeps its last saved quality totals with a stale-data label. If no run is readable
 and no saved publication exists, the read fails visibly. The hosted worker still fails on an
 unreadable payload.
-`summarize_live` uses completed Web Arena Battles from the most recent 30 days, capped
-at the 10,000 newest runs. Each provider and distinct input contributes only its latest
-result; Waterfall and ordinary dashboard or CLI calls do not enter these totals.
+`summarize_live` uses completed Web Arena Battle and Waterfall runs from the most recent 30
+days, capped at the 10,000 newest runs, for checked quality. The direct-call buckets include
+eligible dashboard, CLI, agent, Battle, and attempted Waterfall calls to the Web Arena's
+listed endpoints. A skipped Waterfall provider has no call to count. The source, window,
+filters, and sample floors travel with each saved publication.
 The live leaderboard uses Enrich Arena's task pills, comparison rail, provider logos, and hover or
 selection details. Search offers hit rate, Jev relevance, catalog price, and price vs hit rate;
 Fetch adds fact coverage, token efficiency, and fact coverage vs token efficiency; Sitemap uses
 hit rate and price. Single metrics can appear as vertical or horizontal bars. Comparison plots
 show both axes and scroll horizontally inside the chart when needed. Price values retain their
-catalog unit, and the UI warns when units differ. Hit rate is visible with its distinct-input
-count; quality metrics appear after 20 checked inputs per provider. Fetch live publications
+catalog unit, and the UI warns when units differ. Hit rate is visible with its decided-call
+count; quality metrics appear after 20 checked inputs per provider. Quality option tooltips
+explain what each score measures and that it comes from checked Web Arena runs. Fetch live publications
 aggregate token efficiency separately from fact coverage, using the same checked-input threshold.
 Quality win rate stays unknown until 20 comparable checked runs. Sitemap needs a known reference
 URL list before any live quality win can exist. `publish_file` accepts a reviewed, versioned
 benchmark with the fixed sample counts and formula. The benchmark page only reads that saved
 document and makes no provider calls. The score weights are 60% task quality, 20% success,
 10% speed, and 10% price; an unknown price leaves the overall rank unknown. The publication
-must keep its fixed cases, rules, limits, date, and human review status.
+must keep its fixed cases, rules, limits, date, and human review status. Each provider must
+include content-free scores for every fixed case ID; `publish_file` derives each aggregate
+part from those scores and rejects missing or altered cases. Raw answers are never published.
 
 The worker entry points are `treg-worker web-arena test --output PRIVATE.json --confirm-spend`,
 `treg-worker web-arena totals`, and `treg-worker web-arena publish FILE`. The fixed case file is a

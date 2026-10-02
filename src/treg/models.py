@@ -1865,6 +1865,27 @@ class WebArenaJudgeBudget(SQLModel, table=True):
     calls: int = 0
 
 
+class WebArenaCallDayStat(SQLModel, table=True):
+    """Content-free, uncached provider-call observations for one endpoint and UTC day."""
+    __table_args__ = (UniqueConstraint("endpoint_id", "day", name="uq_webarenacalldaystat_endpoint_day"),)
+    id: int | None = Field(default=None, primary_key=True)
+    endpoint_id: str = Field(index=True)
+    day: str = Field(index=True)
+    calls: int = 0
+    decided: int = 0
+    hits: int = 0
+    timed: int = 0
+    duration_sum_ms: int = 0
+    duration_sample: list[int] = Field(default_factory=list, sa_type=JSON)
+
+
+class WebArenaCallCursor(SQLModel, table=True):
+    """Last audited call folded into Web Arena's traffic observations."""
+    id: str = Field(primary_key=True)
+    call_id: int = 0
+    updated_at: NaiveUTC = Field(default_factory=_now)
+
+
 class ArenaEvaluation(SQLModel, table=True):
     """One immutable preference for a run's creator, including its exposure context."""
     __table_args__ = (UniqueConstraint("run_id", name="uq_arena_evaluation"),)

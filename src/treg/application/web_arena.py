@@ -68,8 +68,9 @@ async def _prune(db):
         await db.execute(delete(WebArenaRun).where(WebArenaRun.id.in_(ids)))
 
 
-def tasks():
-    _check_enabled()
+def tasks(*, _internal: bool = False):
+    if not _internal:
+        _check_enabled()
     cat = catalog_store.load()
     result = []
     for task, label in (("search", "Web Search"), ("fetch", "Web Fetch"),

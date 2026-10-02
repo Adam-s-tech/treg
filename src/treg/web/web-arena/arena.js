@@ -51,6 +51,7 @@
         price:'Current catalog price · cheapest first',price_rate:'Lower catalog price ← · ↑ higher hit rate',
         coverage:'Relative fact coverage · higher is better',efficiency:'Token efficiency · higher is better',
         coverage_efficiency:'Higher token efficiency → · ↑ higher fact coverage'})[this.leaderboardView];},
+      qualityView(){return ['relevance','coverage','efficiency','coverage_efficiency'].includes(this.leaderboardView);},
       previewRows(){
         const stats=new Map(this.liveRows.map(row=>[row.provider,row]));
         return this.displayProviders.map(provider=>({provider,stats:stats.get(provider.provider)||null}));
@@ -108,8 +109,9 @@
         const counted=n=>`${n} checked ${n===1?'input':'inputs'}`;
         const quality=this.task==='search'?` Relevance ${this.percent(row.relevance)} from ${counted(row.metric_sample_count)}.`:
           this.task==='fetch'?` Fact coverage ${this.percent(row.coverage)} from ${counted(row.metric_sample_count)}. Token efficiency ${this.percent(row.efficiency)} from ${counted(row.token_efficiency_sample_count)}.`:'';
-        return `${this.providerName(row.provider)}. Hit rate ${this.percent(row.rate)} from ${row.runs} distinct ${row.runs===1?'input':'inputs'}.${quality} Response ${row.average_provider_ms==null?'—':row.average_provider_ms+' ms'}. Price ${this.catalogPrice(row)}.`;
+        return `${this.providerName(row.provider)}. Hit rate ${this.percent(row.rate)} from ${row.hit_samples||0} decided calls.${quality} Response ${row.average_provider_ms==null?'—':row.average_provider_ms+' ms'} from ${row.time_samples||0} direct calls. Price ${this.catalogPrice(row)}.`;
       },
+      leaderboardViewHelp(view){return ({relevance:'Jev estimates how well search links match the query. Uses quality-checked Web Arena Battle or waterfall results only.',coverage:'Share of facts from a shared list retained by this extract. Uses Web Arena runs with a completed fact-list and Jev check.',efficiency:'Text count per kept fact, scaled against other checked extracts from the same Web Arena run.',coverage_efficiency:'Compares relative fact coverage with token efficiency. Both come from completed Web Arena quality checks.'})[view]||'';},
       leaderboardDate(value){if(!value)return '';const date=new Date(value);return Number.isNaN(date.valueOf())?'':new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}).format(date)+' · UTC';},
       chooseLeaderboardTask(task){this.task=task;this.leaderboardView='rate';this.leaderboardOrientation='vertical';this.chartFocus=null;},
       chooseLeaderboardView(view){this.leaderboardView=view;this.leaderboardOrientation=view==='price'?'horizontal':'vertical';this.chartFocus=null;},
@@ -122,8 +124,8 @@
         return '$'+Number(provider.catalog_price_usd).toFixed(4)+' / '+unit;
       },
       previewMetric(row){return row?.metric_sample_count>=20?this.percent(row.metric_percent):'—';},
-      previewRate(row){return row?.runs>=20?this.percent(row.success_rate):'—';},
-      previewTime(row){return row?.runs>=20&&row.median_provider_ms!=null?row.median_provider_ms+' ms':'—';},
+      previewRate(row){return row?.hit_samples>=20?this.percent(row.success_rate):'—';},
+      previewTime(row){return row?.time_samples>=20&&row.median_provider_ms!=null?row.median_provider_ms+' ms':'—';},
       metricName(){return ({search:'Intent match',fetch:'Fact coverage',sitemap:'URL coverage'})[this.task];},
       date(s){return s?new Date(s).toLocaleDateString():'';},
       providerName(provider){return ({branddev:'Context.dev',firecrawl:'Firecrawl',scrapegraphai:'ScrapeGraphAI',search1api:'Search1API',tinyfish:'TinyFish',you:'You.com',anyapi:'AnyAPI'})[provider]||provider.charAt(0).toUpperCase()+provider.slice(1);},

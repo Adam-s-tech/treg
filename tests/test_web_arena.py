@@ -1,5 +1,7 @@
 """Web Arena safety and score rules that do not need paid provider calls."""
 import asyncio
+import copy
+import json
 from datetime import timedelta
 from types import SimpleNamespace
 import pytest
@@ -78,6 +80,39 @@ def test_publication_refuses_unreviewed_or_incomplete_tests():
         web_arena_publications._validate_publication({"version": "v1", "human_reviewed": False})
 
 
+def test_benchmark_requires_provider_scores_for_each_fixed_case():
+    fixed = json.loads(web_arena_publications.CASES_FILE.read_text())["tasks"]
+    groups = {}
+    for task, entries in fixed.items():
+        metrics = ({"relevance": 80, "success": 100, "speed": 80, "price": 80}
+                   if task == "search" else
+                   {"fact_coverage": 80, "token_efficiency": 80, "success": 100, "speed": 80, "price": 80}
+                   if task == "fetch" else
+                   {"known_url_coverage": 80, "valid_url_rate": 80, "success": 100, "speed": 80, "price": 80})
+        cases = [{"id": case["id"], "input": case["input"], "label": case["label"],
+                  "reviewed": True, **({"checked_facts": ["fact"]} if task == "fetch" else {}),
+                  **({"known_urls": ["https://example.com/"]} if task == "sitemap" else {})}
+                 for case in entries]
+        overall = web_arena_scores.overall(quality_score=web_arena_scores.quality(task, metrics),
+            success=100, speed=80, price=80)
+        providers = [{"provider": provider, "parts": dict(metrics), "overall": overall, "rank": rank,
+                      "sample_count": len(cases), "case_scores": [{"id": case["id"], "parts": dict(metrics)}
+                         for case in cases]} for rank, provider in enumerate(("exa", "firecrawl"), 1)]
+        groups[task] = {"cases": cases, "sample_count": len(cases), "rules": "Reviewed",
+                        "limits": "Fixed cases", "providers": providers}
+    doc = {"version": "reviewed-1", "human_reviewed": True, "test_date": "2026-10-03",
+           "formula": web_arena_publications.FORMULA, "task_results": groups}
+    assert web_arena_publications._validate_publication(doc)["status"] == "published"
+    missing = copy.deepcopy(doc)
+    missing["task_results"]["search"]["providers"][0]["case_scores"].pop()
+    with pytest.raises(ValueError, match="one score for every fixed case"):
+        web_arena_publications._validate_publication(missing)
+    altered = copy.deepcopy(doc)
+    altered["task_results"]["fetch"]["providers"][0]["case_scores"][0]["parts"]["fact_coverage"] = 0
+    with pytest.raises(ValueError, match="must be derived from every case"):
+        web_arena_publications._validate_publication(altered)
+
+
 def test_live_provider_stats_need_distinct_checked_inputs(monkeypatch):
     monkeypatch.setattr(web_arena_publications.arena, "_unpack", lambda payload: payload)
     rows = [SimpleNamespace(task="search", payload={"input": f"query {i}", "attempts": [{
@@ -109,6 +144,40 @@ def test_fetch_live_totals_keep_fact_coverage_and_token_efficiency_separate(monk
     assert row["token_efficiency_sample_count"] == 20
 
 
+def test_waterfall_quality_joins_direct_call_totals_without_double_counting(monkeypatch):
+    monkeypatch.setattr(web_arena_publications.arena, "_unpack", lambda payload: payload)
+    rows = [SimpleNamespace(task="search", mode="waterfall", payload={
+        "input": f"query {i}", "attempts": [{"provider": "exa", "state": "hit",
+            "duration_ms": 999, "quality": {"state": "checked", "estimated_match": 70}}]})
+        for i in range(20)]
+    traffic = {"search": {"exa": {"runs": 25, "hit_samples": 24, "time_samples": 22,
+        "success_rate": 87.5, "average_provider_ms": 240, "median_provider_ms": 200}}}
+    row = web_arena_publications.summarize_live(rows, catalog_store.load(), traffic)["task_results"]["search"][0]
+    assert row["runs"] == 25
+    assert row["success_rate"] == 87.5
+    assert row["average_provider_ms"] == 240
+    assert row["metric_sample_count"] == 20
+    assert row["metric_percent"] == 70
+
+
+def test_repeat_fetch_checks_do_not_hide_later_efficiency(monkeypatch):
+    monkeypatch.setattr(web_arena_publications.arena, "_unpack", lambda payload: payload)
+    rows = [SimpleNamespace(task="fetch", mode="battle", payload={
+        "input": f"https://example.com/{i}", "attempts": [{"provider": "exa", "state": "hit",
+            "quality": {"state": "checked", "relative_coverage": 60}},
+            {"provider": "firecrawl", "state": "hit", "quality": {}}]})
+        for i in range(20)]
+    rows += [SimpleNamespace(task="fetch", mode="battle", payload={
+        "input": f"https://example.com/{i}", "attempts": [{"provider": "exa", "state": "hit",
+            "quality": {"state": "checked", "relative_coverage": 55, "token_efficiency": 80}},
+            {"provider": "firecrawl", "state": "hit", "quality": {}}]})
+        for i in range(20)]
+    row = web_arena_publications.summarize_live(rows, catalog_store.load())["task_results"]["fetch"][0]
+    assert row["metric_sample_count"] == 20
+    assert row["token_efficiency_sample_count"] == 20
+    assert row["token_efficiency_percent"] == 80
+
+
 async def test_local_leaderboard_uses_saved_totals_if_old_runs_cannot_decrypt(monkeypatch):
     async def rows():
         return [SimpleNamespace(payload="old ciphertext")]
@@ -121,6 +190,7 @@ async def test_local_leaderboard_uses_saved_totals_if_old_runs_cannot_decrypt(mo
         raise InvalidToken
 
     monkeypatch.setattr(web_arena_publications, "_live_rows", rows)
+    monkeypatch.setattr(web_arena_publications.web_arena_calls, "local_snapshot", lambda: asyncio.sleep(0, result={}))
     monkeypatch.setattr(web_arena_publications, "published", saved)
     monkeypatch.setattr(web_arena_publications.arena, "_unpack", cannot_decrypt)
     result = await web_arena_publications.live_now()
@@ -147,6 +217,7 @@ async def test_local_leaderboard_keeps_readable_runs_when_old_runs_cannot_decryp
         return payload
 
     monkeypatch.setattr(web_arena_publications, "_live_rows", rows)
+    monkeypatch.setattr(web_arena_publications.web_arena_calls, "local_snapshot", lambda: asyncio.sleep(0, result={}))
     monkeypatch.setattr(web_arena_publications, "published", saved)
     monkeypatch.setattr(web_arena_publications.arena, "_unpack", unpack)
     result = await web_arena_publications.live_now()

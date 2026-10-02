@@ -41,6 +41,8 @@ EXPECTED_MAKERS: dict[str, set[str]] = {
     "application/web_arena.py": {API},
     "application/web_arena_quality.py": {API},
     "application/web_arena_publications.py": {API},
+    # Request previews read a short snapshot; scheduled call folding uses the worker process.
+    "application/web_arena_calls.py": {API},
     "application/web_arena_benchmark.py": {API},
     # `/table/`: one short read of a hub tool's manifest, after the call's answer is fully read.
     "application/table.py": {API},
