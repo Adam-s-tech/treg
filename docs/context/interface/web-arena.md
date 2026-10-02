@@ -59,6 +59,9 @@ once per provider, using the latest completed result. The table replaces its pre
 the actual result cards during and after a run.
 The run form uses one quality switch with Jev and treg details in an info tooltip. A focused query has one outer
 border. Results show provider logos, time and cost, thumbs ratings, and plain failure states.
+Search result cards show the first three provider links with titles, available dates and descriptions,
+and a control to reveal the remaining links. The raw provider response stays in a footer disclosure
+opposite the thumbs ratings. The quality check's internal link list is not displayed separately.
 While a run is live, the lineup shows only its selected providers, uses Enrich Arena's fight and
 win animation, and puts Stop beside the fighters.
 Completed Battle runs mark the fastest and cheapest successful results when all compared values

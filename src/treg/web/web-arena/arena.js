@@ -10,7 +10,7 @@
     data:()=>({page,tasks:[{id:'search',label:'Web Search',enabled:true},{id:'fetch',label:'Web Fetch',enabled:true},{id:'sitemap',label:'Sitemap',enabled:true},{id:'brand',label:'Brand',enabled:false}],task:'search',value:'',mode:'battle',jev:true,
       user:null,teams:[],team:'',balance:null,quote:null,availableProviders:[],selected:[],run:null,history:[],live:null,bench:null,insightsTimer:null,
       busy:false,pricing:false,running:false,error:'',authError:'',email:'',code:'',authStep:'email',devCode:'',newTeamName:'',poller:null,
-      quoteTimer:null,quoteSequence:0,quotedKey:'',selectionTouched:false,rosterLeft:false,rosterRight:false,rosterObserver:null}),
+      quoteTimer:null,quoteSequence:0,quotedKey:'',selectionTouched:false,rosterLeft:false,rosterRight:false,rosterObserver:null,expandedResults:{}}),
     computed:{
       liveRows(){return this.live?.task_results?.[this.task]||[];},
       previewRows(){
@@ -83,6 +83,22 @@
         return ({hit:'Hit!',miss:'No result',error:'Error',timeout:'Timed out',running:'Running…',queued:'Waiting',not_attempted:'Not called',cancelled:'Stopped',interrupted:'Interrupted'})[state]||(price==null?'Catalog tool':this.usd(price));
       },
       attemptLabel(a){return ({hit:'Hit',miss:'No result',error:'Error',timeout:'Timed out',running:'Running',queued:'Waiting',not_attempted:'Not called',cancelled:'Stopped',interrupted:'Interrupted'})[a.state]||a.state;},
+      searchResults(a){
+        const items=a.output?.results;
+        if(!Array.isArray(items))return [];
+        return items.flatMap(item=>{
+          const row=typeof item==='string'?{url:item}:item;
+          if(!row||typeof row!=='object')return [];
+          const rawUrl=[row.url,row.link,row.href].find(value=>typeof value==='string'&&value.trim());
+          if(!rawUrl)return [];
+          let url;
+          try{url=new URL(rawUrl);if(!['http:','https:'].includes(url.protocol))return [];}catch{return [];}
+          const firstText=(keys)=>keys.map(key=>row[key]).find(value=>typeof value==='string'&&value.trim())?.trim()||'';
+          return [{url:url.href,title:firstText(['title'])||url.href,
+            description:firstText(['snippet','description','text','content']),
+            date:firstText(['publishedDate','published_at','published_date','datePublished','date','published','last_updated','updated_at'])}];
+        });
+      },
       attemptMessage(a){if(a.state==='miss')return ({search:'No matching results returned.',fetch:'No usable page text returned.',sitemap:'No valid site URLs returned.'})[this.run?.task]||'No usable result returned.';return ({error:'This service could not complete the request.',timeout:'This service did not finish within the deadline.',running:'Waiting for the provider response…',queued:'Waiting for its turn.',not_attempted:'This provider was not called.',cancelled:'The attempt was stopped.',interrupted:'No complete result was recorded.'})[a.state]||'';},
       freshnessLabel(quality){
         const value=quality?.freshness_percent;
