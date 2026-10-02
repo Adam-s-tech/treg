@@ -248,7 +248,7 @@ async def test_run_serves_baseline_in_shadow_and_logs_both_pages(monkeypatch):
     assert judged["tiingo.daily.prices"] == 0.9 and judged["marketstack.eod.latest"] == 0.8
     assert set(judged) == {"tiingo.daily.prices", "marketstack.eod.latest"}   # 0.0 rows dropped below `keep`
     assert out.log["judge_ms"] == 12 and out.log["judge_error"] is None
-    assert all(owner == "shadow" for _, owner in out.log["shown"])
+    assert all(owner == "shadow" for _, owner, _ in out.log["shown"])
 
 
 async def test_run_falls_back_to_the_baseline_when_the_judge_abstains(monkeypatch):
@@ -292,7 +292,7 @@ async def test_run_interleaves_and_owns_rows_and_pure_arms_get_pure_pages(monkey
     assert out.arm == se.ARM_INTERLEAVE
     assert {ep["id"] for ep, _ in out.shown} == {other["id"], "treg.stocks.eod.history", "tiingo.daily.prices"}
     assert out.owners == {other["id"]: "baseline", "treg.stocks.eod.history": "judged", "tiingo.daily.prices": "judged"}
-    assert sorted(o for _, o in out.log["shown"]) == ["baseline", "judged", "judged"]
+    assert sorted(o for _, o, _ in out.log["shown"]) == ["baseline", "judged", "judged"]
 
 
 # ---- the MCP wiring -------------------------------------------------------------------------------
@@ -348,7 +348,7 @@ async def test_mcp_interleave_serves_the_merge_and_owns_each_row(clients, monkey
     assert ids and ids[0] == "treg.stocks.eod.history" and "tiingo.daily.prices" in ids   # grouped: parent first
     assert all("judged" not in r for r in out["results"])          # the probability stays in the log
     (row,) = rows
-    assert row.arm == "interleave" and row.shown == [[i, "judged"] for i in ids]
+    assert row.arm == "interleave" and row.shown == [[i, "judged", "stocks.eod.history"] for i in ids]
     assert row.baseline_ids == []                                   # nothing to interleave WITH — the judged page fills it
 
 
@@ -363,4 +363,4 @@ async def test_mcp_an_abstaining_judge_leaves_search_as_it_was(clients, monkeypa
     assert out["results"]                                           # a page, not an error
     (row,) = rows
     assert row.judge_error == "timeout" and row.judged is None and row.differs is False
-    assert [r["endpoint_id"] for r in out["results"]] == [i for i, _ in row.shown]
+    assert [r["endpoint_id"] for r in out["results"]] == [i for i, _, _ in row.shown]

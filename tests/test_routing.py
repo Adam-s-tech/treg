@@ -105,8 +105,25 @@ def test_expression_language():
     assert P.evaluate("split_first(data.name)", {"data": {"name": "Patrick Collison"}}) == "Patrick"
     assert P.evaluate("split_last(data.name)", {"data": {"name": "Patrick"}}) is None
     assert P.evaluate("join(a, b)", {"a": "Patrick", "b": "Collison"}) == "Patrick Collison"
+    assert P.evaluate("at_most(limit, 10)", {"limit": 3}) == 3
+    assert P.evaluate("at_most(limit, 10)", {"limit": 25}) == 10
     with pytest.raises(ValueError):
         P.evaluate("nope(a)", doc)
+
+
+def test_a_route_false_adapter_is_never_routed():
+    from treg.domain.catalog.routing import contracts as C, plan, synthetic
+
+    contract = C.Contract(capability="x.find", summary="", identity=(("q",),), identity_types={"q": "str"},
+                          derive={}, filters={}, output={"rows": {"required": True}}, miss="rows == []")
+    adapters = {eid: C.Adapter(eid, (("q",),), {"q": "body.q"}, {"rows": "rows"}, "rows == []",
+                               route=eid != "c.find", verified=True) for eid in ("a.find", "b.find", "c.find")}
+    endpoints = [{"id": eid, "provider": eid.split(".")[0]} for eid in adapters]
+    routed = plan.candidates_for(contract, endpoints, adapters, {"q": "x"})[0]
+    assert [ep["id"] for ep, _, _ in routed] == ["a.find", "b.find"]
+    row = synthetic.routed_endpoint(contract, endpoints, adapters, lambda cost, provider: None)
+    assert row["routed_children"] == ["a.find", "b.find"]
+    assert C.parse_adapters({"adapters": {"c.find": {"route": False}}})["c.find"].route is False
 
 
 def test_every_shipped_adapter_round_trips_its_fixture():
@@ -1465,6 +1482,7 @@ def _make_throwing_adapter(real, throw_on: str):
             self.in_expr = getattr(real, 'in_expr', {})
             self.body_array = getattr(real, 'body_array', False)
             self.test_identity = getattr(real, 'test_identity', {})
+            self.route = real.route
             self.cost_units = getattr(real, 'cost_units', '')
             self.additional_capabilities = getattr(real, 'additional_capabilities', ())
             self.verified_capabilities = getattr(real, 'verified_capabilities', ())

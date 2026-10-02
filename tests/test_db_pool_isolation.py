@@ -49,6 +49,7 @@ EXPECTED_MAKERS: dict[str, set[str]] = {
     "application/feedback.py": {API},
     "application/media.py": {API},  # `treg host`: one short write, one short read, no upstream wait
     "application/catalog_find.py": {API},  # one rate-limit write, committed before the judge call
+    "application/catalog_search.py": {API},  # the hub read and the per-caller judge cap, each closed before the judge
 
     "application/referrals.py": {API}, "application/signup.py": {API},
     "application/onboard/__init__.py": {API},

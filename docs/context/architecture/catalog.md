@@ -20,6 +20,31 @@ sources:
   - src/treg/routers/provider_resources.py
   - src/treg/catalog/tavily.yaml
   - src/treg/application/call/octen.py
+  - src/treg/application/call/enrichlayer.py
+  - src/treg/catalog/enrichlayer.yaml
+  - src/treg/catalog/examples/enrichlayer.companies.search.json
+  - src/treg/catalog/examples/enrichlayer.company.employees.count.json
+  - src/treg/catalog/examples/enrichlayer.company.employees.list.json
+  - src/treg/catalog/examples/enrichlayer.company.employees.search.json
+  - src/treg/catalog/examples/enrichlayer.company.lookup-id.json
+  - src/treg/catalog/examples/enrichlayer.company.lookup.json
+  - src/treg/catalog/examples/enrichlayer.company.profile-picture.json
+  - src/treg/catalog/examples/enrichlayer.company.profile.json
+  - src/treg/catalog/examples/enrichlayer.company.role.lookup.json
+  - src/treg/catalog/examples/enrichlayer.contacts.personal-email.json
+  - src/treg/catalog/examples/enrichlayer.contacts.personal-phone.json
+  - src/treg/catalog/examples/enrichlayer.contacts.reverse-phone.json
+  - src/treg/catalog/examples/enrichlayer.email.disposable-check.json
+  - src/treg/catalog/examples/enrichlayer.jobs.profile.json
+  - src/treg/catalog/examples/enrichlayer.jobs.search.json
+  - src/treg/catalog/examples/enrichlayer.people.search.json
+  - src/treg/catalog/examples/enrichlayer.person.lookup.json
+  - src/treg/catalog/examples/enrichlayer.person.profile-picture.json
+  - src/treg/catalog/examples/enrichlayer.person.profile.json
+  - src/treg/catalog/examples/enrichlayer.person.reverse-email.json
+  - src/treg/catalog/examples/enrichlayer.person.work-email.json
+  - src/treg/catalog/examples/enrichlayer.school.profile.json
+  - src/treg/web/logos/enrichlayer.svg
   - src/treg/catalog/linkup.yaml
   - src/treg/catalog/you.yaml
   - src/treg/catalog/examples/you.web.search.json
@@ -1671,6 +1696,10 @@ Five rules worth keeping:
 
 ### Search scoring — most words must match, and the rare ones decide
 
+This is the shipped ranker: what `/catalog/search` and the CLI answer, the lexical page the
+discovery experiment measures against, and the page an agent's MCP search falls back to when the
+job-first answer abstains ([search-experiment](search-experiment.md)).
+
 `catalog_store.search` demanded EVERY query token match (AND). Right for the 2–3 word refinement
 ("tiktok comments" must not return every tiktok endpoint), and fatal for how agents actually query:
 the day the SearchMiss log shipped it recorded "company job postings hiring open jobs linkedin" → 0
@@ -1822,11 +1851,12 @@ to choose (`docs/CAPABILITY-ROUTING-PLAN.md`). Everything else in the catalog st
   rule is per candidate, so `{q, company_domain}` also drops the `q`-only providers.
 - **Adapters** — `adapters.yaml`, one per endpoint: `accepts` (identity variants), `in` (contract
   field → `queryParams.x` / `body.x`), `const` (fixed provider params), `out` (core field →
-  expression over the body), `miss`. The expression language (`domain/catalog/routing/paths.py`)
+  expression over the body), `miss`, and `route: false` for an adapter that only judges hit/miss
+  evidence (results, stats, cache admission) and never joins routing or the arena. The expression language (`domain/catalog/routing/paths.py`)
   is deliberately tiny: dotted paths with `[i]` (root `[0]`, `.` = the whole body), `coalesce`
   (first non-empty argument, else the last one),
   `/ N`, `==`/`!=` against literals, and named transforms (`split_first`, `split_last`, `join`,
-  `has_type`, `len`, `list`, `obj`, `fmt`, `csv`, `lower`/`upper`, `at_least`, `null_if`, `choose`, `linkedin_handle`/
+  `has_type`, `len`, `list`, `obj`, `fmt`, `csv`, `lower`/`upper`, `at_least`, `at_most`, `null_if`, `choose`, `linkedin_handle`/
   `linkedin_url`, `email_domain`, `host`, `dfs_location`, `seranking_source`, `tca_filter`).
   `values` reads rows from object-keyed or list responses; `get` applies dotted/indexed lookup
   to another expression result (for example, the first company in a domain-keyed response).

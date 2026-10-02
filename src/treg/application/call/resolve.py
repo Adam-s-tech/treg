@@ -774,6 +774,11 @@ def _marketplace_pricing(
         from . import octen
         rates = _octen_rates_or_fail(endpoint_id, cost)
         return octen.estimate_micro(endpoint_id, rates, body), 0
+    if provider == "enrichlayer" and cost and cost.get("enrichlayer"):
+        from . import enrichlayer
+        credit = _usd_to_micro(catalog_store.load().credit_rates["enrichlayer"])
+        query_values = dict(query.multi_items()) if isinstance(query, QueryValues) else dict(query)
+        return enrichlayer.estimate_micro(endpoint_id, cost, query_values, credit)
     if not cost:
         return 0, 0
     if provider == "tavily" and endpoint_id in _TAVILY_ENDPOINTS:
@@ -1560,6 +1565,20 @@ def _enforce_platform_request(ep: dict, body: bytes, headers=None, query=None) -
                 },
             )
 
+    if ep.get("provider") == "enrichlayer":
+        from . import enrichlayer
+        invalid = enrichlayer.invalid_platform_parameter(
+            ep["id"], dict(query.multi_items()) if query else {}, ep.get("cost") or {})
+        if invalid:
+            raise ResolutionFailed(
+                "catalog_parameter_invalid", status_code=400, detail={
+                    "error": "catalog_parameter_invalid", "endpoint_id": ep["id"],
+                    "parameter": invalid,
+                    "message": "Enrichlayer shared-key calls require a bounded, priced request; "
+                               "connect your own key for other options.",
+                },
+            )
+
     if ep.get("provider") == "openmart" and ep.get("id") in _OPENMART_METERED_ENDPOINTS:
         requested = _openmart_requested_records(ep["id"], body)
         parameter = (
@@ -2094,9 +2113,12 @@ async def _resolve_marketplace_call(
         # re-price a task already in flight.
         usage_unit_micro = _usd_to_micro(cat.unit_rates.get(service, {}).get(usage_unit))
     reported_charge_unit_micro = 0
-    if (raw_cost.get("reported_charge") or {}).get("unit") == "credit":
+    if raw_cost.get("currency") == "credit" or \
+            (raw_cost.get("reported_charge") or {}).get("unit") == "credit":
         # Freeze one provider credit's replacement cost so a later fx edit cannot re-price a call
         # already in flight. USD reported charges use their fixed micro-USD conversion directly.
+        # Body-reported credit counts (datagma, sumble, scrubby) settle against this, never against
+        # `unit_micro`, which is a whole call on a per_success row.
         reported_charge_unit_micro = _usd_to_micro(cat.credit_rates.get(service))
     basis = settlement_basis.derive_basis(
         raw_cost, request=request_data, input_schema=ep.get("input") or {},
@@ -2121,6 +2143,13 @@ async def _resolve_marketplace_call(
             "when": "response", "amount": {"kind": "observed"},
             "fallback_micro": info_est, "reserve_micro": info_est,
             "octen_rates_micro": _octen_rates_or_fail(ep["id"], cv),
+        }
+    if service == "enrichlayer" and raw_cost.get("enrichlayer"):
+        basis = {
+            "when": "response", "amount": {"kind": "observed"},
+            "fallback_micro": info_est, "reserve_micro": info_est,
+            "enrichlayer_rule": raw_cost["enrichlayer"],
+            "enrichlayer_unit_micro": info_unit,
         }
     common = dict(
         upstream=upstream, consumed=consumed, endpoint_id=ep["id"], provider=service,

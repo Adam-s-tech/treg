@@ -23,7 +23,8 @@ def _best_variant(contract: Contract, kids: list[dict], adapters: dict[str, Adap
 
 def routed_endpoint(contract: Contract, children: list[dict], adapters: dict[str, Adapter], cost_view) -> dict | None:
     """One row per capability with ≥ 2 verified-adapter children. Price = the children's range."""
-    kids = [e for e in children if adapters.get(e["id"]) and adapters[e["id"]].verified and not e.get("status")]
+    kids = [e for e in children if adapters.get(e["id"]) and adapters[e["id"]].verified
+            and adapters[e["id"]].route and not e.get("status")]
     if len(kids) < 2:
         return None
     prices = sorted(p for p in ((cost_view(e.get("cost"), e["provider"]) or {}).get("usd") for e in kids) if p is not None)
