@@ -2,6 +2,7 @@
 .web-layout{display:flex;max-width:1340px;margin:auto;gap:20px;padding:0 20px}
 .web-layout main{flex:1;min-width:0;max-width:1080px;padding:0 8px 80px}
 .web-layout .session-sidebar{width:200px;flex:none;margin-top:20px}
+.web-page-footer .web-footer-links{display:flex;flex-wrap:wrap;gap:8px 24px}
 .web-task-tabs.composer-tabs{display:flex;align-items:center;gap:3px;padding:16px 18px 0;overflow-x:auto;border:0}
 .web-task-tabs.composer-tabs button{display:flex;align-items:center;gap:7px;white-space:nowrap;border:1px solid transparent;border-radius:10px;background:transparent;color:var(--muted);padding:9px 11px;font-size:13px}
 .web-task-tabs.composer-tabs button svg{width:15px;height:15px;flex:none}
