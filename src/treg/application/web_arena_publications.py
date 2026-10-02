@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from statistics import mean, median
 
@@ -20,6 +20,7 @@ from . import arena
 EXPECTED_CASES = {"search": 30, "fetch": 20, "sitemap": 10}
 FORMULA = {"quality": 0.60, "success": 0.20, "speed": 0.10, "price": 0.10}
 CASES_FILE = Path(__file__).parent.parent / "web_arena_cases.json"
+LIVE_REFRESH_SECONDS = 1800
 
 
 async def published(kind: str) -> dict:
@@ -160,6 +161,20 @@ async def refresh_live():
         db.add(row)
         await db.commit()
     return {"tasks": list(doc["task_results"]), "battle_runs": len(rows)}
+
+
+async def refresh_live_if_due():
+    """Keep the scheduled pass cheap between full rolling-window refreshes."""
+    snapshot = await published("live")
+    if snapshot.get("status") == "live" and isinstance(snapshot.get("updated_at"), str):
+        try:
+            updated_at = datetime.fromisoformat(snapshot["updated_at"].removesuffix("Z"))
+        except ValueError:
+            pass
+        else:
+            if 0 <= (now() - updated_at).total_seconds() < LIVE_REFRESH_SECONDS:
+                return {"skipped": True, "reason": "fresh", "updated_at": snapshot["updated_at"]}
+    return await refresh_live()
 
 
 def summarize_live(rows, catalog):

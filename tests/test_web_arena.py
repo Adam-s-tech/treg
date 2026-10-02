@@ -1,5 +1,6 @@
 """Web Arena safety and score rules that do not need paid provider calls."""
 import asyncio
+from datetime import timedelta
 from types import SimpleNamespace
 import pytest
 from cryptography.fernet import InvalidToken
@@ -153,6 +154,31 @@ async def test_local_leaderboard_keeps_readable_runs_when_old_runs_cannot_decryp
     assert result["task_results"]["fetch"][0]["provider"] == "exa"
     assert result["partial"] is True
     assert result["stale_tasks"] == ["fetch"]
+
+
+async def test_scheduled_live_totals_refresh_only_when_due(monkeypatch):
+    current = web_arena_publications.now()
+    refreshed = []
+
+    async def refresh():
+        refreshed.append(True)
+        return {"battle_runs": 3}
+
+    async def saved(kind):
+        return {"status": "live", "updated_at": (current - timedelta(minutes=10)).isoformat() + "Z"}
+
+    monkeypatch.setattr(web_arena_publications, "now", lambda: current)
+    monkeypatch.setattr(web_arena_publications, "published", saved)
+    monkeypatch.setattr(web_arena_publications, "refresh_live", refresh)
+    assert (await web_arena_publications.refresh_live_if_due())["skipped"] is True
+    assert not refreshed
+
+    async def stale(kind):
+        return {"status": "live", "updated_at": (current - timedelta(minutes=30)).isoformat() + "Z"}
+
+    monkeypatch.setattr(web_arena_publications, "published", stale)
+    assert await web_arena_publications.refresh_live_if_due() == {"battle_runs": 3}
+    assert len(refreshed) == 1
 
 
 def test_public_task_previews_show_verified_search_providers(monkeypatch):

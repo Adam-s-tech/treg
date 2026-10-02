@@ -303,7 +303,7 @@ async def _arena_insights(args) -> int:
         finally:
             await analytics.drain()
     if web_arena.enabled() and await web_arena_publications.ready():
-        result["web_arena"] = await web_arena_publications.refresh_live()
+        result["web_arena"] = await web_arena_publications.refresh_live_if_due()
     print(json.dumps(result, sort_keys=True))
     return 1 if result["failed"] else 0
 

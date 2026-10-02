@@ -133,7 +133,10 @@ for testing. It still needs an AI gateway key.
 `web_arena_publications.refresh_live` is worker work. It reads completed Battle runs only, then
 saves content-free totals in `WebArenaPublication`. The Arena preview and public leaderboard
 read that one publication. The scheduled `treg-worker arena insights` command refreshes it
-when Web Arena is enabled and the reviewed benchmark is published. The standalone
+when Web Arena is enabled and the reviewed benchmark is published, at most once every 30
+minutes. The cron still starts every two minutes; `refresh_live_if_due` skips the full
+rolling-window read while the saved totals are fresh and retries on the next run after a
+failed refresh. The standalone
 `treg-worker web-arena totals` command remains available for manual refresh. Local development
 computes the same content-free totals on the leaderboard request so new test runs appear
 without a cron worker. If older local runs cannot be decrypted after a key change, the local
@@ -141,6 +144,9 @@ leaderboard uses readable recent runs for each task and labels that data as part
 no readable runs keeps its last saved live totals with a stale-data label. If no run is readable
 and no saved publication exists, the read fails visibly. The hosted worker still fails on an
 unreadable payload.
+`summarize_live` uses completed Web Arena Battles from the most recent 30 days, capped
+at the 10,000 newest runs. Each provider and distinct input contributes only its latest
+result; Waterfall and ordinary dashboard or CLI calls do not enter these totals.
 The live leaderboard uses Enrich Arena's task pills, comparison rail, provider logos, and hover or
 selection details. Search offers hit rate, Jev relevance, catalog price, and price vs hit rate;
 Fetch adds fact coverage, token efficiency, and fact coverage vs token efficiency; Sitemap uses
