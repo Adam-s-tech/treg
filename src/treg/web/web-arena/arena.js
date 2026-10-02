@@ -11,10 +11,46 @@
   Vue.createApp({
     data:()=>({page,tasks:[{id:'search',label:'Web Search',enabled:true},{id:'fetch',label:'Web Fetch',enabled:true},{id:'sitemap',label:'Sitemap',enabled:true},{id:'brand',label:'Brand',enabled:false}],task:'search',value:'',query:'',mode:'battle',jev:true,
       user:null,teams:[],team:'',balance:null,quote:null,availableProviders:[],selected:[],run:null,resultView:readResultView(),history:[],live:null,bench:null,insightsTimer:null,meta:{},
+      leaderboardView:'rate',leaderboardOrientation:'vertical',chartFocus:null,
       busy:false,pricing:false,running:false,error:'',authError:'',authBusy:false,email:'',code:'',authStep:'email',devCode:'',newTeamName:'',poller:null,
       quoteTimer:null,quoteSequence:0,quotedKey:'',selectionTouched:false,rosterLeft:false,rosterRight:false,rosterObserver:null,expandedResults:{},expandedRows:{}}),
     computed:{
       liveRows(){return this.live?.task_results?.[this.task]||[];},
+      leaderboardViews(){
+        const common=[{id:'rate',label:'Hit rate'},{id:'price',label:'Price'},{id:'price_rate',label:'Price vs hit rate'}];
+        if(this.task==='search')common.splice(1,0,{id:'relevance',label:'Relevance'});
+        if(this.task==='fetch')common.push({id:'coverage',label:'Fact coverage'},{id:'efficiency',label:'Token efficiency'},
+          {id:'coverage_efficiency',label:'Fact coverage vs token efficiency'});
+        return common;
+      },
+      leaderboardChartRows(){
+        const colors=['#5b8f88','#7b8fae','#b39a69','#9787a6','#8b9c76','#b98476'];
+        return this.liveRows.map((row,i)=>({...row,color:colors[i%colors.length],
+          rate:Number.isFinite(row.success_rate)?row.success_rate:null,
+          relevance:Number.isFinite(row.metric_percent)&&this.task==='search'?row.metric_percent:null,
+          coverage:Number.isFinite(row.metric_percent)&&this.task==='fetch'?row.metric_percent:null,
+          efficiency:Number.isFinite(row.token_efficiency_percent)&&this.task==='fetch'?row.token_efficiency_percent:null,
+          price:Number.isFinite(row.current_catalog_price_usd)?row.current_catalog_price_usd:null}));
+      },
+      leaderboardBars(){
+        const field=this.leaderboardView==='price'?'price':this.leaderboardView==='relevance'?'relevance':
+          this.leaderboardView==='coverage'?'coverage':this.leaderboardView==='efficiency'?'efficiency':'rate';
+        return this.leaderboardChartRows.filter(row=>Number.isFinite(row[field])&&row[field]>=0)
+          .map(row=>({...row,value:row[field]}))
+          .sort((a,b)=>(field==='price'?a.value-b.value:b.value-a.value)||this.providerName(a.provider).localeCompare(this.providerName(b.provider)));
+      },
+      leaderboardPoints(){
+        const fields=this.leaderboardView==='price_rate'?['price','rate']:['efficiency','coverage'];
+        return this.leaderboardChartRows.filter(row=>fields.every(field=>Number.isFinite(row[field])&&row[field]>=0))
+          .map(row=>({...row,x:row[fields[0]],y:row[fields[1]]}));
+      },
+      leaderboardMax(){return this.leaderboardView==='price'?Math.max(.0001,...this.leaderboardBars.map(row=>row.value)):100;},
+      leaderboardXMax(){return this.leaderboardView==='price_rate'?Math.max(.0001,...this.leaderboardPoints.map(row=>row.x)):100;},
+      leaderboardDetail(){return this.leaderboardChartRows.find(row=>row.provider===this.chartFocus)||null;},
+      leaderboardSubtitle(){return ({rate:'Returned usable results · higher is better',relevance:'Jev estimated intent match · higher is better',
+        price:'Current catalog price · cheapest first',price_rate:'Lower catalog price ← · ↑ higher hit rate',
+        coverage:'Relative fact coverage · higher is better',efficiency:'Token efficiency · higher is better',
+        coverage_efficiency:'Higher token efficiency → · ↑ higher fact coverage'})[this.leaderboardView];},
       previewRows(){
         const stats=new Map(this.liveRows.map(row=>[row.provider,row]));
         return this.displayProviders.map(provider=>({provider,stats:stats.get(provider.provider)||null}));
@@ -47,9 +83,10 @@
           const best=Math.min(...results.map(a=>a[field]));
           for(const a of results)if(a[field]===best)(awards[a.id]||=[]).push(label);
         }
-        if(this.run.task==='search'&&results.every(a=>Number.isFinite(a.quality?.estimated_match)&&a.quality.estimated_match>=0&&a.quality.estimated_match<=100)){
-          const best=Math.max(...results.map(a=>a.quality.estimated_match));
-          for(const a of results)if(a.quality.estimated_match===best)(awards[a.id]||=[]).push('Most Relevant');
+        const scoredSearch=results.filter(a=>Number.isFinite(a.quality?.estimated_match)&&a.quality.estimated_match>=0&&a.quality.estimated_match<=100);
+        if(this.run.task==='search'&&scoredSearch.length>=2){
+          const best=Math.max(...scoredSearch.map(a=>a.quality.estimated_match));
+          for(const a of scoredSearch)if(a.quality.estimated_match===best)(awards[a.id]||=[]).push('Most Relevant');
         }
         if(this.run.task==='fetch'&&results.every(a=>Number.isFinite(a.quality?.token_efficiency)&&a.quality.token_efficiency>=0&&a.quality.token_efficiency<=100)){
           const best=Math.max(...results.map(a=>a.quality.token_efficiency));
@@ -64,6 +101,18 @@
     },
     methods:{
       usd(n){return n===null||n===undefined?'—':'$'+(Number(n)/1e6).toFixed(4);},
+      catalogPrice(row){return row?.price==null?'—':'$'+Number(row.price).toPrecision(4)+(row.price_unit?' / '+row.price_unit:'');},
+      leaderboardValue(row){return this.leaderboardView==='price'?this.catalogPrice(row):this.percent(row.value);},
+      leaderboardAxis(value){return this.leaderboardView==='price'?'$'+Number(value).toPrecision(2):Math.round(value)+'%';},
+      leaderboardChartLabel(row){
+        const counted=n=>`${n} checked ${n===1?'input':'inputs'}`;
+        const quality=this.task==='search'?` Relevance ${this.percent(row.relevance)} from ${counted(row.metric_sample_count)}.`:
+          this.task==='fetch'?` Fact coverage ${this.percent(row.coverage)} from ${counted(row.metric_sample_count)}. Token efficiency ${this.percent(row.efficiency)} from ${counted(row.token_efficiency_sample_count)}.`:'';
+        return `${this.providerName(row.provider)}. Hit rate ${this.percent(row.rate)} from ${row.runs} distinct ${row.runs===1?'input':'inputs'}.${quality} Response ${row.average_provider_ms==null?'—':row.average_provider_ms+' ms'}. Price ${this.catalogPrice(row)}.`;
+      },
+      leaderboardDate(value){if(!value)return '';const date=new Date(value);return Number.isNaN(date.valueOf())?'':new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}).format(date)+' · UTC';},
+      chooseLeaderboardTask(task){this.task=task;this.leaderboardView='rate';this.leaderboardOrientation='vertical';this.chartFocus=null;},
+      chooseLeaderboardView(view){this.leaderboardView=view;this.leaderboardOrientation=view==='price'?'horizontal':'vertical';this.chartFocus=null;},
       setResultView(view){this.resultView=view;try{localStorage.setItem(resultViewKey,view);}catch{}},
       percent(n){return n===null||n===undefined?'—':Number(n).toFixed(1)+'%';},
       previewPrice(provider){
@@ -83,7 +132,7 @@
       fighterIncluded(provider){return this.selected.includes(provider)||(this.running&&!!this.attemptFor(provider));},
       fighterAwards(provider){return this.battleAwards[this.attemptFor(provider)?.id]||[];},
       awardClass(badge){return badge.toLowerCase().replaceAll(' ','-');},
-      awardDescription(badge){return ({Fastest:'Lowest provider time among successful, non-downvoted results',Cheapest:'Lowest actual charge among successful, non-downvoted results','Most Relevant':'Highest estimated intent match among successful, non-downvoted results','Token Efficient':'Fewest counted words and symbols per kept fact among scored results'})[badge]||badge;},
+      awardDescription(badge){return ({Fastest:'Lowest provider time among successful, non-downvoted results',Cheapest:'Lowest actual charge among successful, non-downvoted results','Most Relevant':'Highest estimated intent match among scored successful, non-downvoted results','Token Efficient':'Fewest counted words and symbols per kept fact among scored results'})[badge]||badge;},
       fighterState(provider){
         if(!this.fighterIncluded(provider))return 'excluded';
         const attempt=this.attemptFor(provider);
@@ -102,7 +151,7 @@
         return items.flatMap(item=>{
           const row=typeof item==='string'?{url:item}:item;
           if(!row||typeof row!=='object')return [];
-          const rawUrl=[row.url,row.link,row.href].find(value=>typeof value==='string'&&value.trim());
+          const rawUrl=[row.url,row.link,row.href,row.pageUrl].find(value=>typeof value==='string'&&value.trim());
           if(!rawUrl)return [];
           let url;
           try{url=new URL(rawUrl);if(!['http:','https:'].includes(url.protocol))return [];}catch{return [];}

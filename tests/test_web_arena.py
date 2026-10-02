@@ -36,6 +36,14 @@ def test_search_dates_stay_unknown_when_sources_have_no_dates():
     assert web_arena_quality._recent_share([{"source_date": None}])["freshness_percent"] is None
 
 
+def test_diffbot_page_url_is_available_to_search_quality_check():
+    output = {"results": [{"pageUrl": "https://example.com/article", "title": "An article",
+                           "content": "Article summary"}]}
+    assert web_arena_quality._search_links(output) == [{
+        "url": "https://example.com/article", "title": "An article",
+        "snippet": "Article summary", "source_date": None}]
+
+
 def test_fetch_reads_nested_markdown_and_markdown_content_from_catalog_adapters():
     adapters = catalog_store.load().adapters
     examples = (
@@ -86,6 +94,18 @@ def test_live_provider_stats_need_distinct_checked_inputs(monkeypatch):
     assert row["metric_sample_count"] == 20
     assert row["metric_percent"] == 80
     assert "query 1" not in str(doc)
+
+
+def test_fetch_live_totals_keep_fact_coverage_and_token_efficiency_separate(monkeypatch):
+    monkeypatch.setattr(web_arena_publications.arena, "_unpack", lambda payload: payload)
+    rows = [SimpleNamespace(task="fetch", payload={"input": f"https://example.com/{i}", "attempts": [{
+        "provider": "exa", "state": "hit", "duration_ms": 100,
+        "quality": {"state": "checked", "relative_coverage": 60, "token_efficiency": 80},
+    }]}) for i in range(20)]
+    row = web_arena_publications.summarize_live(rows, catalog_store.load())["task_results"]["fetch"][0]
+    assert row["metric_percent"] == 60
+    assert row["token_efficiency_percent"] == 80
+    assert row["token_efficiency_sample_count"] == 20
 
 
 async def test_local_leaderboard_uses_saved_totals_if_old_runs_cannot_decrypt(monkeypatch):

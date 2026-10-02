@@ -77,12 +77,12 @@ def _search_links(output: dict) -> list[dict]:
     for item in rules.result_items("search", output)[:5]:
         if not isinstance(item, dict):
             continue
-        url = next((item.get(k) for k in ("url", "link", "href") if isinstance(item.get(k), str)), None)
+        url = next((item.get(k) for k in ("url", "link", "href", "pageUrl") if isinstance(item.get(k), str)), None)
         if not url or urlsplit(url).scheme not in {"http", "https"}:
             continue
         dated = next((item.get(k) for k in ("publishedDate", "published_at", "datePublished", "date", "published") if isinstance(item.get(k), str)), None)
         links.append({"url": url[:500], "title": str(item.get("title") or "")[:250],
-                      "snippet": str(item.get("snippet") or item.get("description") or item.get("text") or "")[:500],
+                      "snippet": str(item.get("snippet") or item.get("description") or item.get("text") or item.get("content") or "")[:500],
                       "source_date": dated[:40] if dated else None})
     return links
 

@@ -73,6 +73,8 @@ border. Results show provider logos, time and cost, thumbs ratings, and plain fa
 Search result cards show the first three provider links with titles, available dates and descriptions,
 and a control to reveal the remaining links. The raw provider response stays in a footer disclosure
 opposite the thumbs ratings. The quality check's internal link list is not displayed separately.
+Diffbot search rows use `pageUrl` for the link and `content` for the excerpt; both the result card
+and Jev's bounded search input read those fields. Earlier runs keep their saved quality state.
 The Results heading has an icon toggle for card and compact table views with tooltips. The table
 keeps Fastest, Cheapest, Most Relevant, and Token Efficient badges below the provider name. Its
 plus action expands the full links
@@ -80,8 +82,9 @@ or provider output; thumbs, cost, time, and quality stay in the row.
 While a run is live, the lineup shows only its selected providers, uses Enrich Arena's fight and
 win animation, and puts Stop beside the fighters.
 Completed Battle runs mark the fastest and cheapest successful results when all compared values
-are known. Search Battles also mark the highest estimated intent match when every compared result
-has a usable score. Ties receive the same badge. These badges appear on result cards, table rows,
+are known. Search Battles mark the highest estimated intent match among at least two scored,
+successful results; an unscored provider does not suppress that badge. Ties receive the same badge.
+These badges appear on result cards, table rows,
 and provider fighters. Fetch Battles mark the best token efficiency when all successful, non-downvoted
 results have usable efficiency scores. Search results describe freshness from
 known source dates in words. A result with no usable dates shows no freshness label. The fighter lineup shows the state of each
@@ -136,6 +139,14 @@ computes the same content-free totals on the leaderboard request so new test run
 without a cron worker. If an older local run cannot be decrypted after its key changes, the
 leaderboard returns the last saved live publication with a stale-data label instead of showing
 an empty table. Without a saved publication, the read fails visibly.
+The live leaderboard uses Enrich Arena's task pills, comparison rail, provider logos, and hover or
+selection details. Search offers hit rate, Jev relevance, catalog price, and price vs hit rate;
+Fetch adds fact coverage, token efficiency, and fact coverage vs token efficiency; Sitemap uses
+hit rate and price. Single metrics can appear as vertical or horizontal bars. Comparison plots
+show both axes and scroll horizontally inside the chart when needed. Price values retain their
+catalog unit, and the UI warns when units differ. Hit rate is visible with its distinct-input
+count; quality metrics appear after 20 checked inputs per provider. Fetch live publications
+aggregate token efficiency separately from fact coverage, using the same checked-input threshold.
 Quality win rate stays unknown until 20 comparable checked runs. Sitemap needs a known reference
 URL list before any live quality win can exist. `publish_file` accepts a reviewed, versioned
 benchmark with the fixed sample counts and formula. The benchmark page only reads that saved

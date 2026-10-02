@@ -147,7 +147,8 @@ async def refresh_live():
 def summarize_live(rows, catalog):
     """Aggregate the latest completed Battle per provider and distinct input."""
     by_task: dict[str, dict[str, dict]] = defaultdict(lambda: defaultdict(lambda: {
-        "runs": 0, "success": 0, "times": [], "metric_values": [], "comparable": 0, "wins": 0}))
+        "runs": 0, "success": 0, "times": [], "metric_values": [], "efficiency_values": [],
+        "comparable": 0, "wins": 0}))
     seen_inputs = set()
     for row in rows:
         payload = arena._unpack(row.payload)
@@ -173,6 +174,9 @@ def summarize_live(rows, catalog):
                       else quality.get("coverage_percent") if row.task == "sitemap" else None)
             if isinstance(metric, (int, float)) and not isinstance(metric, bool) and 0 <= metric <= 100:
                 slot["metric_values"].append(metric)
+            efficiency = quality.get("token_efficiency") if row.task == "fetch" and quality.get("state") == "checked" else None
+            if isinstance(efficiency, (int, float)) and not isinstance(efficiency, bool) and 0 <= efficiency <= 100:
+                slot["efficiency_values"].append(efficiency)
             if a["provider"] in values:
                 slot["comparable"] += 1
                 slot["wins"] += values[a["provider"]] == best
@@ -192,6 +196,9 @@ def summarize_live(rows, catalog):
                 "median_provider_ms": round(median(stats["times"])) if stats["times"] else None,
                 "metric_sample_count": len(metric_values),
                 "metric_percent": round(mean(metric_values), 1) if len(metric_values) >= 20 else None,
+                "token_efficiency_sample_count": len(stats["efficiency_values"]),
+                "token_efficiency_percent": round(mean(stats["efficiency_values"]), 1)
+                    if len(stats["efficiency_values"]) >= 20 else None,
                 "quality_sample_count": comparable,
                 "quality_win_rate": round(100 * stats["wins"] / comparable, 1) if comparable >= 20 else None,
                 "current_catalog_price_usd": cv.get("usd") if cv else None,
