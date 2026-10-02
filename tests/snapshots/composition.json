@@ -29,11 +29,6 @@
     },
     {
       "args": [],
-      "class": "treg.bootstrap_http._DevTitleMiddleware",
-      "kwargs": {}
-    },
-    {
-      "args": [],
       "class": "treg.api._BodyDecodeMiddleware",
       "kwargs": {}
     },
