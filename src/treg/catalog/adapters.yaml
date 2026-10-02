@@ -2890,7 +2890,7 @@ adapters:
     accepts: [[url]]
     in_expr: {queryParams.domain: "host(url)"}
     test_identity: {url: "https://docs.context.dev"}
-    const: {queryParams.maxLinks: "10"}
+    in: {limit: queryParams.maxLinks}
     out: {results: urls, count: "len(urls)"}
     miss: "coalesce(urls, []) == []"
 

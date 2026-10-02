@@ -9,7 +9,7 @@
   const saveDraft=d=>{try{sessionStorage.setItem(draftKey,JSON.stringify(d));}catch{}};
   const readDraft=()=>{try{return JSON.parse(sessionStorage.getItem(draftKey)||'null');}catch{return null;}};
   Vue.createApp({
-    data:()=>({page,tasks:[{id:'search',label:'Web Search',enabled:true},{id:'fetch',label:'Web Fetch',enabled:true},{id:'sitemap',label:'Sitemap',enabled:true},{id:'brand',label:'Brand',enabled:false}],task:'search',value:'',mode:'battle',jev:true,
+    data:()=>({page,tasks:[{id:'search',label:'Web Search',enabled:true},{id:'fetch',label:'Web Fetch',enabled:true},{id:'sitemap',label:'Sitemap',enabled:true},{id:'brand',label:'Brand',enabled:false}],task:'search',value:'',query:'',mode:'battle',jev:true,
       user:null,teams:[],team:'',balance:null,quote:null,availableProviders:[],selected:[],run:null,resultView:readResultView(),history:[],live:null,bench:null,insightsTimer:null,
       busy:false,pricing:false,running:false,error:'',authError:'',email:'',code:'',authStep:'email',devCode:'',newTeamName:'',poller:null,
       quoteTimer:null,quoteSequence:0,quotedKey:'',selectionTouched:false,rosterLeft:false,rosterRight:false,rosterObserver:null,expandedResults:{},expandedRows:{}}),
@@ -20,7 +20,7 @@
         return this.displayProviders.map(provider=>({provider,stats:stats.get(provider.provider)||null}));
       },
       benchmarkGroup(){return this.bench?.task_results?.[this.task]||null;},
-      quoteKey(){return JSON.stringify([this.task,this.value.trim(),this.mode,this.jev,this.team,[...this.selected].sort()]);},
+      quoteKey(){return JSON.stringify([this.task,this.value.trim(),this.task==='sitemap'?this.query.trim():'',this.mode,this.jev,this.team,[...this.selected].sort()]);},
       readyQuote(){return this.quote&&this.quotedKey===this.quoteKey?this.quote:null;},
       displayProviders(){
         const available=new Map(this.availableProviders.map(p=>[p.provider,p]));
@@ -136,7 +136,7 @@
         if(!response.ok){const d=body.detail;const e=new Error(typeof d==='string'?d:d?.message||'Request failed.');e.status=response.status;throw e;}
         return body;
       },
-      remember(){saveDraft({task:this.task,value:this.value,mode:this.mode,jev:this.jev,selected:this.selected,at:Date.now()});},
+      remember(){saveDraft({task:this.task,value:this.value,query:this.query,mode:this.mode,jev:this.jev,selected:this.selected,at:Date.now()});},
       previewFor(task){return this.tasks.find(t=>t.id===task)?.provider_previews||[];},
       showPreview(){this.availableProviders=this.previewFor(this.task);this.selected=this.availableProviders.map(p=>p.provider);this.selectionTouched=false;this.resetRoster();},
       updateRoster(){const host=this.$refs.fighterRoster;if(!host)return;this.rosterLeft=host.scrollLeft>1;this.rosterRight=host.scrollWidth-host.clientWidth-host.scrollLeft>1;},
@@ -146,7 +146,7 @@
         if(page!=='arena'||!this.user||!this.team||this.running||!this.value.trim()||!this.selected.length)return;
         this.quoteTimer=setTimeout(()=>this.prepare(true),delay);},
       invalidate(){this.remember();this.scheduleQuote();},
-      chooseTask(task){this.task=task;this.value='';this.run=null;this.showPreview();this.invalidate();},
+      chooseTask(task){this.task=task;this.value='';this.query='';this.run=null;this.showPreview();this.invalidate();},
       setMode(mode){if(this.mode===mode)return;this.mode=mode;this.invalidate();},
       toggleProvider(provider){if(this.running)return;
         const host=this.$refs.fighterRoster;
@@ -186,13 +186,13 @@
       async prepare(quiet=false){
         clearTimeout(this.quoteTimer);
         if(!this.user||!this.team||this.running||!this.value.trim()||!this.selected.length)return;
-        const sequence=++this.quoteSequence,team=this.team,task=this.task,value=this.value.trim(),mode=this.mode,jev=this.jev;
+        const sequence=++this.quoteSequence,team=this.team,task=this.task,value=this.value.trim(),query=task==='sitemap'?this.query.trim():'',mode=this.mode,jev=this.jev;
         const selection=[...this.selected],touched=this.selectionTouched;
         this.pricing=true;this.quote=null;this.quotedKey='';this.error='';this.remember();
         try{
-          const request=providers=>this.api('/web-arena/api/quotes',{method:'POST',body:JSON.stringify({task,value,mode,jev,providers})},team);
+          const request=providers=>this.api('/web-arena/api/quotes',{method:'POST',body:JSON.stringify({task,value,query,mode,jev,providers})},team);
           const full=await request(null);
-          if(sequence!==this.quoteSequence||team!==this.team||task!==this.task||value!==this.value.trim()||mode!==this.mode||jev!==this.jev)return;
+          if(sequence!==this.quoteSequence||team!==this.team||task!==this.task||value!==this.value.trim()||query!==(this.task==='sitemap'?this.query.trim():'')||mode!==this.mode||jev!==this.jev)return;
           const previews=new Map(this.previewFor(task).map(p=>[p.provider,p]));
           this.availableProviders=full.providers.map(p=>({...previews.get(p.provider),...p}));
           this.$nextTick(()=>this.updateRoster());
@@ -201,7 +201,7 @@
           if(!this.selected.length){this.error='None of the selected providers can use this input. Choose another provider.';return;}
           const allSelected=this.selected.length===full.providers.length;
           const q=allSelected?full:await request(this.selected);
-          if(sequence!==this.quoteSequence||team!==this.team||task!==this.task||value!==this.value.trim()||mode!==this.mode||jev!==this.jev)return;
+          if(sequence!==this.quoteSequence||team!==this.team||task!==this.task||value!==this.value.trim()||query!==(this.task==='sitemap'?this.query.trim():'')||mode!==this.mode||jev!==this.jev)return;
           this.quote=q;this.quotedKey=this.quoteKey;this.balance=q.balance_micro;
         }catch(e){if(sequence===this.quoteSequence){this.error=e.message;this.quote=null;if(e.status===401)this.user=null;}}
         finally{if(sequence===this.quoteSequence)this.pricing=false;}
@@ -224,14 +224,14 @@
         catch(e){this.error=e.message;}finally{this.busy=false;}
       },
       async poll(){if(!this.run)return;try{this.run=await this.api('/web-arena/api/runs/'+this.run.id);if(this.run.state!=='running'){clearInterval(this.poller);this.poller=null;this.running=false;await this.loadHistory();await this.loadBalance();await this.loadInsights();this.scheduleQuote(0);}}catch(e){clearInterval(this.poller);this.poller=null;this.running=false;this.error=e.message;}},
-      async loadRun(id){this.error='';try{const run=await this.api('/web-arena/api/runs/'+id);clearInterval(this.poller);this.poller=null;this.running=run.state==='running';this.run=run;this.task=run.task;this.value=run.input;this.mode=run.mode;this.jev=run.jev;this.showPreview();this.selected=run.attempts.map(a=>a.provider);this.selectionTouched=true;this.resetRoster();this.scheduleQuote();if(this.running)this.poller=setInterval(()=>this.poll(),1500);}catch(e){this.error=e.message;}},
-      newRun(){clearInterval(this.poller);this.poller=null;this.running=false;this.run=null;this.value='';this.showPreview();this.scheduleQuote();this.remember();},
+      async loadRun(id){this.error='';try{const run=await this.api('/web-arena/api/runs/'+id);clearInterval(this.poller);this.poller=null;this.running=run.state==='running';this.run=run;this.task=run.task;this.value=run.input;this.query=run.query||'';this.mode=run.mode;this.jev=run.jev;this.showPreview();this.selected=run.attempts.map(a=>a.provider);this.selectionTouched=true;this.resetRoster();this.scheduleQuote();if(this.running)this.poller=setInterval(()=>this.poll(),1500);}catch(e){this.error=e.message;}},
+      newRun(){clearInterval(this.poller);this.poller=null;this.running=false;this.run=null;this.value='';this.query='';this.showPreview();this.scheduleQuote();this.remember();},
       async cancel(){try{await this.api('/web-arena/api/runs/'+this.run.id+'/cancel',{method:'POST'});await this.poll();}catch(e){this.error=e.message;}},
       async rate(a,value){try{await this.api('/web-arena/api/runs/'+this.run.id+'/attempts/'+a.id+'/rating',{method:'POST',body:JSON.stringify({value})});a.rating=value;}catch(e){this.error=e.message;}}
     },
     async mounted(){
       if(page==='arena'&&this.$refs.fighterRoster){this.rosterObserver=new ResizeObserver(()=>this.updateRoster());this.rosterObserver.observe(this.$refs.fighterRoster);}
-      const draft=readDraft();if(draft&&Date.now()-draft.at<600000){this.task=draft.task||'search';this.value=draft.value||'';this.mode=draft.mode==='waterfall'?'waterfall':'battle';this.jev=draft.jev!==false;}
+      const draft=readDraft();if(draft&&Date.now()-draft.at<600000){this.task=draft.task||'search';this.value=draft.value||'';this.query=draft.query||'';this.mode=draft.mode==='waterfall'?'waterfall':'battle';this.jev=draft.jev!==false;}
       try{
         this.tasks=await this.api('/web-arena/api/tasks',{},'');
         this.showPreview();

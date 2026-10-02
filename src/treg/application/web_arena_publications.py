@@ -146,7 +146,8 @@ def summarize_live(rows, catalog):
         for a in attempts:
             if a.get("state") not in {"hit", "miss", "error", "timeout"}:
                 continue
-            key = (row.task, a["provider"], payload.get("input"))
+            key = (row.task, a["provider"], payload.get("input"),
+                   payload.get("query", "") if row.task == "sitemap" else "")
             if key in seen_inputs:
                 continue
             seen_inputs.add(key)

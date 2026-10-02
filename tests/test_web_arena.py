@@ -13,7 +13,9 @@ from test_routing import _relay_by_provider
 
 def test_web_input_enforces_task_limits_and_public_urls():
     assert web_arena.input_for("search", "open data") == {"q": "open data", "limit": 10}
-    assert web_arena.input_for("sitemap", "https://example.com") == {"url": "https://example.com", "limit": 100}
+    assert web_arena.input_for("sitemap", "https://example.com") == {"url": "https://example.com", "limit": 10}
+    assert web_arena.input_for("sitemap", "https://example.com", "  pricing  ") == {
+        "url": "https://example.com", "limit": 10, "q": "pricing"}
     for value in ("file:///etc/passwd", "http://localhost", "http://127.0.0.1", "https://user:pass@example.com"):
         with pytest.raises(web_arena.WebArenaError):
             web_arena.input_for("fetch", value)
@@ -95,6 +97,75 @@ def test_public_task_previews_show_verified_search_providers(monkeypatch):
         assert "valyu" not in search
         assert not tasks["brand"]["enabled"]
         assert tasks["brand"]["provider_previews"] == []
+    finally:
+        get_settings.cache_clear()
+
+
+async def test_sitemap_quotes_use_optional_query_and_first_ten_urls(clients, monkeypatch):
+    providers = ("anyapi", "branddev", "firecrawl", "olostep", "search1api", "tavily")
+    monkeypatch.setenv("TREG_WEB_ARENA_ENABLED", "true")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", ",".join(providers))
+    for provider in providers:
+        monkeypatch.setenv("TREG_PLATFORM_KEY_" + provider.upper(), "TEST-" + provider)
+    get_settings.cache_clear()
+    async def reviewed():
+        return True
+    monkeypatch.setattr(web_arena_publications, "ready", reviewed)
+    try:
+        without = await clients.post("/web-arena/api/quotes", json={
+            "task": "sitemap", "value": "https://example.com", "jev": False})
+        assert without.status_code == 200, without.text
+        plain = {p["provider"] for p in without.json()["providers"]}
+        assert plain == set(providers) - {"olostep"}
+
+        with_query = await clients.post("/web-arena/api/quotes", json={
+            "task": "sitemap", "value": "https://example.com", "query": "pricing", "jev": False})
+        assert with_query.status_code == 200, with_query.text
+        assert {p["provider"] for p in with_query.json()["providers"]} == set(providers)
+        from treg.application import arena
+        from treg.infra.db import session_maker
+        from treg.models import WebArenaRun
+        async with session_maker() as db:
+            row = await db.get(WebArenaRun, with_query.json()["id"])
+            attempts = {a["provider"]: a for a in arena._unpack(row.payload)["attempts"]}
+        assert attempts["olostep"]["body"]["search_query"] == "pricing"
+        assert attempts["tavily"]["body"]["limit"] == 10
+        assert attempts["branddev"]["query"]["maxLinks"] == "10"
+        assert "pricing" not in str(attempts["branddev"]["query"])
+        assert "pricing" not in str(attempts["search1api"]["body"])
+    finally:
+        get_settings.cache_clear()
+
+
+async def test_search1api_sitemap_compares_only_first_ten_urls(clients, monkeypatch):
+    monkeypatch.setenv("TREG_WEB_ARENA_ENABLED", "true")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "search1api")
+    monkeypatch.setenv("TREG_PLATFORM_KEY_SEARCH1API", "TEST-SEARCH1API")
+    get_settings.cache_clear()
+    async def reviewed():
+        return True
+    monkeypatch.setattr(web_arena_publications, "ready", reviewed)
+    seen = []
+    links = [f"https://example.com/{index}" for index in range(12)]
+    monkeypatch.setattr(service, "relay", _relay_by_provider({"search1api": [(200, {"links": links})]}, seen))
+    try:
+        response = await clients.post("/web-arena/api/quotes", json={
+            "task": "sitemap", "value": "https://example.com", "query": "pricing",
+            "providers": ["search1api"], "jev": False})
+        assert response.status_code == 200, response.text
+        run_id = response.json()["id"]
+        started = await clients.post(f"/web-arena/api/runs/{run_id}/start")
+        assert started.status_code == 200, started.text
+        worker = app._owners.get(run_id)
+        if worker:
+            await asyncio.wait_for(asyncio.shield(worker), 15)
+        finished = await clients.get(f"/web-arena/api/runs/{run_id}")
+        assert finished.status_code == 200, finished.text
+        result = finished.json()["attempts"][0]
+        assert result["state"] == "hit"
+        assert result["output"]["results"] == links[:10]
+        assert result["output"]["count"] == 10
+        assert len(seen) == 1 and "limit" not in seen[0][3]
     finally:
         get_settings.cache_clear()
 

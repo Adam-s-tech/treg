@@ -15,7 +15,7 @@ class WebArenaError(Exception):
         self.status = status
 
 
-def input_for(task: str, value: str) -> dict:
+def input_for(task: str, value: str, query: str = "") -> dict:
     if task not in TASKS:
         raise WebArenaError("Choose Web Search, Web Fetch, or Sitemap.")
     value = value.strip()
@@ -34,7 +34,12 @@ def input_for(task: str, value: str) -> dict:
     except ValueError:
         pass
     # The call runtime applies its own SSRF checks to every real upstream request.
-    return {"url": value, **({"limit": 100} if task == "sitemap" else {})}
+    if task == "sitemap":
+        query = query.strip()
+        if len(query) > 500:
+            raise WebArenaError("Enter a search phrase of at most 500 characters.")
+        return {"url": value, "limit": 10, **({"q": query} if query else {})}
+    return {"url": value}
 
 
 def url_rows(rows: list, site: str, limit: int = 100) -> dict:

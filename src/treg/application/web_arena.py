@@ -33,11 +33,13 @@ _owners: dict[str, asyncio.Task] = {}
 MAX_RESULT_BYTES = 256_000
 RUN_SECONDS = 180
 FIXED_PAGE_SEARCH = {"branddev.web.search", "tinyfish.web.search"}
+UNBOUNDED_SITEMAP = {"search1api.web.sitemap"}
 
 
 def _supports_result_limit(task: str, endpoint_id: str, adapter) -> bool:
     return task not in {"search", "sitemap"} or "limit" in _used_keys(adapter) or (
-        task == "search" and endpoint_id in FIXED_PAGE_SEARCH)
+        task == "search" and endpoint_id in FIXED_PAGE_SEARCH) or (
+        task == "sitemap" and endpoint_id in UNBOUNDED_SITEMAP)
 
 
 def enabled() -> bool:
@@ -99,7 +101,7 @@ def tasks():
     return result
 
 
-async def quote(caller, *, task: str, value: str, mode: str = "battle", providers: list[str] | None = None,
+async def quote(caller, *, task: str, value: str, query: str = "", mode: str = "battle", providers: list[str] | None = None,
                 jev: bool = True, _benchmark: bool = False):
     if not _benchmark:
         _check_enabled()
@@ -110,10 +112,10 @@ async def quote(caller, *, task: str, value: str, mode: str = "battle", provider
         raise rules.WebArenaError("Sign in with a regular team to run Web Arena.", 403)
     if mode not in {"battle", "waterfall"}:
         raise rules.WebArenaError("Choose Battle or Waterfall.")
-    identity = rules.input_for(task, value)
+    identity = rules.input_for(task, value, query)
     capability = rules.TASKS[task]
-    # Check limits below so fixed ten-result adapters can join without letting an
-    # unbounded adapter into a run. These tasks supply no other optional filters.
+    # Check the comparison limit after planning. Search1API Sitemap is the explicit
+    # unbounded exception; its returned links are capped before comparison.
     plan = await route.build_plan({"id": "web-arena." + task, "capability": capability}, identity, caller,
                                   route.RouteOptions(strict_filters=False))
     cat = catalog_store.load()
@@ -138,22 +140,19 @@ async def quote(caller, *, task: str, value: str, mode: str = "battle", provider
         if not _supports_result_limit(task, ep["id"], adapter):
             dropped.append({"endpoint_id": ep["id"], "why": "cannot enforce the result limit"})
             continue
-        if task == "sitemap" and ep["id"] == "tavily.web.map" and c.tier == "platform":
-            dropped.append({"endpoint_id": ep["id"], "why": "shared key limit is below 100 URLs"})
-            continue
-        query, body = adapter.to_upstream(plan.identity, c.variant)
+        upstream_query, body = adapter.to_upstream(plan.identity, c.variant)
         cv = cat.cost_view(ep.get("cost"), provider)
         if c.tier == "platform" and (not cv or cv.get("usd") is None):
             dropped.append({"endpoint_id": ep["id"], "why": "price unavailable"})
             continue
-        estimate = money.with_margin(_marketplace_pricing(provider, ep["id"], cv, query,
+        estimate = money.with_margin(_marketplace_pricing(provider, ep["id"], cv, upstream_query,
             json.dumps(body).encode())[0]) if c.tier == "platform" else 0
         if estimate > 10_000_000:
             dropped.append({"endpoint_id": ep["id"], "why": "above the per-provider limit"})
             continue
         seen.add(provider)
         chosen.append({"id": uuid.uuid4().hex, "provider": provider, "endpoint_id": ep["id"],
-                       "tier": c.tier, "estimate_micro": estimate, "query": query, "body": body,
+                       "tier": c.tier, "estimate_micro": estimate, "query": upstream_query, "body": body,
                        "method": ep["method"], "state": "queued", "charged_micro": None,
                        "endpoint_hash": _hash(ep), "adapter_hash": _hash(adapter.__dict__),
                        "price_type": (ep.get("cost") or {}).get("type")})
@@ -165,7 +164,8 @@ async def quote(caller, *, task: str, value: str, mode: str = "battle", provider
     estimate = sum(a["estimate_micro"] for a in chosen)
     required = estimate if mode == "battle" else chosen[0]["estimate_micro"]
     limit_exceeded = mode == "battle" and estimate > 10_000_000
-    payload = {"input": value.strip(), "identity": identity, "attempts": chosen, "jev": jev,
+    payload = {"input": value.strip(), "query": query.strip() if task == "sitemap" else "",
+               "identity": identity, "attempts": chosen, "jev": jev,
                "stop_reason": "", "dropped": dropped, "quality_state": "pending" if jev else "off"}
     async with session_maker() as db:
         await _prune(db)
@@ -292,8 +292,9 @@ async def _run(run_id, task, mode, payload, snapshot, client, client_ip):
                     outcome, output = "error", {}
                 else:
                     output = ad.from_upstream(doc)
-                    if a["endpoint_id"] == "tinyfish.web.search" and isinstance(output.get("results"), list):
-                        # TinyFish has no count input; compare only the first page's first ten links.
+                    if (a["endpoint_id"] == "tinyfish.web.search" or
+                            a["endpoint_id"] in UNBOUNDED_SITEMAP) and isinstance(output.get("results"), list):
+                        # Compare only the requested first page when upstream cannot accept a count.
                         output["results"] = output["results"][:payload["identity"]["limit"]]
                         output["count"] = len(output["results"])
                     outcome = "miss" if ad.is_miss(doc) or any(output.get(k) in (None, "", [], {}) for k in contract.required_output) else "hit"

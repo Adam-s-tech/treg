@@ -83,6 +83,7 @@ class QuoteIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     task: str = Field(max_length=20)
     value: str = Field(max_length=500)
+    query: str = Field(default="", max_length=500)
     mode: str = Field(default="battle", max_length=20)
     providers: list[str] | None = Field(default=None, max_length=30)
     jev: bool = True

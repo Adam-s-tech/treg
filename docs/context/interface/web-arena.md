@@ -33,9 +33,13 @@ The page uses Enrich Arena's type, light canvas, input card, navigation, and res
 benchmark publication with 30 search, 20 fetch, and 10 sitemap cases. Brand is visible but disabled.
 
 `web_arena.quote` takes a task and one input. Search asks for 10 results, Fetch asks for one URL,
-and Sitemap asks for up to 100 URLs. `route.build_plan` supplies verified, scoped catalog
-adapters and the team's current credential tier. A task that needs a limit drops an adapter that
-cannot send that limit. Sitemap also drops shared-key Tavily Map, whose limit is below 100.
+and Sitemap asks for a site URL with an optional search phrase and up to 10 URLs. The phrase goes
+to adapters that accept it; URL-only adapters continue with the URL, and Olostep joins only when
+the phrase is present. `route.build_plan` supplies verified, scoped catalog adapters and the team's
+current credential tier. A task that needs a limit drops an adapter that cannot send that limit,
+except Search1API Sitemap, whose response is compared using only its first ten URLs. Its upstream
+request remains unbounded. Context.dev Map sends the selected limit upstream. The ten-URL bound
+also permits Tavily Map on the shared key.
 Brand.dev's fixed ten-result search can join a Search quote because it enforces that limit in
 its adapter. The Web Arena quote checks this after planning the scoped provider candidates.
 TinyFish is the one exception without a count request field. A Search quote can include its
