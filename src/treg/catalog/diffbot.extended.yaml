@@ -1,10 +1,10 @@
 # diffbot — EXTENDED tier: the provider's full documented endpoint surface beyond the
-# Knowledge Graph enrich/search entries curated in diffbot.yaml. Diffbot ships no fetchable
+# Knowledge Graph and Web Search entries curated in diffbot.yaml. Diffbot ships no fetchable
 # OpenAPI/spec (readme.io docs only, as noted in the core file); every entry below is
 # transcribed by hand from docs.diffbot.com's reference pages, cited per-endpoint in `docs_url`.
 #
-# VERIFIED 2026-07-28, extended 2026-07-31 — 13 of 17 endpoints were live-tested against a real
-# free-plan (kgfree) key and passed: the 9 Extract APIs, web-search, nl-process, account, and (new
+# VERIFIED 2026-07-28, extended 2026-07-31 — 12 of 16 endpoints were live-tested against a real
+# free-plan (kgfree) key and passed: the 9 Extract APIs, nl-process, account, and (new
 # on 2026-07-31) the crawl job list. The remaining 4 Crawl/Bulk-job endpoints are `untestable`
 # because each needs a job that does not exist yet and creating one starts a real billed crawl —
 # NOT because of a plan gate, see the CORRECTION below.
@@ -12,33 +12,28 @@
 # allow-list in oauth_providers.py. Verification scripts still need to use the same target selection
 # before they can replay these entries safely; a catalog row cannot introduce a credential host.
 #
-# Two auth surprises found only by calling, not documented anywhere:
-#   - diffbot.x.web-search (llm.diffbot.com) rejects `?token=` and requires an
-#     `Authorization: Bearer <token>` HEADER instead. The approved llm.diffbot.com target overrides
-#     Diffbot's normal query-token injection for this endpoint without changing its other hosts.
+# Verification traps found only by calling, not documented anywhere:
 #   - diffbot.x.nl-process (nl.diffbot.com) does accept `?token=` as documented; an initial attempt
 #     that put the token in the JSON body instead (matching a plausible reading of the docs) 401'd.
 #   - diffbot.x.extract-product's first probe target (a Micro Center SKU from the docs' own
 #     example) both 403'd and later 404'd — dead/blocked, not a broken endpoint. Retargeted to
 #     books.toscrape.com, a stable public scraping sandbox, which passed cleanly.
 #
-# FOUR HOSTS, ONE PROVIDER. `base_url` (kg.diffbot.com/kg/v3, see diffbot.yaml) covers only the
+# `base_url` (kg.diffbot.com/kg/v3, see diffbot.yaml) covers only the
 # Knowledge Graph. Every entry below needs an explicit `host:` because none of them resolve
-# against base_url — same trap as the moz-account precedent, times three:
+# against base_url — the same trap as the moz-account precedent:
 #   - api.diffbot.com/v3/...  — the Extract APIs (analyze, article, product, image, video,
 #     discussion, job, list, event), the Crawl API, the Bulk Extract API, and /v4/account.
-#   - llm.diffbot.com         — Web Search API.
 #   - nl.diffbot.com          — Natural Language API (POST-only, JSON body).
-# Auth is the same `?token=` query parameter used on the KG host except for Web Search, whose
-# approved target overrides injection to `Authorization: Bearer`.
+# Auth is the same `?token=` query parameter used on the KG host. Web Search's
+# separate Bearer-authenticated target is curated in diffbot.yaml.
 #
 # Billing: Diffbot's published credit table (diffbot.com/pricing) prices a single Extract API
 # page fetch at 1 credit (2 credits if `useProxy=default` routes it through Diffbot's datacenter
 # proxy). Crawl and Bulk jobs are billed per PAGE PROCESSED through whichever Extract API
 # `apiUrl` names, at that API's per-page rate — not a flat per-job charge, so `cost.value` stays
 # null and the rate lives in the note. Natural Language API is 1 credit per 10,000 characters of
-# input (document cap 100,000 chars, request cap 1,000,000 chars). Web Search API pricing is not
-# broken out on the credit table.
+# input (document cap 100,000 chars, request cap 1,000,000 chars).
 #
 # CORRECTION 2026-07-31 — the "Plus plans and up" gate these five endpoints carried was TRANSCRIBED
 # FROM THE DOCS AND IS NOT TRUE OF THE API. On this Free-plan (kgfree) token, GET /v3/crawl and
@@ -564,26 +559,6 @@ endpoints:
       note: "different HOST than base_url — api.diffbot.com. Answers a 302 to Diffbot's results host rather than serving inline, so a client must follow redirects"
     untestable: "requires an existing completed bulk job to name; no test target exists until one is run. NOT plan-gated — it 302s rather than refusing on a Free token (2026-07-31)"
     docs_url: https://docs.diffbot.com/reference/retrieve-bulk-job-data
-
-  - id: diffbot.x.web-search
-    tier: extended
-    platform: web
-    host: llm.diffbot.com
-    method: GET
-    path: /api/v1/web_search/
-    name: "Web search shaped for an LLM context window"
-    summary: "Search the web and return results shaped for feeding into an LLM context window"
-    input:
-      queryParams:
-        text: {type: string, required: true, note: "the search query"}
-        size: {type: integer, required: false, note: "number of results to return", example: 10}
-        maxTokens: {type: integer, required: false, note: "caps the search response to this token budget; highlight chunks are reduced equitably"}
-      note: "different HOST than base_url: llm.diffbot.com, not kg.diffbot.com or api.diffbot.com. AUTH DIFFERS FROM EVERY OTHER DIFFBOT ROUTE: this one 401s on ?token= and requires an `Authorization: Bearer <token>` HEADER instead, confirmed live 2026-07-28. The approved catalog target applies that header profile without changing Diffbot's other routes"
-    test_request:
-      queryParams: {text: "knowledge graph AI", size: 3}
-    verified: 2026-07-28
-    example_response: examples/diffbot.x.web-search.json
-    docs_url: https://docs.diffbot.com/reference/web-search-get
 
   - id: diffbot.x.nl-process
     tier: extended

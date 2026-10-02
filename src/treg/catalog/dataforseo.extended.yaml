@@ -12983,6 +12983,7 @@ endpoints:
     note: the POST body is an ARRAY of task objects with these fields — one object per task
   untestable: needs the id of a completed on_page crawl (task_post plus polling); the one-shot route of this family is verified via dataforseo.x.on-page-instant-pages
 - id: dataforseo.x.on-page-page-screenshot
+  capability: web.screenshot
   tier: extended
   platform: web
   method: POST

@@ -2676,6 +2676,13 @@ adapters:
     in_expr: {body.max_results: limit}
     out: {results: results, count: "len(results)"}
     miss: "coalesce(results, []) == []"
+  diffbot.x.web-search:
+    accepts: [[q]]
+    in: {q: queryParams.text}
+    in_expr: {queryParams.size: limit}
+    test_identity: {q: "knowledge graph AI"}
+    out: {results: search_results, count: "len(search_results)"}
+    miss: "coalesce(search_results, []) == []"
   perplexity.web.search.fast:
     accepts: [[q]]
     in: {q: body.query}
@@ -2841,6 +2848,13 @@ adapters:
     const: {body.includeMarkdown: true}
     out: {pages: "list(.)", count: "len(list(.))"}
     miss: "coalesce(text, '') == ''"
+  anyapi.web.scrape:
+    accepts: [[url]]
+    in: {url: body.url}
+    test_identity: {url: "https://example.com"}
+    const: {body.formats: [markdown], body.onlyMainContent: false}
+    out: {pages: "list(output.data)", count: "len(list(output.data))"}
+    miss: "coalesce(output.data.markdown, '') == ''"
   firecrawl.web.scrape:
     accepts: [[url]]
     in: {url: body.url}
