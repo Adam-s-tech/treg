@@ -30,6 +30,8 @@ related:
 `/web-arena`, `/web-arena/leaderboard`, and `/web-arena/benchmark` are one standalone Vue page.
 The page uses Enrich Arena's type, light canvas, input card, navigation, and result card styles.
 Its header shares Enrich Arena's GitHub, Discord, and X community links beside account controls.
+The Arena, Leaderboard, and Benchmark tabs use the same icons, and the intro uses its Treg credit.
+The `branddev` provider keeps its catalog identifier and logo but appears as Context.dev in the UI.
 `web_arena_enabled` defaults to false. The page and run API need both the flag and one reviewed
 benchmark publication with 30 search, 20 fetch, and 10 sitemap cases. Brand is visible but disabled.
 
