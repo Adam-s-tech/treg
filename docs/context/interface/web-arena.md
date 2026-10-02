@@ -35,7 +35,9 @@ benchmark publication with 30 search, 20 fetch, and 10 sitemap cases. Brand is v
 `web_arena.quote` takes a task and one input. Search asks for 10 results, Fetch asks for one URL,
 and Sitemap asks for a site URL with an optional search phrase and up to 10 URLs. The phrase goes
 to adapters that accept it; URL-only adapters continue with the URL, and Olostep joins only when
-the phrase is present. `route.build_plan` supplies verified, scoped catalog adapters and the team's
+the phrase is present. Sitemap hides the Jev quality switch and records Jev as off; URL validity
+checks always run. Sitemap result cards show the unique valid URL count without a coverage claim.
+`route.build_plan` supplies verified, scoped catalog adapters and the team's
 current credential tier. A task that needs a limit drops an adapter that cannot send that limit,
 except Search1API Sitemap, whose response is compared using only its first ten URLs. Its upstream
 request remains unbounded. Context.dev Map sends the selected limit upstream. The ten-URL bound

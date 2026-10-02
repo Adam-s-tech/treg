@@ -113,8 +113,9 @@ async def test_sitemap_quotes_use_optional_query_and_first_ten_urls(clients, mon
     monkeypatch.setattr(web_arena_publications, "ready", reviewed)
     try:
         without = await clients.post("/web-arena/api/quotes", json={
-            "task": "sitemap", "value": "https://example.com", "jev": False})
+            "task": "sitemap", "value": "https://example.com", "jev": True})
         assert without.status_code == 200, without.text
+        assert without.json()["jev"] is False
         plain = {p["provider"] for p in without.json()["providers"]}
         assert plain == set(providers) - {"olostep"}
 

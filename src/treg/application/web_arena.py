@@ -112,6 +112,8 @@ async def quote(caller, *, task: str, value: str, query: str = "", mode: str = "
         raise rules.WebArenaError("Sign in with a regular team to run Web Arena.", 403)
     if mode not in {"battle", "waterfall"}:
         raise rules.WebArenaError("Choose Battle or Waterfall.")
+    if task == "sitemap":
+        jev = False
     identity = rules.input_for(task, value, query)
     capability = rules.TASKS[task]
     # Check the comparison limit after planning. Search1API Sitemap is the explicit
