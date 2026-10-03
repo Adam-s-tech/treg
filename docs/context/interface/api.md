@@ -948,8 +948,9 @@ the query itself (`referrer_user_id == caller.id`), never filtered afterwards, a
 
 **`/?ref=CODE` is the one query string the landing route serves.** `GET /` deliberately treats any
 query string as the SPA's and falls through to the dashboard - which for a referral link would send
-a stranger who has never heard of treg to an empty app shell instead of the pitch. So a *lone* `ref`
-counts as parameterless (anything alongside it still belongs to the SPA), and the code is parked in
+a stranger who has never heard of treg to an empty app shell instead of the pitch. So a `ref` alone
+or with only `utm_*` tags counts as parameterless (a sponsor's short link appends those, and the SPA
+never parks the code; anything else alongside it still belongs to the SPA), and the code is parked in
 `treg_ref` - httponly, lax, 30 days, and revalidated on read exactly like `_take_oauth_return`,
 because a cookie is attacker-supplied and this value reaches a query.
 
