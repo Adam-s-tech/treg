@@ -30,7 +30,8 @@ SEED_MAX_ROWS = 250_000
 SEED_MAX_SECONDS = 110
 CALL_COLUMNS = (CallRecord.id, CallRecord.endpoint_id, CallRecord.created_at,
                 CallRecord.kind, CallRecord.cached, CallRecord.refused_by,
-                CallRecord.hit, CallRecord.status_code, CallRecord.duration_ms)
+                CallRecord.hit, CallRecord.status_code, CallRecord.duration_ms,
+                CallRecord.response_bytes)
 
 
 def endpoint_tasks() -> dict[str, tuple[str, str]]:
@@ -43,7 +44,10 @@ def endpoint_tasks() -> dict[str, tuple[str, str]]:
 
 def eligible(row) -> bool:
     return (row.kind == "call" and row.endpoint_id and not row.cached
-            and row.refused_by is None)
+            and row.refused_by is None
+            # A relayed 502 has a buffered body size, even when its body is empty.
+            # A treg gateway failure has no upstream response and no body size.
+            and not (row.status_code == 502 and row.response_bytes is None))
 
 
 def fold(bucket: dict, row, *, rng=None) -> None:
@@ -290,9 +294,15 @@ def summarize(buckets: dict[str, list[dict]]) -> dict[str, dict[str, dict]]:
         duration_sum = sum(day["duration_sum_ms"] for day in days)
         weighted = [(ms, day["timed"] / len(day["duration_sample"]))
                     for day in days if day["duration_sample"] for ms in day["duration_sample"]]
+        # `decided` includes provider faults while `timed` counts successful responses.
+        # If even that larger decided count is less than half the successful calls,
+        # most successes provably lack a hit verdict. Do not rank a provider from
+        # faults accumulated before its result rule started recording verdicts.
+        incomplete_verdicts = decided * 2 < timed
         result[task][provider] = {
             "runs": calls, "hit_samples": decided,
-            "success_rate": round(100 * hits / decided, 1) if decided >= MIN_HIT_SAMPLES else None,
+            "success_rate": round(100 * hits / decided, 1)
+            if decided >= MIN_HIT_SAMPLES and not incomplete_verdicts else None,
             "average_provider_ms": round(duration_sum / timed) if timed >= MIN_TIME_SAMPLES else None,
             "median_provider_ms": _weighted_median(weighted) if timed >= MIN_TIME_SAMPLES else None,
             "time_samples": timed,
@@ -326,6 +336,8 @@ async def local_snapshot(session_factory=session_maker) -> dict[str, dict[str, d
             CallRecord.refused_by.is_(None)))).all()
     buckets: dict[str, dict[str, dict]] = defaultdict(dict)
     for row in rows:
+        if not eligible(row):
+            continue
         day = row.created_at.strftime("%Y-%m-%d")
         bucket = buckets[row.endpoint_id].setdefault(day, _new_bucket())
         fold(bucket, row)

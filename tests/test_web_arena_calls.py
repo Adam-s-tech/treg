@@ -12,13 +12,14 @@ from treg.timeutil import utcnow_naive
 
 
 async def _call(*, org=1, hit=None, status=200, cached=False, refused_by=None, ms=120,
-                endpoint="exa.web.search", age=timedelta(minutes=5)):
+                endpoint="exa.web.search", age=timedelta(minutes=5), response_bytes=100):
     async with session_maker() as db:
         db.add(CallRecord(org_id=org, user_email="web@example.com", tool_name="web search",
                           method="POST", path="/search", status_code=status,
                           endpoint_id=endpoint, provider="exa", kind="call",
                           hit=hit, cached=cached, refused_by=refused_by,
-                          duration_ms=ms, created_at=utcnow_naive() - age))
+                          duration_ms=ms, response_bytes=response_bytes,
+                          created_at=utcnow_naive() - age))
         await db.commit()
 
 
@@ -49,6 +50,33 @@ async def test_thin_direct_call_rate_is_unknown_not_zero(clients):
     row = (await web_arena_calls.snapshot())["search"]["exa"]
     assert row["hit_samples"] == 4
     assert row["success_rate"] is None
+
+
+async def test_gateway_failure_is_not_a_provider_miss(clients):
+    for _ in range(20):
+        await _call(hit=True)
+    await _call(status=502, response_bytes=0)  # upstream returned an empty error body
+    await _call(status=502, response_bytes=None)  # no upstream response
+    await web_arena_calls.collect()
+    row = (await web_arena_calls.snapshot())["search"]["exa"]
+    assert row["runs"] == 21
+    assert row["hit_samples"] == 21
+    assert row["success_rate"] == 95.2
+    assert (await web_arena_calls.local_snapshot())["search"]["exa"] == row
+
+
+async def test_rate_waits_when_most_successes_have_no_verdict(clients):
+    for _ in range(20):
+        await _call(hit=True)
+    for _ in range(30):
+        await _call(hit=None)
+    await _call(status=502, response_bytes=100)
+    await web_arena_calls.collect()
+    row = (await web_arena_calls.snapshot())["search"]["exa"]
+    assert row["runs"] == 51
+    assert row["hit_samples"] == 21
+    assert row["success_rate"] is None
+    assert row["time_samples"] == 50
 
 
 async def test_traffic_rollup_includes_calls_from_multiple_teams(clients):
