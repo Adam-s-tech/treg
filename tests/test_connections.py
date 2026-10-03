@@ -464,6 +464,30 @@ async def test_facebook_page_calls_inject_the_selected_page_token(
     assert "PAGE-TOKEN" not in listed.text
 
 
+async def test_the_picker_says_when_a_connection_acts_on_one_resource_only(
+    clients: AsyncClient, treg_meta_app, treg_google_app, monkeypatch,
+):
+    """A Page token reaches only its own Page, so the picker must not promise that another
+    Page works per call. A Google site picker keeps that promise: one token reaches every site."""
+    _meta_test_provider(monkeypatch, "facebook")
+    fb = await _connect_byo(clients, provider="facebook", name="facebook")
+    r = await clients.get(f"/connections/{fb['secret_id']}/resources")
+    assert r.status_code == 200, r.text
+    assert r.json()["resource_scoped"] is True
+
+    import dataclasses
+
+    from treg import oauth_providers as P
+
+    monkeypatch.setitem(P.REGISTRY, "google-search-console", dataclasses.replace(
+        P.REGISTRY["google-search-console"], discover_base_url="http://upstream"))
+    gsc = await _connect_byo(
+        clients, provider="google-search-console", name="google-search-console")
+    r = await clients.get(f"/connections/{gsc['secret_id']}/resources")
+    assert r.status_code == 200, r.text
+    assert r.json()["resource_scoped"] is False
+
+
 async def test_a_facebook_connection_works_before_a_page_is_picked(
     clients: AsyncClient, treg_meta_app, monkeypatch,
 ):

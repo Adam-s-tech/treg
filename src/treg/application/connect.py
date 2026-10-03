@@ -946,6 +946,8 @@ async def list_connection_resources(
         "provider": provider.service,
         "resource_label": provider.resource_label,
         "resource_plural": provider.resource_plural,
+        # A derived resource token reaches only the selected resource, so no other works per call.
+        "resource_scoped": bool(provider.resource_token_path),
         "selected": selected,
         "resources": resources,
         "setup_required": setup_required,
