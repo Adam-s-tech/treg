@@ -180,9 +180,8 @@ public; submitting requires login, and billable attempts use your team's credits
 **Web Arena** compares Web Search, Web Fetch, and Sitemap providers at `/web-arena`.
 Battle calls selected providers for the same input; Waterfall tries them in order. The
 live leaderboard combines direct provider-call hit rates and response times with checked
-Web Arena quality results over a rolling 30-day window, while
-the Benchmark page shows a separate set of reviewed fixed tests. The pages open only
-after a reviewed benchmark is published and the feature is enabled. See the
+Web Arena quality results over a rolling 30-day window. The pages open when the feature
+is enabled. See the
 [Web Arena guide](docs/context/interface/web-arena.md).
 
 ## Share & use your own tools

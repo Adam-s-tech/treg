@@ -1,4 +1,4 @@
-"""Private Web Arena runs and published, content-free comparisons.
+"""Private Web Arena runs and published, content-free live comparisons.
 
 Revision ID: 0057
 Revises: 0056

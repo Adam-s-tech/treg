@@ -1,10 +1,8 @@
-"""Versioned benchmark publication and content-free live leaderboard totals."""
+"""Content-free live Web Arena leaderboard totals."""
 from __future__ import annotations
 
-import json
 from collections import defaultdict
 from datetime import datetime, timedelta
-from pathlib import Path
 from statistics import mean, median
 
 from cryptography.fernet import InvalidToken
@@ -17,9 +15,6 @@ from ..models import WebArenaPublication, WebArenaRun
 from ..timeutil import utcnow_naive as now
 from . import arena, web_arena_calls
 
-EXPECTED_CASES = {"search": 30, "fetch": 20, "sitemap": 10}
-FORMULA = {"quality": 0.60, "success": 0.20, "speed": 0.10, "price": 0.10}
-CASES_FILE = Path(__file__).parent.parent / "web_arena_cases.json"
 LIVE_REFRESH_SECONDS = 1800
 
 
@@ -27,97 +22,7 @@ async def published(kind: str) -> dict:
     async with session_maker() as db:
         row = (await db.execute(select(WebArenaPublication).where(WebArenaPublication.kind == kind)
              .order_by(WebArenaPublication.created_at.desc()).limit(1))).scalar_one_or_none()
-    return row.payload if row else {"status": "warming", "task_results": {}, "formula": FORMULA}
-
-
-async def ready() -> bool:
-    doc = await published("benchmark")
-    return doc.get("status") == "published" and all(
-        doc.get("task_results", {}).get(task, {}).get("sample_count") == count
-        for task, count in EXPECTED_CASES.items())
-
-
-def _validate_publication(doc: dict) -> dict:
-    if not isinstance(doc, dict) or not doc.get("human_reviewed") or not doc.get("version") or not doc.get("test_date"):
-        raise ValueError("A version, test date, and completed human review are required.")
-    if doc.get("formula") != FORMULA:
-        raise ValueError("Use the published 60/20/10/10 formula.")
-    results = doc.get("task_results") or {}
-    fixed = json.loads(CASES_FILE.read_text())["tasks"]
-    if set(results) != set(EXPECTED_CASES):
-        raise ValueError("All three task results are required.")
-    for task, count in EXPECTED_CASES.items():
-        group = results[task]
-        if set(group) - {"cases", "sample_count", "rules", "limits", "providers"}:
-            raise ValueError("A task result contains unapproved fields.")
-        cases = group.get("cases") or []
-        if len(cases) != count or len({case.get("id") for case in cases}) != count:
-            raise ValueError(f"{task} needs {count} unique public cases.")
-        known = {case["id"]: case["input"] for case in fixed[task]}
-        for case in cases:
-            if set(case) - {"id", "input", "label", "reviewed", "checked_facts", "known_urls"}:
-                raise ValueError("A case contains unapproved fields.")
-            if case.get("input") != known.get(case.get("id")) or case.get("reviewed") is not True:
-                raise ValueError(f"{task} case input or review is incomplete.")
-            if task == "fetch" and not case.get("checked_facts"):
-                raise ValueError("Fetch cases need checked key facts.")
-            if task == "sitemap" and not case.get("known_urls"):
-                raise ValueError("Sitemap cases need checked URL lists.")
-            for item in case.get("checked_facts", []) + case.get("known_urls", []):
-                if not isinstance(item, str) or len(item) > 500:
-                    raise ValueError("References must be short public strings.")
-        if group.get("sample_count") != count or not group.get("rules") or not group.get("limits"):
-            raise ValueError(f"{task} needs rules, limits, and the sample count.")
-        if len(group.get("providers") or []) < 2:
-            raise ValueError(f"{task} needs measured results from at least two providers.")
-        allowed_parts = {"relevance", "freshness", "fact_coverage", "token_efficiency",
-                         "known_url_coverage", "valid_url_rate", "success", "speed", "price"}
-        for row in group.get("providers") or []:
-            if set(row) - {"provider", "parts", "overall", "rank", "sample_count", "case_scores"}:
-                raise ValueError("A provider score contains unapproved fields.")
-            parts = row.get("parts") or {}
-            if set(parts) - allowed_parts:
-                raise ValueError("A score has an unknown metric.")
-            if any(value is not None and (not isinstance(value, (int, float)) or isinstance(value, bool)
-                                          or not 0 <= value <= 100) for value in parts.values()):
-                raise ValueError("Each known score must be between 0 and 100.")
-            case_scores = row.get("case_scores")
-            if not isinstance(case_scores, list) or len(case_scores) != count or {entry.get("id") for entry in case_scores if isinstance(entry, dict)} != set(known):
-                raise ValueError(f"{task}/{row.get('provider')} needs one score for every fixed case.")
-            if any(not isinstance(entry, dict) or set(entry) != {"id", "parts"}
-                   or not isinstance(entry["parts"], dict) or set(entry["parts"]) != set(parts)
-                   or any(value is not None and (not isinstance(value, (int, float)) or isinstance(value, bool)
-                        or not 0 <= value <= 100) for value in entry["parts"].values())
-                   for entry in case_scores):
-                raise ValueError("Case scores must contain only the case ID and numeric metric parts.")
-            for metric, value in parts.items():
-                values = [entry["parts"][metric] for entry in case_scores]
-                derived = round(mean(values), 1) if all(v is not None for v in values) else None
-                if value != derived:
-                    raise ValueError(f"{task}/{row.get('provider')} {metric} must be derived from every case.")
-            q = scores.quality(task, parts)
-            expected = scores.overall(quality_score=q, success=parts.get("success"),
-                speed=parts.get("speed"), price=parts.get("price"))
-            if row.get("overall") != expected:
-                raise ValueError(f"Score does not match the formula for {task}/{row.get('provider')}.")
-            if expected is None and row.get("rank") is not None:
-                raise ValueError("A provider with an unknown score cannot have an overall rank.")
-            if row.get("sample_count") != len(case_scores):
-                raise ValueError("Every ranked provider needs the full fixed case set.")
-    # The published object is allowlisted. Raw answers and private queries are not accepted.
-    if set(doc) - {"version", "test_date", "human_reviewed", "formula", "task_results", "methodology"}:
-        raise ValueError("Unexpected publication fields.")
-    return {**doc, "status": "published"}
-
-
-async def publish_file(path: str):
-    doc = _validate_publication(json.loads(Path(path).read_text()))
-    async with session_maker() as db:
-        row = WebArenaPublication(id="benchmark:" + doc["version"], kind="benchmark",
-                                  version=doc["version"], payload=doc)
-        db.add(row)
-        await db.commit()
-    return {"version": doc["version"], "status": "published"}
+    return row.payload if row else {"status": "warming", "task_results": {}}
 
 
 async def _live_rows():

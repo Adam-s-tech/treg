@@ -1,7 +1,5 @@
 """Web Arena safety and score rules that do not need paid provider calls."""
 import asyncio
-import copy
-import json
 from datetime import timedelta
 from types import SimpleNamespace
 import pytest
@@ -66,51 +64,23 @@ async def test_local_web_arena_quality_skips_daily_caps(monkeypatch):
     assert await web_arena_quality._take_budget(user_id=1)
 
 
-def test_scores_need_all_parts_and_known_price():
-    assert web_arena_scores.overall(quality_score=80, success=90, speed=70, price=60) == 79.0
-    assert web_arena_scores.overall(quality_score=80, success=90, speed=70, price=None) is None
-    assert web_arena_scores.quality("sitemap", {"valid_url_rate": 100}) is None
+async def test_arena_opens_with_flag_without_benchmark_publication(clients, monkeypatch):
+    monkeypatch.setenv("TREG_WEB_ARENA_ENABLED", "true")
+    get_settings.cache_clear()
+    try:
+        assert (await clients.get("/web-arena")).status_code == 200
+        assert (await clients.get("/web-arena/leaderboard")).status_code == 200
+        assert (await clients.get("/web-arena/api/tasks")).status_code == 200
+        assert (await clients.get("/web-arena/benchmark")).status_code == 404
+        assert (await clients.get("/web-arena/api/benchmark")).status_code == 404
+    finally:
+        get_settings.cache_clear()
+
+
+def test_sitemap_win_requires_known_coverage():
     assert web_arena_scores.winner_values("sitemap", [{"provider": "a", "state": "hit",
         "quality": {"unique_valid_urls": 5}}, {"provider": "b", "state": "hit",
         "quality": {"unique_valid_urls": 6}}]) == {}
-
-
-def test_publication_refuses_unreviewed_or_incomplete_tests():
-    with pytest.raises(ValueError):
-        web_arena_publications._validate_publication({"version": "v1", "human_reviewed": False})
-
-
-def test_benchmark_requires_provider_scores_for_each_fixed_case():
-    fixed = json.loads(web_arena_publications.CASES_FILE.read_text())["tasks"]
-    groups = {}
-    for task, entries in fixed.items():
-        metrics = ({"relevance": 80, "success": 100, "speed": 80, "price": 80}
-                   if task == "search" else
-                   {"fact_coverage": 80, "token_efficiency": 80, "success": 100, "speed": 80, "price": 80}
-                   if task == "fetch" else
-                   {"known_url_coverage": 80, "valid_url_rate": 80, "success": 100, "speed": 80, "price": 80})
-        cases = [{"id": case["id"], "input": case["input"], "label": case["label"],
-                  "reviewed": True, **({"checked_facts": ["fact"]} if task == "fetch" else {}),
-                  **({"known_urls": ["https://example.com/"]} if task == "sitemap" else {})}
-                 for case in entries]
-        overall = web_arena_scores.overall(quality_score=web_arena_scores.quality(task, metrics),
-            success=100, speed=80, price=80)
-        providers = [{"provider": provider, "parts": dict(metrics), "overall": overall, "rank": rank,
-                      "sample_count": len(cases), "case_scores": [{"id": case["id"], "parts": dict(metrics)}
-                         for case in cases]} for rank, provider in enumerate(("exa", "firecrawl"), 1)]
-        groups[task] = {"cases": cases, "sample_count": len(cases), "rules": "Reviewed",
-                        "limits": "Fixed cases", "providers": providers}
-    doc = {"version": "reviewed-1", "human_reviewed": True, "test_date": "2026-10-03",
-           "formula": web_arena_publications.FORMULA, "task_results": groups}
-    assert web_arena_publications._validate_publication(doc)["status"] == "published"
-    missing = copy.deepcopy(doc)
-    missing["task_results"]["search"]["providers"][0]["case_scores"].pop()
-    with pytest.raises(ValueError, match="one score for every fixed case"):
-        web_arena_publications._validate_publication(missing)
-    altered = copy.deepcopy(doc)
-    altered["task_results"]["fetch"]["providers"][0]["case_scores"][0]["parts"]["fact_coverage"] = 0
-    with pytest.raises(ValueError, match="must be derived from every case"):
-        web_arena_publications._validate_publication(altered)
 
 
 def test_live_provider_stats_need_distinct_checked_inputs(monkeypatch):
@@ -273,9 +243,6 @@ async def test_sitemap_quotes_use_optional_query_and_first_ten_urls(clients, mon
     for provider in providers:
         monkeypatch.setenv("TREG_PLATFORM_KEY_" + provider.upper(), "TEST-" + provider)
     get_settings.cache_clear()
-    async def reviewed():
-        return True
-    monkeypatch.setattr(web_arena_publications, "ready", reviewed)
     try:
         without = await clients.post("/web-arena/api/quotes", json={
             "task": "sitemap", "value": "https://example.com", "jev": True})
@@ -308,9 +275,6 @@ async def test_search1api_sitemap_compares_only_first_ten_urls(clients, monkeypa
     monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "search1api")
     monkeypatch.setenv("TREG_PLATFORM_KEY_SEARCH1API", "TEST-SEARCH1API")
     get_settings.cache_clear()
-    async def reviewed():
-        return True
-    monkeypatch.setattr(web_arena_publications, "ready", reviewed)
     seen = []
     links = [f"https://example.com/{index}" for index in range(12)]
     monkeypatch.setattr(service, "relay", _relay_by_provider({"search1api": [(200, {"links": links})]}, seen))
@@ -341,9 +305,6 @@ async def test_battle_quotes_and_settles_direct_search_with_jev_off(clients, mon
     monkeypatch.setenv("TREG_PLATFORM_KEY_FIRECRAWL", "TEST-FIRECRAWL")
     monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "firecrawl")
     get_settings.cache_clear()
-    async def reviewed():
-        return True
-    monkeypatch.setattr(web_arena_publications, "ready", reviewed)
     async def no_jev(*args, **kwargs):
         raise AssertionError("Jev must stay off")
     monkeypatch.setattr(web_arena_quality, "search", no_jev)
@@ -378,9 +339,6 @@ async def test_fixed_ten_result_search_can_join_quote(clients, monkeypatch):
     monkeypatch.setenv("TREG_PLATFORM_KEY_BRANDDEV", "TEST-BRANDDEV")
     monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "branddev")
     get_settings.cache_clear()
-    async def reviewed():
-        return True
-    monkeypatch.setattr(web_arena_publications, "ready", reviewed)
     try:
         response = await clients.post("/web-arena/api/quotes", json={
             "task": "search", "value": "example query", "mode": "battle",
@@ -396,9 +354,6 @@ async def test_tinyfish_first_page_is_capped_for_comparison(clients, monkeypatch
     monkeypatch.setenv("TREG_PLATFORM_KEY_TINYFISH", "TEST-TINYFISH")
     monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "tinyfish")
     get_settings.cache_clear()
-    async def reviewed():
-        return True
-    monkeypatch.setattr(web_arena_publications, "ready", reviewed)
     seen = []
     rows = [{"url": f"https://example.com/{index}", "title": str(index)} for index in range(11)]
     monkeypatch.setattr(service, "relay", _relay_by_provider({"tinyfish": [(200, {
@@ -431,9 +386,6 @@ async def test_new_search_providers_join_one_ten_link_quote(clients, monkeypatch
     for provider in ("TINYFISH", "SERPER", "SPIDERCLOUD", "OCTEN"):
         monkeypatch.setenv("TREG_PLATFORM_KEY_" + provider, "TEST-" + provider)
     get_settings.cache_clear()
-    async def reviewed():
-        return True
-    monkeypatch.setattr(web_arena_publications, "ready", reviewed)
     try:
         response = await clients.post("/web-arena/api/quotes", json={
             "task": "search", "value": "IANA example domains", "mode": "battle",

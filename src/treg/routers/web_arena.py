@@ -1,4 +1,4 @@
-"""Web Arena pages and API. The feature stays closed until publication and the flag agree."""
+"""Web Arena pages and API, gated by the feature flag."""
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -37,11 +37,8 @@ async def _answer(awaitable):
 
 @router.get("/web-arena", include_in_schema=False)
 @router.get("/web-arena/leaderboard", include_in_schema=False)
-@router.get("/web-arena/benchmark", include_in_schema=False)
 async def web_arena_page():
     _enabled()
-    if not await web_arena_publications.ready():
-        raise HTTPException(404)
     return FileResponse(_WEB / "web-arena.html", headers={"Cache-Control": "no-cache"})
 
 
@@ -56,27 +53,15 @@ async def web_arena_asset(asset: str):
 @router.get("/web-arena/api/tasks", include_in_schema=False)
 async def web_arena_tasks():
     _enabled()
-    if not await web_arena_publications.ready():
-        raise HTTPException(404)
     return web_arena.tasks()
 
 
 @router.get("/web-arena/api/leaderboard", include_in_schema=False)
 async def web_arena_leaderboard():
     _enabled()
-    if not await web_arena_publications.ready():
-        raise HTTPException(404)
     if get_settings().local_dev:
         return JSONResponse(await web_arena_publications.live_now(), headers={"Cache-Control": "no-store"})
     return JSONResponse(await web_arena_publications.published("live"), headers={"Cache-Control": "public, max-age=60"})
-
-
-@router.get("/web-arena/api/benchmark", include_in_schema=False)
-async def web_arena_benchmark():
-    _enabled()
-    if not await web_arena_publications.ready():
-        raise HTTPException(404)
-    return JSONResponse(await web_arena_publications.published("benchmark"), headers={"Cache-Control": "public, max-age=300"})
 
 
 class QuoteIn(BaseModel):

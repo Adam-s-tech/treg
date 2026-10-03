@@ -1851,7 +1851,7 @@ class WebArenaRun(SQLModel, table=True):
 
 
 class WebArenaPublication(SQLModel, table=True):
-    """Reviewed benchmark or content-free live totals, read without running providers."""
+    """Content-free live totals, read without running providers."""
     id: str = Field(primary_key=True)
     kind: str = Field(index=True)
     version: str

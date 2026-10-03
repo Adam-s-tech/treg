@@ -55,7 +55,7 @@ covers (frontmatter `sources:`). Regenerate this index with
 | [Test cases for the ChatGPT plugin submission](interface/skill-openai-test-cases.md) | reference | — |
 | [Tool justifications for the ChatGPT plugin submission](interface/skill-openai-tool-justifications.md) | reference | — |
 | [The shippable tools-registry skill (3 personas)](interface/skill.md) | shipped | skill.md, SKILL.md, SKILL.md, web.py, … |
-| [Web Arena — private comparisons and published web tests](interface/web-arena.md) | gated | web_arena.py, web_arena_scores.py, web_arena.py, web_arena_quality.py, … |
+| [Web Arena — private comparisons and live provider observations](interface/web-arena.md) | gated | web_arena.py, web_arena_scores.py, web_arena.py, web_arena_quality.py, … |
 
 ## Ops (deploy, scale)
 

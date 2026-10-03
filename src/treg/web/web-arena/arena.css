@@ -173,8 +173,6 @@
 .web-leaderboard-chart .chart-caveat{margin-top:8px;line-height:1.55}
 .web-horizontal-chart .price-comparison-row{grid-template-columns:minmax(135px,180px) minmax(0,1fr) 140px}
 .web-horizontal-chart .price-amount{white-space:nowrap}
-.web-leaderboard-benchmark{margin-top:0}
-.web-leaderboard-benchmark p{margin:6px 0 0;font-size:12px}
 @media(max-width:800px){.web-layout .session-sidebar{display:none}.result-grid{grid-template-columns:1fr}.masthead{flex-wrap:wrap}.masthead .arena-page-tabs{order:3;width:100%;justify-content:center}.web-layout{padding:0 12px}.web-layout main{padding:0 0 50px}.web-controls .run-button{margin-left:0}}
 @media(max-width:720px){.web-leaderboard-grid{grid-template-columns:minmax(0,1fr);gap:16px}.web-leaderboard-filters .stats-views{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px}.web-leaderboard-filters .stats-views .web-view-select{padding:9px 12px}.web-leaderboard-option .web-info-tooltip{top:auto;bottom:calc(100% + 8px);left:0;transform:none}.web-leaderboard-filters .leaderboard-source{margin:0 4px 6px}.web-leaderboard-chart{padding:18px 14px 14px}.web-horizontal-chart .price-comparison-row{grid-template-columns:minmax(0,1fr) 110px;gap:8px 10px}.web-horizontal-chart .price-vendor{grid-column:1;grid-row:1}.web-horizontal-chart .price-amount{grid-column:2;grid-row:1}.web-horizontal-chart .price-track{grid-column:1/-1;grid-row:2}}
 @media(max-width:800px){.web-table-detail ol{grid-template-columns:1fr}}

@@ -103,12 +103,8 @@ def tasks(*, _internal: bool = False):
 
 
 async def quote(caller, *, task: str, value: str, query: str = "", mode: str = "battle", providers: list[str] | None = None,
-                jev: bool = True, _benchmark: bool = False):
-    if not _benchmark:
-        _check_enabled()
-        from .web_arena_publications import ready
-        if not await ready():
-            raise rules.WebArenaError("Web Arena is not open yet.", 404)
+                jev: bool = True):
+    _check_enabled()
     if caller.org.demo or caller.org.public_demo:
         raise rules.WebArenaError("Sign in with a regular team to run Web Arena.", 403)
     if mode not in {"battle", "waterfall"}:
@@ -192,12 +188,8 @@ async def quote(caller, *, task: str, value: str, query: str = "", mode: str = "
         "jev": jev, "jev_cost": "Covered by treg; not part of the provider quote."}
 
 
-async def start(caller, run_id, client, client_ip, *, _benchmark: bool = False):
-    if not _benchmark:
-        _check_enabled()
-        from .web_arena_publications import ready
-        if not await ready():
-            raise rules.WebArenaError("Web Arena is not open yet.", 404)
+async def start(caller, run_id, client, client_ip):
+    _check_enabled()
     async with session_maker() as db:
         await db.execute(update(User).where(User.id == caller.user.id).values(token_version=User.token_version))
         row = await _owned(db, run_id, caller)

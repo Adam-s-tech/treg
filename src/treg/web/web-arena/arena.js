@@ -5,12 +5,12 @@
   const draftKey='treg.web-arena.draft.v1';
   const resultViewKey='treg.web-arena.result-view.v1';
   const readResultView=()=>{try{return localStorage.getItem(resultViewKey)==='table'?'table':'cards';}catch{return 'cards';}};
-  const page=location.pathname.endsWith('/leaderboard')?'leaderboard':location.pathname.endsWith('/benchmark')?'benchmark':'arena';
+  const page=location.pathname.endsWith('/leaderboard')?'leaderboard':'arena';
   const saveDraft=d=>{try{sessionStorage.setItem(draftKey,JSON.stringify(d));}catch{}};
   const readDraft=()=>{try{return JSON.parse(sessionStorage.getItem(draftKey)||'null');}catch{return null;}};
   Vue.createApp({
     data:()=>({page,tasks:[{id:'search',label:'Web Search',enabled:true},{id:'fetch',label:'Web Fetch',enabled:true},{id:'sitemap',label:'Sitemap',enabled:true},{id:'brand',label:'Brand',enabled:false}],task:'search',value:'',query:'',mode:'battle',jev:true,
-      user:null,teams:[],team:'',balance:null,quote:null,availableProviders:[],selected:[],run:null,resultView:readResultView(),history:[],live:null,bench:null,insightsTimer:null,meta:{},
+      user:null,teams:[],team:'',balance:null,quote:null,availableProviders:[],selected:[],run:null,resultView:readResultView(),history:[],live:null,insightsTimer:null,meta:{},
       leaderboardView:'rate',leaderboardOrientation:'vertical',chartFocus:null,
       busy:false,pricing:false,running:false,error:'',authError:'',authBusy:false,email:'',code:'',authStep:'email',devCode:'',newTeamName:'',poller:null,
       quoteTimer:null,quoteSequence:0,quotedKey:'',selectionTouched:false,rosterLeft:false,rosterRight:false,rosterObserver:null,expandedResults:{},expandedRows:{}}),
@@ -56,7 +56,6 @@
         const stats=new Map(this.liveRows.map(row=>[row.provider,row]));
         return this.displayProviders.map(provider=>({provider,stats:stats.get(provider.provider)||null}));
       },
-      benchmarkGroup(){return this.bench?.task_results?.[this.task]||null;},
       quoteKey(){return JSON.stringify([this.task,this.value.trim(),this.task==='sitemap'?this.query.trim():'',this.mode,this.jev,this.team,[...this.selected].sort()]);},
       readyQuote(){return this.quote&&this.quotedKey===this.quoteKey?this.quote:null;},
       displayProviders(){
@@ -173,11 +172,6 @@
         return 'No recent dated links';
       },
       freshnessTone(quality){return quality?.freshness_percent>=80?'recent':quality?.freshness_percent>=30?'mixed':'stale';},
-      qualityPart(row){const p=row.parts||{};let value=null;
-        if(this.task==='search'&&p.relevance!=null)value=p.freshness==null?p.relevance:0.75*p.relevance+0.25*p.freshness;
-        if(this.task==='fetch'&&p.fact_coverage!=null&&p.token_efficiency!=null)value=(p.fact_coverage+p.token_efficiency)/2;
-        if(this.task==='sitemap'&&p.known_url_coverage!=null&&p.valid_url_rate!=null)value=(p.known_url_coverage+p.valid_url_rate)/2;
-        return this.percent(value);},
       async api(path,options={},teamOverride){
         const headers={'Content-Type':'application/json',...(options.headers||{})};
         const active=teamOverride===undefined?this.team:teamOverride;
@@ -292,11 +286,10 @@
           this.selected=draft.selected.filter(p=>visible.has(p));
           this.selectionTouched=this.selected.length!==this.availableProviders.length;
         }
-        if(page!=='benchmark')await this.loadInsights();
-        if(page==='benchmark')this.bench=await this.api('/web-arena/api/benchmark',{},'');
+        await this.loadInsights();
         await this.loadIdentity();await this.loadHistory();
         const id=new URLSearchParams(location.search).get('run');if(id&&this.user)await this.loadRun(id);
-        if(page!=='benchmark')this.insightsTimer=setInterval(()=>{if(!document.hidden)this.loadInsights();},120000);
+        this.insightsTimer=setInterval(()=>{if(!document.hidden)this.loadInsights();},120000);
       }catch(e){this.error=e.message;}
     },
     unmounted(){clearInterval(this.poller);clearInterval(this.insightsTimer);clearTimeout(this.quoteTimer);this.quoteSequence++;this.rosterObserver?.disconnect();}

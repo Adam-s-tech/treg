@@ -2709,15 +2709,6 @@
       "HEAD"
     ],
     "name": "web_arena_page",
-    "path": "/web-arena/benchmark"
-  },
-  {
-    "kind": "APIRoute",
-    "methods": [
-      "GET",
-      "HEAD"
-    ],
-    "name": "web_arena_page",
     "path": "/web-arena/leaderboard"
   },
   {
@@ -2755,15 +2746,6 @@
     ],
     "name": "web_arena_leaderboard",
     "path": "/web-arena/api/leaderboard"
-  },
-  {
-    "kind": "APIRoute",
-    "methods": [
-      "GET",
-      "HEAD"
-    ],
-    "name": "web_arena_benchmark",
-    "path": "/web-arena/api/benchmark"
   },
   {
     "kind": "APIRoute",

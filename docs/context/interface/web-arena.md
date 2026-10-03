@@ -1,5 +1,5 @@
 ---
-title: Web Arena — private comparisons and published web tests
+title: Web Arena — private comparisons and live provider observations
 status: gated
 sources:
   - src/treg/domain/web_arena.py
@@ -8,8 +8,6 @@ sources:
   - src/treg/application/web_arena_quality.py
   - src/treg/application/web_arena_publications.py
   - src/treg/application/web_arena_calls.py
-  - src/treg/application/web_arena_benchmark.py
-  - src/treg/web_arena_cases.json
   - src/treg/routers/web_arena.py
   - src/treg/models.py
   - src/treg/alembic/versions/0057_web_arena.py
@@ -30,17 +28,16 @@ related:
 
 # Web Arena
 
-`/web-arena`, `/web-arena/leaderboard`, and `/web-arena/benchmark` are one standalone Vue page.
+`/web-arena` and `/web-arena/leaderboard` are one standalone Vue page.
 The page uses Enrich Arena's type, light canvas, input card, navigation, and result card styles.
 Its header shares Enrich Arena's GitHub, Discord, and X community links beside account controls.
-The Arena, Leaderboard, and Benchmark tabs use the same icons, and the intro uses its Treg credit.
-All three pages share a footer with page-specific result wording and a privacy link. The
+The Arena and Leaderboard tabs use the same icons, and the intro uses its Treg credit.
+Both pages share a footer with page-specific result wording and a privacy link. The
 Leaderboard footer downloads the existing public `/web-arena/api/leaderboard` JSON aggregate;
 it contains the three task summaries, update time, window, filters, and sample counts, not
 individual queries or provider responses.
 The `branddev` provider keeps its catalog identifier and logo but appears as Context.dev in the UI.
-`web_arena_enabled` defaults to false. The page and run API need both the flag and one reviewed
-benchmark publication with 30 search, 20 fetch, and 10 sitemap cases. Brand is visible but disabled.
+`web_arena_enabled` defaults to false. The page and run API need the flag. Brand is visible but disabled.
 
 `web_arena.quote` takes a task and one input. Search asks for 10 results, Fetch asks for one URL,
 and Sitemap asks for a site URL with an optional search phrase and up to 10 URLs. The phrase goes
@@ -150,7 +147,7 @@ Battle and Waterfall runs and saves content-free totals in `WebArenaPublication`
 remain Battle-only because they require simultaneous checked comparisons. The Arena preview and
 public leaderboard read that one publication. The scheduled `treg-worker arena insights` command
 collects new call observations on each tick and refreshes the publication
-when Web Arena is enabled and the reviewed benchmark is published, at most once every 30
+when Web Arena is enabled, at most once every 30
 minutes. The cron can run more often; `refresh_live_if_due` skips the full
 rolling-window read while the saved totals are fresh and retries on the next run after a
 failed refresh. The standalone
@@ -177,20 +174,7 @@ quality option shows an Arena-style tooltip explaining the score and its checked
 source. Fetch live publications
 aggregate token efficiency separately from fact coverage, using the same checked-input threshold.
 Quality win rate stays unknown until 20 comparable checked runs. Sitemap needs a known reference
-URL list before any live quality win can exist. `publish_file` accepts a reviewed, versioned
-benchmark with the fixed sample counts and formula. The benchmark page only reads that saved
-document and makes no provider calls. The score weights are 60% task quality, 20% success,
-10% speed, and 10% price; an unknown price leaves the overall rank unknown. The publication
-must keep its fixed cases, rules, limits, date, and human review status. Each provider must
-include content-free scores for every fixed case ID; `publish_file` derives each aggregate
-part from those scores and rejects missing or altered cases. Raw answers are never published.
+URL list before any live quality win can exist. There is no Benchmark tab or fixed-case runner.
 
-The worker entry points are `treg-worker web-arena test --output PRIVATE.json --confirm-spend`,
-`treg-worker web-arena totals`, and `treg-worker web-arena publish FILE`. The fixed case file is a
-draft. Fetch facts and sitemap known URL lists need human checks before publication. The test
-runner uses an operator team token from `TREG_WEB_ARENA_BENCHMARK_TOKEN`, buys each case through
-the same direct call path, and writes its private review file outside this public checkout. It
-skips cases already in that file after an interruption. The test cases save Battle runs, so
-they can seed the live 30-day totals; the benchmark scores remain a separate reviewed
-publication. Production settings belong in the paired
+The worker entry point `treg-worker web-arena totals` manually refreshes live totals. Production settings belong in the paired
 private repository after public code merges.
