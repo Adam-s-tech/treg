@@ -263,8 +263,9 @@ A feature flag set in the calling shell (`TREG_HUB_ENABLED=1 scripts/dev-local.s
 reach the server on its own: the script starts the server inside a tmux session, and a tmux session
 inherits the **tmux server's** environment, not the calling client's — the server would start and
 answer every hub route `404` with no error. `dev-local.sh` expands a fixed passthrough list
-(currently `TREG_HUB_ENABLED`) in its own process and bakes the value into the command string tmux
-runs; add a flag to that list to pass another one through. The script's own three env vars
+(the hub, table and onboarding flags) in its own process and bakes the value into the command string
+tmux runs; add a flag to that list to pass another one through. Keys never go through that list:
+they go in `scripts/.dev-home/dev-keys.env`, which the server sources. The script's own three env vars
 (`TREG_EMAIL_DEV_MODE`, `TREG_CONNECT_DEMO_ENABLED`, `TREG_DATABASE_URL`) are appended last so they
 always win over anything passed through.
 
@@ -376,6 +377,11 @@ without importing the heavy database stack into the light `treg` CLI.
   with `TREG_JEV_TREG_TOKEN` (a member token of the demo team, so the spend is an ordinary bill) and jev
   through the Vercel AI Gateway (`TREG_AI_GATEWAY_API_KEY`), and stores the run under Ephemeral for the page.
   Both variables also belong on the web service, which needs them for the visitor judge endpoint.
+  The first-run onboarding (`TREG_ONBOARDING_V2`, or `TREG_ONBOARDING_V2_EMAILS` for a list, or
+  `TREG_ONBOARDING_V2_EXPERIMENT` for work addresses in the PostHog experiment `onboarding-v2`) runs
+  on the web service and reads `TREG_ONBOARDING_TREG_TOKEN` (a member token of the team its setup
+  lookups bill), `TREG_ONBOARDING_GITHUB_TOKEN` and `TREG_AI_GATEWAY_API_KEY`; each is optional, and a
+  missing one skips its step.
 - `treg-worker admin purge-evidence` blanks failed-call evidence past the 14-day retention window
   (`--batch-size`, default 5000, rows per transaction; schedule it daily). `GET /admin/errors` is
   read-only and already withholds evidence past the window, so an unscheduled purge keeps the old
