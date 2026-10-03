@@ -47,7 +47,7 @@
     <td>{{previewTime(row.stats)}}</td>
     <td>{{previewPrice(row.provider)}}<small>{{row.provider.estimate_micro!=null?'Quote for this input':'Catalog price'}}</small></td>
   </tr><tr v-if="!previewRows.length"><td colspan="5">No providers are available for this task.</td></tr></tbody></table></div>
-  <p class="web-note">Last 30 days of direct provider calls across treg. Hit rates and response times appear after 20 eligible calls; quality needs 20 checked Web Arena inputs. Search intent match is Jev's estimate, fetch fact coverage is relative to the compared outputs, and sitemap coverage needs a known URL list. A dash means there is not enough evidence.</p>
+  <p class="web-note"><span v-if="coverageBuilding">Collecting since {{leaderboardDate(live.observed_since)}} toward a rolling 30-day window.</span><span v-else>Last 30 days of direct provider calls across treg.</span> Hit rates and response times appear after 20 eligible calls; quality needs 20 checked Web Arena inputs. Search intent match is Jev's estimate, fetch fact coverage is relative to the compared outputs, and sitemap coverage needs a known URL list. A dash means there is not enough evidence.</p>
 </section>
 <section v-if="run" class="web-card web-results" aria-live="polite">
   <div class="web-heading"><div><h2>Results</h2><p>{{run.state}} · {{run.stop_reason||'Provider results appear as they finish.'}}</p></div>
@@ -120,7 +120,7 @@
           <span v-if="leaderboardViewHelp(view.id)" :id="'web-leaderboard-help-'+view.id" role="tooltip" class="web-info-tooltip"><strong>{{view.label}}</strong><span>{{leaderboardViewHelp(view.id)}}</span></span>
         </div>
       </div>
-      <p class="leaderboard-source">From provider calls across treg<span>Last 30 days · UTC</span><span v-if="live?.updated_at">Updated {{leaderboardDate(live.updated_at)}}</span><span v-if="live?.stale||live?.stale_tasks?.includes(task)">Showing the last saved quality totals for this task; older local runs could not be read.</span><span v-else-if="live?.partial">Showing readable recent quality runs; some older local runs could not be read.</span></p>
+      <p class="leaderboard-source">From provider calls across treg<span>Rolling 30 days · UTC</span><span v-if="coverageBuilding">Collecting since {{leaderboardDate(live.observed_since)}}</span><span v-if="live?.updated_at">Updated {{leaderboardDate(live.updated_at)}}</span><span v-if="live?.stale||live?.stale_tasks?.includes(task)">Showing the last saved quality totals for this task; older local runs could not be read.</span><span v-else-if="live?.partial">Showing readable recent quality runs; some older local runs could not be read.</span></p>
     </aside>
     <div class="vendor-chart web-leaderboard-chart" aria-label="Web provider performance chart">
       <div class="chart-heading"><div><h3>{{leaderboardViews.find(v=>v.id===leaderboardView)?.label}}</h3><p>{{leaderboardSubtitle}}</p></div><span class="chart-source">{{leaderboardView==='price'?'Catalog prices':qualityView?'Checked Arena runs':'Observed calls'}}</span></div>

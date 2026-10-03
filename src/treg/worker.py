@@ -302,7 +302,7 @@ async def _arena_insights(args) -> int:
             result = await drain(max_seconds=args.max_seconds)
         finally:
             await analytics.drain()
-    if web_arena.enabled():
+    if web_arena.enabled() or await web_arena_calls.seeded():
         result["web_arena_calls"] = await web_arena_calls.collect()
         result["web_arena"] = await web_arena_publications.refresh_live_if_due()
     print(json.dumps(result, sort_keys=True))
@@ -314,6 +314,14 @@ async def _web_arena_totals(args) -> int:
     from .application.web_arena_publications import refresh_live
     await verify_db()
     print(json.dumps(await refresh_live(), sort_keys=True))
+    return 0
+
+
+async def _web_arena_seed(args) -> int:
+    from .infra.db import verify_db
+    from .application.web_arena_publications import seed_recent
+    await verify_db()
+    print(json.dumps(await seed_recent(), sort_keys=True))
     return 0
 
 
@@ -408,8 +416,10 @@ def main(argv: list[str] | None = None) -> int:
     insights.set_defaults(fn=_arena_insights)
     web_arena = sub.add_parser("web-arena", help="Web Arena saved leaderboard totals")
     websub = web_arena.add_subparsers(dest="cmd", required=True)
-    totals = websub.add_parser("totals", help="publish content-free Battle totals")
+    totals = websub.add_parser("totals", help="publish content-free Web provider totals")
     totals.set_defaults(fn=_web_arena_totals)
+    seed = websub.add_parser("seed", help="replace partial Web totals with a bounded ten-day seed once")
+    seed.set_defaults(fn=_web_arena_seed)
     catalog = sub.add_parser("catalog", help="catalog read models derived from the audit table")
     catalogsub = catalog.add_subparsers(dest="cmd", required=True)
     stats = catalogsub.add_parser("stats", help="fold new audit rows into per-endpoint, per-day reliability stats")

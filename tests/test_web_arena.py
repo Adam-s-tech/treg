@@ -156,7 +156,7 @@ def test_repeat_fetch_checks_do_not_hide_later_efficiency(monkeypatch):
 
 
 async def test_local_leaderboard_uses_saved_totals_if_old_runs_cannot_decrypt(monkeypatch):
-    async def rows():
+    async def rows(observed_since=None):
         return [SimpleNamespace(payload="old ciphertext")]
 
     async def saved(kind):
@@ -180,7 +180,7 @@ async def test_local_leaderboard_keeps_readable_runs_when_old_runs_cannot_decryp
     current = {"input": "https://example.com", "attempts": [{
         "provider": "search1api", "state": "hit", "duration_ms": 100,
         "quality": {"unique_valid_urls": 10}}]}
-    async def rows():
+    async def rows(observed_since=None):
         return [SimpleNamespace(task="sitemap", payload=current),
                 SimpleNamespace(task="sitemap", payload="old ciphertext")]
 

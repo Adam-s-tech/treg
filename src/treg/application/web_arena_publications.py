@@ -1,13 +1,16 @@
 """Content-free live Web Arena leaderboard totals."""
 from __future__ import annotations
 
+import asyncio
 from collections import defaultdict
 from datetime import datetime, timedelta
 from statistics import mean, median
 
 from cryptography.fernet import InvalidToken
+from sqlalchemy import delete
 from sqlmodel import select
 
+from ..config import get_settings
 from ..domain import web_arena_scores as scores
 from ..domain.catalog import store as catalog_store
 from ..infra.db import session_maker
@@ -25,8 +28,10 @@ async def published(kind: str) -> dict:
     return row.payload if row else {"status": "warming", "task_results": {}}
 
 
-async def _live_rows():
+async def _live_rows(observed_since: datetime | None = None):
     cutoff = now() - timedelta(days=30)
+    if observed_since is not None:
+        cutoff = max(cutoff, observed_since)
     async with session_maker() as db:
         rows = (await db.execute(select(WebArenaRun).where(WebArenaRun.mode.in_(["battle", "waterfall"]),
             WebArenaRun.state == "completed", WebArenaRun.created_at >= cutoff,
@@ -36,7 +41,8 @@ async def _live_rows():
 
 async def live_now() -> dict:
     """Compute content-free totals directly for local development."""
-    rows = await _live_rows()
+    observed_since = await web_arena_calls.coverage_start()
+    rows = await _live_rows(observed_since)
     traffic = await web_arena_calls.local_snapshot()
     readable = []
     unreadable = 0
@@ -48,7 +54,7 @@ async def live_now() -> dict:
         else:
             readable.append(row)
     if not unreadable:
-        return summarize_live(rows, catalog_store.load(), traffic)
+        return summarize_live(rows, catalog_store.load(), traffic, observed_since=observed_since)
 
     # A local preview may outlive its encryption key. Older ciphertext must not
     # hide newer, readable Battles; retain saved totals only for tasks with no
@@ -59,7 +65,7 @@ async def live_now() -> dict:
             raise InvalidToken
         return {**snapshot, "source": "Last saved Battle totals; older local runs could not be read.",
                 "stale": True}
-    doc = summarize_live(readable, catalog_store.load(), traffic)
+    doc = summarize_live(readable, catalog_store.load(), traffic, observed_since=observed_since)
     saved_tasks = snapshot.get("task_results", {}) if snapshot.get("status") == "live" else {}
     stale_tasks = sorted(set(saved_tasks) - set(doc["task_results"]))
     for task in stale_tasks:
@@ -73,8 +79,10 @@ async def refresh_live():
     collected = await web_arena_calls.collect()
     if not collected["caught_up"]:
         return {"skipped": True, "reason": "call backlog", **collected}
-    rows = await _live_rows()
-    doc = summarize_live(rows, catalog_store.load(), await web_arena_calls.snapshot())
+    observed_since = await web_arena_calls.coverage_start()
+    rows = await _live_rows(observed_since)
+    doc = summarize_live(rows, catalog_store.load(), await web_arena_calls.snapshot(),
+                         observed_since=observed_since)
     async with session_maker() as db:
         row = await db.get(WebArenaPublication, "live:current")
         if row:
@@ -85,6 +93,23 @@ async def refresh_live():
         db.add(row)
         await db.commit()
     return {"tasks": list(doc["task_results"]), "arena_runs": len(rows), **collected}
+
+
+async def seed_recent():
+    """One-time initial ten-day seed; swap content-free totals only after the scan succeeds."""
+    if get_settings().web_arena_enabled:
+        raise ValueError("Disable Web Arena before replacing its initial observation totals.")
+    async with asyncio.timeout(web_arena_calls.SEED_MAX_SECONDS):
+        seed = await web_arena_calls.build_recent_seed()
+    async with session_maker() as db:
+        await web_arena_calls.replace_with_seed(db, seed)
+        await db.execute(delete(WebArenaPublication).where(WebArenaPublication.id == "live:current"))
+        await db.commit()
+    publication = await refresh_live()
+    return {"seeded": True, "observed_since": seed["observed_since"].isoformat() + "Z",
+            "scanned": seed["scanned"], "eligible_calls": seed["eligible_calls"],
+            "daily_rows": len(seed["buckets"]), "cursor": seed["cursor"],
+            "publication": publication}
 
 
 async def refresh_live_if_due():
@@ -101,7 +126,7 @@ async def refresh_live_if_due():
     return await refresh_live()
 
 
-def summarize_live(rows, catalog, traffic=None):
+def summarize_live(rows, catalog, traffic=None, *, observed_since: datetime | None = None):
     """Join direct-call facts to checked Arena quality, never double-counting Battle calls."""
     by_task: dict[str, dict[str, dict]] = defaultdict(lambda: defaultdict(lambda: {
         "runs": 0, "success": 0, "times": [], "metric_values": [], "efficiency_values": [],
@@ -178,6 +203,7 @@ def summarize_live(rows, catalog, traffic=None):
         result[task] = sorted(output, key=lambda x: (-x["runs"], x["provider"]))
     doc = {"status": "live", "source": "Direct treg calls for hit rate and time; checked Web Arena runs for quality",
            "window_days": 30, "updated_at": now().isoformat() + "Z", "task_results": result,
+           "observed_since": observed_since.isoformat() + "Z" if observed_since else None,
            "minimum_comparable_runs": 20, "minimum_hit_samples": web_arena_calls.MIN_HIT_SAMPLES,
            "filters": {"cached": "excluded", "treg_refusals": "excluded", "quality": "checked Arena runs"}}
     return doc
