@@ -1,7 +1,7 @@
 """Remove ordinary indexes already covered by single-column unique constraints.
 
-Revision ID: 0060
-Revises: 0059
+Revision ID: 0061
+Revises: 0060
 
 The named unique constraints keep both uniqueness and indexed lookups. Only their redundant
 ordinary indexes are removed; rows, foreign keys and composite-prefix indexes are untouched.
@@ -9,17 +9,17 @@ PostgreSQL checks the surviving indexes before any drop, then uses CONCURRENTLY 
 transaction. Both directions tolerate partially completed attempts, including invalid indexes
 left by an interrupted concurrent operation.
 
-Rollback floor: 0060 is a contract revision because it removes indexes. Application queries
+Rollback floor: 0061 is a contract revision because it removes indexes. Application queries
 remain compatible; downgrade recreates the ordinary indexes concurrently on PostgreSQL before
-returning to 0059. Rebuilding them requires disk space and may take longer than removing them.
+returning to 0060. Rebuilding them requires disk space and may take longer than removing them.
 """
 from contextlib import contextmanager
 
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0060"
-down_revision = "0059"
+revision = "0061"
+down_revision = "0060"
 branch_labels = None
 depends_on = None
 contract = True

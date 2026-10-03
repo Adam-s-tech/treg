@@ -13,6 +13,7 @@ sources:
   - src/treg/alembic/versions/0057_web_arena.py
   - src/treg/alembic/versions/0058_web_arena_call_stats.py
   - src/treg/alembic/versions/0059_web_arena_seed_start.py
+  - src/treg/alembic/versions/0060_web_arena_seed_progress.py
   - src/treg/config.py
   - src/treg/bootstrap.py
   - src/treg/worker.py
@@ -145,10 +146,13 @@ response-time samples. The collector processes backlog incrementally and never r
 answer body. `WebArenaCallDayStat` and `WebArenaCallCursor` are owned by this module.
 For an initial release with a large audit backlog, `treg-worker web-arena seed` scans only
 listed Web task endpoints from the most recent ten days. It builds bounded, content-free
-daily buckets before replacing any saved totals, sets the cursor at the seed's high-water
-mark, and records the actual observation start. The command requires Web Arena to be off
-and refuses to run a second time after a successful seed. If the scan fails or exceeds its
-row or time limit, existing totals remain. The ordinary collector then handles later calls
+daily buckets in separate staging tables. Each invocation saves a bounded batch and reports
+whether another invocation is needed. The endpoint list, time range, and scan position are
+frozen on the first pass, so interrupted runs resume without double counting. Only after
+all listed endpoints are scanned does one transaction replace partial live totals, advance
+the call cursor to the high-water mark, and record the actual observation start. The command
+requires Web Arena to be off and refuses to run after a successful seed. An incomplete or
+failed pass leaves the existing live totals in place. The ordinary collector then handles later calls
 and ages observations into the rolling 30-day window; it does not backfill the preceding
 20 days. The page displays the shorter observation coverage while that window fills.
 `web_arena_publications.refresh_live` joins those call observations with quality from completed

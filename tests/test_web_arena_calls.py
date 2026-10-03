@@ -6,7 +6,8 @@ from sqlmodel import select
 
 from treg.application import web_arena_calls, web_arena_publications
 from treg.infra.db import session_maker
-from treg.models import CallRecord, WebArenaCallCursor, WebArenaCallDayStat, WebArenaPublication
+from treg.models import (CallRecord, WebArenaCallCursor, WebArenaCallDayStat,
+                         WebArenaPublication, WebArenaSeedDayStat, WebArenaSeedProgress)
 from treg.timeutil import utcnow_naive
 
 
@@ -96,18 +97,35 @@ async def test_recent_seed_pages_listed_endpoints_only(clients):
         await _call(hit=True)
     await _call(hit=True, endpoint="other.search")
     await _call(hit=True, age=timedelta(seconds=10))
-    seed = await web_arena_calls.build_recent_seed(page_rows=2)
-    assert seed["scanned"] == 5
-    assert seed["eligible_calls"] == 5
+    await web_arena_calls.start_recent_seed()
+    progress = await web_arena_calls.advance_recent_seed(page_rows=2, max_rows=20)
+    assert progress["ready"]
+    assert progress["scanned"] == 5
+    assert progress["eligible_calls"] == 5
 
 
-async def test_seed_limit_leaves_existing_totals_untouched(clients, monkeypatch):
+async def test_bounded_seed_resumes_without_changing_partial_totals(clients, monkeypatch):
     await _call(hit=True)
     await _call(hit=True)
     await web_arena_calls.collect()
     before = (await web_arena_calls.snapshot())["search"]["exa"]["runs"]
-    monkeypatch.setattr(web_arena_calls, "SEED_MAX_ROWS", 1)
-    with pytest.raises(ValueError, match="row limit"):
-        await web_arena_publications.seed_recent()
+    advance = web_arena_calls.advance_recent_seed
+
+    async def one_row():
+        return await advance(max_rows=1, page_rows=1)
+
+    monkeypatch.setattr(web_arena_calls, "advance_recent_seed", one_row)
+    first = await web_arena_publications.seed_recent()
+    assert not first["seeded"] and first["retry"] and first["rows_this_run"] == 1
     assert (await web_arena_calls.snapshot())["search"]["exa"]["runs"] == before
     assert await web_arena_calls.coverage_start() is None
+    async with session_maker() as db:
+        assert await db.get(WebArenaSeedProgress, "recent") is not None
+        assert (await db.execute(select(WebArenaSeedDayStat))).scalars().first() is not None
+    monkeypatch.setattr(web_arena_calls, "advance_recent_seed", advance)
+    result = await web_arena_publications.seed_recent()
+    assert result["seeded"] and result["eligible_calls"] == 2
+    assert (await web_arena_calls.snapshot())["search"]["exa"]["runs"] == 2
+    async with session_maker() as db:
+        assert await db.get(WebArenaSeedProgress, "recent") is None
+        assert (await db.execute(select(WebArenaSeedDayStat))).scalars().first() is None

@@ -13,7 +13,8 @@ from datetime import datetime, timedelta
 from sqlalchemy import delete, select
 
 from ..infra.db import session_maker
-from ..models import CallRecord, WebArenaCallCursor, WebArenaCallDayStat
+from ..models import (CallRecord, WebArenaCallCursor, WebArenaCallDayStat,
+                      WebArenaSeedDayStat, WebArenaSeedProgress)
 from ..timeutil import utcnow_naive as now
 from . import catalog_stats
 
@@ -76,51 +77,105 @@ def _bucket_from(row: WebArenaCallDayStat) -> dict:
             "duration_sample": list(row.duration_sample or [])}
 
 
-async def build_recent_seed(session_factory=session_maker, *, at: datetime | None = None,
-                            page_rows: int = BATCH_ROWS) -> dict:
-    """Read only listed Web endpoints, in bounded pages, before changing any saved totals.
+async def _seed_progress(db) -> WebArenaSeedProgress:
+    """Lock the saved seed position so two shell commands cannot fold the same rows."""
+    return (await db.execute(select(WebArenaSeedProgress).where(
+        WebArenaSeedProgress.id == "recent").with_for_update())).scalar_one()
 
-    The two ID bounds freeze an initial ten-day slice. Calls inserted during the scan have
-    higher IDs and are picked up by the normal cursor after the seed is committed.
-    """
+
+async def start_recent_seed(session_factory=session_maker, *, at: datetime | None = None) -> None:
+    """Freeze the ten-day range once; an interrupted command resumes that same range."""
     at = at or now()
-    since, lagged = at - timedelta(days=SEED_DAYS), at - LAG
     async with session_factory() as db:
+        cursor = await db.get(WebArenaCallCursor, CURSOR_ID)
+        if cursor and cursor.observed_since is not None:
+            raise ValueError("Web Arena has already been seeded; no totals were changed.")
+        progress = await db.get(WebArenaSeedProgress, "recent")
+        if progress:
+            return
+        since, lagged = at - timedelta(days=SEED_DAYS), at - LAG
         first_id = await catalog_stats._first_id_at(db, since) - 1
-        last_id = await catalog_stats._first_id_at(db, lagged) - 1
-    buckets: dict[tuple[str, str], dict] = {}
-    scanned = 0
+        highwater_id = await catalog_stats._first_id_at(db, lagged) - 1
+        insert = catalog_stats._insert(db)
+        await db.execute(insert(WebArenaSeedProgress).values(
+            id="recent", observed_since=since, lagged_until=lagged,
+            first_id=first_id, highwater_id=highwater_id,
+            endpoints=list(endpoint_tasks()), last_id=first_id, endpoint_index=0,
+            scanned=0, eligible_calls=0, updated_at=at)
+            .on_conflict_do_nothing(index_elements=["id"]))
+        await db.commit()
+
+
+async def advance_recent_seed(session_factory=session_maker, *, max_rows: int = SEED_MAX_ROWS,
+                              page_rows: int = BATCH_ROWS, max_seconds: int = SEED_MAX_SECONDS) -> dict:
+    """Fold a bounded batch into separate aggregate staging rows and commit each page."""
+    consumed = 0
     started = time.monotonic()
-    for endpoint_id in endpoint_tasks():
-        cursor = first_id
-        while cursor < last_id:
-            if time.monotonic() - started > SEED_MAX_SECONDS:
-                raise TimeoutError("Web Arena seed exceeded its time limit; saved totals were not changed.")
-            async with session_factory() as db:
-                rows = (await db.execute(select(*CALL_COLUMNS).where(
-                    CallRecord.endpoint_id == endpoint_id, CallRecord.id > cursor,
-                    CallRecord.id <= last_id, CallRecord.created_at >= since,
-                    CallRecord.created_at < lagged)
-                    .order_by(CallRecord.id).limit(page_rows))).all()
+    while consumed < max_rows and time.monotonic() - started < max_seconds:
+        async with session_factory() as db:
+            progress = await _seed_progress(db)
+            if progress.endpoint_index >= len(progress.endpoints):
+                return {"ready": True, "rows_this_run": consumed,
+                        "scanned": progress.scanned, "eligible_calls": progress.eligible_calls}
+            endpoint_id = progress.endpoints[progress.endpoint_index]
+            limit = min(page_rows, max_rows - consumed)
+            rows = (await db.execute(select(*CALL_COLUMNS).where(
+                CallRecord.endpoint_id == endpoint_id, CallRecord.id > progress.last_id,
+                CallRecord.id <= progress.highwater_id,
+                CallRecord.created_at >= progress.observed_since,
+                CallRecord.created_at < progress.lagged_until)
+                .order_by(CallRecord.id).limit(limit))).all()
             if not rows:
-                break
-            scanned += len(rows)
-            if scanned > SEED_MAX_ROWS:
-                raise ValueError("Web Arena seed exceeded its row limit; saved totals were not changed.")
-            for row in rows:
-                if not eligible(row):
-                    continue
-                key = row.endpoint_id, row.created_at.strftime("%Y-%m-%d")
-                fold(buckets.setdefault(key, _new_bucket()), row)
-            cursor = rows[-1].id
-            if len(rows) < page_rows:
-                break
-    return {"observed_since": since, "cursor": last_id, "buckets": buckets,
-            "scanned": scanned, "eligible_calls": sum(bucket["calls"] for bucket in buckets.values())}
+                progress.endpoint_index += 1
+                progress.last_id = progress.first_id
+            else:
+                touched: dict[tuple[str, str], dict] = {}
+                for row in rows:
+                    if not eligible(row):
+                        continue
+                    key = row.endpoint_id, row.created_at.strftime("%Y-%m-%d")
+                    if key not in touched:
+                        existing = (await db.execute(select(WebArenaSeedDayStat).where(
+                            WebArenaSeedDayStat.endpoint_id == key[0],
+                            WebArenaSeedDayStat.day == key[1]))).scalar_one_or_none()
+                        touched[key] = _bucket_from(existing) if existing else _new_bucket()
+                    fold(touched[key], row)
+                insert = catalog_stats._insert(db)
+                for (endpoint, day), values in touched.items():
+                    stmt = insert(WebArenaSeedDayStat).values(endpoint_id=endpoint, day=day, **values)
+                    await db.execute(stmt.on_conflict_do_update(
+                        index_elements=["endpoint_id", "day"],
+                        set_={field: getattr(stmt.excluded, field) for field in values}))
+                progress.last_id = rows[-1].id
+                progress.scanned += len(rows)
+                progress.eligible_calls += sum(eligible(row) for row in rows)
+                if len(rows) < limit:
+                    progress.endpoint_index += 1
+                    progress.last_id = progress.first_id
+            progress.updated_at = now()
+            db.add(progress)
+            await db.commit()
+            consumed += len(rows)
+    return {"rows_this_run": consumed, **await recent_seed_status(session_factory)}
 
 
-async def replace_with_seed(db, seed: dict) -> None:
-    """Replace this module's two owned tables within the caller's one transaction."""
+async def recent_seed_status(session_factory=session_maker) -> dict:
+    async with session_factory() as db:
+        progress = await db.get(WebArenaSeedProgress, "recent")
+        if progress is None:
+            return {"ready": False}
+        return {"ready": progress.endpoint_index >= len(progress.endpoints),
+                "scanned": progress.scanned, "eligible_calls": progress.eligible_calls,
+                "endpoint_index": progress.endpoint_index,
+                "endpoint_count": len(progress.endpoints),
+                "observed_since": progress.observed_since.isoformat() + "Z"}
+
+
+async def finish_recent_seed(db) -> dict:
+    """Atomically replace partial live totals only after all staged endpoints are complete."""
+    progress = await _seed_progress(db)
+    if progress.endpoint_index < len(progress.endpoints):
+        raise ValueError("Web Arena seed is not complete; saved totals were not changed.")
     insert = catalog_stats._insert(db)
     await db.execute(insert(WebArenaCallCursor).values(
         id=CURSOR_ID, call_id=-1, updated_at=now()).on_conflict_do_nothing(index_elements=["id"]))
@@ -129,12 +184,20 @@ async def replace_with_seed(db, seed: dict) -> None:
     if cursor.observed_since is not None:
         raise ValueError("Web Arena has already been seeded; no totals were changed.")
     await db.execute(delete(WebArenaCallDayStat))
-    for (endpoint_id, day), values in seed["buckets"].items():
-        db.add(WebArenaCallDayStat(endpoint_id=endpoint_id, day=day, **values))
-    cursor.call_id = seed["cursor"]
-    cursor.observed_since = seed["observed_since"]
+    staged = (await db.execute(select(WebArenaSeedDayStat))).scalars().all()
+    for row in staged:
+        db.add(WebArenaCallDayStat(endpoint_id=row.endpoint_id, day=row.day,
+                                  **_bucket_from(row)))
+    cursor.call_id = progress.highwater_id
+    cursor.observed_since = progress.observed_since
     cursor.updated_at = now()
     db.add(cursor)
+    result = {"observed_since": progress.observed_since.isoformat() + "Z",
+              "scanned": progress.scanned, "eligible_calls": progress.eligible_calls,
+              "daily_rows": len(staged), "cursor": progress.highwater_id}
+    await db.execute(delete(WebArenaSeedDayStat))
+    await db.delete(progress)
+    return result
 
 
 async def coverage_start(session_factory=session_maker) -> datetime | None:

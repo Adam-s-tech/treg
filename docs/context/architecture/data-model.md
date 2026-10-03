@@ -30,7 +30,7 @@ sources:
   - src/treg/alembic/versions/0015_idempotentcall_membership_cascade.py
   - src/treg/alembic/versions/0053_idempotentcall_membership_expires_index.py
   - src/treg/alembic/versions/0054_callrecord_org_id_id.py
-  - src/treg/alembic/versions/0060_remove_redundant_unique_indexes.py
+  - src/treg/alembic/versions/0061_remove_redundant_unique_indexes.py
   - src/treg/alembic/versions/0034_managed_api_keys.py
   - src/treg/alembic/versions/0035_default_key_generation.py
   - src/treg/alembic/versions/0036_activity_key_indexes.py
@@ -498,7 +498,7 @@ module-level `contract = True` and name its rollback floor in the module docstri
 0004, and 0008 declare theirs: each adds a NOT NULL column and drops its server default, so older
 code can no longer insert rows.
 
-Revision `0060` removes the redundant ordinary indexes on `ArchiveKey.key_hash`,
+Revision `0061` removes the redundant ordinary indexes on `ArchiveKey.key_hash`,
 `OAuthRefresh.token_hash`, `OAuthClient.client_id`, `OAuthCode.code` and `ArenaEvaluation.run_id`.
 Their named single-column unique constraints retain indexed lookups and uniqueness; model metadata
 declares only those constraints. Composite-prefix indexes are unchanged. The migration checks every

@@ -96,20 +96,25 @@ async def refresh_live():
 
 
 async def seed_recent():
-    """One-time initial ten-day seed; swap content-free totals only after the scan succeeds."""
+    """Resume a bounded seed pass; swap live totals only after every endpoint is folded."""
     if get_settings().web_arena_enabled:
         raise ValueError("Disable Web Arena before replacing its initial observation totals.")
-    async with asyncio.timeout(web_arena_calls.SEED_MAX_SECONDS):
-        seed = await web_arena_calls.build_recent_seed()
+    await web_arena_calls.start_recent_seed()
+    try:
+        async with asyncio.timeout(web_arena_calls.SEED_MAX_SECONDS + 10):
+            progress = await web_arena_calls.advance_recent_seed()
+    except TimeoutError:
+        return {"seeded": False, "reason": "time limit; progress saved", "retry": True,
+                **await web_arena_calls.recent_seed_status()}
+    if not progress["ready"]:
+        return {"seeded": False, "reason": "more matching calls remain", "retry": True,
+                **progress}
     async with session_maker() as db:
-        await web_arena_calls.replace_with_seed(db, seed)
+        seed = await web_arena_calls.finish_recent_seed(db)
         await db.execute(delete(WebArenaPublication).where(WebArenaPublication.id == "live:current"))
         await db.commit()
     publication = await refresh_live()
-    return {"seeded": True, "observed_since": seed["observed_since"].isoformat() + "Z",
-            "scanned": seed["scanned"], "eligible_calls": seed["eligible_calls"],
-            "daily_rows": len(seed["buckets"]), "cursor": seed["cursor"],
-            "publication": publication}
+    return {"seeded": True, **seed, "publication": publication}
 
 
 async def refresh_live_if_due():

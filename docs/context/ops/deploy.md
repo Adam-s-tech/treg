@@ -97,7 +97,7 @@ attempts so the table's short transactions can drain, and `env.py` commits each 
 fails the deploy at once. Concurrent index creation or removal may use longer bounded timeouts in
 its own revision: its lock permits ordinary reads and writes, although it conflicts with other
 maintenance. Such a revision restores the caller's timeouts and handles interruption: invalid builds
-must be rebuilt, and a partially completed removal must be retryable. Revision `0060` removes only
+must be rebuilt, and a partially completed removal must be retryable. Revision `0061` removes only
 ordinary indexes with verified unique-constraint replacements; its rollback recreates those indexes
 concurrently and requires enough disk space for them.
 
