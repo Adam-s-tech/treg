@@ -313,10 +313,21 @@
       async start(){
         const quote=this.readyQuote;if(!quote||!this.selected.length)return;
         this.busy=true;this.error='';
-        try{const r=await this.api('/web-arena/api/runs/'+quote.id+'/start',{method:'POST'});this.quote=null;this.quotedKey='';this.running=true;this.run={id:r.id,state:'running',attempts:[]};await this.poll();this.poller=setInterval(()=>this.poll(),1500);}
+        try{const r=await this.api('/web-arena/api/runs/'+quote.id+'/start',{method:'POST'});this.quote=null;this.quotedKey='';this.running=true;this.run={id:r.id,state:'running',attempts:[]};await this.poll();if(this.running)this.poller=setInterval(()=>this.poll(),1500);}
         catch(e){this.error=e.message;}finally{this.busy=false;}
       },
-      async poll(){if(!this.run)return;try{this.run=await this.api('/web-arena/api/runs/'+this.run.id);if(this.run.state!=='running'){clearInterval(this.poller);this.poller=null;this.running=false;await this.loadHistory();await this.loadBalance();await this.loadInsights();this.scheduleQuote(0);}}catch(e){clearInterval(this.poller);this.poller=null;this.running=false;this.error=e.message;}},
+      async poll(){
+        if(!this.run)return;
+        let latest;
+        try{latest=await this.api('/web-arena/api/runs/'+this.run.id);}
+        catch(e){this.error='Could not refresh the run. Retrying…';return;}
+        this.run=latest;
+        if(this.error==='Could not refresh the run. Retrying…')this.error='';
+        if(this.run.state==='running')return;
+        clearInterval(this.poller);this.poller=null;this.running=false;
+        try{await this.loadHistory();await this.loadBalance();await this.loadInsights();this.scheduleQuote(0);}
+        catch(e){this.error=e.message;}
+      },
       async loadRun(id){this.error='';try{const run=await this.api('/web-arena/api/runs/'+id);clearInterval(this.poller);this.poller=null;this.running=run.state==='running';this.run=run;this.task=run.task;this.leaderboardView='rate';this.leaderboardOrientation='vertical';this.chartFocus=null;this.value=run.input;this.query=run.query||'';this.mode=run.mode;this.jev=run.jev;this.showPreview();this.selected=run.attempts.map(a=>a.provider);this.selectionTouched=true;this.resetRoster();this.scheduleQuote();if(this.running)this.poller=setInterval(()=>this.poll(),1500);}catch(e){this.error=e.message;}},
       newRun(){clearInterval(this.poller);this.poller=null;this.running=false;this.run=null;this.value='';this.query='';this.showPreview();this.scheduleQuote();this.remember();},
       async cancel(){try{await this.api('/web-arena/api/runs/'+this.run.id+'/cancel',{method:'POST'});await this.poll();}catch(e){this.error=e.message;}},

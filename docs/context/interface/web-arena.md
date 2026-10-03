@@ -91,8 +91,9 @@ The Results heading has an icon toggle for card and compact table views with too
 keeps Fastest, Cheapest, Most Relevant, and Token Efficient badges below the provider name. Its
 plus action expands the full links
 or provider output; thumbs, cost, time, and quality stay in the row.
-While a run is live, the lineup shows only its selected providers, uses Enrich Arena's fight and
-win animation, and puts Stop beside the fighters.
+While a run is live, the lineup shows only its selected providers and uses Enrich Arena's fight and
+win animation. Stop replaces the Run button beside the query. A transient status-poll failure
+keeps the run active in the browser and retries the poll; the saved run state controls Stop's visibility.
 Completed Battle runs mark the fastest and cheapest successful results when all compared values
 are known. Search Battles mark the highest estimated intent match among at least two scored,
 successful results; an unscored provider does not suppress that badge. Ties receive the same badge.
