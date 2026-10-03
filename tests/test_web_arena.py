@@ -169,6 +169,7 @@ async def test_local_leaderboard_uses_saved_totals_if_old_runs_cannot_decrypt(mo
         raise InvalidToken
 
     monkeypatch.setattr(web_arena_publications, "_live_rows", rows)
+    monkeypatch.setattr(web_arena_publications.web_arena_calls, "coverage_start", lambda: asyncio.sleep(0, result=None))
     monkeypatch.setattr(web_arena_publications.web_arena_calls, "local_snapshot", lambda: asyncio.sleep(0, result={}))
     monkeypatch.setattr(web_arena_publications, "published", saved)
     monkeypatch.setattr(web_arena_publications.arena, "_unpack", cannot_decrypt)
@@ -196,6 +197,7 @@ async def test_local_leaderboard_keeps_readable_runs_when_old_runs_cannot_decryp
         return payload
 
     monkeypatch.setattr(web_arena_publications, "_live_rows", rows)
+    monkeypatch.setattr(web_arena_publications.web_arena_calls, "coverage_start", lambda: asyncio.sleep(0, result=None))
     monkeypatch.setattr(web_arena_publications.web_arena_calls, "local_snapshot", lambda: asyncio.sleep(0, result={}))
     monkeypatch.setattr(web_arena_publications, "published", saved)
     monkeypatch.setattr(web_arena_publications.arena, "_unpack", unpack)
