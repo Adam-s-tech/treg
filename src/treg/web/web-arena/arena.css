@@ -35,6 +35,8 @@
 .web-info-wrap:is(:hover,:focus-within) .web-info-tooltip{visibility:visible;opacity:1}
 .web-intent-info .web-info-tooltip{left:auto;right:0}
 .web-controls .run-button{margin-left:auto}
+.web-controls .web-stop-button{background:#fff;border:1px solid #d68b94;color:#963c48}
+.web-controls .web-stop-button:hover:not(:disabled){background:#fff3f4}
 .price-note{color:var(--muted);font-size:11px}
 .web-card{background:#fff;border:1px solid var(--line);border-radius:24px;padding:24px;margin:16px 0}
 .web-card h2{font-size:22px}.web-card h3{font-size:17px}

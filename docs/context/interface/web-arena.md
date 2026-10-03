@@ -68,6 +68,8 @@ The signup dialog uses Enrich Arena's layout, OAuth availability from `/meta`, e
 step, local development code notice, and legal links. After sign-in, Web Arena opens the same
 shared setup dialog as Enrich Arena: a new user names a team, then chooses an agent and gets
 setup instructions. An OAuth return resumes that setup, and the query draft survives the redirect.
+The team switcher shares Enrich Arena's saved team selection and restores it on reload when the
+user still belongs to that team. Creating a team saves that selection too.
 Opening a saved run restores its selected fighters from the saved attempts. Failed, empty, and
 downvoted attempts use the fallen fighter pose; other available providers stay excluded.
 The current quote appears on the Run button without a separate price step.
@@ -91,8 +93,9 @@ The Results heading has an icon toggle for card and compact table views with too
 keeps Fastest, Cheapest, Most Relevant, and Token Efficient badges below the provider name. Its
 plus action expands the full links
 or provider output; thumbs, cost, time, and quality stay in the row.
-While a run is live, the lineup shows only its selected providers, uses Enrich Arena's fight and
-win animation, and puts Stop beside the fighters.
+While a run is live, the lineup shows only its selected providers and uses Enrich Arena's fight and
+win animation. Stop replaces the Run button beside the query. A transient status-poll failure
+keeps the run active in the browser and retries the poll; the saved run state controls Stop's visibility.
 Completed Battle runs mark the fastest and cheapest successful results when all compared values
 are known. Search Battles mark the highest estimated intent match among at least two scored,
 successful results; an unscored provider does not suppress that badge. Ties receive the same badge.
