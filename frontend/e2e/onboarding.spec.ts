@@ -3,11 +3,11 @@ import { expect, test } from '@playwright/test'
 // The first-run flow on the browser-test server (no lookup keys, no provider credit): every sheet
 // still opens, moves on, and ends on the dashboard.
 test('a new account goes from setup to a first call to the dashboard', async ({ page }) => {
-  await page.goto('/app')
-  await page.getByRole('button', { name: 'Start free' }).first().click()
+  // signed in the way e2e/helpers.ts signIn does, without its team-name modal step
+  await page.goto('/app?ref=frontend-test')
   await page.getByPlaceholder('you@work.com').fill(`new-${Date.now()}@onboarding.test`)
   await page.getByRole('button', { name: 'Email me a sign-in code' }).click()
-  const code = await page.getByText(/your code: \d{6}/).innerText()
+  const code = await page.getByText(/dev code \d{6}/).innerText()
   await page.getByPlaceholder('6-digit code').fill(code.match(/\d{6}/)![0])
   await page.getByRole('dialog', { name: 'Sign in' }).getByRole('button', { name: 'Sign in', exact: true }).click()
 

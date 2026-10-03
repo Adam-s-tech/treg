@@ -314,7 +314,8 @@ async def test_the_experiment_is_for_work_addresses_judged_once_per_domain(c, mo
     def judge(request: httpx.Request) -> httpx.Response:
         state = json.loads(request.content)["state"]
         asked.append(state)
-        return httpx.Response(200, json={"answers": {"work": {"noul": 0.9 if "acme.io" in state else 0.1}}})
+        domain = state.split("<domain>", 1)[1].split("</domain>", 1)[0]
+        return httpx.Response(200, json={"answers": {"work": {"noul": 0.9 if domain == "acme.io" else 0.1}}})
 
     await app.state.http.aclose()
     app.state.http = AsyncClient(transport=httpx.MockTransport(judge))
