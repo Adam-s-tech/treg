@@ -418,7 +418,7 @@ def main(argv: list[str] | None = None) -> int:
     websub = web_arena.add_subparsers(dest="cmd", required=True)
     totals = websub.add_parser("totals", help="publish content-free Web provider totals")
     totals.set_defaults(fn=_web_arena_totals)
-    seed = websub.add_parser("seed", help="replace partial Web totals with a bounded ten-day seed once")
+    seed = websub.add_parser("seed", help="resume a bounded ten-day Web observation seed")
     seed.set_defaults(fn=_web_arena_seed)
     catalog = sub.add_parser("catalog", help="catalog read models derived from the audit table")
     catalogsub = catalog.add_subparsers(dest="cmd", required=True)

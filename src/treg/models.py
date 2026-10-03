@@ -1887,6 +1887,35 @@ class WebArenaCallCursor(SQLModel, table=True):
     observed_since: NaiveUTC | None = None  # start of the one-time shortened observation seed
 
 
+class WebArenaSeedProgress(SQLModel, table=True):
+    """Saved position in the initial Web observation seed."""
+    id: str = Field(primary_key=True)
+    observed_since: NaiveUTC
+    lagged_until: NaiveUTC
+    first_id: int
+    highwater_id: int
+    endpoints: list[str] = Field(sa_type=JSON)
+    last_id: int
+    endpoint_index: int = 0
+    scanned: int = 0
+    eligible_calls: int = 0
+    updated_at: NaiveUTC = Field(default_factory=_now)
+
+
+class WebArenaSeedDayStat(SQLModel, table=True):
+    """Content-free daily buckets kept separate until the seed is complete."""
+    __table_args__ = (UniqueConstraint("endpoint_id", "day", name="uq_webarenaseeddaystat_endpoint_day"),)
+    id: int | None = Field(default=None, primary_key=True)
+    endpoint_id: str = Field(index=True)
+    day: str = Field(index=True)
+    calls: int = 0
+    decided: int = 0
+    hits: int = 0
+    timed: int = 0
+    duration_sum_ms: int = 0
+    duration_sample: list[int] = Field(default_factory=list, sa_type=JSON)
+
+
 class ArenaEvaluation(SQLModel, table=True):
     """One immutable preference for a run's creator, including its exposure context."""
     __table_args__ = (UniqueConstraint("run_id", name="uq_arena_evaluation"),)
