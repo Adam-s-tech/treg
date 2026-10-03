@@ -1105,7 +1105,7 @@ class OAuthClient(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("client_id", name="uq_oauth_client_id"),)
 
     id: int | None = Field(default=None, primary_key=True)
-    client_id: str = Field(index=True)
+    client_id: str
     kind: str = Field(default="dcr")            # "dcr" | "cimd"
     client_name: str = Field(default="")
     client_uri: str = Field(default="")
@@ -1143,7 +1143,7 @@ class OAuthCode(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("code", name="uq_oauth_code"),)
 
     id: int | None = Field(default=None, primary_key=True)
-    code: str = Field(index=True)
+    code: str
     client_id: str = Field(index=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     org_id: int = Field(foreign_key="org.id", index=True)
@@ -1193,7 +1193,7 @@ class OAuthRefresh(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("token_hash", name="uq_oauth_refresh_token"),)
 
     id: int | None = Field(default=None, primary_key=True)
-    token_hash: str = Field(index=True)
+    token_hash: str
     family_id: str = Field(index=True)      # every descendant of one grant shares this
     client_id: str = Field(index=True)
     user_id: int = Field(foreign_key="user.id", index=True)
@@ -1706,7 +1706,7 @@ class ArchiveKey(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("key_hash", name="uq_archive_key_hash"),)
 
     id: int | None = Field(default=None, primary_key=True)
-    key_hash: str = Field(index=True)              # sha256 from archive.cache_key
+    key_hash: str                                 # sha256 from archive.cache_key
     endpoint_id: str = Field(index=True)           # catalog endpoint id — policy + report joins
     provider: str = Field(default="", index=True)  # denormalized for per-provider budgets/reports
     policy: str = Field(default="forbidden")       # effective policy when last written (see archive)
@@ -1892,7 +1892,7 @@ class ArenaEvaluation(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("run_id", name="uq_arena_evaluation"),)
     id: str = Field(primary_key=True)
     org_id: int = Field(foreign_key="org.id", index=True)
-    run_id: str = Field(foreign_key="arenarun.id", index=True)
+    run_id: str = Field(foreign_key="arenarun.id")
     user_id: int
     kind: str
     payload: str  # encrypted selection, exposure snapshot, reasons and optional comment

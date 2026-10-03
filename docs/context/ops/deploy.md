@@ -94,9 +94,12 @@ for an `ALTER`. A deploy waits longer by retrying instead: `maintenance` re-runs
 head` up to `LOCK_RETRY_ATTEMPTS` times after a lock timeout, pausing a jittered few seconds between
 attempts so the table's short transactions can drain, and `env.py` commits each revision on its own
 (`transaction_per_migration`) so a retry resumes at the revision that timed out. Any other error
-fails the deploy at once. The one sanctioned exception to the 5 s cap is `CREATE INDEX CONCURRENTLY`
-in its own revision: its lock blocks nobody while it waits, so such a revision owns its longer
-timeouts and must detect and rebuild an invalid index left by interruption.
+fails the deploy at once. Concurrent index creation or removal may use longer bounded timeouts in
+its own revision: its lock permits ordinary reads and writes, although it conflicts with other
+maintenance. Such a revision restores the caller's timeouts and handles interruption: invalid builds
+must be rebuilt, and a partially completed removal must be retryable. Revision `0060` removes only
+ordinary indexes with verified unique-constraint replacements; its rollback recreates those indexes
+concurrently and requires enough disk space for them.
 
 Hot-table ALTERs stay cheap to retry when they sit in their own revision, add only nullable columns
 without defaults (metadata-only in PostgreSQL) and leave backfills and `NOT NULL` to later steps.
