@@ -76,7 +76,9 @@ async def test_arena_opens_with_flag_without_benchmark_publication(clients, monk
     get_settings.cache_clear()
     try:
         assert (await clients.get("/web-arena")).status_code == 200
-        assert (await clients.get("/web-arena/leaderboard")).status_code == 200
+        old_page = await clients.get("/web-arena/leaderboard", follow_redirects=False)
+        assert old_page.status_code == 308
+        assert old_page.headers["location"] == "/web-arena"
         assert (await clients.get("/web-arena/api/tasks")).status_code == 200
         assert (await clients.get("/web-arena/benchmark")).status_code == 404
         assert (await clients.get("/web-arena/api/benchmark")).status_code == 404

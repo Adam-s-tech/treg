@@ -2,7 +2,7 @@
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..application import web_arena, web_arena_publications
@@ -36,10 +36,15 @@ async def _answer(awaitable):
 
 
 @router.get("/web-arena", include_in_schema=False)
-@router.get("/web-arena/leaderboard", include_in_schema=False)
 async def web_arena_page():
     _enabled()
     return FileResponse(_WEB / "web-arena.html", headers={"Cache-Control": "no-cache"})
+
+
+@router.get("/web-arena/leaderboard", include_in_schema=False)
+async def web_arena_old_leaderboard():
+    _enabled()
+    return RedirectResponse("/web-arena", status_code=308)
 
 
 @router.get("/web-arena/{asset}", include_in_schema=False)
