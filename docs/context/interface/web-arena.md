@@ -64,8 +64,10 @@ a short pause. The lineup keeps selected fighters first and orders each group by
 price, then uses input-specific quoted prices when available. Battle and Waterfall share this
 visual order; Battle still calls providers in parallel. The lineup has controls to scroll through
 providers and does not show a generic caption beneath each provider before a run.
-The signup and team dialogs use Enrich Arena's layout, OAuth availability from `/meta`, email-code
-step, local development code notice, and legal links. The draft survives an OAuth redirect.
+The signup dialog uses Enrich Arena's layout, OAuth availability from `/meta`, email-code
+step, local development code notice, and legal links. After sign-in, Web Arena opens the same
+shared setup dialog as Enrich Arena: a new user names a team, then chooses an agent and gets
+setup instructions. An OAuth return resumes that setup, and the query draft survives the redirect.
 Opening a saved run restores its selected fighters from the saved attempts. Failed, empty, and
 downvoted attempts use the fallen fighter pose; other available providers stay excluded.
 The current quote appears on the Run button without a separate price step.

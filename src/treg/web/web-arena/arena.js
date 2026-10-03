@@ -3,17 +3,24 @@
   'use strict';
   if (!window.Vue) return;
   const draftKey='treg.web-arena.draft.v1';
+  const signupSetupKey='treg.web-arena.signup-setup.v1';
   const resultViewKey='treg.web-arena.result-view.v1';
   const readResultView=()=>{try{return localStorage.getItem(resultViewKey)==='table'?'table':'cards';}catch{return 'cards';}};
   const saveDraft=d=>{try{sessionStorage.setItem(draftKey,JSON.stringify(d));}catch{}};
   const readDraft=()=>{try{return JSON.parse(sessionStorage.getItem(draftKey)||'null');}catch{return null;}};
+  const readSignup=()=>{try{return JSON.parse(sessionStorage.getItem(signupSetupKey)||'null');}catch{return null;}};
+  const clearSignup=()=>{try{sessionStorage.removeItem(signupSetupKey);}catch{}};
   Vue.createApp({
+    components:{TregTryItOut:TregAgentSetup.TryItOut,TregAgentPicker:TregAgentSetup.AgentPicker,TregSetupInstructions:TregAgentSetup.SetupInstructions},
     data:()=>({tasks:[{id:'search',label:'Web Search',enabled:true},{id:'fetch',label:'Web Fetch',enabled:true},{id:'sitemap',label:'Sitemap',enabled:true},{id:'brand',label:'Brand',enabled:false}],task:'search',value:'',query:'',mode:'battle',jev:true,
       user:null,teams:[],team:'',balance:null,quote:null,availableProviders:[],selected:[],run:null,resultView:readResultView(),history:[],live:null,insightsTimer:null,meta:{},
       leaderboardView:'rate',leaderboardOrientation:'vertical',chartFocus:null,
-      busy:false,pricing:false,running:false,error:'',authError:'',authBusy:false,email:'',code:'',authStep:'email',devCode:'',newTeamName:'',poller:null,
+      busy:false,pricing:false,running:false,error:'',authError:'',authBusy:false,email:'',code:'',authStep:'email',devCode:'',poller:null,
+      setupStep:1,setupTeamName:'',setupExampleCopied:'',setupAgentId:'claude-code',setupToken:null,setupShowToken:false,setupCopied:false,setupError:'',setupLoading:false,setupSequence:0,
       quoteTimer:null,quoteSequence:0,quotedKey:'',selectionTouched:false,rosterLeft:false,rosterRight:false,rosterObserver:null,expandedResults:{},expandedRows:{}}),
     computed:{
+      setupAgent(){return [...TregAgentSetup.agents,...TregAgentSetup.moreAgents].find(a=>a.id===this.setupAgentId)||TregAgentSetup.agents[0];},
+      setupCommand(){return TregAgentSetup.command(this.meta.public_url||location.origin);},
       liveRows(){return this.live?.task_results?.[this.task]||[];},
       coverageBuilding(){const start=Date.parse(this.live?.observed_since||'');return Number.isFinite(start)&&Date.now()-start<30*24*60*60*1000;},
       leaderboardViews(){
@@ -222,12 +229,52 @@
       async reloadTeam(){this.run=null;this.showPreview();this.scheduleQuote(0);await this.loadBalance();await this.loadHistory();},
       async loadInsights(){try{this.live=await this.api('/web-arena/api/leaderboard',{cache:'no-store'},'');}catch{this.live={status:'error',task_results:{}};}},
       async loadHistory(){if(this.user&&this.team)this.history=await this.api('/web-arena/api/runs');},
+      async openSetup(){
+        this.setupStep=this.user&&!this.team?0:1;this.setupTeamName='';this.setupToken=null;this.setupShowToken=false;this.setupCopied=false;this.setupError='';this.setupLoading=false;this.setupSequence++;
+        try{const saved=localStorage.getItem('treg-agent');if([...TregAgentSetup.agents,...TregAgentSetup.moreAgents].some(a=>a.id===saved))this.setupAgentId=saved;}catch{}
+        await this.$nextTick();this.$refs.setupDialog.showModal();
+      },
+      closeSetup(){if(this.setupStep===0&&this.setupLoading)return;this.setupSequence++;this.setupToken=null;this.setupShowToken=false;this.setupCopied=false;this.setupLoading=false;this.$refs.setupDialog.close();},
+      async createSetupTeam(){
+        if(this.setupLoading||!this.user)return;
+        const name=this.setupTeamName.trim();
+        if(!name){this.setupError='Give your team a name.';return;}
+        this.setupLoading=true;this.setupError='';
+        try{const created=await this.api('/orgs',{method:'POST',body:JSON.stringify({name})},'');this.team=created.org;this.setupStep=1;await this.loadIdentity();await this.loadHistory();}
+        catch(e){this.setupError=e.message;}
+        finally{this.setupLoading=false;}
+      },
+      async prepareSetup(){
+        if(this.setupLoading)return;
+        if(this.user&&!this.team){this.setupStep=0;return;}
+        const sequence=++this.setupSequence,team=this.team,user=this.user;
+        this.setupLoading=true;this.setupError='';this.setupToken=null;this.setupShowToken=false;this.setupCopied=false;
+        try{
+          try{localStorage.setItem('treg-agent',this.setupAgentId);}catch{}
+          if(user&&team){
+            const result=await this.api('/auth/cli-token',{},team);
+            if(sequence!==this.setupSequence||team!==this.team||user!==this.user)return;
+            if(!result.token)throw new Error('Could not load your setup key. Please try again.');
+            this.setupToken=result.token;
+          }
+          if(sequence===this.setupSequence)this.setupStep=2;
+        }catch(e){if(sequence===this.setupSequence)this.setupError=e.message;}
+        finally{if(sequence===this.setupSequence)this.setupLoading=false;}
+      },
+      showSetupExamples(){this.setupStep=3;this.setupShowToken=false;this.setupExampleCopied='';this.setupError='';},
+      openSetupCatalog(service){this.closeSetup();location.assign(service?'/app/marketplace/'+encodeURIComponent(service):'/app#connections');},
+      async copySetup(value,exampleKey=''){
+        const sequence=this.setupSequence;this.setupError='';
+        try{await navigator.clipboard.writeText(value);if(sequence!==this.setupSequence)return;this.setupCopied=!exampleKey;this.setupExampleCopied=exampleKey;setTimeout(()=>{if(sequence===this.setupSequence){this.setupCopied=false;this.setupExampleCopied='';}},1400);}
+        catch{if(sequence===this.setupSequence)this.setupError='Could not copy. Select the setup text and copy it manually.';}
+      },
       async openLogin(){this.remember();this.authError='';this.authStep='email';this.code='';this.devCode='';await this.$nextTick();this.$refs.login.showModal();},
-      closeLogin(){this.$refs.login.close();},
-      socialLogin(provider){this.remember();const target=(location.pathname||'/web-arena')+(location.search||'');location.assign('/auth/'+provider+'?return_to='+encodeURIComponent(target));},
+      closeLogin(){clearSignup();this.$refs.login.close();},
+      socialLogin(provider){this.remember();try{sessionStorage.setItem(signupSetupKey,JSON.stringify({at:Date.now()}));}catch{}const target=(location.pathname||'/web-arena')+(location.search||'');location.assign('/auth/'+provider+'?return_to='+encodeURIComponent(target));},
+      async finishSignup(){clearSignup();await this.openSetup();},
+      async resumeSignupSetup(){const pending=readSignup();if(!pending)return false;if(!Number.isFinite(pending.at)||Date.now()-pending.at>600000||pending.at>Date.now()){clearSignup();return false;}if(!this.user)return false;await this.finishSignup();return true;},
       async sendCode(){this.authBusy=true;this.authError='';try{const r=await this.api('/auth/email/start',{method:'POST',body:JSON.stringify({email:this.email})},'');this.authStep='code';this.devCode=r.dev_code||'';}catch(e){this.authError=e.message;}finally{this.authBusy=false;}},
-      async verifyCode(){this.authBusy=true;this.authError='';try{await this.api('/auth/email/verify',{method:'POST',body:JSON.stringify({email:this.email,code:this.code})},'');this.closeLogin();await this.loadIdentity();if(!this.teams.length)this.$refs.teamDialog.showModal();}catch(e){this.authError=e.message;}finally{this.authBusy=false;}},
-      async createTeam(){this.authBusy=true;this.authError='';try{await this.api('/orgs',{method:'POST',body:JSON.stringify({name:this.newTeamName})},'');this.$refs.teamDialog.close();await this.loadIdentity();}catch(e){this.authError=e.message;}finally{this.authBusy=false;}},
+      async verifyCode(){this.authBusy=true;this.authError='';try{await this.api('/auth/email/verify',{method:'POST',body:JSON.stringify({email:this.email,code:this.code})},'');this.$refs.login.close();await this.loadIdentity();await this.finishSignup();}catch(e){this.authError=e.message;}finally{this.authBusy=false;}},
       async logout(){try{await this.api('/auth/logout',{method:'POST'});this.user=null;this.teams=[];this.team='';this.balance=null;this.quote=null;this.run=null;this.history=[];this.showPreview();this.scheduleQuote();}catch(e){this.error=e.message;}},
       async prepare(quiet=false){
         clearTimeout(this.quoteTimer);
@@ -257,7 +304,7 @@
         if(!this.value.trim()){this.error='Enter a query or URL.';return;}
         if(!this.selected.length){this.error='Select at least one provider.';return;}
         if(!this.user){this.openLogin();return;}
-        if(!this.team){this.$refs.teamDialog.showModal();return;}
+        if(!this.team){await this.openSetup();return;}
         if(!this.readyQuote||Date.parse(this.readyQuote.expires_at)<=Date.now())await this.prepare(false);
         const q=this.readyQuote;if(!q)return;
         if(!q.affordable){this.error=q.limit_exceeded?'Select fewer providers to stay within the $10 run limit.':'Add team credits to run this quote.';return;}
@@ -287,7 +334,7 @@
           this.selectionTouched=this.selected.length!==this.availableProviders.length;
         }
         await this.loadInsights();
-        await this.loadIdentity();await this.loadHistory();
+        await this.loadIdentity();await this.loadHistory();await this.resumeSignupSetup();
         const id=new URLSearchParams(location.search).get('run');if(id&&this.user)await this.loadRun(id);
         this.insightsTimer=setInterval(()=>{if(!document.hidden)this.loadInsights();},120000);
       }catch(e){this.error=e.message;}

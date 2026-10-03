@@ -4,7 +4,7 @@
 <link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/enrich-arena/arena.css"><link rel="stylesheet" href="/web-arena/arena.css">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&amp;family=Geist+Pixel&amp;family=Google+Sans+Flex:opsz,wght@6..144,400..700&amp;display=swap">
-<script src="/sitetrack.js"></script><script src="/adtrack.js"></script><script src="/vendor/vue-3.5.41.global.prod.js" defer></script><script src="/web-arena/arena.js" defer></script></head>
+<script src="/sitetrack.js"></script><script src="/adtrack.js"></script><script src="/vendor/vue-3.5.41.global.prod.js" defer></script><script src="/agent-setup.js" defer></script><script src="/web-arena/arena.js" defer></script></head>
 <body><div id="web-arena" v-cloak>
 <header class="masthead"><a class="brand" href="/"><svg class="brandmark" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="112" fill="#101010"/><rect x="111" y="111" width="140.5" height="140.5" rx="20" fill="#fff"/><rect x="260.5" y="260.5" width="140.5" height="140.5" rx="20" fill="#fff"/></svg><span class="brand-name">treg</span><span class="brand-divider">/</span><span class="brand-sub">Web Arena</span></a>
     <nav class="arena-page-tabs" aria-label="Web Arena pages">
@@ -20,6 +20,7 @@
       <template v-if="user">
         <select v-if="teams.length>1" class="desktop-team-switcher" v-model="team" @change="reloadTeam" aria-label="Team paying for calls"><option v-for="t in teams" :value="t.slug">{{t.name}}</option></select>
         <div class="account-actions">
+          <button class="text-button" type="button" @click="openSetup">Set up treg ↗</button>
           <span v-if="balance!==null" class="balance">{{usd(balance)}} credits</span>
           <button class="text-button desktop-signout" @click="logout">Sign out</button>
           <details class="mobile-account-menu">
@@ -143,5 +144,30 @@
 </main></div>
 <footer class="web-page-footer"><span>Built with <a href="/">treg</a> — tools for the work ahead.</span><span>Private results · Retained for 30 days</span><span class="web-footer-links"><a href="/privacy">Privacy</a></span></footer>
 <dialog ref="login" @cancel="closeLogin"><button class="dialog-close" aria-label="Close signup" @click="closeLogin">×</button><h2>Sign up to continue.</h2><p>Your query is saved. Create an account, then set up treg in your agent.</p><div class="social-buttons"><button v-if="meta.google" type="button" @click="socialLogin('google')">Continue with Google ↗</button><button v-if="meta.github" type="button" @click="socialLogin('github')">Continue with GitHub ↗</button></div><form @submit.prevent="authStep==='code'?verifyCode():sendCode()"><label>Email<input v-model="email" type="email" autocomplete="email" required :disabled="authStep==='code'"></label><label v-if="authStep==='code'">Verification code<input v-model="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label><p v-if="devCode" class="notice">Local development code: {{devCode}}</p><p v-if="authError" role="alert" class="auth-error">{{authError}}</p><button class="primary" :disabled="authBusy">{{authBusy?'One moment…':authStep==='code'?'Verify & continue':'Email me a code'}}</button></form><p class="fine">By continuing, you agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</p></dialog>
-<dialog ref="teamDialog"><p class="eyebrow">A HOME FOR YOUR CREDITS</p><h2>Name your team.</h2><p>Web Arena uses your team balance. Create a team to continue.</p><form @submit.prevent="createTeam"><label>Team name<input v-model="newTeamName" required maxlength="80" placeholder="Your team"></label><p v-if="authError" class="auth-error" role="alert">{{authError}}</p><button class="primary" :disabled="authBusy">Create team &amp; continue ↗</button></form></dialog>
+<dialog ref="setupDialog" class="setup-dialog" :class="{'setup-try-dialog':setupStep===3}" aria-labelledby="setup-title" @cancel.prevent="closeSetup" @click.self="closeSetup">
+  <button class="dialog-close" type="button" aria-label="Close setup" :disabled="setupStep===0&&setupLoading" @click="closeSetup">×</button>
+  <template v-if="setupStep===0">
+    <p class="eyebrow">▚ treg</p><h2 id="setup-title">Name your team.</h2>
+    <p class="setup-subtitle">Create a team to get your API key and connect your agent. You can invite others later.</p>
+    <form @submit.prevent="createSetupTeam">
+      <label>Team name<input v-model="setupTeamName" required maxlength="80" placeholder="Your team" :disabled="setupLoading"></label>
+      <div class="setup-footer"><button class="text-button" type="button" @click="closeSetup" :disabled="setupLoading">Cancel</button><button class="primary" type="submit" :disabled="setupLoading">{{setupLoading?'Creating…':'Create team & continue →'}}</button></div>
+    </form>
+  </template>
+  <template v-else-if="setupStep===1">
+    <p class="eyebrow">▚ treg</p><h2 id="setup-title">Which agent are you using?</h2><p class="setup-subtitle">Choose your agent for the best setup instructions.</p>
+    <treg-agent-picker v-model="setupAgentId"></treg-agent-picker>
+    <div class="setup-footer"><button class="text-button" type="button" @click="closeSetup">Cancel</button><button class="primary" type="button" @click="prepareSetup" :disabled="setupLoading">{{setupLoading?'Loading…':'Next →'}}</button></div>
+  </template>
+  <template v-else-if="setupStep===2">
+    <h2 id="setup-title" class="sr-only">Set up treg in {{setupAgent.name}}</h2>
+    <treg-setup-instructions :agent="setupAgent" :command="setupCommand" :team="setupToken?team:''" :token="setupToken" :show-token="setupShowToken" :copied="setupCopied" @copy="copySetup" @toggle-token="setupShowToken=!setupShowToken"></treg-setup-instructions>
+    <div class="setup-footer"><button class="text-button" type="button" @click="setupStep=1;setupShowToken=false">← Back</button><button class="primary" type="button" @click="showSetupExamples">Next →</button></div>
+  </template>
+  <template v-else>
+    <treg-try-it-out heading-id="setup-title" :copied="setupExampleCopied" @example="copySetup($event.prompt,$event.k)" @provider="openSetupCatalog"></treg-try-it-out>
+    <div class="setup-footer"><button class="text-button" type="button" @click="openSetupCatalog()">Browse all catalog</button><button class="primary" type="button" @click="closeSetup">Done</button></div>
+  </template>
+  <p v-if="setupError" role="alert" class="auth-error">{{setupError}}</p>
+</dialog>
 </div></body></html>
