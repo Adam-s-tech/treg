@@ -35,6 +35,8 @@ claude plugin install jev-memory@treg-mods
 
 - `install` defaults to user scope: every project gets the mod, and each project keeps its own
   memory file. Add `--scope project` to limit it to the current repo.
+- It reports "3 userConfig options not yet set". That is fine: unset options use the defaults under
+  Options below.
 - Tell the user to run `/reload-plugins` in an open session, or start a new one. It worked when the
   `◆ jev memory` panel sits above the prompt and `/jev-memory` answers "Nothing saved yet".
 - To update later: `git -C ~/.claude/treg-mods pull`, then `claude plugin marketplace update treg-mods`.
