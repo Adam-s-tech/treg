@@ -2019,3 +2019,17 @@ class EndpointStatCursor(SQLModel, table=True):
     watermark: NaiveUTC | None = Field(default=None)  # created_at of the last consumed row
     caught_up_at: NaiveUTC | None = Field(default=None)
     updated_at: NaiveUTC = Field(default_factory=_now)
+
+
+class OnboardingProfile(SQLModel, table=True):
+    """One new user's first-run lookup: what was found about them, the ranked first tasks and their
+    filled-in inputs. One row per user, ever; `application.onboarding` is its only writer. The
+    payload is encrypted: it holds the email's GitHub profile, company and homepage evidence."""
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True, unique=True)   # provenance; no FK, like ArenaRun
+    org_id: int | None = Field(default=None, index=True)
+    status: str = "pending"        # pending (hints only) | running | done | failed
+    payload: str = ""
+    house_cost_micro: int = Field(default=0, sa_column=Column(BigInteger, nullable=False, server_default="0"))
+    created_at: NaiveUTC = Field(default_factory=_now)
+    finished_at: NaiveUTC | None = None

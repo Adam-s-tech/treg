@@ -58,6 +58,9 @@ EXPECTED_MAKERS: dict[str, set[str]] = {
 
     "application/referrals.py": {API}, "application/signup.py": {API},
     "application/onboard/__init__.py": {API},
+    # The first-run lookup: a short write per finished step, never across a GitHub, LLM or call wait.
+    "application/onboard/first_run.py": {API},
+    "application/onboard/work_email.py": {API},
     "application/call/authorize.py": {API}, "application/call/idempotency.py": {API},
     "application/call/intake.py": {API}, "application/call/overflow.py": {API},
     "application/call/reserve.py": {API}, "application/call/resolve.py": {API},
