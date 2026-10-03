@@ -19,6 +19,8 @@ endpoints:
     scope: any_account
     method: GET
     path: /v1/verify/single
+    resource_ownership:
+      produces: [{kind: single, path: id}]
     name: Verify email — catch-all, disposable and role flags
     summary: Verify email deliverability, including catch-all and protected mailboxes
     input:
@@ -85,15 +87,16 @@ endpoints:
     scope: any_account
     method: GET
     path: /v1/verify/single/status
+    resource_ownership:
+      requires: {kind: single, param: id}
     name: Get a single verification result
     summary: Poll a submitted verification by its task ID
     input:
       queryParams:
         id: {type: string, required: true, note: "task id returned by a standard or waterfall single request", example: "sanitized-task-id"}
-      note: "Free. Poll no more than 10 times per id in five minutes and stop after five minutes. BYOK only because task ownership belongs to the connected account."
+      note: "Free. Poll no more than 10 times per id in five minutes and stop after five minutes. On treg's key, only an id your team's verify call returned is accepted."
     test_request: {queryParams: {id: "sanitized-task-id"}}
     cost: {type: free, value: 0, currency: USD, unit: call, confidence: verified, note: "Live status polling used no verification credit"}
-    platform_blocked: "Shared-key task ownership is not available; connect your own BounceBan key."
     verified: '2026-09-16'
     example_response: examples/bounceban.people.email.verify.status.json
     docs_url: https://bounceban.com/public/doc/api.html#tag/Single-Verification
