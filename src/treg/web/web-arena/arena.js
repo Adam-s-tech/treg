@@ -16,6 +16,7 @@
       quoteTimer:null,quoteSequence:0,quotedKey:'',selectionTouched:false,rosterLeft:false,rosterRight:false,rosterObserver:null,expandedResults:{},expandedRows:{}}),
     computed:{
       liveRows(){return this.live?.task_results?.[this.task]||[];},
+      coverageBuilding(){const start=Date.parse(this.live?.observed_since||'');return Number.isFinite(start)&&Date.now()-start<30*24*60*60*1000;},
       leaderboardViews(){
         const common=[{id:'rate',label:'Hit rate'},{id:'price',label:'Price'},{id:'price_rate',label:'Price vs hit rate'}];
         if(this.task==='search')common.splice(1,0,{id:'relevance',label:'Relevance'});

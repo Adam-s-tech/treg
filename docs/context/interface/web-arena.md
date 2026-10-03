@@ -12,6 +12,7 @@ sources:
   - src/treg/models.py
   - src/treg/alembic/versions/0057_web_arena.py
   - src/treg/alembic/versions/0058_web_arena_call_stats.py
+  - src/treg/alembic/versions/0059_web_arena_seed_start.py
   - src/treg/config.py
   - src/treg/bootstrap.py
   - src/treg/worker.py
@@ -142,12 +143,20 @@ unrefused provider attempts enter the buckets. Adapter hit/miss verdicts and pro
 decide hit rate; unknown outcomes and caller 4xx do not. Only successful direct calls provide
 response-time samples. The collector processes backlog incrementally and never reads a provider
 answer body. `WebArenaCallDayStat` and `WebArenaCallCursor` are owned by this module.
+For an initial release with a large audit backlog, `treg-worker web-arena seed` scans only
+listed Web task endpoints from the most recent ten days. It builds bounded, content-free
+daily buckets before replacing any saved totals, sets the cursor at the seed's high-water
+mark, and records the actual observation start. The command requires Web Arena to be off
+and refuses to run a second time after a successful seed. If the scan fails or exceeds its
+row or time limit, existing totals remain. The ordinary collector then handles later calls
+and ages observations into the rolling 30-day window; it does not backfill the preceding
+20 days. The page displays the shorter observation coverage while that window fills.
 `web_arena_publications.refresh_live` joins those call observations with quality from completed
 Battle and Waterfall runs and saves content-free totals in `WebArenaPublication`. Quality wins
 remain Battle-only because they require simultaneous checked comparisons. The Arena preview and
 public leaderboard read that one publication. The scheduled `treg-worker arena insights` command
 collects new call observations on each tick and refreshes the publication
-when Web Arena is enabled, at most once every 30
+after the one-time seed or when Web Arena is enabled, at most once every 30
 minutes. The cron can run more often; `refresh_live_if_due` skips the full
 rolling-window read while the saved totals are fresh and retries on the next run after a
 failed refresh. The standalone

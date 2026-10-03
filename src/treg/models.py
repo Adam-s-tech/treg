@@ -1884,6 +1884,7 @@ class WebArenaCallCursor(SQLModel, table=True):
     id: str = Field(primary_key=True)
     call_id: int = 0
     updated_at: NaiveUTC = Field(default_factory=_now)
+    observed_since: NaiveUTC | None = None  # start of the one-time shortened observation seed
 
 
 class ArenaEvaluation(SQLModel, table=True):

@@ -6,8 +6,9 @@ only actual uncached provider attempts enter these numbers. Quality stays in Web
 from __future__ import annotations
 
 import random
+import time
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy import delete, select
 
@@ -23,6 +24,9 @@ LATENCY_SAMPLE = 400
 MIN_HIT_SAMPLES = 20
 MIN_TIME_SAMPLES = 20
 CURSOR_ID = "callrecord"
+SEED_DAYS = 10
+SEED_MAX_ROWS = 250_000
+SEED_MAX_SECONDS = 110
 CALL_COLUMNS = (CallRecord.id, CallRecord.endpoint_id, CallRecord.created_at,
                 CallRecord.kind, CallRecord.cached, CallRecord.refused_by,
                 CallRecord.hit, CallRecord.status_code, CallRecord.duration_ms)
@@ -70,6 +74,77 @@ def _bucket_from(row: WebArenaCallDayStat) -> dict:
     return {"calls": row.calls, "decided": row.decided, "hits": row.hits,
             "timed": row.timed, "duration_sum_ms": row.duration_sum_ms,
             "duration_sample": list(row.duration_sample or [])}
+
+
+async def build_recent_seed(session_factory=session_maker, *, at: datetime | None = None,
+                            page_rows: int = BATCH_ROWS) -> dict:
+    """Read only listed Web endpoints, in bounded pages, before changing any saved totals.
+
+    The two ID bounds freeze an initial ten-day slice. Calls inserted during the scan have
+    higher IDs and are picked up by the normal cursor after the seed is committed.
+    """
+    at = at or now()
+    since, lagged = at - timedelta(days=SEED_DAYS), at - LAG
+    async with session_factory() as db:
+        first_id = await catalog_stats._first_id_at(db, since) - 1
+        last_id = await catalog_stats._first_id_at(db, lagged) - 1
+    buckets: dict[tuple[str, str], dict] = {}
+    scanned = 0
+    started = time.monotonic()
+    for endpoint_id in endpoint_tasks():
+        cursor = first_id
+        while cursor < last_id:
+            if time.monotonic() - started > SEED_MAX_SECONDS:
+                raise TimeoutError("Web Arena seed exceeded its time limit; saved totals were not changed.")
+            async with session_factory() as db:
+                rows = (await db.execute(select(*CALL_COLUMNS).where(
+                    CallRecord.endpoint_id == endpoint_id, CallRecord.id > cursor,
+                    CallRecord.id <= last_id, CallRecord.created_at >= since,
+                    CallRecord.created_at < lagged)
+                    .order_by(CallRecord.id).limit(page_rows))).all()
+            if not rows:
+                break
+            scanned += len(rows)
+            if scanned > SEED_MAX_ROWS:
+                raise ValueError("Web Arena seed exceeded its row limit; saved totals were not changed.")
+            for row in rows:
+                if not eligible(row):
+                    continue
+                key = row.endpoint_id, row.created_at.strftime("%Y-%m-%d")
+                fold(buckets.setdefault(key, _new_bucket()), row)
+            cursor = rows[-1].id
+            if len(rows) < page_rows:
+                break
+    return {"observed_since": since, "cursor": last_id, "buckets": buckets,
+            "scanned": scanned, "eligible_calls": sum(bucket["calls"] for bucket in buckets.values())}
+
+
+async def replace_with_seed(db, seed: dict) -> None:
+    """Replace this module's two owned tables within the caller's one transaction."""
+    insert = catalog_stats._insert(db)
+    await db.execute(insert(WebArenaCallCursor).values(
+        id=CURSOR_ID, call_id=-1, updated_at=now()).on_conflict_do_nothing(index_elements=["id"]))
+    cursor = (await db.execute(select(WebArenaCallCursor).where(
+        WebArenaCallCursor.id == CURSOR_ID).with_for_update())).scalar_one()
+    if cursor.observed_since is not None:
+        raise ValueError("Web Arena has already been seeded; no totals were changed.")
+    await db.execute(delete(WebArenaCallDayStat))
+    for (endpoint_id, day), values in seed["buckets"].items():
+        db.add(WebArenaCallDayStat(endpoint_id=endpoint_id, day=day, **values))
+    cursor.call_id = seed["cursor"]
+    cursor.observed_since = seed["observed_since"]
+    cursor.updated_at = now()
+    db.add(cursor)
+
+
+async def coverage_start(session_factory=session_maker) -> datetime | None:
+    async with session_factory() as db:
+        cursor = await db.get(WebArenaCallCursor, CURSOR_ID)
+        return cursor.observed_since if cursor else None
+
+
+async def seeded(session_factory=session_maker) -> bool:
+    return await coverage_start(session_factory) is not None
 
 
 async def collect(session_factory=session_maker, *, max_rows: int = 50_000,
@@ -178,6 +253,9 @@ async def local_snapshot(session_factory=session_maker) -> dict[str, dict[str, d
     if not ids:
         return {}
     since = now() - timedelta(days=WINDOW_DAYS)
+    observed_since = await coverage_start(session_factory)
+    if observed_since is not None:
+        since = max(since, observed_since)
     async with session_factory() as db:
         rows = (await db.execute(select(*CALL_COLUMNS).where(
             CallRecord.endpoint_id.in_(ids), CallRecord.created_at >= since,
