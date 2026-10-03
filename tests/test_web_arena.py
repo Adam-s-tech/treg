@@ -1,15 +1,22 @@
 """Web Arena safety and score rules that do not need paid provider calls."""
 import asyncio
+import json
 from datetime import timedelta
 from types import SimpleNamespace
 import pytest
 from cryptography.fernet import InvalidToken
+from sqlmodel import select
 
 from treg.domain import web_arena, web_arena_scores
 from treg.application import web_arena as app, web_arena_quality, web_arena_publications
 from treg.application.call import service
+from treg.application.call.types import UpstreamResponse
 from treg.config import get_settings
 from treg.domain.catalog import store as catalog_store
+from treg.infra import db as infra_db
+from treg.infra.db import session_maker
+from treg.models import Hold, LedgerEntry
+from test_marketplace_call import _balance
 from test_routing import _relay_by_provider
 
 
@@ -331,6 +338,119 @@ async def test_battle_quotes_and_settles_direct_search_with_jev_off(clients, mon
         assert run["attempts"][0]["charged_micro"] is not None
         assert len(seen) == 1 and seen[0][3]["limit"] == 10
     finally:
+        get_settings.cache_clear()
+
+
+async def test_web_arena_run_is_private_to_its_creator(clients, monkeypatch):
+    monkeypatch.setenv("TREG_WEB_ARENA_ENABLED", "true")
+    monkeypatch.setenv("TREG_PLATFORM_KEY_FIRECRAWL", "TEST-FIRECRAWL")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "firecrawl")
+    get_settings.cache_clear()
+    try:
+        quote = await clients.post("/web-arena/api/quotes", json={
+            "task": "search", "value": "private query", "providers": ["firecrawl"], "jev": False})
+        assert quote.status_code == 200, quote.text
+        run_id = quote.json()["id"]
+        path = f"/web-arena/api/runs/{run_id}"
+        attempt_id = (await clients.get(path)).json()["attempts"][0]["id"]
+        other = (await clients.post("/users", json={"email": "other-web-arena@example.com"})).json()["token"]
+        headers = {"X-Treg-Token": other}
+        assert (await clients.get(path, headers=headers)).status_code == 404
+        assert (await clients.post(path + "/start", headers=headers)).status_code == 404
+        assert (await clients.post(path + "/cancel", headers=headers)).status_code == 404
+        assert (await clients.post(path + f"/attempts/{attempt_id}/rating", json={"value": "up"},
+                                   headers=headers)).status_code == 404
+        assert (await clients.get("/web-arena/api/runs", headers=headers)).json() == []
+        assert (await clients.get(path)).status_code == 200
+    finally:
+        get_settings.cache_clear()
+
+
+async def test_web_arena_releases_api_connection_while_provider_waits(clients, monkeypatch):
+    monkeypatch.setenv("TREG_WEB_ARENA_ENABLED", "true")
+    monkeypatch.setenv("TREG_PLATFORM_KEY_FIRECRAWL", "TEST-FIRECRAWL")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "firecrawl")
+    get_settings.cache_clear()
+    entered, resume = asyncio.Event(), asyncio.Event()
+
+    async def relay(*args, **kwargs):
+        entered.set()
+        await resume.wait()
+        async def body():
+            yield json.dumps({"data": {"web": [{"url": "https://example.com/a", "title": "A"}]},
+                              "creditsUsed": 1}).encode()
+        async def close():
+            pass
+        return UpstreamResponse(200, ((b"content-type", b"application/json"),), body(), close)
+
+    monkeypatch.setattr(service, "relay", relay)
+    try:
+        quote = await clients.post("/web-arena/api/quotes", json={
+            "task": "search", "value": "pool check", "providers": ["firecrawl"], "jev": False})
+        assert quote.status_code == 200, quote.text
+        run_id = quote.json()["id"]
+        assert (await clients.post(f"/web-arena/api/runs/{run_id}/start")).status_code == 200
+        await asyncio.wait_for(entered.wait(), 15)
+        assert infra_db._engine.sync_engine.pool.checkedout() == 0
+        async with session_maker() as db:
+            assert (await db.execute(select(Hold))).scalars().all()
+        assert infra_db._engine.sync_engine.pool.checkedout() == 0
+    finally:
+        resume.set()
+        if "run_id" in locals() and (worker := app._owners.get(run_id)):
+            await asyncio.wait_for(asyncio.shield(worker), 15)
+        get_settings.cache_clear()
+
+
+@pytest.mark.parametrize("stop", ["cancel", "timeout"])
+async def test_web_arena_cancel_or_timeout_closes_one_paid_hold(clients, monkeypatch, stop):
+    monkeypatch.setenv("TREG_WEB_ARENA_ENABLED", "true")
+    monkeypatch.setenv("TREG_PLATFORM_KEY_FIRECRAWL", "TEST-FIRECRAWL")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "firecrawl")
+    get_settings.cache_clear()
+    entered = asyncio.Event()
+    wait_forever = asyncio.Event()
+
+    async def relay(*args, **kwargs):
+        entered.set()
+        await wait_forever.wait()
+        raise AssertionError("The provider should have been stopped")
+
+    monkeypatch.setattr(service, "relay", relay)
+    if stop == "timeout":
+        monkeypatch.setattr(app, "RUN_SECONDS", 0.25)
+    try:
+        before = await _balance(clients)
+        quote = await clients.post("/web-arena/api/quotes", json={
+            "task": "search", "value": f"{stop} paid call", "providers": ["firecrawl"], "jev": False})
+        assert quote.status_code == 200, quote.text
+        run_id = quote.json()["id"]
+        assert (await clients.post(f"/web-arena/api/runs/{run_id}/start")).status_code == 200
+        await asyncio.wait_for(entered.wait(), 15)
+        if stop == "cancel":
+            response = await clients.post(f"/web-arena/api/runs/{run_id}/cancel")
+            assert response.status_code == 200, response.text
+        worker = app._owners.get(run_id)
+        if worker:
+            if stop == "cancel":
+                with pytest.raises(asyncio.CancelledError):
+                    await asyncio.wait_for(asyncio.shield(worker), 15)
+            else:
+                await asyncio.wait_for(asyncio.shield(worker), 15)
+        result = (await clients.get(f"/web-arena/api/runs/{run_id}")).json()
+        assert result["state"] == ("cancelled" if stop == "cancel" else "completed")
+        attempt = result["attempts"][0]
+        assert attempt["state"] == ("cancelled" if stop == "cancel" else "timeout")
+        assert attempt["call_ref"]
+        async with session_maker() as db:
+            assert not (await db.execute(select(Hold).where(Hold.id == attempt["call_ref"]))).scalars().all()
+            entries = (await db.execute(select(LedgerEntry).where(
+                LedgerEntry.call_id == attempt["call_ref"]))).scalars().all()
+        assert [entry.kind for entry in entries].count("reserve") == 1
+        assert sum(entry.kind in {"settle", "release"} for entry in entries) == 1
+        assert await _balance(clients) == before
+    finally:
+        wait_forever.set()
         get_settings.cache_clear()
 
 
