@@ -47,6 +47,17 @@ RouteKey = tuple[str, tuple[str, ...], str]
 # key is placed here, so the dataplane cannot silently acquire a management or runner endpoint.
 _CONTROL_ROUTE_KEYS: frozenset[RouteKey] = frozenset({
     ('/enrich-arena', ('GET',), 'enrich_arena_page'),
+    ('/web-arena', ('GET',), 'web_arena_page'),
+    ('/web-arena/leaderboard', ('GET',), 'web_arena_page'),
+    ('/web-arena/{asset}', ('GET',), 'web_arena_asset'),
+    ('/web-arena/api/tasks', ('GET',), 'web_arena_tasks'),
+    ('/web-arena/api/leaderboard', ('GET',), 'web_arena_leaderboard'),
+    ('/web-arena/api/quotes', ('POST',), 'web_arena_quote'),
+    ('/web-arena/api/runs/{run_id}/start', ('POST',), 'web_arena_start'),
+    ('/web-arena/api/runs', ('GET',), 'web_arena_history'),
+    ('/web-arena/api/runs/{run_id}', ('GET',), 'web_arena_run'),
+    ('/web-arena/api/runs/{run_id}/cancel', ('POST',), 'web_arena_cancel'),
+    ('/web-arena/api/runs/{run_id}/attempts/{attempt_id}/rating', ('POST',), 'web_arena_rating'),
     ('/enrich-arena/people-search-bench', ('GET',), 'enrich_arena_page'),
     ('/enrich-arena/leaderboard', ('GET',), 'enrich_arena_page'),
     ('/enrich-arena/{asset}', ('GET',), 'enrich_arena_asset'),

@@ -1,0 +1,191 @@
+"""Incremental, content-free observations of real Web provider calls.
+
+The cursor walks audit ids once. Daily buckets keep the public read off the large audit table;
+only actual uncached provider attempts enter these numbers. Quality stays in WebArenaRun.
+"""
+from __future__ import annotations
+
+import random
+from collections import defaultdict
+from datetime import timedelta
+
+from sqlalchemy import delete, select
+
+from ..infra.db import session_maker
+from ..models import CallRecord, WebArenaCallCursor, WebArenaCallDayStat
+from ..timeutil import utcnow_naive as now
+from . import catalog_stats
+
+WINDOW_DAYS = 30
+LAG = timedelta(seconds=60)
+BATCH_ROWS = 5_000
+LATENCY_SAMPLE = 400
+MIN_HIT_SAMPLES = 20
+MIN_TIME_SAMPLES = 20
+CURSOR_ID = "callrecord"
+CALL_COLUMNS = (CallRecord.id, CallRecord.endpoint_id, CallRecord.created_at,
+                CallRecord.kind, CallRecord.cached, CallRecord.refused_by,
+                CallRecord.hit, CallRecord.status_code, CallRecord.duration_ms)
+
+
+def endpoint_tasks() -> dict[str, tuple[str, str]]:
+    """Only the endpoints actually offered by the Web Arena task lineup."""
+    from .web_arena import tasks
+
+    return {entry["endpoint_id"]: (task["id"], entry["provider"])
+            for task in tasks(_internal=True) if task["enabled"] for entry in task["provider_previews"]}
+
+
+def eligible(row) -> bool:
+    return (row.kind == "call" and row.endpoint_id and not row.cached
+            and row.refused_by is None)
+
+
+def fold(bucket: dict, row, *, rng=None) -> None:
+    """Unknown outcomes stay unknown; provider faults count as no usable result."""
+    bucket["calls"] += 1
+    if row.hit is not None and (row.status_code < 400 or row.status_code >= 500 or row.status_code == 405):
+        bucket["decided"] += 1
+        bucket["hits"] += row.hit is True
+    elif row.status_code >= 500 or row.status_code == 405:
+        bucket["decided"] += 1
+    if 200 <= row.status_code < 300 and row.duration_ms is not None:
+        bucket["timed"] += 1
+        bucket["duration_sum_ms"] += row.duration_ms
+        sample = bucket["duration_sample"]
+        if len(sample) < LATENCY_SAMPLE:
+            sample.append(row.duration_ms)
+        else:
+            slot = (rng or random).randrange(bucket["timed"])
+            if slot < LATENCY_SAMPLE:
+                sample[slot] = row.duration_ms
+
+
+def _new_bucket() -> dict:
+    return {"calls": 0, "decided": 0, "hits": 0, "timed": 0,
+            "duration_sum_ms": 0, "duration_sample": []}
+
+
+def _bucket_from(row: WebArenaCallDayStat) -> dict:
+    return {"calls": row.calls, "decided": row.decided, "hits": row.hits,
+            "timed": row.timed, "duration_sum_ms": row.duration_sum_ms,
+            "duration_sample": list(row.duration_sample or [])}
+
+
+async def collect(session_factory=session_maker, *, max_rows: int = 50_000,
+                  batch_rows: int = BATCH_ROWS) -> dict:
+    """Process recent audit records under a locked cursor; stop before young inserts."""
+    at = now()
+    accepted = endpoint_tasks()
+    consumed = 0
+    caught_up = False
+    while consumed < max_rows and not caught_up:
+        async with session_factory() as db:
+            insert = catalog_stats._insert(db)
+            since = at - timedelta(days=WINDOW_DAYS)
+            await db.execute(insert(WebArenaCallCursor).values(
+                id=CURSOR_ID, call_id=-1, updated_at=at)
+                .on_conflict_do_nothing(index_elements=["id"]))
+            cursor = (await db.execute(select(WebArenaCallCursor)
+                      .where(WebArenaCallCursor.id == CURSOR_ID).with_for_update())).scalar_one()
+            if cursor.call_id == -1:
+                cursor.call_id = await catalog_stats._first_id_at(db, since) - 1
+            limit = min(batch_rows, max_rows - consumed)
+            rows = (await db.execute(select(*CALL_COLUMNS).where(CallRecord.id > cursor.call_id)
+                    .order_by(CallRecord.id).limit(limit))).all()
+            touched: dict[tuple[str, str], dict] = {}
+            last_id = cursor.call_id
+            deferred = False
+            for row in rows:
+                if row.created_at >= at - LAG:
+                    deferred = True
+                    break
+                last_id = row.id
+                consumed += 1
+                if row.created_at < since or row.endpoint_id not in accepted or not eligible(row):
+                    continue
+                key = row.endpoint_id, row.created_at.strftime("%Y-%m-%d")
+                if key not in touched:
+                    existing = (await db.execute(select(WebArenaCallDayStat).where(
+                        WebArenaCallDayStat.endpoint_id == key[0],
+                        WebArenaCallDayStat.day == key[1]))).scalar_one_or_none()
+                    touched[key] = _bucket_from(existing) if existing else _new_bucket()
+                fold(touched[key], row)
+            for (endpoint_id, day), values in touched.items():
+                stmt = insert(WebArenaCallDayStat).values(endpoint_id=endpoint_id, day=day, **values)
+                await db.execute(stmt.on_conflict_do_update(
+                    index_elements=["endpoint_id", "day"],
+                    set_={field: getattr(stmt.excluded, field) for field in values}))
+            cursor.call_id = last_id
+            cursor.updated_at = at
+            db.add(cursor)
+            if deferred or len(rows) < limit:
+                caught_up = True
+                await db.execute(delete(WebArenaCallDayStat).where(
+                    WebArenaCallDayStat.day < since.strftime("%Y-%m-%d")))
+            await db.commit()
+            if not rows:
+                break
+    return {"rows": consumed, "caught_up": caught_up}
+
+
+def _weighted_median(values: list[tuple[int, float]]) -> int | None:
+    if not values:
+        return None
+    total = sum(weight for _, weight in values)
+    passed = 0.0
+    for value, weight in sorted(values):
+        passed += weight
+        if passed >= total / 2:
+            return value
+    return values[-1][0]
+
+
+def summarize(buckets: dict[str, list[dict]]) -> dict[str, dict[str, dict]]:
+    result: dict[str, dict[str, dict]] = defaultdict(dict)
+    for endpoint_id, (task, provider) in endpoint_tasks().items():
+        days = buckets.get(endpoint_id, [])
+        calls = sum(day["calls"] for day in days)
+        decided = sum(day["decided"] for day in days)
+        hits = sum(day["hits"] for day in days)
+        timed = sum(day["timed"] for day in days)
+        duration_sum = sum(day["duration_sum_ms"] for day in days)
+        weighted = [(ms, day["timed"] / len(day["duration_sample"]))
+                    for day in days if day["duration_sample"] for ms in day["duration_sample"]]
+        result[task][provider] = {
+            "runs": calls, "hit_samples": decided,
+            "success_rate": round(100 * hits / decided, 1) if decided >= MIN_HIT_SAMPLES else None,
+            "average_provider_ms": round(duration_sum / timed) if timed >= MIN_TIME_SAMPLES else None,
+            "median_provider_ms": _weighted_median(weighted) if timed >= MIN_TIME_SAMPLES else None,
+            "time_samples": timed,
+        }
+    return result
+
+
+async def snapshot(session_factory=session_maker) -> dict[str, dict[str, dict]]:
+    since = (now() - timedelta(days=WINDOW_DAYS)).strftime("%Y-%m-%d")
+    async with session_factory() as db:
+        rows = (await db.execute(select(WebArenaCallDayStat).where(WebArenaCallDayStat.day >= since))).scalars().all()
+    buckets: dict[str, list[dict]] = defaultdict(list)
+    for row in rows:
+        buckets[row.endpoint_id].append(_bucket_from(row))
+    return summarize(buckets)
+
+
+async def local_snapshot(session_factory=session_maker) -> dict[str, dict[str, dict]]:
+    """Development reads recent calls directly, so a cron is not needed to preview a run."""
+    ids = list(endpoint_tasks())
+    if not ids:
+        return {}
+    since = now() - timedelta(days=WINDOW_DAYS)
+    async with session_factory() as db:
+        rows = (await db.execute(select(*CALL_COLUMNS).where(
+            CallRecord.endpoint_id.in_(ids), CallRecord.created_at >= since,
+            CallRecord.kind == "call", CallRecord.cached.is_(False),
+            CallRecord.refused_by.is_(None)))).all()
+    buckets: dict[str, dict[str, dict]] = defaultdict(dict)
+    for row in rows:
+        day = row.created_at.strftime("%Y-%m-%d")
+        bucket = buckets[row.endpoint_id].setdefault(day, _new_bucket())
+        fold(bucket, row)
+    return summarize({endpoint: list(days.values()) for endpoint, days in buckets.items()})

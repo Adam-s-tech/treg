@@ -5739,6 +5739,7 @@ endpoints:
   example_response: examples/anyapi.web.map.json
   observed_time: 4.31
 - id: anyapi.web.scrape
+  capability: web.extract
   tier: extended
   platform: web
   domain: scrape
@@ -5815,6 +5816,7 @@ endpoints:
   example_response: examples/anyapi.web.scrape.json
   observed_time: 0.86
 - id: anyapi.web.screenshot
+  capability: web.screenshot
   tier: extended
   platform: web
   domain: screenshot

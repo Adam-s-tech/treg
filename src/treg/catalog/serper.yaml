@@ -30,6 +30,7 @@ endpoints:
       bodyType: json
       body:
         q: {type: string, required: true, example: "OpenAI API documentation"}
+        num: {type: integer, required: false, default: 10, min: 10, max: 100}
         location: {type: string, required: false, note: "Canonical Google location name; discover supported values with Serper's public /locations route.", example: "New York, New York, United States"}
         gl: {type: string, required: false, default: us, note: "Two-letter country code.", example: us}
         hl: {type: string, required: false, default: en, note: "Google interface language code.", example: en}

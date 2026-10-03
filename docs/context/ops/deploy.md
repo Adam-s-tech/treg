@@ -362,7 +362,9 @@ without importing the heavy database stack into the light `treg` CLI.
 - `treg-worker arena insights` folds new audit rows into the rolling Arena aggregate
   (`--max-seconds`, default 110, bounds one pass; schedule it every two minutes).
   It requires the archive object-store settings when R2 reads are enabled, opens the same client
-  lifecycle as the web service, and flushes read analytics before exiting.
+  lifecycle as the web service, and flushes read analytics before exiting. The same scheduled
+  command refreshes Web Arena's saved Battle totals when Web Arena is enabled and its reviewed
+  benchmark is published; that full refresh is gated to once every 30 minutes.
 - `treg-worker catalog stats` folds new audit rows into per-endpoint, per-day reliability buckets
   (`--max-rows`, default 500,000, bounds one pass; schedule it every few minutes). The catalog keeps
   computing observations live until this command has caught up once, so it can be scheduled after

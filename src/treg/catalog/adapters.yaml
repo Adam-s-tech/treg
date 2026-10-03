@@ -2676,6 +2676,13 @@ adapters:
     in_expr: {body.max_results: limit}
     out: {results: results, count: "len(results)"}
     miss: "coalesce(results, []) == []"
+  diffbot.x.web-search:
+    accepts: [[q]]
+    in: {q: queryParams.text}
+    in_expr: {queryParams.size: limit}
+    test_identity: {q: "knowledge graph AI"}
+    out: {results: search_results, count: "len(search_results)"}
+    miss: "coalesce(search_results, []) == []"
   perplexity.web.search.fast:
     accepts: [[q]]
     in: {q: body.query}
@@ -2747,9 +2754,22 @@ adapters:
   serper.web.search:
     accepts: [[q]]
     in: {q: body.q}
-    in_expr: {body.gl: "lower(country)", body.hl: language}
+    in_expr: {body.gl: "lower(country)", body.hl: language, body.num: limit}
     out: {results: organic, count: "len(organic)"}
     miss: "coalesce(organic, []) == []"
+  spidercloud.web.search:
+    accepts: [[q]]
+    in: {q: body.search}
+    in_expr: {body.search_limit: limit}
+    const: {body.fetch_page_content: false}
+    out: {results: content, count: "len(content)"}
+    miss: "coalesce(content, []) == []"
+  octen.web.search:
+    accepts: [[q]]
+    in: {q: body.query}
+    in_expr: {body.count: limit}
+    out: {results: data.results, count: "len(data.results)"}
+    miss: "coalesce(data.results, []) == []"
   firecrawl.web.search:
     accepts: [[q]]
     in: {q: body.query}
@@ -2828,6 +2848,13 @@ adapters:
     const: {body.includeMarkdown: true}
     out: {pages: "list(.)", count: "len(list(.))"}
     miss: "coalesce(text, '') == ''"
+  anyapi.web.scrape:
+    accepts: [[url]]
+    in: {url: body.url}
+    test_identity: {url: "https://example.com"}
+    const: {body.formats: [markdown], body.onlyMainContent: false}
+    out: {pages: "list(output.data)", count: "len(list(output.data))"}
+    miss: "coalesce(output.data.markdown, '') == ''"
   firecrawl.web.scrape:
     accepts: [[url]]
     in: {url: body.url}
@@ -2877,7 +2904,7 @@ adapters:
     accepts: [[url]]
     in_expr: {queryParams.domain: "host(url)"}
     test_identity: {url: "https://docs.context.dev"}
-    const: {queryParams.maxLinks: "10"}
+    in: {limit: queryParams.maxLinks}
     out: {results: urls, count: "len(urls)"}
     miss: "coalesce(urls, []) == []"
 

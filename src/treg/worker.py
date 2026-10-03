@@ -293,6 +293,7 @@ async def _arena_insights(args) -> int:
     from .application.arena_insights import drain
     from .bootstrap import archive_object_store
     from . import analytics
+    from .application import web_arena, web_arena_calls, web_arena_publications
 
     async with archive_object_store():
         await verify_db()
@@ -301,8 +302,19 @@ async def _arena_insights(args) -> int:
             result = await drain(max_seconds=args.max_seconds)
         finally:
             await analytics.drain()
+    if web_arena.enabled():
+        result["web_arena_calls"] = await web_arena_calls.collect()
+        result["web_arena"] = await web_arena_publications.refresh_live_if_due()
     print(json.dumps(result, sort_keys=True))
     return 1 if result["failed"] else 0
+
+
+async def _web_arena_totals(args) -> int:
+    from .infra.db import verify_db
+    from .application.web_arena_publications import refresh_live
+    await verify_db()
+    print(json.dumps(await refresh_live(), sort_keys=True))
+    return 0
 
 
 async def _catalog_stats(args) -> int:
@@ -394,6 +406,10 @@ def main(argv: list[str] | None = None) -> int:
     insights.add_argument("--max-seconds", type=float, default=110.0,
                           help="stop after this long even with backlog left; the next run resumes")
     insights.set_defaults(fn=_arena_insights)
+    web_arena = sub.add_parser("web-arena", help="Web Arena saved leaderboard totals")
+    websub = web_arena.add_subparsers(dest="cmd", required=True)
+    totals = websub.add_parser("totals", help="publish content-free Battle totals")
+    totals.set_defaults(fn=_web_arena_totals)
     catalog = sub.add_parser("catalog", help="catalog read models derived from the audit table")
     catalogsub = catalog.add_subparsers(dest="cmd", required=True)
     stats = catalogsub.add_parser("stats", help="fold new audit rows into per-endpoint, per-day reliability stats")

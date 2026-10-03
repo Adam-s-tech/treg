@@ -179,7 +179,8 @@ def build(cat: store.Catalog) -> Index:
         platform = cap.split(".")[0]
         units.append(Unit(
             kind=JOB, id=cap, cap=cap, platform=platform,
-            text=f"{cap.replace('.', ' ')}. {cat.capabilities.get(cap, '')}. {plat_label(platform)}. "
+            text=f"{cap.replace('.', ' ')}. {cat.capability_titles.get(cap, '')}. "
+                 f"{cat.capabilities.get(cap, '')}. {plat_label(platform)}. "
                  + "; ".join(names[:EXAMPLES]),
             providers=tuple(sorted({e["provider"] for e in members})), examples=tuple(names[:6]),
             members=tuple(e["id"] for e in members)))

@@ -621,7 +621,7 @@ endpoints:
     scope: any_account
     method: GET
     path: /v1/domain-status
-    name: "Is a domain disposable or free webmail"
+    name: "Check email domain status"
     summary: "Domain → two booleans: whether it is a disposable/throwaway mail host and whether it is a free webmail provider — the cheap pre-filter before signup or lead acceptance"
     input:
       queryParams:

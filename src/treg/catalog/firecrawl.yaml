@@ -209,7 +209,7 @@ endpoints:
     method: POST
     path: /v2/batch/scrape
     body_allowlist: true
-    name: Scrape a batch of web pages
+    name: "Extract a batch of pages"
     summary: Start a bounded batch scrape of up to ten URLs.
     input:
       bodyType: json
