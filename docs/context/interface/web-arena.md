@@ -68,6 +68,8 @@ The signup dialog uses Enrich Arena's layout, OAuth availability from `/meta`, e
 step, local development code notice, and legal links. After sign-in, Web Arena opens the same
 shared setup dialog as Enrich Arena: a new user names a team, then chooses an agent and gets
 setup instructions. An OAuth return resumes that setup, and the query draft survives the redirect.
+The team switcher shares Enrich Arena's saved team selection and restores it on reload when the
+user still belongs to that team. Creating a team saves that selection too.
 Opening a saved run restores its selected fighters from the saved attempts. Failed, empty, and
 downvoted attempts use the fallen fighter pose; other available providers stay excluded.
 The current quote appears on the Run button without a separate price step.

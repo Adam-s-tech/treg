@@ -3,6 +3,7 @@
   'use strict';
   if (!window.Vue) return;
   const draftKey='treg.web-arena.draft.v1';
+  const teamKey='treg.arena.team';
   const signupSetupKey='treg.web-arena.signup-setup.v1';
   const resultViewKey='treg.web-arena.result-view.v1';
   const readResultView=()=>{try{return localStorage.getItem(resultViewKey)==='table'?'table':'cards';}catch{return 'cards';}};
@@ -221,12 +222,13 @@
         try{this.user=await this.api('/auth/me',{},'');}
         catch(e){if(e.status!==401)throw e;this.user=null;this.teams=[];this.team='';this.balance=null;return;}
         this.teams=(await this.api('/orgs',{},'')).filter(t=>!t.demo);
-        this.team=this.teams.find(t=>t.slug===this.team)?.slug||this.teams[0]?.slug||'';
+        let saved='';try{saved=localStorage.getItem(teamKey)||'';}catch{}
+        this.team=this.teams.find(t=>t.slug===this.team)?.slug||this.teams.find(t=>t.slug===saved)?.slug||this.teams[0]?.slug||'';
         if(this.team)await this.loadBalance();
         this.scheduleQuote(0);
       },
       async loadBalance(){const team=this.teams.find(t=>t.slug===this.team);if(team)this.balance=(await this.api('/orgs/'+team.org_id+'/balance?limit=1')).balance_micro;},
-      async reloadTeam(){this.run=null;this.showPreview();this.scheduleQuote(0);await this.loadBalance();await this.loadHistory();},
+      async reloadTeam(){try{localStorage.setItem(teamKey,this.team);}catch{}this.run=null;this.history=[];this.balance=null;this.showPreview();this.scheduleQuote(0);await this.loadBalance();await this.loadHistory();},
       async loadInsights(){try{this.live=await this.api('/web-arena/api/leaderboard',{cache:'no-store'},'');}catch{this.live={status:'error',task_results:{}};}},
       async loadHistory(){if(this.user&&this.team)this.history=await this.api('/web-arena/api/runs');},
       async openSetup(){
@@ -240,7 +242,7 @@
         const name=this.setupTeamName.trim();
         if(!name){this.setupError='Give your team a name.';return;}
         this.setupLoading=true;this.setupError='';
-        try{const created=await this.api('/orgs',{method:'POST',body:JSON.stringify({name})},'');this.team=created.org;this.setupStep=1;await this.loadIdentity();await this.loadHistory();}
+        try{const created=await this.api('/orgs',{method:'POST',body:JSON.stringify({name})},'');this.team=created.org;try{localStorage.setItem(teamKey,this.team);}catch{}this.setupStep=1;await this.loadIdentity();await this.loadHistory();}
         catch(e){this.setupError=e.message;}
         finally{this.setupLoading=false;}
       },
