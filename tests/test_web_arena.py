@@ -76,7 +76,9 @@ async def test_arena_opens_with_flag_without_benchmark_publication(clients, monk
     get_settings.cache_clear()
     try:
         assert (await clients.get("/web-arena")).status_code == 200
-        assert (await clients.get("/web-arena/leaderboard")).status_code == 200
+        old_page = await clients.get("/web-arena/leaderboard", follow_redirects=False)
+        assert old_page.status_code == 308
+        assert old_page.headers["location"] == "/web-arena"
         assert (await clients.get("/web-arena/api/tasks")).status_code == 200
         assert (await clients.get("/web-arena/benchmark")).status_code == 404
         assert (await clients.get("/web-arena/api/benchmark")).status_code == 404
@@ -167,6 +169,7 @@ async def test_local_leaderboard_uses_saved_totals_if_old_runs_cannot_decrypt(mo
         raise InvalidToken
 
     monkeypatch.setattr(web_arena_publications, "_live_rows", rows)
+    monkeypatch.setattr(web_arena_publications.web_arena_calls, "coverage_start", lambda: asyncio.sleep(0, result=None))
     monkeypatch.setattr(web_arena_publications.web_arena_calls, "local_snapshot", lambda: asyncio.sleep(0, result={}))
     monkeypatch.setattr(web_arena_publications, "published", saved)
     monkeypatch.setattr(web_arena_publications.arena, "_unpack", cannot_decrypt)
@@ -194,6 +197,7 @@ async def test_local_leaderboard_keeps_readable_runs_when_old_runs_cannot_decryp
         return payload
 
     monkeypatch.setattr(web_arena_publications, "_live_rows", rows)
+    monkeypatch.setattr(web_arena_publications.web_arena_calls, "coverage_start", lambda: asyncio.sleep(0, result=None))
     monkeypatch.setattr(web_arena_publications.web_arena_calls, "local_snapshot", lambda: asyncio.sleep(0, result={}))
     monkeypatch.setattr(web_arena_publications, "published", saved)
     monkeypatch.setattr(web_arena_publications.arena, "_unpack", unpack)

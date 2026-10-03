@@ -48,7 +48,7 @@ RouteKey = tuple[str, tuple[str, ...], str]
 _CONTROL_ROUTE_KEYS: frozenset[RouteKey] = frozenset({
     ('/enrich-arena', ('GET',), 'enrich_arena_page'),
     ('/web-arena', ('GET',), 'web_arena_page'),
-    ('/web-arena/leaderboard', ('GET',), 'web_arena_page'),
+    ('/web-arena/leaderboard', ('GET',), 'web_arena_old_leaderboard'),
     ('/web-arena/{asset}', ('GET',), 'web_arena_asset'),
     ('/web-arena/api/tasks', ('GET',), 'web_arena_tasks'),
     ('/web-arena/api/leaderboard', ('GET',), 'web_arena_leaderboard'),

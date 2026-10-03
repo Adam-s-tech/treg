@@ -82,7 +82,7 @@ def tasks(*, _internal: bool = False):
             identity = rules.input_for(task, "example query" if task == "search" else "https://example.com")
             candidates, _ = candidates_for(contract, cat.for_capability(capability), cat.adapters, identity)
             seen = set()
-            for ep, adapter, _ in candidates:
+            for ep, adapter, variant in candidates:
                 provider = ep["provider"]
                 if task == "search" and provider == "valyu":
                     continue
@@ -93,8 +93,14 @@ def tasks(*, _internal: bool = False):
                     continue
                 seen.add(provider)
                 cost = cat.cost_view(ep.get("cost"), provider)
+                estimate = None
+                if cost and cost.get("usd") is not None:
+                    upstream_query, body = adapter.to_upstream(identity, variant)
+                    estimate = money.with_margin(_marketplace_pricing(provider, ep["id"], cost,
+                        upstream_query, json.dumps(body).encode())[0])
                 previews.append({"provider": provider, "endpoint_id": ep["id"],
                                  "catalog_price_usd": cost.get("usd") if cost else None,
+                                 "catalog_estimate_micro": estimate,
                                  "price_unit": (ep.get("cost") or {}).get("unit"),
                                  "price_type": (ep.get("cost") or {}).get("type")})
         result.append({"id": task, "label": label, "enabled": task != "brand",

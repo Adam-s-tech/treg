@@ -2709,7 +2709,7 @@
       "HEAD"
     ],
     "name": "web_arena_page",
-    "path": "/web-arena/leaderboard"
+    "path": "/web-arena"
   },
   {
     "kind": "APIRoute",
@@ -2717,8 +2717,8 @@
       "GET",
       "HEAD"
     ],
-    "name": "web_arena_page",
-    "path": "/web-arena"
+    "name": "web_arena_old_leaderboard",
+    "path": "/web-arena/leaderboard"
   },
   {
     "kind": "APIRoute",
