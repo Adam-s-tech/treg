@@ -331,12 +331,19 @@ request. For Instagram, that request subscribes the Page to the app's
 `messages,messaging_postbacks` fields. The setup is scope-gated, so read/post-only connections do
 not attempt it. Provider discovery and setup HTTP calls run after the read database session closes;
 the result is written in a new short transaction. Resource listings and
-connection views never include the Page token; existing Instagram connections must reconnect or
-reselect their account once to populate it. The token and object id are separate concerns: Instagram
+connection views never include the Page token; existing connections must reselect their account
+once to populate it. The token and object id are separate concerns: Instagram
 profile/media operations still target the Instagram account id, while Facebook-login inbox sync is
 the Page messaging surface—`/{page_id}/conversations?platform=instagram` for listing and
 `/{page_id}/messages` for replies. Calling the conversations edge with the Instagram account id
 produces Meta error `(#3)` despite a valid Page token.
+Facebook Pages uses the same lookup without the setup request: every Page edge rejects the user
+token (code 190 / subcode 2069032), so selecting a Page stores that Page's token as
+`page_access_token`, and one Facebook connection acts on one Page. Until a resource is selected,
+`_provider_bindings` binds the root `access_token`, so the probe and the picker work before the
+derived token exists. A reconnect replaces the whole blob, so the callback unselects the resource
+and, after its commit, derives the token again from the new grant. When the new grant no longer
+reaches that resource, the connection stays on the root token and reports `setup_required`.
 Google Search Console's hand-written tool example calls out its distinct direct-tool convention:
 substitute `{site_url}` with a value encoded exactly once (`sc-domain%3Aexample.com`), and never encode
 again a property identifier returned by the sites list.
