@@ -609,7 +609,11 @@ async def _run_routed(parent: CallContext, ep: dict, body_bytes: bytes, get_head
         capacity_signal = classify_capacity(cand.endpoint["provider"], response.status, body=raw)
         temporary_capacity = capacity_signal is not None and capacity_signal.kind in ("burst", "unknown")
         platform_auth_failure = cand.tier == "platform" and response.status in (401, 403)
-        if (400 <= response.status < 500 and response.status not in (402, 408, 429)
+        # 405 and 410 Gone say the PROVIDER cannot serve this route (a discontinued endpoint answers
+        # 410 to every request), whatever the caller sent: fall over as after a 5xx, paid providers too
+        # (live 2026-10-04: aviato discontinued its LinkedIn post routes and linkedin.user.posts
+        # ended as the caller's fault with three providers never asked).
+        if (400 <= response.status < 500 and response.status not in (402, 405, 408, 410, 429)
                 and not platform_auth_failure and not temporary_capacity):
             # The vendor rejected the REQUEST. Usually the caller's mistake and the same answer
             # everywhere — but a scraper's "Request failed. Please retry" is also a 400 (tikhub,

@@ -27,7 +27,7 @@ from ...sandbox_identity import visitor_name
 from ...domain.capacity import signatures as capacity_signatures
 from ...domain.capacity.view import view as capacity_view
 from ...infra.upstream.limiter import limiter as provider_limiter
-from ...infra.upstream.relay import relay, scope_shared_idempotency_key
+from ...infra.upstream.relay import identify_as_treg, relay, scope_shared_idempotency_key
 from .. import asynctasks as async_task_app
 from ...domain import asynctasks as asynctasks_rules
 from .authorize import authorize_call, enforce_public_demo_limit
@@ -1154,6 +1154,9 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
                 # reaches a provider that honors it (relay.py explains the leak it closes).
                 raw_headers = scope_shared_idempotency_key(
                     raw_headers, caller.org_id, pinned_tags=caller.membership.pinned_tags)
+                # Rewrite 5: the provider sees treg's account here, so it sees treg's User-Agent
+                # too, never a library default its bot rules block (relay.py names the incidents).
+                raw_headers = identify_as_treg(raw_headers)
             upstream_request = UpstreamRequest(
                 method=request.method,
                 raw_headers=raw_headers,

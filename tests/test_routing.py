@@ -1314,6 +1314,19 @@ def test_a_per_success_endpoint_with_no_adapter_settles_on_the_providers_own_suc
         assert A._observed_cost_micro(m2, b'{"tasks": [{"status_code": 40501}]}') == 0
         assert A._observed_cost_micro(m2, b'{"tasks": [{"status_code": 20000}]}') is None
 
+async def test_a_gone_endpoint_is_the_providers_fault_not_the_callers(clients: AsyncClient, enrichment_on, monkeypatch):
+    """410 Gone (a discontinued route), 405 and 501 say the PROVIDER cannot serve this, whatever the
+    caller sent: the waterfall goes on as after a 5xx, to paid-per-call providers too. Before this a
+    410 read as the caller's fault and ended the call when no free-on-failure provider was left
+    (live 2026-10-04: aviato discontinued its LinkedIn post routes and linkedin.user.posts failed)."""
+    seen = []
+    gone = (410, {"error": "Gone", "message": "This endpoint has been discontinued and is no longer available."})
+    monkeypatch.setattr(call_service, "relay", _relay_by_provider({"*": [gone] * 10}, seen))
+    r = await clients.post(f"/call/{ROUTED}", json={"full_name": "Patrick Collison", "domain": "stripe.com"})
+    assert r.json()["detail"]["error"] != "route_caller_fault", r.text
+    assert r.status_code == 502 and len(seen) >= 2, r.text
+
+
 async def test_a_declared_miss_status_is_a_miss_not_a_caller_fault(clients: AsyncClient, enrichment_on, monkeypatch):
     """aviato answers HTTP 404 `Not Found` for a person it has no record of. The endpoint's YAML says
     so (`miss: {status: 404}`), and the router must read it: before this a waterfall in which the
