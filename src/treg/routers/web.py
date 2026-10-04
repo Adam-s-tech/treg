@@ -3624,6 +3624,15 @@ async def lead_signals_skill_md():
     return _serve_md("skills/lead-signals/SKILL.md")
 
 
+@app.get("/skills/jev-memory/SKILL.md", include_in_schema=False)
+async def jev_memory_skill_md():
+    """The jev-memory skill: install (or build) the Claude Code mod in
+    `examples/claude-code-mods/jev-memory`, where Jev judges each prompt after the turn and the
+    lasting preferences are remembered. Opt-in: kept out of the well-known index, so
+    `treg skill bootstrap` (install.sh) never installs it unasked."""
+    return _serve_md("skills/jev-memory/SKILL.md")
+
+
 @app.get("/feedback.md", include_in_schema=False)
 async def feedback_md():
     return _serve_md("feedback.md")
