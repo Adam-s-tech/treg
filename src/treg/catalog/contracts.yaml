@@ -587,7 +587,7 @@ contracts:
     idempotent: true
 
   tiktok.search.videos:
-    summary: "Search TikTok videos by keyword — provider-native video rows in `videos`"
+    summary: "Search TikTok videos by keyword, first page only — provider-native video rows in `videos`; to page deeper, call the provider named in X-Treg-Served-By directly with its offset or cursor"
     identity:
       - {q: str}
     filters:
