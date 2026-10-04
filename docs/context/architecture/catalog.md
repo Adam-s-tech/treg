@@ -1901,8 +1901,10 @@ to choose (`docs/CAPABILITY-ROUTING-PLAN.md`). Everything else in the catalog st
 - **Execution** — `application/call/route.py`, entered from `service._execute_call` when the
   resolved catalog row is `kind: routed`. Each attempt is a **full child `execute_call`** on a
   `CallContext` whose `call_ref` is `{parent}:r{n}` — its hold id, ladder (tiers 1/2/4/overflow),
-  reserve, relay, settle, audit row and cancellation compensation are the ordinary ones. Vendor
-  4xx (not 402/408/429) = usually the caller's fault, but scrapers answer 400 for their own outages
+  reserve, relay, settle, audit row and cancellation compensation are the ordinary ones. A 405 or
+  410 Gone is the provider's own (a discontinued route answers 410 to every request) and falls over
+  like a 5xx. Vendor
+  4xx (not 402/405/408/410/429) = usually the caller's fault, but scrapers answer 400 for their own outages
   (tikhub, live 2026-08-28), so the waterfall goes on ONLY to candidates that bill nothing for a
   rejected request — per_success, free, the org's own key, or per_call ≤ 1¢ (`CHEAP_RETRY_MICRO`;
   since 2026-09-07 a per_call rejection settles only at a charge the vendor itself reports, so this
