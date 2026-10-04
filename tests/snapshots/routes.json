@@ -1225,15 +1225,6 @@
       "GET",
       "HEAD"
     ],
-    "name": "well_known_jev_memory_md",
-    "path": "/.well-known/skills/jev-memory/SKILL.md"
-  },
-  {
-    "kind": "APIRoute",
-    "methods": [
-      "GET",
-      "HEAD"
-    ],
     "name": "connect_demo_page",
     "path": "/connect-demo"
   },

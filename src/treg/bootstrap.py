@@ -207,7 +207,6 @@ _CONTROL_ROUTE_KEYS: frozenset[RouteKey] = frozenset({
     ('/.well-known/skills/treg/SKILL.md', ('GET',), 'well_known_skill_md'),
     ('/.well-known/skills/make-ugc/SKILL.md', ('GET',), 'well_known_make_ugc_md'),
     ('/.well-known/skills/lead-signals/SKILL.md', ('GET',), 'well_known_lead_signals_md'),
-    ('/.well-known/skills/jev-memory/SKILL.md', ('GET',), 'well_known_jev_memory_md'),
     ('/connect-demo', ('GET',), 'connect_demo_page'),
     ('/connect-demo/callback', ('GET',), 'connect_demo_callback'),
     ('/help', ('GET',), 'support_page'),

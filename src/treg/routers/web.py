@@ -3628,7 +3628,8 @@ async def lead_signals_skill_md():
 async def jev_memory_skill_md():
     """The jev-memory skill: install (or build) the Claude Code mod in
     `examples/claude-code-mods/jev-memory`, where Jev judges each prompt after the turn and the
-    lasting preferences are remembered. Bundled like make-ugc."""
+    lasting preferences are remembered. Opt-in: kept out of the well-known index, so
+    `treg skill bootstrap` (install.sh) never installs it unasked."""
     return _serve_md("skills/jev-memory/SKILL.md")
 
 
@@ -4287,12 +4288,10 @@ async def well_known_skills_index():
     fm = _skill_frontmatter()
     ugc = _skill_frontmatter("skills/make-ugc/SKILL.md")
     sig = _skill_frontmatter("skills/lead-signals/SKILL.md")
-    mem = _skill_frontmatter("skills/jev-memory/SKILL.md")
     return JSONResponse({"skills": [
         {"name": fm.get("name", "treg"), "description": fm.get("description", ""), "files": ["SKILL.md"]},
         {"name": ugc.get("name", "make-ugc"), "description": ugc.get("description", ""), "files": ["SKILL.md"]},
         {"name": sig.get("name", "lead-signals"), "description": sig.get("description", ""), "files": ["SKILL.md"]},
-        {"name": mem.get("name", "jev-memory"), "description": mem.get("description", ""), "files": ["SKILL.md"]},
     ]})
 
 
@@ -4315,12 +4314,6 @@ async def well_known_make_ugc_md():
 async def well_known_lead_signals_md():
     """The third entry `index.json` promises; the same file as /skills/lead-signals/SKILL.md."""
     return _serve_md("skills/lead-signals/SKILL.md")
-
-
-@app.get("/.well-known/skills/jev-memory/SKILL.md", include_in_schema=False)
-async def well_known_jev_memory_md():
-    """The fourth entry `index.json` promises; the same file as /skills/jev-memory/SKILL.md."""
-    return _serve_md("skills/jev-memory/SKILL.md")
 
 
 @app.get("/connect-demo", include_in_schema=False)
