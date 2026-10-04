@@ -39,6 +39,8 @@ export function register(on, options) {
       description: "List saved preferences, or forget one",
       argumentHint: "[forget <n>]",
     });
+    // A reload cancels the old module's timers, so a judge in flight never clears this.
+    await $.state.set(judgingKey, false);
     await setFeed($, { count: memoryLines(await readMemory($)).length });
     return result;
   });
@@ -47,15 +49,17 @@ export function register(on, options) {
   // tells Claude this mod does the saving so it doesn't also write CLAUDE.md.
   on("prompt.context", async ($, e, next) => {
     const result = await next(e);
-    const blocks = [...result.blocks, { name: HOW_NAME, text: HOW_TEXT }];
-    const lines = memoryLines(await readMemory($));
+    const blocks = [...result.blocks];
+    if (options?.takeOverMemory === true) blocks.push({ name: HOW_NAME, text: HOW_TEXT });
+    // A memory file committed to the repo is someone else's text, not the user's preferences.
+    const lines = (await isTracked($)) ? [] : memoryLines(await readMemory($));
     if (lines.length > 0) blocks.push({ name: BLOCK_NAME, text: lines.map((l) => `- ${l.text}`).join("\n") });
     return { ...result, blocks };
   });
 
   // Claude Code's own memory instructions would save the same preferences a second time.
   on("prompt.section", { name: "memory" }, async ($, e, next) => {
-    if (options?.takeOverMemory === false) return next(e);
+    if (options?.takeOverMemory !== true) return next(e);
     return { text: null };
   });
 
@@ -244,8 +248,10 @@ async function askJev($, options, sentences) {
     const run = await $.process.run([treg, "--json", "call", TREG_ENDPOINT, "--method", "POST", "--data", body]);
     if (run.exitCode !== 0) return undefined;
     const parsed = JSON.parse(run.stdout);
-    if (!parsed?.result?.answers) return undefined;
-    return { answers: parsed.result.answers, costMicro: Number(parsed._treg?.charged_micro) || 0 };
+    // treg before 0.22.0 prints the bare body, without the {result, _treg} envelope.
+    const answers = (parsed?.result ?? parsed)?.answers;
+    if (!answers) return undefined;
+    return { answers, costMicro: Number(parsed._treg?.charged_micro) || 0 };
   } catch {
     return undefined;
   }
@@ -285,6 +291,15 @@ async function readMemory($) {
     return await $.fs.read(FILE);
   } catch {
     return ""; // not written yet
+  }
+}
+
+async function isTracked($) {
+  try {
+    const run = await $.process.run(["git", "ls-files", "--error-unmatch", FILE]);
+    return run.exitCode === 0;
+  } catch {
+    return false; // no git, or not a repo
   }
 }
 

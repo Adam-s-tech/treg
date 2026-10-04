@@ -19,7 +19,7 @@
       "type": "boolean",
       "title": "Replace Claude Code's own memory",
       "description": "Drop Claude Code's built-in memory instructions so preferences are saved only by jev-memory.",
-      "default": true
+      "default": false
     },
     "playSound": {
       "type": "boolean",

@@ -10,8 +10,9 @@ verbatim (trimmed to 300 characters, no duplicates), to `.claude/jev-memory.md` 
 tells you ("jev saved: Always use pnpm here. (p=0.93)") and a short coin sound plays.
 
 The saved lines go into the first message of every later session under "Preferences the user stated
-in earlier sessions". By default the mod also drops Claude Code's own memory instructions, so a
-preference is saved once, by the mod, instead of a second time into `CLAUDE.md`.
+in earlier sessions", unless the memory file is committed to the repo: a committed file is someone
+else's text, so it is skipped. Turn on `takeOverMemory` to also drop Claude Code's own memory
+instructions, so a preference is saved once, by the mod, instead of a second time into `CLAUDE.md`.
 
 Above the prompt, a small panel:
 
@@ -52,7 +53,7 @@ To install it for good, add this folder's parent as a local marketplace:
 | Option | Default | What it does |
 | --- | --- | --- |
 | `tregPath` | empty (`$HOME/.local/bin/treg`) | Where the `treg` CLI lives |
-| `takeOverMemory` | `true` | Drop Claude Code's built-in memory instructions so only the mod saves preferences |
+| `takeOverMemory` | `false` | Drop Claude Code's built-in memory instructions so only the mod saves preferences. It applies to every project the mod is installed for |
 | `playSound` | `true` | Play the coin sound when a preference is saved |
 
 Set one with `claude plugin configure jev-memory@treg-mods`, or at install time with
@@ -70,6 +71,8 @@ Listing and forgetting are free.
   turn. A failed call is skipped and counted in red on the panel.
 - Only prompts you type are judged (not notifications, scheduled prompts, peers or other plugins'),
   and only turns that ended with an answer.
+- Each typed prompt (up to 4,000 characters, 6 sentences) leaves your machine: treg sends it to
+  OpenRouter and Jev's provider. Don't paste secrets into prompts with the mod on.
 - Sentences are sent to Jev as quoted evidence with `& < >` escaped. The 0.8 threshold, counting and
   deduplication are in code, not in the model.
 
