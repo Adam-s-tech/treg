@@ -1120,8 +1120,9 @@ adapters:
     miss: "data == []"
   tomba.companies.search.reveal:
     accepts: [[industry]]
-    in:  {industry: body.filters.industry, country: body.filters.country}
-    in_expr: {body.filters: "obj('country', list(country), 'industry', list(industry))", body.page: "1"}
+    # each filter is {include: [...]} and country is `location_country`; the old flat shape is ignored
+    in:  {industry: body.filters.industry.include, country: body.filters.location_country.include}
+    in_expr: {body.filters: "obj('industry', obj('include', list(industry)), 'location_country', obj('include', list(country)))", body.page: "1"}
     out: {companies: data.companies, count: meta.total}
     miss: "data.companies == []"
   thecompaniesapi.companies.search:

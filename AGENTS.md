@@ -40,7 +40,8 @@ Everything else in this file is guidance; these are the contract, and they win o
    Keep `reserve` and `settle` separate; read archive pointers, close the session, then fetch bytes.
 4. Plain `/call/` is a faithful relay: the injected credential, the transport headers listed in
    `src/treg/infra/upstream/relay.py`, and (on treg's shared key only) the per-org and, for pinned
-   agents, per-pin re-scoping of the caller's `Idempotency-Key` are the only rewrites. A credential
+   agents, per-pin re-scoping of the caller's `Idempotency-Key` and treg's own `User-Agent` in place
+   of the caller's are the only rewrites. A credential
    binding with `location: "json"` explicitly parses and reserializes the top-level JSON object; it
    is not byte-faithful and must never be used with an upstream that signs or hashes the raw body.
    Never add upstream-specific modeling.
