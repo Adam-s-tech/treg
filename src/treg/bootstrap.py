@@ -31,7 +31,7 @@ from .bootstrap_http import (
     _LegacyHostRedirectMiddleware,
     _SecurityHeadersMiddleware,
 )
-from .config import get_settings
+from .config import TREG_USER_AGENT, get_settings
 from .infra import kv
 from .infra.db import background_session_maker, verify_db
 from .infra.catalog_observations import (
@@ -653,6 +653,8 @@ def _lifespan(role: AppRole):
             app.state.http = httpx.AsyncClient(
                 limits=limits,
                 timeout=httpx.Timeout(float(get_settings().call_timeout_s)),
+                # what a provider sees when no caller header says otherwise, never python-httpx/x
+                headers={"User-Agent": TREG_USER_AGENT},
             )
             first_run.use_http(app.state.http)
             ads_task = (

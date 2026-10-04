@@ -1511,3 +1511,28 @@ async def test_own_key_relays_idempotency_label_verbatim(clients: AsyncClient, m
                                   headers={"Idempotency-Key": "retry-1"})
     assert response.status_code == 201
     assert _upstream_idempotency_keys(relayed) == ["retry-1"]
+
+
+def _upstream_user_agents(relayed: list) -> list[str]:
+    return [v.decode() for req in relayed for k, v in req.raw_headers if k.lower() == b"user-agent"]
+
+
+async def test_shared_key_calls_carry_treg_user_agent_own_key_the_callers(
+    clients: AsyncClient, monkeypatch, replicate_platform,
+):
+    """On treg's key the provider sees treg's account, so it sees treg's User-Agent, never a library
+    default its bot rules block (LimaData and Wiza answered Cloudflare 1010 to Python's default)."""
+    from treg.config import TREG_USER_AGENT
+    relayed = []
+
+    async def fake_relay(request, *args, **kwargs):
+        relayed.append(request)
+        return _response(201, {"id": f"prediction-{len(relayed)}", "status": "starting"})
+
+    monkeypatch.setattr(call_service, "relay", fake_relay)
+    python = {"User-Agent": "Python-urllib/3.13"}
+    assert (await clients.post(f"/call/{EP}", json={"input": {"prompt": "a"}}, headers=python)).status_code == 201
+    assert _upstream_user_agents(relayed) == [TREG_USER_AGENT]
+    await clients.post("/secrets", json={"name": "replicate", "value": "own-token"})
+    assert (await clients.post(f"/call/{EP}", json={"input": {"prompt": "b"}}, headers=python)).status_code == 201
+    assert _upstream_user_agents(relayed)[1:] == ["Python-urllib/3.13"], "a team's own key relays the caller's header"

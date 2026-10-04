@@ -53,6 +53,11 @@ def _blocked_email_domains(raw: str) -> frozenset[str]:
     )
 
 
+# How treg introduces itself to a provider: on every call on its shared key (the relay's rewrite 5)
+# and as the default of the clients it calls providers with, never a library's own default.
+TREG_USER_AGENT = "treg/1.0 (+https://treg.to)"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="TREG_", extra="ignore")
 

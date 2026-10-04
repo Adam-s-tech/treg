@@ -118,6 +118,12 @@ Faithfulness mechanics inside `relay()`:
   `resource_ownership.produces` would then record A's job id as B's. Treg's own idempotency table
   already replays a caller's answer for the same label, so the caller loses nothing. A team's own key
   relays the header verbatim: that account is theirs.
+- on the platform tier only, `relay.identify_as_treg` then replaces the caller's `User-Agent` with
+  `config.TREG_USER_AGENT`. The provider sees treg's account there, and library defaults read as bot
+  traffic: LimaData's Cloudflare answered 403 (error 1010) to every `Python-urllib` call, and Wiza's
+  to its phone reveals for a day. A team's own key relays the caller's header verbatim. The
+  shared client (`app.state.http`), the async-task poller and the capacity collectors send the same
+  header by default, so treg's own requests never go out as `python-httpx`.
 - query as the router-captured ordered pairs in `UpstreamRequest.query_items` (keeps duplicate keys
   like `?tag=a&tag=b`), merged onto the upstream URL with `copy_add_param` rather than passed as
   `params=`: httpx replaces a URL's existing query whenever `params` is given, even empty, which
