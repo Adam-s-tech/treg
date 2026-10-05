@@ -1167,6 +1167,8 @@ contracts:
       count: {type: int}
     miss: "results == []"
     idempotent: true
+    # The owner's first choice for web search (2026-10-05); a caller's X-Treg-Route-Prefer replaces it.
+    prefer: [crawl4ai]
 
   web.search.news:
     summary: "Search recent news — provider-native article rows in `results`"
@@ -1190,6 +1192,8 @@ contracts:
       count: {type: int}
     miss: "pages == []"
     idempotent: true
+    # The owner's first choice for scraping (2026-10-05); a caller's X-Treg-Route-Prefer replaces it.
+    prefer: [crawl4ai]
 
   web.map:
     summary: "Discover the URLs on a website — provider-native map rows in `results`"
