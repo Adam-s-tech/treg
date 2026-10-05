@@ -5,9 +5,8 @@ Revises: 0062
 Create Date: 2026-10-05
 
 `duration_ms` covers everything treg does for a call, including a token refresh that makes its own
-network request, so a slow call could not be pinned on the provider or on treg (finding 7 of the
-2026-09-21 review). One nullable column, no default and no backfill: the ALTER only takes its brief
-lock on a table taking about 700,000 rows a day.
+network request, so a slow call could not be pinned on the provider or on treg. One nullable column,
+no default and no backfill: the ALTER only takes its brief lock on a hot table.
 """
 from collections.abc import Sequence
 

@@ -352,8 +352,8 @@ def _arm_if_waiting_for_card(org: Org, *, card_proven: bool = False) -> bool:
     """Turn a consented policy back on when the reason it was off is gone. Mutates, does not commit.
 
     `no_card`: a card now exists. `max_attempts:*` (repeated declines): only when `card_proven`, a
-    card that just paid or a newly saved one. Before 2026-10-05 a decline never re-armed: one team
-    paid $20 by hand seven times in a day while auto top-up stayed off and 19,897 calls were refused.
+    card that just paid or a newly saved one. Before this a decline never re-armed, so a team paying
+    by hand with a working card kept auto top-up off and kept getting balance refusals.
     """
     if not (org.stripe_default_pm and org.autotopup_consented_at) or org.autotopup_enabled:
         return False

@@ -42,8 +42,8 @@ class Contract:
     # one company returns CEOs of any company), so the router drops it instead of ranking it down.
     scoping: tuple[str, ...] = ()
     # The provider order when the caller sends no `X-Treg-Route-Prefer`. Cost per hit alone ignores
-    # time: for `ai-search.perplexity.answer` it ranked cloro (60% ok, 64 s median, 2026-10-05) above
-    # dataforseo (99.98% ok, 4 s). A caller's own prefer header still replaces it.
+    # time and reliability: for `ai-search.perplexity.answer` it ranked the cheaper, slower and less
+    # reliable cloro above dataforseo. A caller's own prefer header still replaces it.
     prefer: tuple[str, ...] = ()
 
     @property

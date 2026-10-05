@@ -1139,7 +1139,7 @@ def test_funnel_attribution_never_accepts_arbitrary_urls_or_payloads():
     assert funnel_surface("arena") == "arena"
 
 
-# ---- re-arming after repeated declines (finding 1, 2026-09-21) -----------------------------------
+# ---- re-arming after repeated declines -----------------------------------------------------------
 def _declined(**over) -> dict:
     """An org whose auto-top-up turned itself off after repeated declines on `pm_old`."""
     return {"autotopup_consented_at": datetime.now(timezone.utc).replace(tzinfo=None),
@@ -1201,7 +1201,7 @@ async def test_3ds_and_a_deliberate_off_stay_off_after_a_manual_payment(c: Async
     assert state["enabled"] is False and state["disabled_reason"] == reason
 
 
-# ---- charges per hour (finding 2, 2026-10-05) -----------------------------------------------------
+# ---- charges per hour -----------------------------------------------------------------------------
 @pytest.mark.parametrize("minutes_ago, failures, per_hour, fires", [
     (13, 0, 0, True),      # default 5 an hour: 12 minutes after a success is enough
     (11, 0, 0, False),

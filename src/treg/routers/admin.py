@@ -43,8 +43,8 @@ def _tally(items) -> dict:
 async def admin_stats(_: str = Depends(require_superadmin), db: AsyncSession = Depends(get_admin_session)) -> dict:
     """Platform totals for the admin page. Every count runs in the database.
 
-    It used to load the whole call table to count it in Python: 12,493,056 rows on 2026-09-21, past
-    120 s, so the page got a 502. Call counts now come from `endpointdaystat` (one row per endpoint
+    Loading the whole call table to count it in Python ran past the request timeout at production
+    size, so the page got a 502. Call counts now come from `endpointdaystat` (one row per endpoint
     per day, folded by the `treg-worker catalog stats` cron): calls the provider saw, as of that
     job's last run. The all-time total is Postgres's own row estimate, not an exact count.
     """

@@ -342,8 +342,8 @@ def _too_large_note(key: str, call_ref: str, charged_micro: int, size: int) -> t
     """What a retry gets instead of an answer over the archive's size limit (`archive_max_body_bytes`).
 
     The caller already received the full answer; only the retry copy is dropped. A 410, never a new
-    run: running the key again is the double charge this table prevents. Before 2026-10-05 every
-    body was kept whole for 24 h, up to 7.9 MB per row, when the median is 3 kB (finding 5).
+    run: running the key again is the double charge this table prevents. Without the limit every
+    body was kept whole for 24 h, however large.
     """
     detail = {"error": "idempotency_response_too_large", "call_id": call_ref, "charged_micro": charged_micro,
               "size_bytes": size,

@@ -1733,7 +1733,7 @@ async def test_company_blind_search_provider_is_dropped_not_billed(clients: Asyn
     get_settings.cache_clear()
 
 
-# ---- ai-search.perplexity.answer: dataforseo first by default, both say their source (2026-10-05)
+# ---- ai-search.perplexity.answer: dataforseo first by default, both say their source
 def _example(eid: str) -> dict:
     from pathlib import Path
     return json.loads((Path(catalog_store.__file__).parents[2] / "catalog" / "examples" / f"{eid}.json").read_text())
@@ -1745,8 +1745,8 @@ def _example(eid: str) -> dict:
 ])
 async def test_perplexity_answer_routes_by_the_contract_default_and_says_its_source(
         clients, monkeypatch, prefer, first, kind):
-    """Cost per hit alone ranked cloro first (cheaper, 60% ok at 64 s); dataforseo answers at
-    99.98% in 4 s. The two read different things (website vs model API), so the answer says which."""
+    """Cost per hit alone ranked cloro first (cheaper, but slower and less reliable than
+    dataforseo). The two read different things (website vs model API), so the answer says which."""
     monkeypatch.setenv("TREG_PLATFORM_KEY_DATAFORSEO", "login:password")
     monkeypatch.setenv("TREG_PLATFORM_KEY_CLORO", "PLATFORM-CLORO")
     monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "dataforseo,cloro")
@@ -1772,9 +1772,8 @@ async def test_perplexity_answer_routes_by_the_contract_default_and_says_its_sou
 
 
 async def test_people_enrich_not_found_from_dropleads_and_aiark_is_a_miss_not_a_502(clients, monkeypatch):
-    """2026-09-30: 10,881 Dropleads "Person not found" 400s and 8,086 AI Ark "data not found" 404s were
-    read as provider faults, so a person nobody had came back as 502 route_failed (people.enrich at
-    13% ok that day). Both are now declared misses; a rate limit or another 400 stays an error."""
+    """Dropleads "Person not found" 400s and AI Ark "data not found" 404s were read as provider
+    faults, so a person nobody had came back as 502 route_failed. Both are now declared misses; a rate limit or another 400 stays an error."""
     monkeypatch.setenv("TREG_PLATFORM_KEY_DROPLEADS", "PLATFORM-DROPLEADS")
     monkeypatch.setenv("TREG_PLATFORM_KEY_AIARK", "PLATFORM-AIARK")
     monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "dropleads,aiark")
