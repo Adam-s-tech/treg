@@ -1769,3 +1769,25 @@ async def test_perplexity_answer_routes_by_the_contract_default_and_says_its_sou
     else:
         assert seen[0][3] == {"prompt": "best CRM for a small business", "country": "US"}
     get_settings.cache_clear()
+
+
+async def test_people_enrich_not_found_from_dropleads_and_aiark_is_a_miss_not_a_502(clients, monkeypatch):
+    """2026-09-30: 10,881 Dropleads "Person not found" 400s and 8,086 AI Ark "data not found" 404s were
+    read as provider faults, so a person nobody had came back as 502 route_failed (people.enrich at
+    13% ok that day). Both are now declared misses; a rate limit or another 400 stays an error."""
+    monkeypatch.setenv("TREG_PLATFORM_KEY_DROPLEADS", "PLATFORM-DROPLEADS")
+    monkeypatch.setenv("TREG_PLATFORM_KEY_AIARK", "PLATFORM-AIARK")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "dropleads,aiark")
+    get_settings.cache_clear()
+    seen = []
+    monkeypatch.setattr(call_service, "relay", _relay_by_provider({
+        "dropleads": [(400, {"success": False, "error": "Person not found. Try providing more information like LinkedIn URL or company name."})],
+        "ai-ark": [(404, {"status": 404, "error": "data not found", "path": ""})],
+    }, seen))
+    r = await clients.post("/call/treg.people.enrich", json={"email": "nobody@example.com"},
+                           headers={"X-Treg-Route-Prefer": "dropleads,aiark"})
+    assert r.status_code == 200, r.text
+    assert r.json()["_treg"]["outcome"] == "miss"
+    assert [t["outcome"] for t in r.json()["_treg"]["tried"]] == ["miss", "miss"]
+    assert len(seen) == 2
+    get_settings.cache_clear()
