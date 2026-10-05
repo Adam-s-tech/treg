@@ -1089,7 +1089,9 @@ option such as a spend cap or memory size can bound what one call costs. An Apif
 `call_fee`, the flat per-run charge settled with its counted rows (money.md, Apify dataset-row settlement). Provider-specific
 request guards bound shapes whose billing formulas need more context than an exact selector:
 Openmart requires its explicit 1-25 record count, while Tavily Map and Crawl require an explicit
-integer limit from 1 to 20. Resolution applies these only after selecting the platform offer and
+integer limit from 1 to 20. Ocean.io search requires an explicit 1-100 page size, and person
+enrichment excludes separately billed contact reveals from the shared-key request. Resolution
+applies these only after selecting the platform offer and
 before reserve; a team's own credential retains the upstream contract.
 
 A second treg-set kind, **`kind: treg_trial`**, prices a provider at exactly **$0** with a
