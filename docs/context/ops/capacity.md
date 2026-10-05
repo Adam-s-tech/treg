@@ -308,6 +308,14 @@ process-local limiter reduces ordinary bursts but is not a strict quota gate: ca
 wait exceeds `DEFAULT_MAX_WAIT_MS` proceed. Relax the ceiling after real 429 evidence, or when
 smoothing becomes endpoint-aware.
 
+## Ocean.io shared-key pacing
+
+`policy._RATE_LIMITS` smooths Ocean.io platform calls at 30 requests per minute, half the
+documented self-serve minute allowance. Its separate 1,000-request daily allowance is reported by
+`collectors._oceanio` from the free `/v2/credits/balance` route; the smoother does not enforce a
+daily quota. Like other provider-wide smoothing, this bounded process-local wait is not a strict
+quota gate. BYOK calls bypass it.
+
 ## Pieces (`src/treg/domain/capacity/`)
 
 - **`collectors.py`** — the providers' *free* balance/quota calls (`coroutine(client, key) →
