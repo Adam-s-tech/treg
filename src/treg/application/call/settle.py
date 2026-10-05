@@ -386,7 +386,22 @@ _CREDIT_HEADERS = {
     "crustdata": ("x-credits-used", 1),
     "cloro": ("x-credits-charged", 1),
     "aiark": ("x-credit", -1),
+    "crawl4ai": ("x-c4-cost", 1),
 }
+
+
+def _usage_document(body: bytes):
+    """The document a `settle: usage` path reads: the JSON body, or, for an NDJSON stream, its LAST
+    line (Crawl4AI's batch ends with a {"summary": {"cost": …}} line that totals the call)."""
+    try:
+        return json.loads(body)
+    except ValueError:
+        pass
+    last = next((ln for ln in reversed(body.splitlines()) if ln.strip()), b"")
+    try:
+        return json.loads(last) if last else None
+    except ValueError:
+        return None
 
 
 def _observed_cost_micro(mk: MarketplaceCall, body: bytes, headers=None) -> int | None:
@@ -431,7 +446,7 @@ def _observed_cost_micro(mk: MarketplaceCall, body: bytes, headers=None) -> int 
         charge for a 2xx whose payload is an embedded error (verified live 2026-07-30 — see
         docs/context/architecture/catalog.md, "the provider decides what counts as success").
 
-      - crustdata / cloro / aiark: REPORTED in credits in a response HEADER (`_CREDIT_HEADERS`),
+      - crustdata / cloro / aiark / crawl4ai: REPORTED in credits in a response HEADER (`_CREDIT_HEADERS`),
         the only place the charge exists. AI Ark reports debits as negative `X-Credit` values; its
         explicit -1 multiplier converts that convention to a nonnegative charge. cloro's
         ChatGPT/Google routes price their include flags and US state targeting per request, so the
@@ -1147,10 +1162,7 @@ async def _platform_settle(
     # instead of the reported $0.0000157).
     terminal = None
     if billable and (mk.settlement_basis.get("amount") or {}).get("kind") == "usage" and body:
-        try:
-            terminal = json.loads(body)
-        except ValueError:
-            terminal = None
+        terminal = _usage_document(body)
     actual = ((0 if observed == 0 else settlement_basis.settle(
         mk.settlement_basis, {"observed_micro": observed, "terminal": terminal})) if billable else None)
     repeat_percent = get_settings().archive_hit_repeat_price_percent

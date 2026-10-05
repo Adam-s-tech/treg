@@ -904,6 +904,15 @@ async def _cloro(c, key):
             "note": f"{d.get('perCycle')} per cycle; cycle resets {(d.get('cycleResetsAt') or '?')[:10]}"}
 
 
+async def _crawl4ai(c, key):
+    # GET /v1/billing/balance spends no credits; `credit_mc` is thousandths of a credit. It trails the
+    # per-call x-c4-balance header by about a minute (crawl4ai.com/llms.txt).
+    d = await _get(c, "https://api.crawl4ai.com/v1/billing/balance", headers={"Authorization": f"Bearer {key}"})
+    mc = d.get("credit_mc")
+    return {"value": _balance(mc / 1000 if type(mc) in (int, float) else None, "Crawl4AI"), "unit": "credits",
+            "note": f"plan {d.get('tier')}; trails per-call charges by about a minute"}
+
+
 async def _reapi(c, key):
     # GET /api/v1/balance does not consume credits; 1 credit = $0.001 (reapi.ai/docs/api/balance).
     d = await _get(c, "https://reapi.ai/api/v1/balance", headers={"Authorization": f"Bearer {key}"})
@@ -923,6 +932,7 @@ async def _piapi(c, key):
 BALANCE_ROUTES = {
     "anyapi": _anyapi,
     "cloro": _cloro,
+    "crawl4ai": _crawl4ai,
     "piapi": _piapi,
     "reapi": _reapi,
     "enrichlayer": _enrichlayer,
