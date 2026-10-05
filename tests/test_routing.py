@@ -1731,3 +1731,41 @@ async def test_company_blind_search_provider_is_dropped_not_billed(clients: Asyn
     r = await clients.post("/call/treg.people.search", json={"title": "CEO"})
     assert [s[0] for s in seen] == ["lusha"] and r.json()["_treg"]["served_by"] == "lusha.people.search", r.text
     get_settings.cache_clear()
+
+
+# ---- ai-search.perplexity.answer: dataforseo first by default, both say their source (2026-10-05)
+def _example(eid: str) -> dict:
+    from pathlib import Path
+    return json.loads((Path(catalog_store.__file__).parents[2] / "catalog" / "examples" / f"{eid}.json").read_text())
+
+
+@pytest.mark.parametrize("prefer, first, kind", [
+    (None, "dataforseo", "model_api"),          # the contract's default order
+    ("cloro", "cloro", "website"),              # a caller's own preference replaces it
+])
+async def test_perplexity_answer_routes_by_the_contract_default_and_says_its_source(
+        clients, monkeypatch, prefer, first, kind):
+    """Cost per hit alone ranked cloro first (cheaper, 60% ok at 64 s); dataforseo answers at
+    99.98% in 4 s. The two read different things (website vs model API), so the answer says which."""
+    monkeypatch.setenv("TREG_PLATFORM_KEY_DATAFORSEO", "login:password")
+    monkeypatch.setenv("TREG_PLATFORM_KEY_CLORO", "PLATFORM-CLORO")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "dataforseo,cloro")
+    get_settings.cache_clear()
+    seen = []
+    monkeypatch.setattr(call_service, "relay", _relay_by_provider({
+        "dataforseo": [(200, _example("dataforseo.x.ai-optimization-perplexity-llm-responses-live"))],
+        "cloro": [(200, _example("cloro.ai-search.perplexity.answer"))],
+    }, seen))
+    response = await clients.post(
+        "/call/treg.ai-search.perplexity.answer", json={"prompt": "best CRM for a small business", "country": "US"},
+        headers={"X-Treg-Route-Prefer": prefer} if prefer else {})
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert seen[0][0] == first and data["_treg"]["provider"] == first
+    assert data["output"]["source_kind"] == kind and data["output"]["answer"] and data["output"]["sources"]
+    if first == "dataforseo":
+        assert seen[0][3] == [{"user_prompt": "best CRM for a small business", "web_search_country_iso_code": "US",
+                               "model_name": "sonar"}]
+    else:
+        assert seen[0][3] == {"prompt": "best CRM for a small business", "country": "US"}
+    get_settings.cache_clear()
