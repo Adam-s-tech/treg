@@ -1199,3 +1199,43 @@ async def test_3ds_and_a_deliberate_off_stay_off_after_a_manual_payment(c: Async
     await _paid_checkout(c, monkeypatch, org_id, "pm_new")
     state = (await c.get("/billing", headers=_h(owner))).json()["autotopup"]
     assert state["enabled"] is False and state["disabled_reason"] == reason
+
+
+# ---- charges per hour (finding 2, 2026-10-05) -----------------------------------------------------
+@pytest.mark.parametrize("minutes_ago, failures, per_hour, fires", [
+    (13, 0, 0, True),      # default 5 an hour: 12 minutes after a success is enough
+    (11, 0, 0, False),
+    (13, 1, 0, False),     # after a FAILED charge the wait is still one hour
+    (61, 1, 0, True),
+    (2, 0, 60, True),      # the team's own setting: 60 an hour = one a minute
+])
+async def test_charges_per_hour_sets_the_wait_after_a_success(c: AsyncClient, monkeypatch,
+                                                              minutes_ago, failures, per_hour, fires):
+    org_id, _ = await _org(c)
+    await _armed(org_id, autotopup_failures=failures, autotopup_max_per_hour=per_hour,
+                 autotopup_last_attempt_at=billing._now() - timedelta(minutes=minutes_ago))
+    monkeypatch.setattr(billing, "configured", lambda: True)
+
+    async def fake_run(oid):
+        billing._scheduled.discard(oid)
+    monkeypatch.setattr(billing, "_run_autotopup", fake_run)
+    async with session_maker() as db:
+        org = await db.get(Org, org_id)
+        assert billing.maybe_schedule_autotopup(org) is fires
+    if not fires:                                        # the DB check under the lock agrees
+        assert (await _attempt(org_id))["reason"] == "cooldown"
+
+
+async def test_a_team_sets_its_charges_per_hour(c: AsyncClient, monkeypatch):
+    org_id, owner = await _org(c)
+    monkeypatch.setattr(billing, "_sdk", _no_sdk)
+    await _set_org(org_id, autotopup_consented_at=billing._now())
+    r = await c.post("/billing/autotopup", headers=_h(owner),
+                     json={"enabled": True, "consent": True, "per_hour": 10, "setup_url": False})
+    assert r.status_code == 200, r.text
+    state = r.json()["autotopup"]
+    assert state["per_hour"] == 10 and state["wait_s"] == 360
+    for bad in (0, 61):
+        r = await c.post("/billing/autotopup", headers=_h(owner), json={"enabled": True, "per_hour": bad})
+        assert r.status_code in (400, 422), r.text
+    assert (await c.get("/billing", headers=_h(owner))).json()["autotopup"]["per_hour"] == 10

@@ -3332,3 +3332,32 @@ async def test_the_call_record_splits_out_the_providers_share_of_the_time(
             CallRecord.call_ref == r.headers["X-Treg-Call-Id"]))).scalar_one()
     assert 300 <= row.upstream_ms < 450, row.upstream_ms
     assert row.duration_ms >= row.upstream_ms, (row.duration_ms, row.upstream_ms)
+
+
+async def test_a_balance_refusal_asks_for_an_auto_top_up(clients: AsyncClient, platform_on, monkeypatch):
+    """Only a call that got through used to schedule a refill, so a team at $0 with auto top-up on
+    stayed empty until something else ran: one team refused 54,974 calls in 4 hours (2026-10-02)."""
+    from treg.application import billing
+    from treg.models import Org
+
+    org_id = (await clients.get("/orgs")).json()[0]["org_id"]
+    async with session_maker() as db:
+        await ledger.reserve(db, org_id, "drain", 1_000_000)
+        org = await db.get(Org, org_id)
+        org.autotopup_enabled, org.autotopup_consented_at = True, billing._now()
+        org.stripe_customer_id, org.stripe_default_pm = "cus_x", "pm_x"
+        db.add(org)
+        await db.commit()
+    monkeypatch.setattr(billing, "configured", lambda: True)
+    asked: list[int] = []
+
+    async def fake_run(oid):
+        asked.append(oid)
+        billing._scheduled.discard(oid)
+    monkeypatch.setattr(billing, "_run_autotopup", fake_run)
+    r = await clients.get(f"/call/{EP}?aweme_id=7")
+    assert r.status_code == 402, r.text
+    import asyncio
+    await asyncio.sleep(0)
+    assert asked == [org_id]
+    assert "5 times per hour" in r.json()["detail"]["message"]

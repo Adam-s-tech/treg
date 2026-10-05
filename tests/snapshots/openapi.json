@@ -199,6 +199,17 @@
             ],
             "title": "Monthly Cap Usd"
           },
+          "per_hour": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Hour"
+          },
           "setup_url": {
             "default": true,
             "title": "Setup Url",

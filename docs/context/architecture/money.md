@@ -468,6 +468,15 @@ cooldown stamped in the DB *before* the charge so a second web worker sees it, a
 limit, and an idempotency key derived from the threshold crossing - so a burst of concurrent calls
 that all notice the low balance produces exactly ONE charge.
 
+The wait between charges (`billing.autotopup_wait_s`) is one hour after a FAILED charge
+(`autotopup_cooldown_s`), else one hour divided by the team's `autotopup_max_per_hour` (0 = the
+default `autotopup_default_per_hour`, 5; 1-60 via `POST /billing/autotopup` `per_hour`, `treg topup
+--per-hour`, or the billing page). The number is part of the mandate text. A call refused for
+balance also calls `maybe_schedule_autotopup` (`reserve.py`, one read of the org by primary key):
+before 2026-10-05 only a call that got through did, so a team at $0 stayed empty until something
+else ran - one team refused 54,974 calls in 4 hours. The scheduler checks the wait in memory first,
+so a team refusing thousands of calls an hour does not start a task per call.
+
 Authorization splits by WHAT, not by who. `_billing_org` (the `/billing/*` routes - cards, top-ups,
 auto-top-up policy, payment history, the portal) requires **admin or owner**: a card, a spend policy
 and an invoice archive are the org's money, not a member's preference.
@@ -480,7 +489,7 @@ admin-only, which meant a machine identity could not read the balance it was spe
 (Reported by Jason, 2026-08-07.)
 
 The 402 also carries `autotopup_enabled` and an `auto top-up:` line in `message`. Off → the one
-command that turns it on. On → the amount, threshold, cooldown and monthly cap, plus the flags that
+command that turns it on. On → the amount, threshold, charges per hour and monthly cap, plus the flags that
 raise them - because a team that is out of money *with* auto top-up on is being held by the cooldown
 or the cap, and "add funds" alone reads as "auto top-up is broken" (cobl.ai, 2026-08-25: ~1,500
 refusals between hourly $20 refills against a $60/day burn). The org fields are read **before**
