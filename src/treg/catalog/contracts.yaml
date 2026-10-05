@@ -1195,6 +1195,22 @@ contracts:
     # The owner's first choice for scraping (2026-10-05); a caller's X-Treg-Route-Prefer replaces it.
     prefer: [crawl4ai]
 
+  web.extract.structured:
+    summary: "Extract typed JSON from one web page, described by a JSON schema and/or a plain-English instruction — the extracted data in `data`"
+    identity:
+      # Most complete first: the first variant the caller fills is the one every field rides on.
+      - {url: url, schema: object, instruction: str}
+      - {url: url, schema: object}
+      - {url: url, instruction: str}
+    filters: {}
+    output:
+      data: {type: any, required: true, note: "the extracted records, in the shape the schema asked for; raw is the provider's whole body"}
+    miss: "data == null"
+    idempotent: true
+    # The owner's first choice for structured extraction (2026-10-05). Only Crawl4AI takes an
+    # instruction without a schema; Linkup and Search1API need the schema.
+    prefer: [crawl4ai]
+
   web.map:
     summary: "Discover the URLs on a website — provider-native map rows in `results`"
     identity:
