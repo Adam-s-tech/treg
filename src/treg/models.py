@@ -446,6 +446,10 @@ class CallRecord(SQLModel, table=True):
     # this row by id and both targets carry their own index. Last columns (alembic appends).
     archive_key_hash: str | None = Field(default=None)
     archive_content_hash: str | None = Field(default=None)
+    # The provider's share of `duration_ms` (set by the call path; see `upstream_ms` there): the
+    # request until its answer is read. NULL when no request reached the provider, and on rows
+    # written before 2026-10-05.
+    upstream_ms: int | None = Field(default=None)
 
 
 class RunRecord(SQLModel, table=True):

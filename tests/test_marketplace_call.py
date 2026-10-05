@@ -3303,3 +3303,32 @@ async def test_an_answer_over_the_size_limit_is_not_kept_and_a_retry_never_runs_
         row = (await db.execute(select(IdempotentCall).where(IdempotentCall.key == "big-answer"))).scalar_one()
     assert row.response_body != first.content and len(row.response_body) < 1000
     get_settings.cache_clear()
+
+
+async def test_the_call_record_splits_out_the_providers_share_of_the_time(
+        clients: AsyncClient, platform_on, monkeypatch):
+    """Finding 7 (2026-09-21): only the total existed, including an OAuth refresh that makes its own
+    network request, so a slow call could not be pinned on the provider or on treg. A provider
+    that takes 300 ms shows it, inside the total."""
+    import asyncio
+
+    from sqlmodel import select
+
+    from treg.infra.db import session_maker
+    from treg.models import CallRecord
+
+    real = call_service.relay
+
+    async def slow_provider(*a, **kw):
+        await asyncio.sleep(0.3)
+        return await real(*a, **kw)
+
+    monkeypatch.setattr(call_service, "relay", slow_provider)
+    r = await clients.get(f"/call/{EP}?aweme_id=timed")
+    assert r.status_code == 200
+    await audit.drain()
+    async with session_maker() as db:
+        row = (await db.execute(select(CallRecord).where(
+            CallRecord.call_ref == r.headers["X-Treg-Call-Id"]))).scalar_one()
+    assert 300 <= row.upstream_ms < 450, row.upstream_ms
+    assert row.duration_ms >= row.upstream_ms, (row.duration_ms, row.upstream_ms)

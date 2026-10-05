@@ -334,6 +334,10 @@ uses this metadata, never the encrypted token's shape.
   fields added by `0011`. Archive storage, eligibility and retention belong to
   [archive](archive.md); caller tags and money joins are covered below.
 
+  `upstream_ms` (Alembic `0063`) is the provider's share of `duration_ms`: from sending the request
+  until its answer is read (or, when the answer streams on, until its headers arrive). It leaves
+  out token refresh, archive lookup, a `retry-after` sleep and treg's own work. NULL when no
+  request reached the provider, and on rows before 2026-10-05.
 - **`IdempotentCall`** - a caller-scoped, 24-hour replay cache for metered successes, keyed by
   `(membership_id, key)` and also carrying `org_id` for team cleanup. It is not an audit record: once
   the membership is revoked there is no valid caller that can replay it. `delete_membership` removes
