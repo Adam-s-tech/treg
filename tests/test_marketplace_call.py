@@ -3267,3 +3267,39 @@ def test_octen_runtime_uses_frozen_rates_and_checks_platform_shape():
         call_resolution._enforce_platform_request({"provider": "octen", "id": endpoint},
                                           json.dumps({"urls": ["https://example.com"] * 21}).encode())
     assert caught.value.kind == "catalog_parameter_invalid"
+
+
+async def test_an_answer_over_the_size_limit_is_not_kept_and_a_retry_never_runs_again(
+        clients: AsyncClient, platform_on, monkeypatch):
+    """Finding 5 (2026-09-21): retry rows kept every body whole for 24 h, up to 7.9 MB, while the
+    archive refuses anything over 2 MB. Over the limit, the caller still gets the full answer once;
+    a retry gets a stored 410 with the charge, and the provider is not called a second time."""
+    from sqlmodel import select
+
+    from treg.infra.db import session_maker
+    from treg.models import IdempotentCall
+
+    monkeypatch.setenv("TREG_ARCHIVE_MAX_BODY_BYTES", "10")      # any real answer is "large" now
+    get_settings.cache_clear()
+    calls = []
+    real = call_service.relay
+
+    async def counting(*a, **kw):
+        calls.append(1)
+        return await real(*a, **kw)
+    monkeypatch.setattr(call_service, "relay", counting)
+
+    headers = {"Idempotency-Key": "big-answer"}
+    first = await clients.get(f"/call/{EP}?aweme_id=big", headers=headers)
+    assert first.status_code == 200 and len(first.content) > 10, first.text   # the full answer, once
+    before = await _balance(clients)
+    retry = await clients.get(f"/call/{EP}?aweme_id=big", headers=headers)
+    assert retry.status_code == 410 and retry.headers["X-Treg-Idempotent-Replay"] == "true"
+    detail = retry.json()["detail"]
+    assert detail["error"] == "idempotency_response_too_large" and detail["size_bytes"] == len(first.content)
+    assert detail["call_id"] == first.headers["X-Treg-Call-Id"] and detail["charged_micro"] > 0
+    assert len(calls) == 1 and await _balance(clients) == before        # no second run, no second charge
+    async with session_maker() as db:
+        row = (await db.execute(select(IdempotentCall).where(IdempotentCall.key == "big-answer"))).scalar_one()
+    assert row.response_body != first.content and len(row.response_body) < 1000
+    get_settings.cache_clear()
