@@ -432,9 +432,12 @@ without that split would have rejected the default $5 threshold on every enable.
 **A saved card arms a consented policy from either webhook.** The modal records consent first
 (`set_autotopup` → `no_card`) and relies on the top-up Checkout to save the card, so there is no
 SetupIntent in that flow: `_set_default_pm` - called by both `_on_checkout_completed` and
-`_on_setup_succeeded` - runs `_arm_if_waiting_for_card`, which turns the policy on only from the
-explicit `no_card` state. A decline, 3DS, or a deliberate off (reason `None`, consent still on
-file) stays off; a redelivered payment webhook must not switch a policy back on.
+`_on_setup_succeeded` (and `_on_payment_succeeded`) - runs `_arm_if_waiting_for_card`. It turns
+the policy back on from `no_card` once a card exists, and from repeated declines
+(`max_attempts:*`) only when the card is proven: it just paid (`paid=True`, both payment webhooks)
+or it is a newly saved card. The declined card saved again is not proof. 3DS
+(`authentication_required`) and a deliberate off (reason `None`, consent still on file) stay off;
+a redelivered payment webhook must not switch a deliberately disabled policy back on.
 
 Turning `invoice_creation` on makes Stripe emit `invoice.created` / `invoice.paid` for every top-up.
 `handle_webhook_event` drops them, deliberately: crediting on an invoice event as well as on the

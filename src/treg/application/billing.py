@@ -308,9 +308,10 @@ async def get_or_create_customer(db: AsyncSession, org: Org, *, email: str = "")
     return org.stripe_customer_id
 
 
-async def _set_default_pm(db: AsyncSession, org_id: int, payment_method: str | None) -> bool:
+async def _set_default_pm(db: AsyncSession, org_id: int, payment_method: str | None, *,
+                          paid: bool = False) -> bool:
     """Remember which saved card to charge off-session. An opaque `pm_…` reference — no card data
-    ever reaches our database. Returns True when something changed."""
+    ever reaches our database. Returns True when something changed. `paid`: this card just paid."""
     if not payment_method:
         return False
     org = await db.get(Org, org_id)
@@ -321,22 +322,29 @@ async def _set_default_pm(db: AsyncSession, org_id: int, payment_method: str | N
     # A card arriving is what a consented-but-cardless policy was waiting for, whichever door it came
     # through: the dashboard's top-up modal records consent and then relies on the top-up Checkout to
     # save the card, so the PAYMENT webhook has to arm it, not only the setup one. Checked even when
-    # the pm is unchanged (a redelivered webhook after a crash between the two commits), and only for
-    # the `no_card` shape — a decline, 3DS, or a deliberate off stays off until a human re-enables it.
-    armed = _arm_if_waiting_for_card(org)
+    # the pm is unchanged (a redelivered webhook after a crash between the two commits). Declines
+    # re-arm on a card that just paid or a newly saved one; 3DS and a deliberate off stay off.
+    armed = _arm_if_waiting_for_card(org, card_proven=paid or changed)
     if changed or armed:
         db.add(org)
         await db.commit()
     return changed
 
 
-def _arm_if_waiting_for_card(org: Org) -> bool:
-    """Turn a consented policy on once `org.stripe_default_pm` exists. Mutates, does not commit."""
+def _arm_if_waiting_for_card(org: Org, *, card_proven: bool = False) -> bool:
+    """Turn a consented policy back on when the reason it was off is gone. Mutates, does not commit.
+
+    `no_card`: a card now exists. `max_attempts:*` (repeated declines): only when `card_proven`, a
+    card that just paid or a newly saved one. Before 2026-10-05 a decline never re-armed: one team
+    paid $20 by hand seven times in a day while auto top-up stayed off and 19,897 calls were refused.
+    """
     if not (org.stripe_default_pm and org.autotopup_consented_at) or org.autotopup_enabled:
         return False
-    # ONLY the explicit `no_card` state. A deliberate off leaves the reason None with consent still
-    # on file, and a later (or redelivered) payment must not switch it back on.
-    if org.autotopup_disabled_reason != "no_card":
+    # A deliberate off leaves the reason None with consent still on file, and a later (or
+    # redelivered) payment must not switch it back on. 3DS (`authentication_required`) stays off: an
+    # off-session charge would need the bank's check again.
+    reason = org.autotopup_disabled_reason or ""
+    if not (reason == "no_card" or (card_proven and reason.startswith("max_attempts:"))):
         return False
     org.autotopup_enabled = True
     org.autotopup_disabled_reason = None
@@ -1062,7 +1070,7 @@ async def _on_checkout_completed(db: AsyncSession, session: dict) -> dict:
                            attribution=session.get("metadata") or {})
     # The Checkout saved the card (setup_future_usage); remember it so auto-top-up can be armed
     # without asking for a second card entry.
-    await _set_default_pm(db, org_id, pm_id)
+    await _set_default_pm(db, org_id, pm_id, paid=True)
     return result
 
 
@@ -1081,7 +1089,7 @@ async def _on_payment_succeeded(db: AsyncSession, pi: dict) -> dict:
         return {"handled": False, "reason": "zero amount"}
     result = await _credit(db, org_id, amount_micro, pi["id"], auto=meta.get("treg_auto") == "1", attribution=meta)
     pm = pi.get("payment_method")
-    await _set_default_pm(db, org_id, pm if isinstance(pm, str) else (pm or {}).get("id"))
+    await _set_default_pm(db, org_id, pm if isinstance(pm, str) else (pm or {}).get("id"), paid=True)
     return result
 
 
