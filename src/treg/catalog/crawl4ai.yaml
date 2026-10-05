@@ -71,8 +71,8 @@ endpoints:
     method: POST
     path: /scrape
     body_allowlist: true
-    name: Scrape a web page to Markdown
-    summary: "Fetch one URL as clean, LLM-ready Markdown and/or HTML. Crawl4AI picks the cheapest engine that works (archive, plain fetch, real browser), with optional links, media, metadata and tables."
+    name: Scrape or crawl a web page to clean Markdown for LLMs
+    summary: "Scrape one URL into clean, LLM-ready Markdown and/or HTML. Crawl4AI picks the cheapest engine that works (archive, plain fetch, real browser that renders JavaScript), with optional links, media, metadata and tables; proxies for sites that block datacenters."
     input:
       bodyType: json
       body:
@@ -106,13 +106,43 @@ endpoints:
     scope: any_account
     method: GET
     path: /search
-    name: Search the web
-    summary: "Browser-free, multi-engine web search with ranked, cleaned results (title, url, snippet, source); rich=1 adds follow-up questions, related queries, an entity card, videos and news."
+    name: Search the web, fast multi-engine web search
+    summary: "Browser-free, multi-engine web search with ranked, cleaned results (title, url, snippet, source)."
     input:
       queryParams:
         q: {type: string, required: true, note: "max 512 characters", example: "rust web crawler"}
-        rich: {type: integer, required: false, enum: [0, 1], default: 0, note: "1 adds the rich block; slightly slower"}
+      note: "For follow-up questions, related queries, an entity card, videos and news, use crawl4ai.web.search.rich."
     test_request: {queryParams: {q: "rust web crawler"}}
+    cost:
+      type: per_success
+      value: 1
+      currency: credit
+      per: 1
+      unit: call
+      source: observed
+      source_url: https://api.crawl4ai.com/v1/prices
+      checked: '2026-10-05'
+      confidence: verified
+      note: "1 credit base times the effort; a cached search cost 0.5 live. The x-c4-cost header settles the actual charge."
+    verified: '2026-10-05'
+    docs_url: https://crawl4ai.com/llms.txt
+    example_response: examples/crawl4ai.web.search.json
+
+  - id: crawl4ai.web.search.rich
+    async: false
+    capability: web.search
+    platform: web
+    domain: search
+    scope: any_account
+    method: GET
+    path: /search
+    name: Search the web with rich results
+    summary: "Web search plus a rich block: follow-up questions, related queries, an entity card, videos, news and discussions."
+    input:
+      queryParams:
+        q: {type: string, required: true, note: "max 512 characters", example: "why is the sky blue"}
+        rich: {type: integer, required: true, enum: [1], example: 1}
+    test_request: {queryParams: {q: "why is the sky blue", rich: 1}}
     cost:
       type: per_success
       value: 2
@@ -123,10 +153,10 @@ endpoints:
       source_url: https://api.crawl4ai.com/v1/prices
       checked: '2026-10-05'
       confidence: verified
-      note: "1 credit base times the effort: a cached search cost 0.5 and a rich=1 search 2 live. The 2-credit hold covers rich; the x-c4-cost header settles the actual charge."
+      note: "A rich search cost 2 credits live. The x-c4-cost header settles the actual charge."
     verified: '2026-10-05'
     docs_url: https://crawl4ai.com/llms.txt
-    example_response: examples/crawl4ai.web.search.json
+    example_response: examples/crawl4ai.web.search.rich.json
 
   - id: crawl4ai.web.extract.structured
     async: false
@@ -137,8 +167,8 @@ endpoints:
     method: POST
     path: /extract
     body_allowlist: true
-    name: Extract structured data from a page
-    summary: "Read a page (crawled for you) or your own content and return typed JSON matching a JSON schema and/or a plain-English instruction."
+    name: Extract structured JSON data from a web page with an LLM
+    summary: "Scrape a page (crawled for you) or read your own content, and return typed JSON matching a JSON schema and/or a plain-English instruction, extracted by an LLM."
     input:
       bodyType: json
       body:
@@ -208,7 +238,7 @@ endpoints:
     method: POST
     path: /scrape/batch
     body_allowlist: true
-    name: Scrape a list of pages, streamed
+    name: Scrape or crawl a list of URLs in one batch, streamed
     summary: "Scrape up to 25 URLs in one call; results stream back as NDJSON, one line per URL as it finishes, then one summary line with the batch's total cost."
     input:
       bodyType: json
@@ -244,7 +274,7 @@ endpoints:
     method: POST
     path: /scrape/jobs
     body_allowlist: true
-    name: Start a scrape job over many URLs
+    name: Crawl many URLs as a background scrape job
     summary: "Submit up to 500 URLs as a background job; poll its status, then read the results. Nothing waits on a slow page."
     input:
       bodyType: json

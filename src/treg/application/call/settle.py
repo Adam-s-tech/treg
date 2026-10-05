@@ -392,7 +392,7 @@ _CREDIT_HEADERS = {
 
 def _usage_document(body: bytes):
     """The document a `settle: usage` path reads: the JSON body, or, for an NDJSON stream, its LAST
-    line (Crawl4AI's batch ends with a {"summary": {"cost": …}} line that totals the call)."""
+    line (a stream that closes with a summary line totalling the call)."""
     try:
         return json.loads(body)
     except ValueError:
@@ -446,7 +446,7 @@ def _observed_cost_micro(mk: MarketplaceCall, body: bytes, headers=None) -> int 
         charge for a 2xx whose payload is an embedded error (verified live 2026-07-30 — see
         docs/context/architecture/catalog.md, "the provider decides what counts as success").
 
-      - crustdata / cloro / aiark / crawl4ai: REPORTED in credits in a response HEADER (`_CREDIT_HEADERS`),
+      - crustdata / cloro / aiark: REPORTED in credits in a response HEADER (`_CREDIT_HEADERS`),
         the only place the charge exists. AI Ark reports debits as negative `X-Credit` values; its
         explicit -1 multiplier converts that convention to a nonnegative charge. cloro's
         ChatGPT/Google routes price their include flags and US state targeting per request, so the

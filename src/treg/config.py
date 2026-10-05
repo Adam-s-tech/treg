@@ -280,7 +280,7 @@ class Settings(BaseSettings):
     platform_key_litescrape: str = ""  # Bearer; prepaid calls, free key status endpoint
     platform_key_keenable: str = ""   # X-API-Key; $4/1,000-request package, 10 requests/s per organization
     platform_key_olostep: str = ""    # Bearer; prepaid credits, platform price $0.002/credit
-    platform_key_crawl4ai: str = ""  # Bearer sk_live_…; prepaid credits, 1 credit = $0.001 at the $10 pack
+    platform_key_crawl4ai: str = ""
     platform_key_firecrawl: str = ""  # Bearer; Standard plan credits, priced at the public base-plan rate
     platform_key_scrapegraphai: str = ""  # SGAI-APIKEY; credit balance and bounded v2 web tools
     platform_key_spidercloud: str = ""   # Bearer; PAYG USD balance, only priced routes may use shared key

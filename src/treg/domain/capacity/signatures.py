@@ -74,9 +74,6 @@ _TABLE: list[tuple[str, int, str, str]] = [
     # X-RateLimit-* headers, never a period quota; the plan allowance resets monthly at
     # `cycleResetsAt` from GET /v1/credits.
     ("cloro", 403, r"insufficient_credits", "balance"),
-    # Crawl4AI (crawl4ai.com/llms.txt, 2026-10-05): 402 {"error": "no_credit"} is a spent prepaid
-    # balance; "spend_cap" is the account's own monthly cap and "plan_cap" the plan's monthly
-    # allowance, both quotas that reset or lift. A 429 is the per-plan pace limit, a burst.
     ("crawl4ai", 402, r"no_credit", "balance"),
     ("crawl4ai", 402, r"spend_cap|plan_cap", "quota"),
     ("crawl4ai", 429, r"", "burst"),

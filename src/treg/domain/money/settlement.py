@@ -163,7 +163,7 @@ def derive_basis(
 
 
 def _usage_number(value: object) -> float | None:
-    # A plain decimal string counts too: Crawl4AI reports `summary.cost` / `usage.cost` as "0.500".
+    # A plain decimal string ("0.500") counts too.
     if isinstance(value, str) and re.fullmatch(r"\d+(?:\.\d+)?", value.strip()):
         value = float(value)
     if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) \

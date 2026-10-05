@@ -1858,12 +1858,9 @@ to choose (`docs/CAPABILITY-ROUTING-PLAN.md`). Everything else in the catalog st
   `ai-search.perplexity.answer` sets `prefer: [dataforseo]` because cost per hit ranked the cheaper
   but slower and less reliable cloro first. Its `source_kind` output says
   whether the answer read the Perplexity website (`website`, cloro) or its model API (`model_api`).
-  `web.extract` and `web.search` set `prefer: [crawl4ai]`, the owner's first choice for scraping and
-  search; a caller's header still replaces it, and every other candidate stays in the waterfall.
-  `web.extract.structured` (a URL plus a JSON `schema` and/or an `instruction`; the most complete
-  variant is listed first, because the first variant a caller fills is the one every field rides on)
-  also prefers crawl4ai; only Crawl4AI takes an instruction without a schema, while Linkup and
-  Search1API need the schema.
+  In `web.extract.structured` (a URL plus a JSON `schema` and/or an `instruction`) the most complete
+  identity variant is listed first, because the first variant a caller fills is the one every field
+  rides on.
 - **Adapters** — `adapters.yaml`, one per endpoint: `accepts` (identity variants), `in` (contract
   field → `queryParams.x` / `body.x`), `const` (fixed provider params), `out` (core field →
   expression over the body), `miss`, and `route: false` for an adapter that only judges hit/miss

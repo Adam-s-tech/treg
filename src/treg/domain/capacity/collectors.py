@@ -905,12 +905,10 @@ async def _cloro(c, key):
 
 
 async def _crawl4ai(c, key):
-    # GET /v1/billing/balance spends no credits; `credit_mc` is thousandths of a credit. It trails the
-    # per-call x-c4-balance header by about a minute (crawl4ai.com/llms.txt).
     d = await _get(c, "https://api.crawl4ai.com/v1/billing/balance", headers={"Authorization": f"Bearer {key}"})
     mc = d.get("credit_mc")
     return {"value": _balance(mc / 1000 if type(mc) in (int, float) else None, "Crawl4AI"), "unit": "credits",
-            "note": f"plan {d.get('tier')}; trails per-call charges by about a minute"}
+            "note": f"plan {d.get('tier')}"}
 
 
 async def _reapi(c, key):
