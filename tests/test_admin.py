@@ -271,8 +271,8 @@ async def test_manual_grant_uses_configured_database_without_cloud_credentials(c
 
 
 async def test_stats_count_calls_from_the_day_table_not_the_call_table(c):
-    """Finding 16 (2026-09-21): it loaded every call row (12,493,056) to count them, ran past 120 s
-    and answered 502. Windowed call numbers now come from `endpointdaystat`."""
+    """It loaded every call row to count them, which timed out at production size and answered
+    502. Windowed call numbers now come from `endpointdaystat`."""
     from datetime import datetime, timedelta, timezone
     from treg.infra.db import session_maker
     from treg.models import EndpointDayStat

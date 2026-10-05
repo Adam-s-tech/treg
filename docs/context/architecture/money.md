@@ -473,8 +473,8 @@ The wait between charges (`billing.autotopup_wait_s`) is one hour after a FAILED
 default `autotopup_default_per_hour`, 5; 1-60 via `POST /billing/autotopup` `per_hour`, `treg topup
 --per-hour`, or the billing page). The number is part of the mandate text. A call refused for
 balance also calls `maybe_schedule_autotopup` (`reserve.py`, one read of the org by primary key):
-before 2026-10-05 only a call that got through did, so a team at $0 stayed empty until something
-else ran - one team refused 54,974 calls in 4 hours. The scheduler checks the wait in memory first,
+before this only a call that got through did, so a team at $0 stayed empty until something else
+ran, refusing every call meanwhile. The scheduler checks the wait in memory first,
 so a team refusing thousands of calls an hour does not start a task per call.
 
 Authorization splits by WHAT, not by who. `_billing_org` (the `/billing/*` routes - cards, top-ups,

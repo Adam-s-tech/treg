@@ -878,8 +878,8 @@ async def _execute_call(request: _ApplicationRequest, upstream_client: httpx.Asy
 
     # The provider's share of `duration_ms`: from sending the request until its answer is read (or,
     # when treg streams it on, until the headers arrive). Excludes token refresh, archive lookup, a
-    # `retry-after` sleep and treg's own work. None when no request reached the provider. Before
-    # 2026-10-05 only the total existed, so a slow call could not be pinned on anyone (finding 7).
+    # `retry-after` sleep and treg's own work. None when no request reached the provider. Without it
+    # only the total existed, so a slow call could not be pinned on the provider or on treg.
     upstream_ms: int | None = None
 
     def _audit(status_code: int, *, observed_micro: int | None = None, charged_micro: int | None = None,

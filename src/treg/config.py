@@ -472,8 +472,7 @@ class Settings(BaseSettings):
     autotopup_monthly_cap_usd: int = 100
     # The wait after a FAILED charge. After a successful one the wait is one hour divided by the
     # team's `autotopup_max_per_hour` (default below): one charge an hour left teams that spend more
-    # than their refill per hour empty for the rest of the hour (2026-10-05: 88,205 balance refusals
-    # in 3.5 days hit teams with auto top-up ON).
+    # than their refill per hour empty for the rest of the hour, with auto top-up ON.
     autotopup_cooldown_s: int = 3600
     autotopup_default_per_hour: int = 5
     autotopup_max_attempts: int = 3

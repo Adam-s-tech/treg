@@ -3336,7 +3336,7 @@ async def test_the_call_record_splits_out_the_providers_share_of_the_time(
 
 async def test_a_balance_refusal_asks_for_an_auto_top_up(clients: AsyncClient, platform_on, monkeypatch):
     """Only a call that got through used to schedule a refill, so a team at $0 with auto top-up on
-    stayed empty until something else ran: one team refused 54,974 calls in 4 hours (2026-10-02)."""
+    stayed empty until something else ran, refusing every call meanwhile."""
     from treg.application import billing
     from treg.models import Org
 

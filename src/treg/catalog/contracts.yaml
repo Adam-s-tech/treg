@@ -1149,10 +1149,10 @@ contracts:
     output:
       answer: {type: str, required: true}
       sources: {type: list, note: "the provider's own cited-source objects; raw is the same body"}
-      source_kind: {type: str, note: "website = the public Perplexity site, as a user there sees it; model_api = Perplexity's model API (sonar). The two cite different sources: 3 of 10 shared on one live question (2026-10-05)"}
+      source_kind: {type: str, note: "website = the public Perplexity site, as a user there sees it; model_api = Perplexity's model API (sonar). The two cite largely different sources for the same question"}
     miss: "answer == null"
     idempotent: true
-    # 2026-10-05, 30 days: dataforseo 99.98% ok at 4 s median; cloro 60% ok at 64 s. Cloro reads the
+    # DataForSEO answers far more often and much faster than Cloro (see their observed stats). Cloro reads the
     # website itself; a caller who needs that sends X-Treg-Route-Prefer: cloro or calls it directly.
     prefer: [dataforseo]
 

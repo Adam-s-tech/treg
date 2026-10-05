@@ -249,8 +249,8 @@ async def _platform_reserve(mk: MarketplaceCall, caller: Caller, meta: CallMeta 
             except ledger.InsufficientBalance:
                 await db.rollback()
                 # A refused call asks for a refill too. Only a call that got through used to, so a
-                # team at $0 with auto top-up on stayed empty until something else ran: one team
-                # refused 54,974 calls in 4 hours (2026-10-02). One read by primary key, refusals only;
+                # team at $0 with auto top-up on stayed empty until something else ran, refusing
+                # every call meanwhile. One read by primary key, refusals only;
                 # the wait check in `maybe_schedule_autotopup` keeps it from starting a task per call.
                 if auto_on:
                     org = await db.get(Org, caller.org_id)
