@@ -1256,10 +1256,17 @@ adapters:
   dataforseo.x.serp-google-news-live-advanced:
     accepts: [[q]]
     in:  {q: body.keyword}
-    in_expr: {body.location_code: "dfs_location(country)", body.language_code: language}
+    in_expr: {body.location_code: "dfs_location(country)", body.language_code: language, body.depth: limit}
     body_array: true
     out: {results: "tasks[0].result[0].items", count: "tasks[0].result[0].items_count"}
     miss: "tasks[0].result[0].items == []"
+  litescrape.google.serp.news:
+    accepts: [[q]]
+    in: {q: queryParams.q}
+    in_expr: {queryParams.num: limit, queryParams.hl: language}
+    const: {queryParams.tbm: nws}
+    out: {results: news_results, count: "len(news_results)"}
+    miss: "coalesce(news_results, []) == []"
   serpapi.x.google-news:
     accepts: [[q]]
     in:  {q: queryParams.q}
@@ -1267,6 +1274,19 @@ adapters:
     const: {queryParams.engine: google_news}
     out: {results: news_results}
     miss: "news_results == []"
+  serper.google.serp.news:
+    accepts: [[q]]
+    in: {q: body.q}
+    in_expr: {body.gl: "lower(country)", body.hl: language, body.num: limit}
+    out: {results: news, count: "len(news)"}
+    miss: "coalesce(news, []) == []"
+  cloro.google.serp.news:
+    accepts: [[q]]
+    in: {q: body.query}
+    in_expr: {body.gl: "upper(country)", body.hl: language}
+    const: {body.pages: 1}
+    out: {results: result.newsResults, count: "len(result.newsResults)"}
+    miss: "coalesce(result.newsResults, []) == []"
 
   # ---- instagram.search.reels (batch 5) --------------------------------------------------------
   justoneapi.x.instagram-search-reels-v1:
@@ -2663,7 +2683,7 @@ adapters:
   anyapi.google.serp.news:
     accepts: [[q]]
     in:  {q: body.query}
-    in_expr: {body.gl: "lower(country)", body.hl: language}
+    in_expr: {body.gl: "lower(country)", body.hl: language, body.limit: limit}
     out: {results: output.data.items, count: "len(output.data.items)"}
     miss: "coalesce(output.data.items, []) == []"
   anyapi.google.serp.maps.place:
@@ -2679,6 +2699,25 @@ adapters:
     miss: "coalesce(output.data.suggestions, []) == []"
 
   # ---- open web -----------------------------------------------------------------------------
+  search1api.web.news:
+    accepts: [[q]]
+    in: {q: body.query}
+    in_expr: {body.max_results: limit}
+    out: {results: results, count: "len(results)"}
+    miss: "coalesce(results, []) == []"
+  tinyfish.web.search.news:
+    accepts: [[q]]
+    in: {q: queryParams.query}
+    const: {queryParams.domain_type: news}
+    out: {results: results, count: "coalesce(total_results, len(results))"}
+    miss: "coalesce(results, []) == []"
+  exa.web.search.news:
+    accepts: [[q]]
+    in: {q: body.query}
+    in_expr: {body.numResults: limit}
+    const: {body.category: news}
+    out: {results: results, count: "len(results)"}
+    miss: "coalesce(results, []) == []"
   search1api.web.search:
     accepts: [[q]]
     in: {q: body.query}
@@ -2746,6 +2785,13 @@ adapters:
     in: {q: body.query}
     in_expr: {body.max_results: limit}
     const: {body.search_depth: basic, body.include_usage: true}
+    out: {results: results, count: "len(results)"}
+    miss: "coalesce(results, []) == []"
+  tavily.web.search.news:
+    accepts: [[q]]
+    in: {q: body.query}
+    in_expr: {body.max_results: limit}
+    const: {body.topic: news, body.search_depth: basic, body.include_usage: true}
     out: {results: results, count: "len(results)"}
     miss: "coalesce(results, []) == []"
   linkup.web.search:

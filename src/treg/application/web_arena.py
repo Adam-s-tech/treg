@@ -32,14 +32,23 @@ log = logging.getLogger(__name__)
 _owners: dict[str, asyncio.Task] = {}
 MAX_RESULT_BYTES = 256_000
 RUN_SECONDS = 180
-FIXED_PAGE_SEARCH = {"branddev.web.search", "tinyfish.web.search"}
+FIXED_PAGE_SEARCH = {"branddev.web.search", "tinyfish.web.search", "tinyfish.web.search.news"}
+NEWS_ENDPOINTS = {"tinyfish.web.search.news", "search1api.web.news", "exa.web.search.news",
+                  "anyapi.google.serp.news", "serper.google.serp.news", "cloro.google.serp.news",
+                  "serpapi.x.google-news", "dataforseo.x.serp-google-news-live-advanced",
+                  "litescrape.google.serp.news", "tavily.web.search.news"}
 UNBOUNDED_SITEMAP = {"search1api.web.sitemap"}
 
 
 def _supports_result_limit(task: str, endpoint_id: str, adapter) -> bool:
-    return task not in {"search", "sitemap"} or "limit" in _used_keys(adapter) or (
-        task == "search" and endpoint_id in FIXED_PAGE_SEARCH) or (
+    return task not in {"search", "news", "sitemap"} or "limit" in _used_keys(adapter) or (
+        task in {"search", "news"} and endpoint_id in FIXED_PAGE_SEARCH) or (
+        task == "news" and endpoint_id in NEWS_ENDPOINTS) or (
         task == "sitemap" and endpoint_id in UNBOUNDED_SITEMAP)
+
+
+def _capabilities(task: str) -> tuple[str, ...]:
+    return ("web.search.news", "google.serp.news") if task == "news" else (rules.TASKS[task],)
 
 
 def enabled() -> bool:
@@ -73,17 +82,21 @@ def tasks(*, _internal: bool = False):
         _check_enabled()
     cat = catalog_store.load()
     result = []
-    for task, label in (("search", "Web Search"), ("fetch", "Web Fetch"),
+    for task, label in (("search", "Web Search"), ("news", "News Search"), ("fetch", "Web Fetch"),
                         ("sitemap", "Sitemap"), ("brand", "Brand")):
         previews = []
         if task != "brand":
-            capability = rules.TASKS[task]
-            contract = cat.contracts[capability]
-            identity = rules.input_for(task, "example query" if task == "search" else "https://example.com")
-            candidates, _ = candidates_for(contract, cat.for_capability(capability), cat.adapters, identity)
+            identity = rules.input_for(task, "example query" if task in {"search", "news"} else "https://example.com")
+            candidates = []
+            for capability in _capabilities(task):
+                contract = cat.contracts[capability]
+                found, _ = candidates_for(contract, cat.for_capability(capability), cat.adapters, identity)
+                candidates.extend((contract, ep, adapter, variant) for ep, adapter, variant in found)
             seen = set()
-            for ep, adapter, variant in candidates:
+            for contract, ep, adapter, variant in candidates:
                 provider = ep["provider"]
+                if task == "news" and ep["id"] not in NEWS_ENDPOINTS:
+                    continue
                 if task == "search" and provider == "valyu":
                     continue
                 if (provider in seen or provider == "treg" or ep.get("async") or ".bulk" in ep["id"]
@@ -118,19 +131,20 @@ async def quote(caller, *, task: str, value: str, query: str = "", mode: str = "
     if task == "sitemap":
         jev = False
     identity = rules.input_for(task, value, query)
-    capability = rules.TASKS[task]
     # Check the comparison limit after planning. Search1API Sitemap is the explicit
     # unbounded exception; its returned links are capped before comparison.
-    plan = await route.build_plan({"id": "web-arena." + task, "capability": capability}, identity, caller,
-                                  route.RouteOptions(strict_filters=False))
+    plans = [await route.build_plan({"id": "web-arena." + task, "capability": capability}, identity, caller,
+                                    route.RouteOptions(strict_filters=False)) for capability in _capabilities(task)]
     cat = catalog_store.load()
-    chosen, dropped, seen = [], list(plan.dropped), set()
+    chosen, dropped, seen = [], [item for plan in plans for item in plan.dropped], set()
     requested = set(providers) if providers is not None else None
     if requested is not None and (not requested or len(requested) > 30):
         raise rules.WebArenaError("Select 1 to 30 providers.")
-    for c in plan.candidates:
+    for plan, c in ((plan, c) for plan in plans for c in plan.candidates):
         ep, adapter = c.endpoint, c.adapter
         provider = ep["provider"]
+        if task == "news" and ep["id"] not in NEWS_ENDPOINTS:
+            continue
         if task == "search" and provider == "valyu":
             continue
         if provider in seen or provider == "treg" or ep.get("async") or ".bulk" in ep["id"]:
@@ -293,7 +307,8 @@ async def _run(run_id, task, mode, payload, snapshot, client, client_ip):
                     outcome, output = "error", {}
                 else:
                     output = ad.from_upstream(doc)
-                    if (a["endpoint_id"] == "tinyfish.web.search" or
+                    if (a["endpoint_id"] in {"tinyfish.web.search", "tinyfish.web.search.news"} or
+                            task == "news" or
                             a["endpoint_id"] in UNBOUNDED_SITEMAP) and isinstance(output.get("results"), list):
                         # Compare only the requested first page when upstream cannot accept a count.
                         output["results"] = output["results"][:payload["identity"]["limit"]]
@@ -330,7 +345,7 @@ async def _run(run_id, task, mode, payload, snapshot, client, client_ip):
             await persist()
         # The provider card is saved before any optional Jev request. An unavailable
         # check does not turn the provider's answer into an error or a zero score.
-        if task == "search" and payload["jev"] and a["state"] == "hit":
+        if task in {"search", "news"} and payload["jev"] and a["state"] == "hit":
             try:
                 a["quality"] = await web_arena_quality.search(payload["input"], a["output"], snapshot.user.id)
             except Exception:
@@ -360,12 +375,12 @@ async def _run(run_id, task, mode, payload, snapshot, client, client_ip):
                 quoted_spend += a["estimate_micro"]
                 await leg(a)
                 if a["state"] == "hit":
-                    if task == "search" and payload["jev"]:
+                    if task in {"search", "news"} and payload["jev"]:
                         score = (a.get("quality") or {}).get("estimated_match")
                         if score is None or score < 60:
                             continue
                         payload["stop_reason"] = "Stopped after an estimated match of at least 60%."
-                    elif task == "search":
+                    elif task in {"search", "news"}:
                         payload["stop_reason"] = "Stopped at the first valid list. Relevance was not checked."
                     else:
                         payload["stop_reason"] = "Stopped at the first useful result."

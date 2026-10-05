@@ -22,6 +22,7 @@ from test_routing import _relay_by_provider
 
 def test_web_input_enforces_task_limits_and_public_urls():
     assert web_arena.input_for("search", "open data") == {"q": "open data", "limit": 10}
+    assert web_arena.input_for("news", "  AI policy  ") == {"q": "AI policy", "limit": 10}
     assert web_arena.input_for("sitemap", "https://example.com") == {"url": "https://example.com", "limit": 10}
     assert web_arena.input_for("sitemap", "https://example.com", "  pricing  ") == {
         "url": "https://example.com", "limit": 10, "q": "pricing"}
@@ -240,6 +241,9 @@ def test_public_task_previews_show_verified_search_providers(monkeypatch):
         tasks = {row["id"]: row for row in app.tasks()}
         search = {row["provider"] for row in tasks["search"]["provider_previews"]}
         assert {"exa", "firecrawl", "tavily", "tinyfish", "serper", "spidercloud", "octen"} <= search
+        news = {row["provider"] for row in tasks["news"]["provider_previews"]}
+        assert news == {"anyapi", "cloro", "dataforseo", "exa", "litescrape", "search1api",
+                        "serpapi", "serper", "tavily", "tinyfish"}
         assert "valyu" not in search
         assert not tasks["brand"]["enabled"]
         assert tasks["brand"]["provider_previews"] == []
@@ -520,5 +524,41 @@ async def test_new_search_providers_join_one_ten_link_quote(clients, monkeypatch
             "tinyfish", "serper", "spidercloud", "octen"}
         assert next(p for p in quote["providers"] if p["provider"] == "tinyfish")["estimate_micro"] == 0
         assert quote["required_micro"] == quote["estimate_micro"]
+    finally:
+        get_settings.cache_clear()
+
+
+async def test_news_search_quotes_platform_providers_with_news_parameters(clients, monkeypatch):
+    monkeypatch.setenv("TREG_WEB_ARENA_ENABLED", "true")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "tinyfish,search1api,exa,anyapi,cloro,serpapi,serper,dataforseo,litescrape,tavily")
+    for provider in ("TINYFISH", "SEARCH1API", "EXA", "ANYAPI", "CLORO", "SERPAPI", "SERPER",
+                     "DATAFORSEO", "LITESCRAPE", "TAVILY"):
+        monkeypatch.setenv("TREG_PLATFORM_KEY_" + provider, "TEST-" + provider)
+    get_settings.cache_clear()
+    try:
+        response = await clients.post("/web-arena/api/quotes", json={
+            "task": "news", "value": "AI policy", "mode": "battle", "jev": False})
+        assert response.status_code == 200, response.text
+        quote = response.json()
+        assert {p["endpoint_id"] for p in quote["providers"]} == app.NEWS_ENDPOINTS
+        async with session_maker() as db:
+            from treg.models import WebArenaRun
+            saved = await db.get(WebArenaRun, quote["id"])
+        attempts = {a["provider"]: a for a in app.arena._unpack(saved.payload)["attempts"]}
+        assert attempts["tinyfish"]["query"]["domain_type"] == "news"
+        assert attempts["search1api"]["body"]["max_results"] == 10
+        assert attempts["exa"]["body"]["category"] == "news"
+        assert attempts["exa"]["body"]["numResults"] == 10
+        assert attempts["anyapi"]["body"]["limit"] == 10
+        assert attempts["serper"]["body"]["num"] == 10
+        assert attempts["cloro"]["body"]["pages"] == 1
+        assert attempts["serpapi"]["query"]["engine"] == "google_news"
+        assert attempts["dataforseo"]["body"] == [{"keyword": "AI policy", "location_code": 2840,
+                                                    "language_code": "en", "depth": 10}]
+        assert attempts["litescrape"]["query"]["tbm"] == "nws"
+        assert attempts["litescrape"]["query"]["num"] == "10"
+        assert attempts["tavily"]["body"]["topic"] == "news"
+        assert attempts["tavily"]["body"]["max_results"] == 10
+        assert attempts["tavily"]["body"]["include_usage"] is True
     finally:
         get_settings.cache_clear()

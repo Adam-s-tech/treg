@@ -4,7 +4,7 @@ from __future__ import annotations
 import ipaddress
 from urllib.parse import urlsplit, urlunsplit
 
-TASKS = {"search": "web.search", "fetch": "web.extract", "sitemap": "web.map"}
+TASKS = {"search": "web.search", "news": "web.search.news", "fetch": "web.extract", "sitemap": "web.map"}
 TERMINAL = {"completed", "cancelled", "interrupted"}
 RETENTION_DAYS = 30
 
@@ -17,11 +17,11 @@ class WebArenaError(Exception):
 
 def input_for(task: str, value: str, query: str = "") -> dict:
     if task not in TASKS:
-        raise WebArenaError("Choose Web Search, Web Fetch, or Sitemap.")
+        raise WebArenaError("Choose Web Search, News Search, Web Fetch, or Sitemap.")
     value = value.strip()
     if not value or len(value) > 500:
         raise WebArenaError("Enter an input of 1 to 500 characters.")
-    if task == "search":
+    if task in {"search", "news"}:
         return {"q": value, "limit": 10}
     parsed = urlsplit(value)
     if parsed.scheme not in {"https", "http"} or not parsed.hostname or parsed.username or parsed.password:

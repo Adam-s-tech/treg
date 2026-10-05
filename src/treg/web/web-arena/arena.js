@@ -13,7 +13,7 @@
   const clearSignup=()=>{try{sessionStorage.removeItem(signupSetupKey);}catch{}};
   Vue.createApp({
     components:{TregTryItOut:TregAgentSetup.TryItOut,TregAgentPicker:TregAgentSetup.AgentPicker,TregSetupInstructions:TregAgentSetup.SetupInstructions},
-    data:()=>({tasks:[{id:'search',label:'Web Search',enabled:true},{id:'fetch',label:'Web Fetch',enabled:true},{id:'sitemap',label:'Sitemap',enabled:true},{id:'brand',label:'Brand',enabled:false}],task:'search',value:'',query:'',mode:'battle',jev:true,
+    data:()=>({tasks:[{id:'search',label:'Web Search',enabled:true},{id:'news',label:'News Search',enabled:true},{id:'fetch',label:'Web Fetch',enabled:true},{id:'sitemap',label:'Sitemap',enabled:true},{id:'brand',label:'Brand',enabled:false}],task:'search',value:'',query:'',mode:'battle',jev:true,
       user:null,teams:[],team:'',balance:null,quote:null,availableProviders:[],selected:[],run:null,resultView:readResultView(),history:[],live:null,insightsTimer:null,meta:{},
       leaderboardView:'rate',leaderboardOrientation:'vertical',chartFocus:null,
       busy:false,pricing:false,running:false,error:'',authError:'',authBusy:false,email:'',code:'',authStep:'email',devCode:'',poller:null,
@@ -26,7 +26,7 @@
       coverageBuilding(){const start=Date.parse(this.live?.observed_since||'');return Number.isFinite(start)&&Date.now()-start<30*24*60*60*1000;},
       leaderboardViews(){
         const common=[{id:'rate',label:'Hit rate'},{id:'price',label:'Price'},{id:'price_rate',label:'Price vs hit rate'}];
-        if(this.task==='search')common.splice(1,0,{id:'relevance',label:'Relevance'});
+        if(['search','news'].includes(this.task))common.splice(1,0,{id:'relevance',label:'Relevance'});
         if(this.task==='fetch')common.push({id:'coverage',label:'Fact coverage'},{id:'efficiency',label:'Token efficiency'},
           {id:'coverage_efficiency',label:'Fact coverage vs token efficiency'});
         return common;
@@ -35,7 +35,7 @@
         const colors=['#5b8f88','#7b8fae','#b39a69','#9787a6','#8b9c76','#b98476'];
         return this.liveRows.map((row,i)=>({...row,color:colors[i%colors.length],
           rate:Number.isFinite(row.success_rate)?row.success_rate:null,
-          relevance:Number.isFinite(row.metric_percent)&&this.task==='search'?row.metric_percent:null,
+          relevance:Number.isFinite(row.metric_percent)&&['search','news'].includes(this.task)?row.metric_percent:null,
           coverage:Number.isFinite(row.metric_percent)&&this.task==='fetch'?row.metric_percent:null,
           efficiency:Number.isFinite(row.token_efficiency_percent)&&this.task==='fetch'?row.token_efficiency_percent:null,
           price:Number.isFinite(row.current_catalog_price_usd)?row.current_catalog_price_usd:null}));
@@ -93,7 +93,7 @@
           for(const a of results)if(a[field]===best)(awards[a.id]||=[]).push(label);
         }
         const scoredSearch=results.filter(a=>Number.isFinite(a.quality?.estimated_match)&&a.quality.estimated_match>=0&&a.quality.estimated_match<=100);
-        if(this.run.task==='search'&&scoredSearch.length>=2){
+        if(['search','news'].includes(this.run.task)&&scoredSearch.length>=2){
           const best=Math.max(...scoredSearch.map(a=>a.quality.estimated_match));
           for(const a of scoredSearch)if(a.quality.estimated_match===best)(awards[a.id]||=[]).push('Most Relevant');
         }
@@ -115,7 +115,7 @@
       leaderboardAxis(value){return this.leaderboardView==='price'?'$'+Number(value).toPrecision(2):Math.round(value)+'%';},
       leaderboardChartLabel(row){
         const counted=n=>`${n} checked ${n===1?'input':'inputs'}`;
-        const quality=this.task==='search'?` Relevance ${this.percent(row.relevance)} from ${counted(row.metric_sample_count)}.`:
+        const quality=['search','news'].includes(this.task)?` Relevance ${this.percent(row.relevance)} from ${counted(row.metric_sample_count)}.`:
           this.task==='fetch'?` Fact coverage ${this.percent(row.coverage)} from ${counted(row.metric_sample_count)}. Token efficiency ${this.percent(row.efficiency)} from ${counted(row.token_efficiency_sample_count)}.`:'';
         return `${this.providerName(row.provider)}. Hit rate ${this.percent(row.rate)} from ${row.hit_samples||0} decided calls.${quality} Response ${row.average_provider_ms==null?'—':row.average_provider_ms+' ms'} from ${row.time_samples||0} direct calls. Price ${this.catalogPrice(row)}.`;
       },
@@ -125,8 +125,8 @@
       setResultView(view){this.resultView=view;try{localStorage.setItem(resultViewKey,view);}catch{}},
       percent(n){return n===null||n===undefined?'—':Number(n).toFixed(1)+'%';},
       date(s){return s?new Date(s).toLocaleDateString():'';},
-      providerName(provider){return ({branddev:'Context.dev',firecrawl:'Firecrawl',scrapegraphai:'ScrapeGraphAI',search1api:'Search1API',tinyfish:'TinyFish',you:'You.com',anyapi:'AnyAPI'})[provider]||provider.charAt(0).toUpperCase()+provider.slice(1);},
-      taskIcon(task){return ({search:'M20 20l-4.3-4.3M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Z',fetch:'M8 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9l-5-5h-4M16 4v5h5M8 14h8m-8 3h5',sitemap:'M12 3v5m-7 6v-3h14v3M12 8v3M3 14h4v5H3zm7 0h4v5h-4zm7 0h4v5h-4z',brand:'M4 5h16v14H4zM8 14l3-3 3 3 2-2 4 4M8 8h.01'})[task]||'';},
+      providerName(provider){return ({branddev:'Context.dev',firecrawl:'Firecrawl',scrapegraphai:'ScrapeGraphAI',search1api:'Search1API',tinyfish:'TinyFish',you:'You.com',anyapi:'AnyAPI',serpapi:'SerpAPI',dataforseo:'DataForSEO'})[provider]||provider.charAt(0).toUpperCase()+provider.slice(1);},
+      taskIcon(task){return ({search:'M20 20l-4.3-4.3M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Z',news:'M4 4h12l4 4v12H4zM7 9h6m-6 3h10m-10 3h10M16 4v4h4',fetch:'M8 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9l-5-5h-4M16 4v5h5M8 14h8m-8 3h5',sitemap:'M12 3v5m-7 6v-3h14v3M12 8v3M3 14h4v5H3zm7 0h4v5h-4zm7 0h4v5h-4z',brand:'M4 5h16v14H4zM8 14l3-3 3 3 2-2 4 4M8 8h.01'})[task]||'';},
       attemptFor(provider){return this.run?.attempts?.find(a=>a.provider===provider);},
       fighterIncluded(provider){return this.selected.includes(provider)||(this.running&&!!this.attemptFor(provider));},
       fighterAwards(provider){return this.battleAwards[this.attemptFor(provider)?.id]||[];},
@@ -170,7 +170,7 @@
           .find(value=>typeof value==='string'&&value.trim());
         return text?text.replace(/\s+/g,' ').replace(/^#+\s*/,'').trim().slice(0,280):'';
       },
-      attemptMessage(a){if(a.state==='miss')return ({search:'No matching results returned.',fetch:'No usable page text returned.',sitemap:'No valid site URLs returned.'})[this.run?.task]||'No usable result returned.';return ({error:'This service could not complete the request.',timeout:'This service did not finish within the deadline.',running:'Waiting for the provider response…',queued:'Waiting for its turn.',not_attempted:'This provider was not called.',cancelled:'The attempt was stopped.',interrupted:'No complete result was recorded.'})[a.state]||'';},
+      attemptMessage(a){if(a.state==='miss')return ({search:'No matching results returned.',news:'No matching news returned.',fetch:'No usable page text returned.',sitemap:'No valid site URLs returned.'})[this.run?.task]||'No usable result returned.';return ({error:'This service could not complete the request.',timeout:'This service did not finish within the deadline.',running:'Waiting for the provider response…',queued:'Waiting for its turn.',not_attempted:'This provider was not called.',cancelled:'The attempt was stopped.',interrupted:'No complete result was recorded.'})[a.state]||'';},
       freshnessLabel(quality){
         const value=quality?.freshness_percent;
         if(value==null||!quality?.known_dates)return 'Freshness unknown';
