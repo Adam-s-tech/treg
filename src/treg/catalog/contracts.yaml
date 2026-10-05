@@ -441,6 +441,7 @@ contracts:
     filters:
       country: {type: str, default: us}
       language: {type: str, default: en}
+      limit: {type: int, note: "article count where supported"}
     output:
       results: {type: list, required: true, note: "the provider's own news rows (title, link, source, date…)"}
       count: {type: int}
@@ -510,6 +511,30 @@ contracts:
       videos: {type: list, required: true}
       next_cursor: {type: str}
     miss: "videos == []"
+    idempotent: true
+
+  web.search.publications:
+    summary: "Search research publications by topic — provider-native paper rows in `results`"
+    identity:
+      - {q: str}
+    filters:
+      limit: {type: int, default: 10}
+    output:
+      results: {type: list, required: true}
+      count: {type: int}
+    miss: "results == []"
+    idempotent: true
+
+  google.serp.scholar:
+    summary: "Search Google Scholar publications — provider-native paper rows in `results`"
+    identity:
+      - {q: str}
+    filters:
+      limit: {type: int, default: 10}
+    output:
+      results: {type: list, required: true}
+      count: {type: int}
+    miss: "results == []"
     idempotent: true
 
   threads.search.posts:
@@ -1139,6 +1164,18 @@ contracts:
       limit: {type: int, default: 10, note: "maximum results, where the provider accepts one"}
     output:
       results: {type: list, required: true, note: "the provider's own ranked result objects; raw is the same body"}
+      count: {type: int}
+    miss: "results == []"
+    idempotent: true
+
+  web.search.news:
+    summary: "Search recent news — provider-native article rows in `results`"
+    identity:
+      - {q: str}
+    filters:
+      limit: {type: int, default: 10, note: "maximum compared results; sent upstream where supported"}
+    output:
+      results: {type: list, required: true, note: "the provider's own ranked news articles"}
       count: {type: int}
     miss: "results == []"
     idempotent: true
