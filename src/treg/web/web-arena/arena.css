@@ -8,6 +8,11 @@
 .web-task-tabs.composer-tabs button svg{width:15px;height:15px;flex:none}
 .web-task-tabs.composer-tabs button.active{background:#f0f2ef;color:var(--ink);border-color:#e3e7e1}
 .web-task-tabs button:disabled{opacity:.4}
+.web-search-type-row{margin:9px 20px 0;border-top:1px solid #edf0ec}
+.web-search-type-tabs.composer-tabs{display:flex;align-items:center;gap:3px;padding:7px 0 6px;overflow-x:auto}
+.web-search-type-tabs.composer-tabs button{min-height:32px;padding:6px 12px;border-radius:8px;color:var(--muted);font-size:12px}
+.web-search-type-tabs.composer-tabs button.active{background:#eaf3ef;border-color:#d8e9df;color:#356556}
+.web-search-type-tabs.composer-tabs button:focus-visible{outline:2px solid var(--teal-ink);outline-offset:-2px}
 .web-layout .workspace{margin-bottom:16px}
 .web-layout .compose-main{padding:20px}
 .web-layout .query-field{display:block;background:var(--card);border:1px solid transparent;border-radius:16px;padding:7px 15px;transition:border-color .15s,box-shadow .15s}
@@ -168,5 +173,5 @@
 @media(max-width:700px){#web-arena{overflow-x:clip}.web-layout.has-history{flex-direction:column;column-gap:0}.web-layout .session-sidebar{position:static;width:calc(100% - 32px);flex-basis:auto;max-height:none;margin:14px 16px 0;gap:8px}.web-layout .session-list{flex-direction:row;overflow-x:auto;overflow-y:hidden}.web-layout .session-item{width:180px}.web-layout main{padding:0 16px 50px}}
 @media(max-width:720px){.web-leaderboard-grid{grid-template-columns:minmax(0,1fr);gap:16px}.web-leaderboard-filters{grid-column:1;grid-row:1}.web-leaderboard-chart{grid-column:1;grid-row:2}.web-leaderboard-filters .stats-views{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px}.web-leaderboard-filters .stats-views .web-view-select{padding:9px 12px}.web-leaderboard-option .web-info-tooltip{top:auto;bottom:calc(100% + 8px);left:0;transform:none}.web-leaderboard-option:nth-child(2) .web-info-tooltip{max-width:230px}.web-leaderboard-option:nth-child(n+3) .web-info-tooltip{left:auto;right:0}.web-leaderboard-filters .leaderboard-source{margin:0 4px 6px}.web-leaderboard-chart{padding:18px 14px 14px}.web-horizontal-chart .price-comparison-row{grid-template-columns:minmax(0,1fr) 110px;gap:8px 10px}.web-horizontal-chart .price-vendor{grid-column:1;grid-row:1}.web-horizontal-chart .price-amount{grid-column:2;grid-row:1}.web-horizontal-chart .price-track{grid-column:1/-1;grid-row:2}}
 @media(max-width:800px){.web-table-detail ol{grid-template-columns:1fr}}
-@media(max-width:540px){.web-layout .composer-tab-scroll{padding:12px 12px 0}.web-task-tabs.composer-tabs button{padding:7px 9px;min-height:44px}.web-roster-nav{grid-template-columns:29px minmax(0,1fr) 29px;padding:0 4px}.web-info-tooltip,.web-intent-info .web-info-tooltip{left:-130px;right:auto}.web-result-actions .rating-button{min-width:44px;min-height:44px}}
+@media(max-width:540px){.web-layout .composer-tab-scroll{padding:12px 12px 0}.web-task-tabs.composer-tabs button{padding:7px 9px;min-height:44px}.web-search-type-row{margin:9px 12px 0}.web-search-type-tabs.composer-tabs button{min-height:40px}.web-roster-nav{grid-template-columns:29px minmax(0,1fr) 29px;padding:0 4px}.web-info-tooltip,.web-intent-info .web-info-tooltip{left:-130px;right:auto}.web-result-actions .rating-button{min-width:44px;min-height:44px}}
 @media(prefers-reduced-motion:reduce){.web-info-tooltip{transition:none}}

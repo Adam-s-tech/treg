@@ -208,9 +208,11 @@ days, capped at the 10,000 newest runs, for checked quality. The direct-call buc
 eligible dashboard, CLI, agent, Battle, and attempted Waterfall calls to the Web Arena's
 listed endpoints. A skipped Waterfall provider has no call to count. The source, window,
 filters, and sample floors travel with each saved publication.
-The composer keeps its task list horizontally scrollable, with overflow arrows and automatic
-reveal of the selected task. Signed-in query history stays beside the main content near the
-viewport edge on wide screens and becomes a horizontal list above it on narrow screens.
+The composer groups Web, News, Papers, YouTube, and Maps under Search; Fetch and Sitemap stay
+beside it. Selecting Search from another task opens Web, while a saved run opens its own search
+type. Both tab rows scroll when needed, with overflow arrows and automatic reveal of the selected
+tab. Signed-in query history stays beside the main content near the viewport edge on wide
+screens and becomes a horizontal list above it on narrow screens.
 The live leaderboard follows the task selected in the query composer and uses Enrich Arena's
 comparison rail, provider logos, and hover or selection details. Search offers hit rate, Jev
 relevance, catalog price, and price vs hit rate;
