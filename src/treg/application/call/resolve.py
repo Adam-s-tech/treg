@@ -1552,6 +1552,35 @@ def _enforce_platform_request(ep: dict, body: bytes, headers=None, query=None) -
     has a singleton enum is the row identity, not caller choice: accepting another value lets a cheap
     row reserve for an expensive model. Full schema validation remains out of the faithful BYOK path.
     """
+    if ep.get("provider") == "oceanio":
+        endpoint_id = ep["id"]
+        if endpoint_id in {
+            "oceanio.companies.lookalike", "oceanio.companies.search", "oceanio.people.search",
+        }:
+            document = _request_body_document(ep, body, headers)
+            size = document.get("size")
+            if type(size) is not int or not 1 <= size <= 100:
+                raise ResolutionFailed(
+                    "catalog_parameter_invalid", status_code=400, detail={
+                        "error": "catalog_parameter_invalid", "endpoint_id": endpoint_id,
+                        "parameter": "body.size",
+                        "message": "Ocean.io shared-key search requires an explicit size from 1 to 100; "
+                                   "connect your own key for larger searches",
+                    },
+                )
+        elif endpoint_id == "oceanio.people.enrich":
+            document = _request_body_document(ep, body, headers)
+            for name in ("revealEmails", "revealPhones"):
+                if name in document:
+                    raise ResolutionFailed(
+                        "catalog_parameter_invalid", status_code=400, detail={
+                            "error": "catalog_parameter_invalid", "endpoint_id": endpoint_id,
+                            "parameter": f"body.{name}",
+                            "message": "Ocean.io contact reveals are not available on the shared key; "
+                                       "connect your own key for reveals",
+                        },
+                    )
+
     if ep.get("provider") == "octen" and ep.get("id") in _OCTEN_ENDPOINTS:
         from . import octen
         invalid = octen.invalid_platform_parameter(ep["id"], body)
