@@ -1155,9 +1155,9 @@ adapters:
     accepts: [[q]]
     in:  {q: body.searchStringsArray}
     in_expr: {body.searchStringsArray: "list(q)", body.locationQuery: "country_name(country)", body.language: language}
-    # treg's key needs the run's spend cap, timeout and memory; 20 places bill at most 20 rows + the start.
-    const: {queryParams.maxTotalChargeUsd: "0.25", queryParams.timeout: "90", queryParams.memory: "1024",
-            body.maxCrawledPlacesPerSearch: 20, body.maxCrawledPlaces: 20, body.scrapeContacts: false,
+    # treg's key needs the run's spend cap, timeout and memory; Arena compares ten places.
+    const: {queryParams.maxTotalChargeUsd: "0.12", queryParams.timeout: "90", queryParams.memory: "1024",
+            body.maxCrawledPlacesPerSearch: 10, body.maxCrawledPlaces: 10, body.scrapeContacts: false,
             body.scrapePlaceDetailPage: false, body.maxReviews: 0}
     out: {places: ".", count: "len(.)"}
     miss: ". == []"
@@ -1393,8 +1393,8 @@ adapters:
   justoneapi.x.youtube-search-v1:
     accepts: [[q]]
     in:  {q: queryParams.keyword}
-    out: {videos: data.videos, next_cursor: data.continuation_token}
-    miss: "data.videos == []"
+    out: {videos: "coalesce(data.items, data.videos)", next_cursor: "coalesce(data.nextToken, data.continuation_token)"}
+    miss: "coalesce(data.items, data.videos, []) == []"
   tikhub.youtube.search.videos:
     accepts: [[q]]
     in:  {q: queryParams.keyword}
@@ -2718,6 +2718,24 @@ adapters:
     const: {body.category: news}
     out: {results: results, count: "len(results)"}
     miss: "coalesce(results, []) == []"
+  exa.web.search.publications:
+    accepts: [[q]]
+    in: {q: body.query}
+    in_expr: {body.numResults: limit}
+    const: {body.category: publication}
+    out: {results: results, count: "len(results)"}
+    miss: "coalesce(results, []) == []"
+  tinyfish.web.search.publications:
+    accepts: [[q]]
+    in: {q: queryParams.query}
+    const: {queryParams.domain_type: research_paper}
+    out: {results: results, count: "coalesce(total_results, len(results))"}
+    miss: "coalesce(results, []) == []"
+  serper.google.serp.scholar:
+    accepts: [[q]]
+    in: {q: body.q}
+    out: {results: organic, count: "len(organic)"}
+    miss: "coalesce(organic, []) == []"
   search1api.web.search:
     accepts: [[q]]
     in: {q: body.query}
