@@ -1372,7 +1372,7 @@ async def _note_capacity_signal(mk: MarketplaceCall, status_code: int, headers, 
 
 async def _note_capacity_recovery(mk: MarketplaceCall) -> None:
     """After a tier-4 2xx: clear pending strikes on the endpoint and the provider, and the active
-    lock this call was admitted through as a probe. Reloads the view first (a no-op inside the
+    lock or sweep reading this call was admitted through as a probe. Reloads the view first (a no-op inside the
     TTL) so a strike written while this call was in flight is not missed. Never raises."""
     if mk.tier != "platform":
         return
@@ -1387,6 +1387,12 @@ async def _note_capacity_recovery(mk: MarketplaceCall) -> None:
                 if lock.is_active():
                     logging.getLogger("treg.capacity").warning(
                         "platform account recovered: %s (probe on %s)", lock.key, mk.endpoint_id)
+        if ((mk.probe_lock_id or "").startswith(capacity_marks.SWEEP_PROBE)
+                and await capacity_marks.clear_sweep_state(mk.provider, probe_id=mk.probe_lock_id)):
+            cleared = True
+            logging.getLogger("treg.capacity").warning(
+                "platform account recovered: %s (probe on %s lifted the sweep's reading)",
+                mk.provider, mk.endpoint_id)
         if cleared:
             capacity_view.invalidate()
     except asyncio.CancelledError:
