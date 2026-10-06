@@ -2859,6 +2859,11 @@ adapters:
     in_expr: {body.count: limit}
     out: {results: data.results, count: "len(data.results)"}
     miss: "coalesce(data.results, []) == []"
+  crawl4ai.web.search:
+    accepts: [[q]]
+    in: {q: queryParams.q}
+    out: {results: results, count: "len(results)"}
+    miss: "coalesce(results, []) == []"
   firecrawl.web.search:
     accepts: [[q]]
     in: {q: body.query}
@@ -2944,6 +2949,32 @@ adapters:
     const: {body.formats: [markdown], body.onlyMainContent: false}
     out: {pages: "list(output.data)", count: "len(list(output.data))"}
     miss: "coalesce(output.data.markdown, '') == ''"
+  crawl4ai.web.extract.structured:
+    accepts: [[url, schema, instruction], [url, schema], [url, instruction]]
+    in: {url: body.url, schema: body.schema, instruction: body.instruction}
+    out: {data: data}
+    miss: "data == null"
+  linkup.web.fetch.structured:
+    accepts: [[url, schema, instruction], [url, schema]]
+    in: {url: body.url, schema: body.schema}
+    in_expr: {body.instructions: instruction}
+    const: {body.mode: standard, body.renderJs: false}
+    out: {data: data}
+    miss: "data == null"
+  search1api.web.extract.structured:
+    accepts: [[url, schema, instruction], [url, schema]]
+    in: {url: body.url}
+    in_expr: {body.prompt: instruction, body.response_format: "obj('type', 'json_schema', 'json_schema', schema)"}
+    test_identity: {url: "https://example.com", instruction: "Extract the page title.",
+                    schema: {type: object, properties: {title: {type: string}}, required: [title]}}
+    out: {data: results}
+    miss: "results == null"
+  crawl4ai.web.scrape:
+    accepts: [[url]]
+    in: {url: body.url}
+    const: {body.format: md}
+    out: {pages: "list(.)", count: "len(list(.))"}
+    miss: "coalesce(markdown, '') == null"
   firecrawl.web.scrape:
     accepts: [[url]]
     in: {url: body.url}

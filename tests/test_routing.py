@@ -1790,3 +1790,78 @@ async def test_people_enrich_not_found_from_dropleads_and_aiark_is_a_miss_not_a_
     assert [t["outcome"] for t in r.json()["_treg"]["tried"]] == ["miss", "miss"]
     assert len(seen) == 2
     get_settings.cache_clear()
+
+
+# ---- web.extract / web.search: crawl4ai first by default -------------------------------------------
+@pytest.mark.parametrize("job, body, answer, first_seen", [
+    ("treg.web.extract", {"url": "https://example.com"},
+     {"ok": True, "markdown": "# Example Domain", "content_hash": "x", "engine": "archive"},
+     {"url": "https://example.com", "format": "md"}),
+    ("treg.web.search", {"q": "rust web crawler"},
+     {"results": [{"title": "spider", "url": "https://github.com/spider-rs/spider", "snippet": "s", "source": "gs"}], "n": 1},
+     None),
+])
+async def test_crawl4ai_answers_scrape_and_search_first_by_default(clients, monkeypatch, job, body, answer, first_seen):
+    monkeypatch.setenv("TREG_PLATFORM_KEY_CRAWL4AI", "PLATFORM-C4AI")
+    monkeypatch.setenv("TREG_PLATFORM_KEY_FIRECRAWL", "PLATFORM-FIRECRAWL")
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "crawl4ai,firecrawl")
+    get_settings.cache_clear()
+    seen = []
+    monkeypatch.setattr(call_service, "relay", _relay_by_provider({"crawl4ai": [(200, answer)], "*": []}, seen))
+    r = await clients.post(f"/call/{job}", json=body)
+    assert r.status_code == 200, r.text
+    assert r.json()["_treg"]["provider"] == "crawl4ai" and [s[0] for s in seen] == ["crawl4ai"]
+    if first_seen is not None:
+        assert seen[0][3] == first_seen
+    else:
+        assert seen[0][2] == {"q": "rust web crawler"}
+    get_settings.cache_clear()
+
+
+# ---- web.extract.structured: a new routed job, crawl4ai first ----------------------------------------
+_SCHEMA = {"type": "object", "properties": {"title": {"type": "string"}}, "required": ["title"]}
+
+
+@pytest.fixture
+def _structured_keys(monkeypatch):
+    for k, v in (("CRAWL4AI", "PLATFORM-C4AI"), ("LINKUP", "PLATFORM-LINKUP"), ("SEARCH1API", "PLATFORM-S1")):
+        monkeypatch.setenv(f"TREG_PLATFORM_KEY_{k}", v)
+    monkeypatch.setenv("TREG_PLATFORM_PROVIDERS", "crawl4ai,linkup,search1api")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+async def test_structured_extract_goes_to_crawl4ai_first(clients, monkeypatch, _structured_keys):
+    seen = []
+    monkeypatch.setattr(call_service, "relay", _relay_by_provider(
+        {"crawl4ai": [(200, {"ok": True, "data": {"title": "Example Domain"}})], "*": []}, seen))
+    r = await clients.post("/call/treg.web.extract.structured",
+                           json={"url": "https://example.com", "schema": _SCHEMA, "instruction": "the page title"})
+    assert r.status_code == 200, r.text
+    assert r.json()["output"]["data"] == {"title": "Example Domain"} and [s[0] for s in seen] == ["crawl4ai"]
+    assert seen[0][3] == {"url": "https://example.com", "schema": _SCHEMA, "instruction": "the page title"}
+
+
+async def test_an_instruction_without_a_schema_only_fits_crawl4ai(clients, monkeypatch, _structured_keys):
+    seen = []
+    monkeypatch.setattr(call_service, "relay", _relay_by_provider(
+        {"crawl4ai": [(200, {"ok": True, "data": [{"title": "a"}]})], "*": []}, seen))
+    r = await clients.post("/call/treg.web.extract.structured",
+                           json={"url": "https://example.com", "instruction": "the story titles"})
+    assert r.status_code == 200, r.text
+    assert [s[0] for s in seen] == ["crawl4ai"]
+
+
+async def test_when_crawl4ai_fails_linkup_answers_with_the_same_schema(clients, monkeypatch, _structured_keys):
+    seen = []
+    monkeypatch.setattr(call_service, "relay", _relay_by_provider({
+        "crawl4ai": [(502, {"error": "fetch_failed"})],
+        "linkup": [(200, {"data": {"title": "Example Domain"}, "markdown": "x"})],
+        "*": [],
+    }, seen))
+    r = await clients.post("/call/treg.web.extract.structured", json={"url": "https://example.com", "schema": _SCHEMA},
+                           headers={"X-Treg-Route-Prefer": "crawl4ai,linkup"})
+    assert r.status_code == 200, r.text
+    assert [s[0] for s in seen] == ["crawl4ai", "linkup"] and r.json()["_treg"]["provider"] == "linkup"
+    assert seen[1][3]["schema"] == _SCHEMA and seen[1][3]["mode"] == "standard"

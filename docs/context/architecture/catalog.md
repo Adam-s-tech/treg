@@ -1858,6 +1858,9 @@ to choose (`docs/CAPABILITY-ROUTING-PLAN.md`). Everything else in the catalog st
   `ai-search.perplexity.answer` sets `prefer: [dataforseo]` because cost per hit ranked the cheaper
   but slower and less reliable cloro first. Its `source_kind` output says
   whether the answer read the Perplexity website (`website`, cloro) or its model API (`model_api`).
+  In `web.extract.structured` (a URL plus a JSON `schema` and/or an `instruction`) the most complete
+  identity variant is listed first, because the first variant a caller fills is the one every field
+  rides on.
 - **Adapters** — `adapters.yaml`, one per endpoint: `accepts` (identity variants), `in` (contract
   field → `queryParams.x` / `body.x`), `const` (fixed provider params), `out` (core field →
   expression over the body), `miss`, and `route: false` for an adapter that only judges hit/miss

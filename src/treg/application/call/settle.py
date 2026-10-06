@@ -386,7 +386,22 @@ _CREDIT_HEADERS = {
     "crustdata": ("x-credits-used", 1),
     "cloro": ("x-credits-charged", 1),
     "aiark": ("x-credit", -1),
+    "crawl4ai": ("x-c4-cost", 1),
 }
+
+
+def _usage_document(body: bytes):
+    """The document a `settle: usage` path reads: the JSON body, or, for an NDJSON stream, its LAST
+    line (a stream that closes with a summary line totalling the call)."""
+    try:
+        return json.loads(body)
+    except ValueError:
+        pass
+    last = next((ln for ln in reversed(body.splitlines()) if ln.strip()), b"")
+    try:
+        return json.loads(last) if last else None
+    except ValueError:
+        return None
 
 
 def _observed_cost_micro(mk: MarketplaceCall, body: bytes, headers=None) -> int | None:
@@ -1147,10 +1162,7 @@ async def _platform_settle(
     # instead of the reported $0.0000157).
     terminal = None
     if billable and (mk.settlement_basis.get("amount") or {}).get("kind") == "usage" and body:
-        try:
-            terminal = json.loads(body)
-        except ValueError:
-            terminal = None
+        terminal = _usage_document(body)
     actual = ((0 if observed == 0 else settlement_basis.settle(
         mk.settlement_basis, {"observed_micro": observed, "terminal": terminal})) if billable else None)
     repeat_percent = get_settings().archive_hit_repeat_price_percent
