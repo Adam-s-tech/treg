@@ -235,7 +235,7 @@ async def test_every_workflow_csv_route_serves(clients: AsyncClient):
 def _visible_words(page: str) -> list[str]:
     import html as html_mod
     import re
-    text = re.sub(r"<script.*?</script>|<style.*?</style>", "", page, flags=re.S)
+    text = re.sub(r"<script\b.*?</script\s*>|<style\b.*?</style\s*>", "", page, flags=re.S | re.I)
     return html_mod.unescape(re.sub(r"<[^>]+>", " ", text)).split()
 
 
