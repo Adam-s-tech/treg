@@ -24,7 +24,7 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "treg",
-    "shortDescription": "3,800+ APIs, no subscription",
+    "shortDescription": "3,800+ APIs for agents",
     "longDescription": "Access 3,800+ data APIs and tools - people enrichment, AEO, ads, UGC and more. Pay per call, no subscription, no API keys.",
     "developerName": "superdesign",
     "category": "Developer Tools",
