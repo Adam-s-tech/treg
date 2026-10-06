@@ -153,6 +153,42 @@ class _StaticSurfaceCapabilities:
 
 _HUB_TOOL_NAMES = frozenset({"hub_create", "hub_update", "hub_mine"})
 
+# OpenAI's clients: ChatGPT and its plugin reviewer send `openai-mcp/...`, Codex `codex-mcp-client/...`.
+# Their plugin review reads an agent-initiated `review`, and the review/feedback invitations in call
+# results, as collecting behavioral data for analytics. Those clients get neither; every other client
+# keeps both. `/call/` still decides and records an invitation, this surface just does not show it.
+_OPENAI_UA_PREFIXES = ("openai-mcp/", "codex-mcp-client/")
+
+
+def _is_openai_client(headers: Any) -> bool:
+    headers = headers or {}
+    ua = headers.get("user-agent") or headers.get("User-Agent") or ""
+    return ua.lower().startswith(_OPENAI_UA_PREFIXES)
+
+
+class _OpenAIClientGate:
+    """For OpenAI's clients only: no `review` tool and no review sentence in the instructions."""
+
+    async def __call__(
+        self, ctx: ServerRequestContext[Any, Any], call_next: CallNext
+    ) -> HandlerResult:
+        result = await call_next(ctx)
+        if ctx.method not in ("tools/list", "initialize") or not _is_openai_client(
+                getattr(getattr(ctx, "request", None), "headers", None)):
+            return result
+        if ctx.method == "initialize":
+            if isinstance(result, dict):
+                return {**result, "instructions": _BASE_INSTRUCTIONS}
+            return result.model_copy(update={"instructions": _BASE_INSTRUCTIONS})
+        if isinstance(result, dict) and isinstance(result.get("tools"), list):
+            return {**result, "tools": [t for t in result["tools"]
+                                        if (t.get("name") if isinstance(t, dict) else getattr(t, "name", None))
+                                        != "review"]}
+        tools = getattr(result, "tools", None)
+        if isinstance(tools, list):
+            return result.model_copy(update={"tools": [t for t in tools if getattr(t, "name", None) != "review"]})
+        return result
+
 
 async def _hub_reader(token: str) -> tuple[str | None, str | None]:
     """(team slug, sign-in email) of an MCP caller, for the hub's lists. (None, None) when unknown:
@@ -215,6 +251,19 @@ class _HubToolsGate:
 # never typed: see `catalog_store.headline_counts`.
 _ENDPOINTS, _PROVIDERS = catalog_store.headline_counts(catalog_store.load())
 
+_BASE_INSTRUCTIONS = (
+    "treg serves external and live data and generative models: SEO and SERP, backlinks, social "
+    "and trends, people and company enrichment, ads, scraping, image and video generation "
+    "(Seedance, Gemini Image, GPT Image, Seedream, Veo, Wan) and voice, plus your team's own "
+    "tools. Flow: catalog_search (say what you want to do, not a vendor name), then "
+    "catalog_get (parameters, price, measured reliability), then call. When several providers "
+    "cover one job, catalog_get ranks them by measured success, speed and price; you pick."
+)
+_REVIEW_INSTRUCTION = (
+    "If a call result invites a review, rate that one call with review(call_id, usefulness, "
+    "reason?) after using it, then continue."
+)
+
 mcp = MCPServer(
     name="treg",
     title="treg — the tool catalog for your agent",
@@ -224,17 +273,8 @@ mcp = MCPServer(
         "scraping, image and video generation (Seedance, Gemini Image, GPT Image, Seedream, Veo, "
         "Wan) and voice), plus your team's own tools."
     ),
-    instructions=(
-        "treg serves external and live data and generative models: SEO and SERP, backlinks, social "
-        "and trends, people and company enrichment, ads, scraping, image and video generation "
-        "(Seedance, Gemini Image, GPT Image, Seedream, Veo, Wan) and voice, plus your team's own "
-        "tools. Flow: catalog_search (say what you want to do, not a vendor name), then "
-        "catalog_get (parameters, price, measured reliability), then call. When several providers "
-        "cover one job, catalog_get ranks them by measured success, speed and price; you pick. "
-        "If a call result invites a review, rate that one call with review(call_id, usefulness, "
-        "reason?) after using it, then continue."
-    ),
-    middleware=[_StaticSurfaceCapabilities(), _HubToolsGate()],
+    instructions=f"{_BASE_INSTRUCTIONS} {_REVIEW_INSTRUCTION}",
+    middleware=[_StaticSurfaceCapabilities(), _HubToolsGate(), _OpenAIClientGate()],
 )
 
 
@@ -1360,7 +1400,8 @@ async def _call_impl(endpoint_id: str, params: dict | list | None = None,
             out["hint"] = (f"served through the overflow relay ({served_via.removeprefix('overflow:')}) "
                            f"at its real price because treg's {provider} account is out; cost_usd is "
                            f"what the relay billed, not the catalog's direct price")
-    if 200 <= r.status_code < 300 and not out.get("hint") and not out.get("replayed"):
+    if (200 <= r.status_code < 300 and not out.get("hint") and not out.get("replayed")
+            and not _is_openai_client(ctx.headers if ctx else None)):
         # /call/ decides whether to invite (application/call/invite.py) and records that it did;
         # this surface only renders the header into the single hint slot.
         kind = r.headers.get("X-Treg-Hint")

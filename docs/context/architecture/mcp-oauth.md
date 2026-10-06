@@ -184,7 +184,11 @@ that endpoint charges, writes or deletes. Claiming otherwise would be a guess pr
 `feedback`, `review` and `catalog_request` are the other non-reads. They are harmless writes (a row on treg itself,
 nothing upstream, nothing spent), so they are non-destructive; on the team MCP they are open-world,
 because their text leaves the caller's account for the treg team (a review's reason may be quoted on a
-public catalog page), which is how the Codex plugin review reads that hint. `catalog_request` relays to
+public catalog page), which is how the Codex plugin review reads that hint. OpenAI's clients (`openai-mcp/` for ChatGPT and its plugin reviewer, `codex-mcp-client/`
+for Codex, by User-Agent) are not offered `review` at all: `_OpenAIClientGate` drops it from
+`tools/list` and the review sentence from the instructions, and call results carry no review or
+feedback invitation for them, because that review reads agent-initiated rating as analytics
+collection. Other clients keep both. `catalog_request` relays to
 `POST /tool-requests` so rate limiting and field caps live in one place, forwarding the edge's
 `X-Forwarded-For` — the in-process relay would otherwise collapse every MCP caller into one
 rate-limit bucket. `catalog_search`'s zero-result hint names it, so an agent that just searched

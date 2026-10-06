@@ -124,6 +124,32 @@ async def test_the_server_lists_the_shared_tools(clients):
                      "balance", "my_tools", "catalog_request", "feedback", "review"}
 
 
+async def test_openai_clients_get_no_review_tool_or_review_instruction(clients):
+    """OpenAI's plugin review reads an agent-initiated `review` as analytics collection, so its
+    clients (ChatGPT and the reviewer: openai-mcp/, Codex: codex-mcp-client/) get no review tool and
+    no review sentence. Every other client keeps both."""
+    token = clients.headers["X-Treg-Token"]
+
+    async def surface(ua: str):
+        headers = {**MCP_HEADERS, "Authorization": f"Bearer {token}", "User-Agent": ua}
+        async with mcp_session(clients) as c:
+            init = await c.post("http://localhost/mcp/", headers=headers, json={
+                "jsonrpc": "2.0", "id": 1, "method": "initialize",
+                "params": {"protocolVersion": "2025-06-18", "capabilities": {},
+                           "clientInfo": {"name": "t", "version": "1"}}})
+            listed = await c.post("http://localhost/mcp/", headers=headers,
+                                  json={"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+        return (init.json()["result"].get("instructions") or "",
+                {t["name"] for t in listed.json()["result"]["tools"]})
+
+    for ua in ("openai-mcp/1.0.0", "codex-mcp-client/0.160.1"):
+        instructions, names = await surface(ua)
+        assert "review" not in names and "catalog_search" in names, ua
+        assert "review(" not in instructions and "catalog_search" in instructions, ua
+    instructions, names = await surface("claude-code/2.1.291 (cli)")
+    assert "review" in names and "review(" in instructions
+
+
 async def _tool_names(clients, token):
     async with mcp_session(clients) as c:
         await _rpc(c, "initialize", {"protocolVersion": "2025-06-18", "capabilities": {},
