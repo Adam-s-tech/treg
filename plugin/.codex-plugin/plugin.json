@@ -1,7 +1,7 @@
 {
   "name": "treg",
   "version": "0.22.0",
-  "description": "Access 3,800+ data APIs and tools - people enrichment, AEO, SEO, ads, social, UGC video and images - pay per call, no subscription.",
+  "description": "3,800+ data APIs and tools - people enrichment, AEO, ads, UGC - pay per call, no subscription.",
   "author": {
     "name": "superdesign",
     "email": "no-reply@treg.to",
@@ -25,7 +25,7 @@
   "interface": {
     "displayName": "treg",
     "shortDescription": "3,800+ APIs, no subscription",
-    "longDescription": "Access 3,800+ data APIs and tools from one place - people and company enrichment, AEO and SEO, ad libraries, social and trends, web scraping, UGC video, image generation and voice. No subscriptions, no provider sign-ups, no API keys: pay per call from one prepaid balance.\n\nAsk in plain words (\"find this person's work email\", \"backlinks for this domain\", \"make a 5-second UGC video\") and treg shows every provider that can do it, with price, success rate and speed, so your agent picks the best one and tells you the cost first.\n\nAlready have a provider key or a Google Analytics / Search Console connection? treg uses it, and those calls are free.",
+    "longDescription": "Access 3,800+ data APIs and tools - people enrichment, AEO and SEO, ads, social, UGC video and images - without subscriptions or API keys. Pay per call from one balance.\n\nAsk in plain words and treg shows every provider that can do it, with price and success rate, so your agent picks the best one.",
     "developerName": "superdesign",
     "category": "Developer Tools",
     "capabilities": [
