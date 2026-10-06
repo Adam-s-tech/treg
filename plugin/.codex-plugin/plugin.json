@@ -1,7 +1,7 @@
 {
   "name": "treg",
   "version": "0.22.0",
-  "description": "People, company, AEO, ads and social data for your agent. Pay per call, no subscription.",
+  "description": "People, company, AEO, ads and social data for your agent.",
   "author": {
     "name": "superdesign",
     "email": "no-reply@treg.to",
@@ -25,7 +25,7 @@
   "interface": {
     "displayName": "treg",
     "shortDescription": "Live data for AI agents",
-    "longDescription": "People and company enrichment, AEO and SEO, ads and social data, plus UGC video and images - all in one place. Pay per call, no subscription, no API keys.",
+    "longDescription": "People and company enrichment, AEO and SEO, ads and social data, plus UGC video and images - all in one place, with no provider API keys to manage.",
     "developerName": "superdesign",
     "category": "Developer Tools",
     "capabilities": [
@@ -33,12 +33,13 @@
       "Write"
     ],
     "websiteURL": "https://treg.to",
+    "supportURL": "https://treg.to/support",
     "privacyPolicyURL": "https://treg.to/privacy",
     "termsOfServiceURL": "https://treg.to/terms",
     "defaultPrompt": [
       "Find the work email for a person at a company using treg.",
-      "Use treg to get the backlink profile for a domain, and tell me what it costs first.",
-      "Search treg's catalog for a way to get keyword search volume and compare the options on price."
+      "Use treg to get the backlink profile for a domain.",
+      "Search treg's catalog for a way to get keyword search volume and compare the options."
     ],
     "brandColor": "#e0703f",
     "composerIcon": "./assets/icon.svg",
