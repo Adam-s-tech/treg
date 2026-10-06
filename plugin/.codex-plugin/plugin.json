@@ -1,7 +1,7 @@
 {
   "name": "treg",
   "version": "0.22.0",
-  "description": "3,800+ APIs for people enrichment, AEO, ads and UGC. No subscription.",
+  "description": "People, company, AEO, ads and social data for your agent. Pay per call, no subscription.",
   "author": {
     "name": "superdesign",
     "email": "no-reply@treg.to",
@@ -24,8 +24,8 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "treg",
-    "shortDescription": "3,800+ APIs for agents",
-    "longDescription": "Access 3,800+ data APIs and tools - people enrichment, AEO, ads, UGC and more. Pay per call, no subscription, no API keys.",
+    "shortDescription": "Live data for AI agents",
+    "longDescription": "People and company enrichment, AEO and SEO, ads and social data, plus UGC video and images - all in one place. Pay per call, no subscription, no API keys.",
     "developerName": "superdesign",
     "category": "Developer Tools",
     "capabilities": [

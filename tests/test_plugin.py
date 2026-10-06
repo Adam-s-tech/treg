@@ -79,7 +79,7 @@ ALL_MANIFESTS = {"codex": MANIFEST, "claude": CLAUDE_MANIFEST, "cursor": CURSOR_
 # The one line that positions the product. It is the same sentence `llms.txt` opens with, and it is
 # hand-maintained in three places across two stores — which is exactly the shape of thing that
 # drifts, so it is pinned rather than trusted.
-POSITIONING = "3,800+ APIs for agents, pay per call, no subscription"
+POSITIONING = "Live data for AI agents, pay per call, no subscription"
 
 
 def package_version() -> str:
