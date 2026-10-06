@@ -187,12 +187,29 @@ async def admin_tools(_: str = Depends(require_superadmin), db: AsyncSession = D
 
 @app.get("/admin/calls")
 async def admin_calls(
-    limit: int = 50, _: str = Depends(require_superadmin), db: AsyncSession = Depends(get_admin_session)
+    limit: int = 50, since_id: int | None = None, provider: str | None = None,
+    _: str = Depends(require_superadmin), db: AsyncSession = Depends(get_admin_session)
 ) -> list[dict]:
+    """The newest calls, or with `since_id` the calls after that id, oldest first, so a poller
+    advances its cursor to the last id it read. `provider` needs `since_id`: it keeps the read a
+    range over the primary key instead of a walk back through the whole table."""
     limit = max(1, min(limit, 1000))
-    rows = (await db.execute(select(CallRecord).order_by(CallRecord.id.desc()).limit(limit))).scalars().all()
+    if provider and since_id is None:
+        raise HTTPException(422, "provider needs since_id")
+    q = select(CallRecord)
+    if since_id is not None:
+        q = q.where(CallRecord.id > since_id).order_by(CallRecord.id.asc())
+    else:
+        q = q.order_by(CallRecord.id.desc())
+    if provider:
+        q = q.where(CallRecord.provider == provider)
+    rows = (await db.execute(q.limit(limit))).scalars().all()
     return [{"id": c.id, "org_id": c.org_id, "user": c.user_email, "tool": c.tool_name,
-             "method": c.method, "status": c.status_code, "at": c.created_at.isoformat()} for c in rows]
+             "method": c.method, "status": c.status_code, "at": c.created_at.isoformat(),
+             "endpoint_id": c.endpoint_id, "provider": c.provider, "tier": c.credential_tier,
+             "call_ref": c.call_ref, "charged_micro": c.cost_charged_micro,
+             "observed_micro": c.cost_observed_micro, "duration_ms": c.duration_ms,
+             "upstream_ms": c.upstream_ms, "cached": c.cached} for c in rows]
 
 
 _ERROR_EVIDENCE_TTL_DAYS = evidence_retention.ERROR_EVIDENCE_TTL_DAYS
