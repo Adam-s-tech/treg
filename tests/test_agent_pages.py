@@ -233,10 +233,27 @@ async def test_every_workflow_csv_route_serves(clients: AsyncClient):
 # ------------------------------------------------------------------ agent pages that are their own page
 
 def _visible_words(page: str) -> list[str]:
-    import html as html_mod
-    import re
-    text = re.sub(r"<script\b.*?</script\s*>|<style\b.*?</style\s*>", "", page, flags=re.S | re.I)
-    return html_mod.unescape(re.sub(r"<[^>]+>", " ", text)).split()
+    """The words a reader sees: text nodes outside <script> and <style>, via the stdlib parser."""
+    from html.parser import HTMLParser
+
+    class _Text(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.skip, self.parts = 0, []
+
+        def handle_starttag(self, tag, attrs):
+            self.skip += tag in ("script", "style")
+
+        def handle_endtag(self, tag):
+            self.skip -= tag in ("script", "style") and self.skip > 0
+
+        def handle_data(self, data):
+            if not self.skip:
+                self.parts.append(data)
+
+    p = _Text()
+    p.feed(page)
+    return " ".join(p.parts).split()
 
 
 async def test_focused_agent_pages_are_not_the_template_with_a_name_swapped(clients: AsyncClient):
