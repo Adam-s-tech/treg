@@ -302,7 +302,10 @@ no task id / an off-allow-list poll URL: `application.call.service._submission_r
 becomes a row: it settles at zero on the request path and the caller sees the body and `$0`. The
 worker never lets one row abort a tick (`_process` catches everything, `settle_due` gathers with
 `return_exceptions`), because an unset platform key for one provider must not stall every other
-provider's settlements. An overflow child (`application.call.overflow._child`) carries its own
+provider's settlements. Each tick loads the catalog once, in a thread, before any poll starts
+(`settle_due`): the first catalog read in a fresh worker process parses every provider file, and
+inside a poll that parse blocked the event loop past `POLL_TIMEOUT_S`, so polls timed out with a
+fast provider. The poll timeout therefore measures the provider alone. An overflow child (`application.call.overflow._child`) carries its own
 observed-kind basis at the aggregator price, so an aggregator that reports no cost settles at the
 aggregator reserve, not at the parent's price. A `settle: usage` row reserves what its rate-card table says THIS request costs
 (the matrix ceiling had made a $0.05 call demand a $6 balance) and settles the provider's reported
