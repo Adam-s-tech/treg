@@ -436,10 +436,12 @@ async def test_every_tool_declares_what_it_can_do(clients):
         a = ann[name]
         assert a.read_only_hint is False
         assert a.destructive_hint is True and a.open_world_hint is True
-    # catalog_request writes (a row on treg itself) but touches nothing upstream and spends nothing.
-    a = ann["catalog_request"]
-    assert a.read_only_hint is False
-    assert a.destructive_hint is False and a.open_world_hint is False
+    # These write nothing upstream and spend nothing, but their text reaches the treg team (and a
+    # review's reason may be quoted on a public catalog page), so they are open world.
+    for name in ("catalog_request", "feedback", "review"):
+        a = ann[name]
+        assert a.read_only_hint is False, name
+        assert a.destructive_hint is False and a.open_world_hint is True, name
 
 
 async def test_the_domain_challenge_is_404_until_configured(clients):

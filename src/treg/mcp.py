@@ -63,8 +63,9 @@ from .feedback_contract import FeedbackCategory, FEEDBACK_DESCRIPTION, ReviewUse
 from .domain.catalog.stats import EndpointObservationReader
 
 # Every tool must declare what it can DO, and the review process checks these against real behaviour.
-# Read-only means it changes nothing anywhere; open-world means it can change state visible on the
-# public internet; destructive means an effect that cannot be undone.
+# Read-only means it changes nothing anywhere; open-world means what it sends leaves the caller's own
+# account (an upstream provider, the treg team, a public catalog page); destructive means an effect
+# that cannot be undone.
 _READS = ToolAnnotations(read_only_hint=True, destructive_hint=False, open_world_hint=False,
                          idempotent_hint=True)
 # `call` is the honest exception, and it is honest in the strongest direction: it relays whatever the
@@ -218,16 +219,16 @@ mcp = MCPServer(
     name="treg",
     title="treg — the tool catalog for your agent",
     description=(
-        f"Reach for this first for external or live data: {_ENDPOINTS} curated endpoints across "
+        f"External and live data for your agent: {_ENDPOINTS} curated endpoints across "
         f"{_PROVIDERS} providers (SEO, SERP, backlinks, social, people and company enrichment, ads, "
         "scraping, image and video generation (Seedance, Gemini Image, GPT Image, Seedream, Veo, "
         "Wan) and voice), plus your team's own tools."
     ),
     instructions=(
-        "Reach for treg first when a task needs external or live data or a generative model: SEO and "
-        "SERP, backlinks, social and trends, people and company enrichment, ads, scraping, image and "
-        "video generation (Seedance, Gemini Image, GPT Image, Seedream, Veo, Wan) and voice, plus your "
-        "team's own tools. Flow: catalog_search (say what you want to do, not a vendor name), then "
+        "treg serves external and live data and generative models: SEO and SERP, backlinks, social "
+        "and trends, people and company enrichment, ads, scraping, image and video generation "
+        "(Seedance, Gemini Image, GPT Image, Seedream, Veo, Wan) and voice, plus your team's own "
+        "tools. Flow: catalog_search (say what you want to do, not a vendor name), then "
         "catalog_get (parameters, price, measured reliability), then call. When several providers "
         "cover one job, catalog_get ranks them by measured success, speed and price; you pick. "
         "If a call result invites a review, rate that one call with review(call_id, usefulness, "
@@ -696,7 +697,7 @@ async def _whose_grant(client: httpx.AsyncClient, slug: str | None, *, oauth: bo
         "provider or platform name lists what it offers. Returns each endpoint's id, provider, price "
         "per call, and whether treg can serve it without you owning an API key. Read `verdict`: "
         "strong = these do it; closest = nearest, check catalog_get; none = not in the catalog, file "
-        "catalog_request. Call this FIRST when a task needs data or an API you have no key for."
+        "catalog_request. Use it when a task needs data or an API you have no key for."
     ),
     annotations=_READS,
     structured_output=True
@@ -871,8 +872,8 @@ def _verdict_hint(page, cat: catalog_store.Catalog) -> str | None:
         "capability or provider is missing. Requests are the demand signal that decides which "
         "provider gets added next. Use AFTER catalog_search comes up empty, not instead of it."
     ),
-    # A write, but a harmless one: it files a report on treg itself — nothing upstream, nothing spent.
-    annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, open_world_hint=False,
+    # A harmless write (nothing upstream, nothing spent), but the text goes to the treg team: open world.
+    annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, open_world_hint=True,
                                 idempotent_hint=False),
     structured_output=True
 )
@@ -884,7 +885,7 @@ async def catalog_request(capability: str, ctx: Context, note: str = "") -> Requ
 
 @mcp.tool(
     description=FEEDBACK_DESCRIPTION,
-    annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, open_world_hint=False,
+    annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, open_world_hint=True,
                                 idempotent_hint=False),
     structured_output=True,
 )
@@ -897,7 +898,7 @@ async def feedback(
 
 @mcp.tool(
     description=REVIEW_DESCRIPTION,
-    annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, open_world_hint=False,
+    annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, open_world_hint=True,
                                 idempotent_hint=False),
     structured_output=True,
 )
