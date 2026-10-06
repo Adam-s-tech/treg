@@ -1,7 +1,7 @@
 {
   "name": "treg",
   "version": "0.22.0",
-  "description": "External and live data for your agent — a curated catalog of API endpoints (SEO, SERP, backlinks, social, enrichment, ads, web data, image and video generation), plus your team's own tools.",
+  "description": "Access 3,800+ data APIs and tools - people enrichment, AEO, SEO, ads, social, UGC video and images - pay per call, no subscription.",
   "author": {
     "name": "superdesign",
     "email": "no-reply@treg.to",
@@ -24,8 +24,8 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "treg",
-    "shortDescription": "OpenRouter for agent tools",
-    "longDescription": "treg gives your agent external and live data — SEO and backlinks, SERP data, social profiles and trends, people and company enrichment, ad libraries, web data — through a curated catalog of endpoints covering keyword and rank tracking, backlinks and site authority, AI visibility, trending and discovery, people and company enrichment, ad libraries and campaign management, and web data — plus Google Analytics, Search Console and Business Profile through accounts the team has connected.\n\nSearch by what you want to DO (\"find a work email\", \"get backlinks for a domain\") rather than by vendor, and treg shows the providers that answer it side by side with their measured success rate, latency and price, so the choice is made on facts. The agent picks; treg does not route or fail over silently.\n\nIt also carries your team's own tools — a registered API account, an OAuth connection, a SKILL.md — so a teammate can call them without ever holding the credential. The caller makes the real upstream request and treg injects the secret server-side, then relays the answer untouched.",
+    "shortDescription": "3,800+ APIs, no subscription",
+    "longDescription": "Access 3,800+ data APIs and tools from one place - people and company enrichment, AEO and SEO, ad libraries, social and trends, web scraping, UGC video, image generation and voice. No subscriptions, no provider sign-ups, no API keys: pay per call from one prepaid balance.\n\nAsk in plain words (\"find this person's work email\", \"backlinks for this domain\", \"make a 5-second UGC video\") and treg shows every provider that can do it, with price, success rate and speed, so your agent picks the best one and tells you the cost first.\n\nAlready have a provider key or a Google Analytics / Search Console connection? treg uses it, and those calls are free.",
     "developerName": "superdesign",
     "category": "Developer Tools",
     "capabilities": [
