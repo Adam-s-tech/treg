@@ -122,7 +122,9 @@ def test_no_unsubstituted_placeholder_reaches_the_plugin(variant):
     plugin, so shipping the literal would break every URL in the most-read page of the product."""
     text = ALL_SKILLS[variant].read_text(encoding="utf-8")
     assert "{BASE}" not in text
-    assert "https://treg.to/install.sh" in text
+    # The Codex skill rides an MCP connector and must not install anything (OpenAI's plugin review
+    # refuses a skill that downloads or runs code outside the package); every other copy installs the CLI.
+    assert ("https://treg.to/install.sh" in text) is (variant != "codex")
 
 
 def test_the_connector_points_at_production_over_https():
